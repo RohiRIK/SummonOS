@@ -17,7 +17,7 @@ plugins/<name>/
 ├── scripts/            test.sh, bundle.sh, check.sh, pr-report.sh (copy from mac-network)
 ├── docs/previews/      rendered previews (tracked; README + PR comments embed them)
 ├── .gitignore          .build/ build/ .DS_Store .swiftpm/ graphify-out/
-├── LICENSE             MIT (+ upstream notices for ported code)
+├── LICENSE             MIT only (upstream notices in THIRD_PARTY_NOTICES.md)
 └── README.md
 ```
 
