@@ -89,7 +89,7 @@ Write the lesson in the same turn it is learned:
 
 - Plugin folder and repo name: kebab-case, no personal names (`mac-network`).
 - Bundle id: `local.macplugins.<name>`.
-- License: all rights reserved; keep upstream MIT notices for ported code.
+- License: MIT; keep upstream MIT notices for ported code.
 - Commits: conventional (`feat:`, `fix:`, ...).
 - Build caches live in `~/Library/Caches/macplugins/<name>` (never `.build/` inside Google Drive).
 - Git repos live in Google Drive: push after every commit; if `.git` breaks, re-clone from GitHub.

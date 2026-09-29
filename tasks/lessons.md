@@ -5,7 +5,7 @@ Rules learned from corrections. One line each, newest last.
 - Everything lives in this workspace: plugin repos under `plugins/<name>/`, skills in `.claude/skills/`. Never put repos elsewhere.
 - No personal names in repo or plugin names.
 - No GitHub Actions (no billing). All tests run locally; post results as a PR comment with `scripts/pr-report.sh`.
-- Plugins are proprietary: all rights reserved, with upstream MIT notices kept.
+- Plugins are MIT-licensed (changed from all-rights-reserved on 2026-09-29), with upstream MIT notices kept.
 - UI must look like the system menus (Wi-Fi / Control Center), not a generic form. Check `MacUX/MenuPanel.md` before any panel UI.
 - Looks matter as much as function: live data gets a polished Control Center-style module, not plain rows.
 - Approved look (2026-09-29): system Wi-Fi menu structure + Control Center module for live data. Reuse it as the default for new panels.
