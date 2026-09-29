@@ -1,0 +1,9 @@
+# Plugins are their own repos (private <name>-dev + public <name>).
+plugins/
+# Private values used by tools/publish-public.sh.
+tools/private-patterns.txt
+# Symlink into the central skills library (absolute path); installed per machine.
+.claude/skills/MacPluginPlaybook
+.claude/settings.local.json
+graphify-out/
+.DS_Store
