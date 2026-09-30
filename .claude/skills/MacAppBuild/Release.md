@@ -8,11 +8,16 @@
 
 ## Package
 
+Merge to the dev repo's `main`, publish with `tools/publish-public.sh`, then:
+
 ```bash
-scripts/check.sh
-ditto -c -k --keepParent build/<App>.app build/<App>-<version>.zip     # keeps signature + xattrs
-gh release create v<version> build/<App>-<version>.zip --title "<App> <version>" --notes-file notes.md
+tools/release.sh plugins/<name> "one-paragraph what's new"
 ```
+
+It runs `scripts/check.sh`, zips `build/<App>.app` with `ditto -c -k --keepParent` (keeps the signature),
+and creates `v<version>` on the **public** repo with install notes. `scripts/bundle.sh` builds a universal
+binary (`--arch arm64 --arch x86_64`); check with `lipo -archs`. Verify the upload the way a user gets it:
+`gh release download`, `ditto -x -k`, `codesign --verify --deep --strict`.
 
 A DMG (`brew install create-dmg`) is nicer for drag-to-Applications, but a zip is enough for personal use.
 
@@ -20,7 +25,7 @@ A DMG (`brew install create-dmg`) is nicer for drag-to-Applications, but a zip i
 
 | Signing | Who can run it |
 |---|---|
-| Ad-hoc (`codesign --sign -`), current setup | This Mac. Other Macs: right-click > Open, or `xattr -dr com.apple.quarantine <App>.app` |
+| Ad-hoc (`codesign --sign -`), current setup | This Mac. Other Macs: System Settings › Privacy & Security › **Open Anyway**, or `xattr -dr com.apple.quarantine <App>.app`. macOS 15 removed the right-click › Open bypass, so do not tell users to do that. |
 | Developer ID + notarization (paid Apple Developer account) | Anyone, no warnings |
 
 Notarization flow when an account exists: sign with `--options runtime` and the Developer ID
