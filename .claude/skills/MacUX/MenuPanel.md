@@ -77,7 +77,9 @@ The fix that landed (`plugins/mac-network/Sources/MacNetworkUI/ConnectionModule.
 
 ## Everything in the panel, split into tabs (from CodexBar)
 
-User preference (2026-09-29): keep all features inside the menu bar panel; no extra windows. A separate
+User preference (2026-09-29): keep all features inside the menu bar panel; no extra windows. **App settings
+(Open at Login, theme, permissions, any toggle) are the exception: they always go in a separate Settings
+window (⌘,), never as rows in the panel** (see AGENTS.md › Panel vs Settings window). A separate
 IP Settings window was built and rejected. CodexBar (github.com/steipete/CodexBar, MIT, installed at
 /Applications/CodexBar.app) solves the same problem with a switcher at the top of its menu. We copied it:
 

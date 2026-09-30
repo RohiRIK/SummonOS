@@ -85,6 +85,16 @@ Write the lesson in the same turn it is learned:
 - Test fixtures use documentation values only (`192.0.2.x`, `00:00:5e:00:53:xx`), never real network data.
 - This workspace is the private repo `macos-plugins` (skills, tools, docs); `plugins/` is gitignored.
 
+## Panel vs Settings window (user preference)
+
+The user does not want app settings inside the menu bar panel. Every plugin follows this split:
+
+- **Panel** = the app's job: live data, the calendar grid, lists, and actions on them.
+- **Panel footer** = `Settings…` (⌘,) and `Quit` (⌘Q). Settings rows never appear in the panel.
+- **Settings window** = every app preference: Open at Login, theme, permissions, toggles. It is a separate
+  window (SwiftUI `Settings` scene, `.formStyle(.grouped)`), opened from `Settings…` or ⌘, after `NSApp.activate()`.
+- Even a plugin with a single setting gets a Settings window. Reference: `plugins/mac-calendar`.
+
 ## Conventions
 
 - Plugin folder and repo name: kebab-case, no personal names (`mac-network`).
