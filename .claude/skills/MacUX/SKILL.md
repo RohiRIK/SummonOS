@@ -33,6 +33,9 @@ Makes plugins look and feel like they shipped with macOS. Bar: "beautiful by def
 - "Looks like Windows 98" = bordered cards, grouped Form, segmented control, big padding. Fix per `MenuPanel.md`.
 - `MenuBarExtra(.window)` sizes to content. Set `.frame(width:)` once on the root; unbounded lists make the panel jump.
 - `MenuBarExtra(.window)` keeps its old height when content grows (a banner appears): the top gets clipped and rows overlap, so clicks land on the wrong row. Put `.fixedSize(horizontal: false, vertical: true)` on the panel root.
+- `MenuBarExtra(.window)` grows its window with the content (top edge stays) but shrinks it late and toward the bottom edge, so a shorter page drops away from the menu bar. Resize the window yourself on every height change, keeping the top: mac-calendar `FitWindowHeight` (`Components.swift`). Verify by logging `NSWindow.didResizeNotification` frames, not by eye.
+- Two views of different height in one panel (month/week): lay out the reference view invisibly (`.opacity(0)`, no hit testing) and overlay the other with a `ScrollView`, so switching never resizes the window.
+- Settings window: 580 pt wide, min height 640, scrolling Form (`MenuPanel.md` › App settings).
 - A `ScrollView` inside a content-sized panel collapses to one row. Use `.frame(maxHeight: N).fixedSize(horizontal: false, vertical: true)` so it grows with content up to N, then scrolls.
 - `.textSelection(cond ? .enabled : .disabled)` does not compile (different types). Pick one.
 - Menu bar icon must be a template image (SF Symbol or `isTemplate = true`) so it adapts to light/dark menu bars.
