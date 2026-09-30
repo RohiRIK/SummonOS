@@ -6,12 +6,12 @@
 #   tools/render-previews.sh <plugin-dir> <UI target> [file.swift ...]
 set -euo pipefail
 readonly ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-readonly PLUGIN="$(cd "$1" && pwd)"; shift
+readonly PLUGIN="$(cd "$1" && pwd -P)"; shift  # physical path: Xcode reports ~/Library/CloudStorage, not the ~/Google Drive symlink
 readonly TARGET="$1"; shift
 readonly MCP=(bun "$ROOT/tools/xcode-mcp.ts")
 readonly OUT="$PLUGIN/docs/previews"
 
-ws="$("${MCP[@]}" XcodeListWorkspaces '{}' | grep -F "workspacePath: $PLUGIN" | grep -o 'workspace-[A-Za-z0-9]*' | head -1)"
+ws="$("${MCP[@]}" XcodeListWorkspaces '{}' | grep -E "workspacePath: $PLUGIN$" | grep -Eo '(workspace|windowtab)-[A-Za-z0-9]+' | head -1)"
 [[ -n "$ws" ]] || { echo "Open the package in Xcode first: xed '$PLUGIN'" >&2; exit 1; }
 "${MCP[@]}" XcodeSwitchScheme "{\"workspaceIdentifier\":\"$ws\",\"schemeName\":\"$TARGET\"}" >/dev/null
 
