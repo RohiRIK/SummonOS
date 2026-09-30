@@ -30,6 +30,9 @@ How a plugin is put together behind the views. Decide the shape first, then fill
 - Every cache is bounded, and failures are not cached forever.
 - Location, camera and similar TCC prompts only appear from a bundled `.app` with a usage string, and only when triggered by a user action.
 - An `LSUIElement` app has no Dock icon and no app menu: it **must** offer "Quit <App>" (⌘Q) and "Open at Login" in its panel or menu, or the user cannot quit it. mac-network shipped without Quit until the audit.
+- `NSDataDetector` resolves a time with no date or am/pm ("10:30") to its *next* occurrence: 22:30 after 10:30 in the morning. Read `HH:mm` from the text yourself (mac-calendar `QuickAdd.clock`). Date-only phrases come back at 12:00; decide "has a time" from the text.
+- `@AppStorage` has no `[String]` type on macOS 15; store a comma-joined `String`.
+- EventKit: request access only from a user action (`requestFullAccessToEvents` / `…ToReminders`, completion-handler form under Swift 6), `NSCalendarsFullAccessUsageDescription` / `NSRemindersFullAccessUsageDescription` in Info.plist, reload on `.EKEventStoreChanged`.
 - A new feature is done only when it is reachable (menu, key, button), persisted if it should be, and verified running.
 
 ## Examples
