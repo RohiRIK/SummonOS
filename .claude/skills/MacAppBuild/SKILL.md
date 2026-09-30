@@ -26,7 +26,7 @@ SwiftPM-only build, verify and ship loop. No Xcode project; Xcode is used throug
 - `LSUIElement=true` hides the Dock icon. Without it the menu bar app also shows in the Dock and Cmd-Tab.
 - Permission usage strings (`NSLocationUsageDescription`, etc.) only work from the bundle's Info.plist. A bare `swift run` binary never gets the prompt.
 - Ad-hoc signing (`codesign -s -`) runs locally. Other Macs block it via Gatekeeper; they need right-click > Open, or a Developer ID + notarization.
-- TCC ties permissions to the code signature. Re-signing ad-hoc after each build can reset granted permissions. Reset with `tccutil reset All <bundle-id>` when testing.
+- TCC ties permissions to the code signature. A plain ad-hoc signature is a cdhash that changes every build, so grants (Calendars, Reminders, Location) vanish after a rebuild. Sign with `codesign -s - -r='designated => identifier "<bundle-id>"'` so rebuilds keep grants (mac-calendar `scripts/bundle.sh`). Reset with `tccutil reset All <bundle-id>` to retest first-run.
 - `swift run` of a SwiftUI `App` may show no window or menu item. Test through `open <App>.app`.
 - A menu bar app with `.window` style gets no Esc-to-close by default. Handle `.onKeyPress(.escape)` and dismiss.
 - `Process` with `waitUntilExit()` on the main actor freezes the menu. Run commands off-main (`Task.detached` or an actor).
