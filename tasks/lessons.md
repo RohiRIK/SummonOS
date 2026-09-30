@@ -14,3 +14,4 @@ Rules learned from corrections. One line each, newest last.
 - Public plugin repos get clean snapshots via tools/publish-public.sh; dev history (with author email) stays in private <name>-dev.
 - Never commit real network data (IPs, MACs, SSIDs, VPN names) in fixtures; use documentation ranges.
 - App settings (Open at Login, toggles, theme) never go in the menu bar panel, even when there is only one. Always a separate Settings window opened by `Settings…` (⌘,) in the panel footer. (mac-calendar, 2026-09-29)
+- Shell `rm`/`mv` are aliased to interactive (`-i`) and hang a tool call waiting for input. Use `/bin/rm -f` and `/bin/mv -f` in scripts. (2026-09-30, hit twice)

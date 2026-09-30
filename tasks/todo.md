@@ -1,6 +1,6 @@
 # Plan: `mac-calendar` v0.2 — events, reminders, quick add, Hebrew dates, hotkey, week view
 
-Status: built, verifying (2026-09-30). Branch `feat/events` in `plugins/mac-calendar`.
+Status: done (2026-09-30). Merged mac-calendar-dev PR #2, public snapshot published. Branch `feat/events` in `plugins/mac-calendar`.
 
 ## Requirements (explicit, from the user)
 1. Show events from the user's calendars (EventKit).
@@ -40,8 +40,11 @@ Status: built, verifying (2026-09-30). Branch `feat/events` in `plugins/mac-cale
 - [x] 4 Week view + header switch
 - [x] 5 Hotkey ⌥⌘P
 - [x] 6 Settings: Calendars (events toggle, calendar picker), Reminders, Hebrew, Shortcut sections
-- [~] 7 Verify (gate green, 27 tests; hotkey + Hebrew + holidays verified live; events/reminders need the user to grant access): check.sh, previews, run app, grant permissions, manual checklist
-- [ ] 8 PR, merge, publish public, PROJECT-CONTEXT, lessons
+- [x] 7 Verify: 29 tests, window frames logged, user verified in app: check.sh, previews, run app, grant permissions, manual checklist
+- [x] 8 PR, merge, publish public, PROJECT-CONTEXT, lessons
+
+## Review
+- Shipped all six. Surprises: MenuBarExtra shrinks its window late and toward the bottom (fixed with FitWindowHeight); ad-hoc re-signing drops TCC grants (designated requirement); NSDataDetector reads "10:30" as the next 10:30.
 
 ---
 
