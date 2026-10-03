@@ -66,3 +66,29 @@ struct ContractsTests {
         #expect(try JSONDecoder().decode(ToolDescriptor.self, from: data) == descriptor)
     }
 }
+
+struct TaskStateTests {
+    @Test func terminalStatesHaveNoExits() {
+        for state in TaskState.allCases where state.isTerminal {
+            #expect(state.allowedNext.isEmpty)
+        }
+    }
+
+    @Test func everyActiveStateCanFailCancelOrBeInterrupted() {
+        for state in TaskState.allCases where !state.isTerminal {
+            #expect(state.canTransition(to: .failed))
+            #expect(state.canTransition(to: .cancelled))
+            #expect(state.canTransition(to: .interrupted))
+        }
+    }
+
+    @Test func noExecutionWithoutAuthorization() {
+        let reachExecuting = TaskState.allCases.filter { $0.canTransition(to: .executing) }
+        #expect(reachExecuting == [.awaitingAuthorization])
+    }
+
+    @Test func refusalReportsWithoutExecuting() {
+        #expect(TaskState.awaitingAuthorization.canTransition(to: .reporting))
+        #expect(!TaskState.previewing.canTransition(to: .executing))
+    }
+}
