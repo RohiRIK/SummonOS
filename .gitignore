@@ -7,3 +7,5 @@ tools/private-patterns.txt
 .claude/settings.local.json
 graphify-out/
 .DS_Store
+# Agent worktrees (Claude Code isolation); never tracked.
+.claude/worktrees/
