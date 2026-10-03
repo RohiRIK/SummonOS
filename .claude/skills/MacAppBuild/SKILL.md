@@ -32,6 +32,7 @@ SwiftPM-only build, verify and ship loop. No Xcode project; Xcode is used throug
 - `Process` with `waitUntilExit()` on the main actor freezes the menu. Run commands off-main (`Task.detached` or an actor).
 - Never let SwiftPM write `.build/` inside Google Drive (461 MB for a hello-world app). Both scripts pass `--scratch-path ~/Library/Caches/macplugins/<name>`. Do not run bare `swift build` in a plugin folder.
 - Bun `Bun.spawn` stdin is buffered: call `proc.stdin.flush()` after each write, or an MCP server never sees the request. Send `tools/call` only after the `initialize` reply.
+- Cloud (Linux) sessions have no Swift, and download.swift.org is blocked. Docker Hub works: fetch the `swift:6.4-noble` manifest, download the ~1.1 GB toolchain layer (the largest blob) with a registry token, check its sha256, `tar -xzf` it into `/opt/swift`, and `apt-get install libcurl4-openssl-dev libxml2-dev libsqlite3-dev libz3-dev libncurses-dev`. Docker Hub rate-limits manifest requests, and ECR Public's blob CDN is blocked. Only Foundation-only Core targets build there; keep AppKit/SwiftUI behind `#if os(macOS)` in `Package.swift` (mac-assistant).
 - Command Line Tools only (no Xcode): `swift test` fails with "no such module 'Testing'". CLT ships `Testing.framework` off the search path. Always run tests via `scripts/test.sh`, which adds the `-F`/rpath flags.
 
 ## Examples

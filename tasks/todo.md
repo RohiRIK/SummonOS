@@ -1,3 +1,46 @@
+# Plan: `mac-assistant` — native macOS AI assistant, Phase 0–1 (Mac Health)
+
+Status: in progress (2026-10-03). Branch `feat/mac-assistant` in this workspace repo, code at
+`incubator/mac-assistant/` until it moves to `mac-assistant-dev` (ADR 0001). Roadmap:
+`incubator/mac-assistant/docs/roadmap.md`. Audit: `incubator/mac-assistant/docs/audit-2026-10-03.md`.
+
+## Requirements (explicit, from the user's roadmap v0.1)
+- Native macOS assistant: diagnose with evidence, propose a specific change, verify it helped.
+- Local execution; user chooses a local or cloud model per task; no silent cloud fallback.
+- Every operation through one policy broker; no general shell tool; journal + cancellation.
+- First milestone: Mac Health. Slow Mac end to end first, then disk pressure and connectivity.
+- Then one reversible preference change with preview, refusal, stale-state, verify, restore.
+
+## Decisions (inferred, cheap to change)
+- Name `mac-assistant`, bundle id `local.macplugins.mac-assistant`, minimum macOS 15 (workspace stack).
+- Core + CLI build on Linux too, so cloud sessions can test; app/UI macOS-only (ADR 0001).
+- Local model = Apple Foundation Models (macOS 26, runtime check); cloud = Claude (ADR 0003).
+  Revisit after `scripts/mac-profile.sh` runs on the user's Mac.
+- The model explains deterministic findings in a structured reply that cites evidence ids;
+  it does not call tools in Phase 1 (ADR 0003).
+- Wave work split by folder so engineers run in parallel without conflicts; `Contracts/` owned by the lead.
+
+## Phases
+- [x] 0a Audit pinned commit `979789e`, capability map, ADRs 0001–0004
+- [ ] 0b Mac profile: user runs `incubator/mac-assistant/scripts/mac-profile.sh` on the Mac
+- [x] 1 Skeleton + shared contracts (tool, evidence, policy, command, model, task state), 12 tests
+- [ ] 2 Wave 1 (parallel): Execution (validator, registry, broker, live runner) · Diagnostics
+      (parsers, 6 health tools, slow-Mac rules) · Journal (SQLite, redaction, retention, crash
+      recovery) · Models (Claude adapter, Foundation Models adapter, router, export gate, prompt)
+- [ ] 3 Integrate wave 1, full suite green on Linux, push
+- [ ] 4 Wave 2: coordinator state machine + slow-Mac workflow + CLI `diagnose slow-mac`
+      (journaled transitions, cancellation, claim/evidence check)
+- [ ] 5 M1-UI (macOS): menu bar panel, task window, evidence view, model mode, cancel, history,
+      Settings window (API key, model, retention); previews + run on the Mac
+- [ ] 6 Verify on the Mac: `scripts/test.sh`, capture real fixtures, run the app, manual checklist
+- [ ] 7 Disk-pressure and connectivity skills; then Phase 2 (one reversible preference)
+
+## Review
+- Kickoff: the cloud session has no Swift and download.swift.org is blocked; the official
+  `swift:6.4-noble` image layer from Docker Hub works (recorded in MacAppBuild Gotchas).
+
+---
+
 # Plan: `mac-calendar` v0.2 — events, reminders, quick add, Hebrew dates, hotkey, week view
 
 Status: done (2026-09-30). Merged mac-calendar-dev PR #2, public snapshot published. Branch `feat/events` in `plugins/mac-calendar`.
