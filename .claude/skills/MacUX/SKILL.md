@@ -27,6 +27,7 @@ Makes plugins look and feel like they shipped with macOS. Bar: "beautiful by def
 
 ## Gotchas
 
+- Focus / wellness surfaces (meditation, breathing, timers) are not dashboards. Show one thing (the orb) and at most one word; hide pickers, stats and explanations behind one tap, fade controls while running. A sidebar + dots + info card big window was rejected as "ugly, complicated" (mac-breathe).
 - Hard-coded colors (`Color.black`, hex) break dark mode and Increase Contrast. Use `.primary`, `.secondary`, `Color(nsColor: .separatorColor)`, `.tint`.
 - Liquid Glass is for floating controls and navigation only, never content (cards, lists, details). Glass cards made the first mac-network panel look wrong. `.glassEffect()` is macOS 26+; gate with `if #available(macOS 26, *)`.
 - More than one job in a panel: split it into tabs with `TabSwitcher`, keep editing in-panel with `SettingsGroup` rows (`MenuPanel.md` › Everything in the panel). Network features stay in panel tabs; app settings/permissions/theme go to a Settings window + onboarding (`MenuPanel.md`).
