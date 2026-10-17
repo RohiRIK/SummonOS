@@ -56,6 +56,7 @@ Bump `CFBundleShortVersionString` and `CFBundleVersion` first (`MacAppBuild/Rele
 ## 7. Record
 
 - Update the plugin's `PROJECT-CONTEXT.md` (Recent History, newest first).
+- Move the finished plan from `tasks/todo.md` to `docs/plans/YYYY-MM-DD-<name>.md`; `todo.md` keeps only the active plan.
 - New plugin or new status: update [`plugins.md`](../plugins.md).
 - Lessons go in the skill that owns them ([`AGENTS.md`](../AGENTS.md#record-learnings-on-the-fly));
   user corrections go in `tasks/lessons.md`.

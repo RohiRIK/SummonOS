@@ -14,8 +14,8 @@ This repo holds the shared know-how, not the apps. Each plugin lives in its own 
 | [`plugins.md`](plugins.md) | Index of every plugin, its repos and status |
 | [`.claude/skills/`](.claude/skills) | Agent skills used by every plugin ([which one when](AGENTS.md#skills-which-one-when)) |
 | [`tools/`](tools) | Workspace scripts: publish, release, previews, Xcode MCP client ([docs/tools.md](docs/tools.md)) |
-| [`docs/`](docs) | [Plugin lifecycle](docs/workflow.md), [tools](docs/tools.md), [research notes](docs/research) |
-| [`tasks/`](tasks) | `todo.md` (current plan) and `lessons.md` (rules learned from corrections) |
+| [`docs/`](docs) | [Plugin lifecycle](docs/workflow.md), [tools](docs/tools.md), [research notes](docs/research), [finished plans](docs/plans) |
+| [`tasks/`](tasks) | `todo.md` (current plan only) and `lessons.md` (rules learned from corrections) |
 | `.mcp.json` | Xcode MCP server (`xcrun mcpbridge`) for builds, tests and previews |
 
 ## Plugins
