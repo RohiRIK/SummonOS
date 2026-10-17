@@ -1,6 +1,6 @@
 # SwiftUI patterns for menu bar panels
 
-Compose views from these. Each compiles on macOS 14+ (glass parts on 26+).
+Compose views from these. Each compiles for the macOS 15 target (glass parts need 26+).
 
 ## Panel shell
 
@@ -43,7 +43,7 @@ HStack {
 
 ## Menu row, circle icon, section header
 
-Current versions live in `plugins/mac-network/Sources/MacNetworkUI/Components.swift` (`MenuRow`, `CommandRow`, `CircleIcon`, `MenuSectionHeader`, `MenuDivider`). Copy those. Older row shape below.
+Current versions live in `plugins/mac-network/Sources/MacNetworkUI/Components.swift` (`MenuRow`, `CommandRow`, `CircleIcon`, `MenuSectionHeader`, `MenuDivider`). Copy those. Minimal shape below for a plugin that has none yet.
 
 ```swift
 struct Row<Trailing: View>: View {
@@ -61,7 +61,7 @@ struct Row<Trailing: View>: View {
         }
         .padding(.horizontal, 8)
         .frame(height: 28)
-        .background(hovering ? Color.primary.opacity(0.08) : .clear, in: .rect(cornerRadius: 6))
+        .background(HierarchicalShapeStyle.quaternary.opacity(hovering ? 1 : 0), in: .rect(cornerRadius: 6))
         .contentShape(.rect)
         .onHover { hovering = $0 }
         .accessibilityElement(children: .combine)
