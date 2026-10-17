@@ -1,0 +1,10 @@
+# Summon's desktop layer. Applied by `/summon:setup` with `brew bundle --file <this file>`.
+tap "nikitabobko/tap"
+tap "FelixKratz/formulae"
+
+cask "nikitabobko/tap/aerospace"   # tiling window manager (needs Accessibility)
+cask "ghostty"                     # terminal, with the drop-down quick terminal
+brew "FelixKratz/formulae/borders" # JankyBorders: colored border on the focused window
+cask "font-jetbrains-mono-nerd-font"
+
+# Agents: the default one is installed by `summon default agent <name>`, not here.

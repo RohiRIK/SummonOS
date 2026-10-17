@@ -1,0 +1,18 @@
+#!/bin/bash
+# JankyBorders config, installed to ~/.config/borders/bordersrc by /summon:setup.
+# Colors come from the current Summon theme: `summon theme set` writes ~/.config/summon/current/borders.env
+# with ACTIVE_COLOR / INACTIVE_COLOR (0xAARRGGBB) and restarts the service.
+
+ACTIVE_COLOR=0xff9b7bff
+INACTIVE_COLOR=0xff2b2347
+[[ -f "$HOME/.config/summon/current/borders.env" ]] && source "$HOME/.config/summon/current/borders.env"
+
+options=(
+  style=round
+  width=5.0
+  hidpi=on
+  active_color="$ACTIVE_COLOR"
+  inactive_color="$INACTIVE_COLOR"
+)
+
+borders "${options[@]}"

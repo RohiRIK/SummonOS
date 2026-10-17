@@ -10,3 +10,4 @@ graphify-out/
 # SwiftPM and tools/xcode-mcp.ts output, if ever run in place.
 .build/
 build/
+.claude/worktrees/
