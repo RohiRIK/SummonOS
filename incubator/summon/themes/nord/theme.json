@@ -1,0 +1,39 @@
+{
+  "name": "Nord",
+  "slug": "nord",
+  "appearance": "dark",
+  "source": "omarchy:themes/nord",
+  "colors": {
+    "background": "#2e3440",
+    "foreground": "#d8dee9",
+    "accent": "#81a1c1",
+    "accent2": "#88c0d0",
+    "muted": "#4c566a",
+    "selection": "#434c5e",
+    "cursor": "#d8dee9",
+    "border_active": "#81a1c1",
+    "border_inactive": "#434c5e"
+  },
+  "terminal": [
+    "#3B4252",
+    "#BF616A",
+    "#A3BE8C",
+    "#EBCB8B",
+    "#81A1C1",
+    "#B48EAD",
+    "#88C0D0",
+    "#D8DEE9",
+    "#4C566A",
+    "#BF616A",
+    "#A3BE8C",
+    "#EBCB8B",
+    "#81A1C1",
+    "#B48EAD",
+    "#8FBCBB",
+    "#D8DEE9"
+  ],
+  "font": "JetBrainsMono Nerd Font",
+  "wallpapers": [
+    "1-portal.jpg"
+  ]
+}

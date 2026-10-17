@@ -1,0 +1,39 @@
+{
+  "name": "Gruvbox",
+  "slug": "gruvbox",
+  "appearance": "dark",
+  "source": "omarchy:themes/gruvbox",
+  "colors": {
+    "background": "#282828",
+    "foreground": "#d4be98",
+    "accent": "#7daea3",
+    "accent2": "#d8a657",
+    "muted": "#665c54",
+    "selection": "#504945",
+    "cursor": "#d4be98",
+    "border_active": "#7daea3",
+    "border_inactive": "#504945"
+  },
+  "terminal": [
+    "#3C3836",
+    "#EA6962",
+    "#A9B665",
+    "#D8A657",
+    "#7DAEA3",
+    "#D3869B",
+    "#89B482",
+    "#D4BE98",
+    "#665C54",
+    "#EA6962",
+    "#A9B665",
+    "#D8A657",
+    "#7DAEA3",
+    "#D3869B",
+    "#89B482",
+    "#D4BE98"
+  ],
+  "font": "JetBrainsMono Nerd Font",
+  "wallpapers": [
+    "1-portal.jpg"
+  ]
+}

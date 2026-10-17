@@ -11,4 +11,4 @@
 |---|---|---|---|
 | macctl | CLI for AI agents to read, set, diff, apply and undo macOS settings | `macctl/` on [PR #6](https://github.com/RohiRIK/macos-plugins/pull/6), plan `docs/plans/2026-10-16-macctl.md` | milestone 1 written, not yet compiled on a Mac |
 | mac-assistant | Local Mac diagnostics assistant with a policy broker and typed tools | `incubator/mac-assistant/` on branch `feat/mac-assistant` | Phase 1 (read-only diagnostics) |
-
+| Summon | Omarchy-style Mac: an agent you summon anywhere, crash/log handoff, themes, tiling, app builders | `incubator/summon/`, plan `docs/plans/2026-10-17-summon.md` | design, themes, plugin, configs merged; Swift app in a draft PR, not yet compiled |
