@@ -6,8 +6,10 @@ struct SummonMenuApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     var body: some Scene {
-        MenuBarExtra("Summon", systemImage: "sparkles") {
+        MenuBarExtra {
             PanelView(model: delegate.model, openLauncher: { delegate.launcher.show(startAt: nil) })
+        } label: {
+            MenuBarLabel()
         }
         .menuBarExtraStyle(.window)
 

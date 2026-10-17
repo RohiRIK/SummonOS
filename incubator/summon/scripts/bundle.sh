@@ -17,12 +17,22 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/share/su
 cp "$BIN/SummonMenu" "$APP/Contents/MacOS/SummonMenu"
 cp "$BIN/summon" "$APP/Contents/MacOS/summon"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
-[[ -f Resources/AppIcon.icns ]] && cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+
+# App icon from the 1024 master (design/generate.py), and the menu bar template icon.
+ICONSET="$CACHE/AppIcon.iconset"
+rm -rf "$ICONSET" && mkdir -p "$ICONSET"
+for size in 16 32 128 256 512; do
+  sips -z $size $size design/brand/app-icon-1024.png --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
+  sips -z $((size * 2)) $((size * 2)) design/brand/app-icon-1024.png --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
+done
+iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
+cp design/brand/menubar-icon.png design/brand/menubar-icon@2x.png "$APP/Contents/Resources/"
 
 # Shared files: themes (with wallpapers), skills, config templates, logo.
-for dir in themes skills config assets; do
-  [[ -d $dir ]] && cp -R "$dir" "$APP/Contents/share/summon/$dir"
-done
+cp -R themes "$APP/Contents/share/summon/themes"
+cp -R plugin/skills "$APP/Contents/share/summon/skills"
+cp -R config "$APP/Contents/share/summon/config"
+cp -R design/brand "$APP/Contents/share/summon/assets"
 
 codesign --force --sign - "$APP/Contents/MacOS/summon"
 codesign --force --sign - "$APP"
