@@ -29,7 +29,7 @@ Makes plugins look and feel like they shipped with macOS. Bar: "beautiful by def
 
 - Hard-coded colors (`Color.black`, hex) break dark mode and Increase Contrast. Use `.primary`, `.secondary`, `Color(nsColor: .separatorColor)`, `.tint`.
 - Liquid Glass is for floating controls and navigation only, never content (cards, lists, details). Glass cards made the first mac-network panel look wrong. `.glassEffect()` is macOS 26+; gate with `if #available(macOS 26, *)`.
-- More than one job in a panel: split it into tabs with `TabSwitcher`, keep editing in-panel with `SettingsGroup` rows (`MenuPanel.md` › Everything in the panel). Network features stay in panel tabs; app settings/permissions/theme go to a Settings window + onboarding (`MenuPanel.md`).
+- More than one job in a panel: split it into tabs with `TabSwitcher` (`MenuPanel.md` › Everything in the panel). Editing the app's *job* (mac-network's IP settings) can be a panel tab with `SettingsGroup` rows. App preferences (Open at Login, permissions, theme, any toggle) never go in the panel: Settings window (⌘,), plus onboarding only when a permission is needed up front.
 - "Looks like Windows 98" = bordered cards, grouped Form, segmented control, big padding. Fix per `MenuPanel.md`.
 - `MenuBarExtra(.window)` sizes to content. Set `.frame(width:)` once on the root; unbounded lists make the panel jump.
 - `MenuBarExtra(.window)` keeps its old height when content grows (a banner appears): the top gets clipped and rows overlap, so clicks land on the wrong row. Put `.fixedSize(horizontal: false, vertical: true)` on the panel root.

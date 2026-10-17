@@ -5,7 +5,7 @@ Port one Omarchy/Linux bar widget to a native macOS app.
 ## Step 1: Clone and read everything
 
 ```bash
-git clone --depth 1 <url> "$CLAUDE_JOB_DIR/tmp/<source>"   # scratch copy, not in plugins/
+git clone --depth 1 <url> "${TMPDIR:-/tmp}/port-<source>"   # scratch copy, not in plugins/
 ```
 
 Read `manifest.json`, `README.md`, every helper script, and the test files in full.

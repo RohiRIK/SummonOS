@@ -86,7 +86,7 @@ IP Settings window was built and rejected. CodexBar (github.com/steipete/CodexBa
 - `TabSwitcher`: equal-width segments, SF Symbol (fixed 16 pt frame so labels align) above a `.caption`
   title; selected = `.tint` fill + white, others = secondary text + `.quaternary` hover; radius 8, min height 44.
 - One tab per job: Overview (live module) · Wi-Fi (list + switch) · IP Settings (editing). Shared footer
-  (settings link, Open at Login, Quit) under every tab. Keys 1-3 switch tabs.
+  (`Settings…` + `Quit`, nothing else) under every tab. Keys 1-3 switch tabs.
 - Editing inside a tab: `SettingsGroup` (section title + `.quinary` rounded group) with `SettingsRow`
   (`SettingsRowLabel` title + subtitle left, control right) and `RowDivider`. Looks like a grouped Form but
   sizes to content; a real `Form` clips in the panel.
