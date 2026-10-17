@@ -8,14 +8,15 @@ like they belong on the Mac. Unlike Glaze (React in a WebView + Node backend), w
 ## Layout
 
 ```
-.                            this workspace (docs, skills, tools, plans; not a git repo)
+.                            this workspace: the private repo `macos-plugins` (skills, tools, docs, plans)
 ├── AGENTS.md                this file; CLAUDE.md points here
 ├── plugins.md               index of every plugin + its GitHub repo
 ├── docs/research/           research notes behind the skills
-├── tools/                   xcode-mcp.ts (Xcode MCP client), render-previews.sh
+├── docs/plans/              finished and long plans, one file each: YYYY-MM-DD-<name>.md
+├── tools/                   workspace scripts: xcode-mcp.ts, render-previews.sh, publish-public.sh, release.sh
 ├── .claude/skills/          shared skills, used by every plugin (see below)
-├── plugins/<name>/          one folder per plugin, each its own git repo
-└── tasks/                   todo.md (current plan), lessons.md (mistakes)
+├── plugins/<name>/          one folder per plugin, each its own git repo (gitignored here)
+└── tasks/                   todo.md (current plan only), lessons.md (mistakes)
 ```
 
 ## Skills: which one when
@@ -43,7 +44,7 @@ installed unmodified with their LICENSE files. Do not edit them; put our rules i
 ## How we work
 
 1. **Read context:** the plugin's `PROJECT-CONTEXT.md` (if it exists), then only the files the task touches.
-2. **Plan** in `tasks/todo.md`; separate explicit requirements from inferences; ask only when a choice
+2. **Plan** in `tasks/todo.md` (move it to `docs/plans/` when done); separate explicit requirements from inferences; ask only when a choice
    changes the result. Confirm non-trivial plans with the user.
 3. **Shape before code:** `MacAppArchitecture/AppShapes.md`.
 4. **Build end to end:** no stubs, TODOs, or mock data standing in for required behavior; every new
