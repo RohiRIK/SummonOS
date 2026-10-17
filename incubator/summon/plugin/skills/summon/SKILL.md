@@ -62,7 +62,8 @@ Read a command's help before running it (`summon <group> <cmd> --help` never exe
 ## Making a new theme
 
 Copy a theme folder to `~/.config/summon/themes/<slug>/`, edit `theme.json` (name, slug, appearance,
-colors, 16 terminal colors, font, wallpapers), check contrast: foreground on background ≥ 7:1, muted ≥ 4.5:1.
+colors, 16 terminal colors, font, wallpapers), check contrast: foreground on background ≥ 4.5:1 (aim for 7:1). `muted` and `selection` are for borders,
+inactive outlines and backgrounds, never body text, so they only need to be visible (about 1.5:1).
 Then `summon theme set <slug>`. Wallpapers: 5120×2880 JPEG next to `theme.json`.
 
 ## Keybindings (default)
@@ -75,7 +76,7 @@ Then `summon theme set <slug>`. Wallpapers: 5120×2880 JPEG next to `theme.json`
 | ⌥1…9 / ⌥⇧1…9 | Go to / move window to workspace |
 | ⌥H J K L / ⌥⇧H J K L | Focus / move window |
 | ⌥Return | New Ghostty window |
-| ⌥F | Fullscreen in tile, ⌥⇧Space float toggle |
+| ⌥⇧F / ⌥⇧W | Fullscreen / close window; ⌥⇧Space float toggle |
 
 Change them in `aerospace.toml` (window keys) and Summon's Settings window (⌥Space, ⌃⌥⌘A).
 

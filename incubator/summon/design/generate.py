@@ -16,9 +16,11 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent  # incubator/summon
-BRAND = ROOT / "design" / "brand"
-THEMES = ROOT / "themes"
 QUICK = "--quick" in sys.argv
+# --quick renders into design/.quick/ (gitignored) so it never replaces the committed full-size files.
+OUT = ROOT / "design" / ".quick" if QUICK else ROOT
+BRAND = OUT / "design" / "brand" if QUICK else ROOT / "design" / "brand"
+THEMES = OUT / "themes"
 WALL_W, WALL_H = (1280, 720) if QUICK else (5120, 2880)
 FONT_BOLD = "/usr/share/fonts/opentype/inter/InterDisplay-Bold.otf"
 FONT_MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf"
@@ -357,8 +359,11 @@ def wallpaper(p: dict, style: str) -> Image.Image:
 # ---------------------------------------------------------------- themes
 
 def theme_json(slug: str, p: dict, wallpapers: list[str], source: str) -> dict:
+    # ANSI 0 ("black") must stand out from the background: dark themes use a lifted background,
+    # light themes use the text color, as light terminal palettes do.
+    black = p["lighter_background"] if p["mode"] == "dark" else p["foreground"]
     terminal = [
-        p["lighter_background"], p["red"], p["green"], p["yellow"], p["blue"], p["magenta"], p["cyan"], p["foreground"],
+        black, p["red"], p["green"], p["yellow"], p["blue"], p["magenta"], p["cyan"], p["foreground"],
         p["muted"], p["bright_red"], p["bright_green"], p["bright_yellow"], p["bright_blue"], p["bright_magenta"], p["bright_cyan"], p["bright_foreground"],
     ]
     return {
@@ -383,9 +388,10 @@ def main() -> None:
     BRAND.mkdir(parents=True, exist_ok=True)
     night = SUMMON["summon-night"]
 
-    app_icon(1024).save(BRAND / "app-icon-1024.png")
+    icon = app_icon(1024)
+    icon.save(BRAND / "app-icon-1024.png")
     for px in (512, 256, 128):
-        app_icon(1024).resize((px, px), Image.LANCZOS).save(BRAND / f"app-icon-{px}.png")
+        icon.resize((px, px), Image.LANCZOS).save(BRAND / f"app-icon-{px}.png")
     menubar_icon(18).save(BRAND / "menubar-icon.png")
     menubar_icon(36).save(BRAND / "menubar-icon@2x.png")
     with_glow(draw_mark(1024, night["accent"], night["accent2"], night["bright_foreground"]), night["accent"], 26).save(BRAND / "mark-1024.png")
@@ -426,7 +432,7 @@ def main() -> None:
         x, y = 20 + (i % cols) * 500, 20 + (i // cols) * 320
         sheet.paste(thumb, (x, y))
         d.text((x, y + 278), f"{name} · {style}", font=font, fill=night["foreground"])
-    sheet.save(ROOT / "design" / "wallpapers-preview.png")
+    sheet.save(OUT / "wallpapers-preview.png" if QUICK else ROOT / "design" / "wallpapers-preview.png")
     print("done", "quick" if QUICK else "full")
 
 

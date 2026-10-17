@@ -3,7 +3,9 @@ description: Set this Mac up the Summon way (settings, apps, tiling, theme)
 argument-hint: [profile.json]
 ---
 
-Set up this Mac with Summon. Profile: ${ARGUMENTS:-the default Summon profile}
+Set up this Mac with Summon. Profile argument: $ARGUMENTS
+
+If no profile was given, use Summon's default profile at `$(summon path)/config/profile.json`.
 
 1. `macctl doctor` and `summon commands --json` to see what is available; report missing permissions with their links.
 2. `macctl diff <profile>` and show the user the changes; then `macctl apply <profile>`.

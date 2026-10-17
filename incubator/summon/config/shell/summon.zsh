@@ -5,7 +5,7 @@ alias a='summon agent --inline'
 # Straight into a task: ap "why is my disk full?"
 ap() { summon agent prompt "$*"; }
 
-# Agents by name, in their auto modes (same as Omarchy's c / cx / cy).
+# Agents by name, in their auto modes (same flags as Omarchy's cx / cy).
 alias cx='claude --permission-mode auto'
 alias cy='codex --approve-for-me'
 

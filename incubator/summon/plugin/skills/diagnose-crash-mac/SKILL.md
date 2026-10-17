@@ -34,7 +34,8 @@ An `.ips` file is two JSON documents: line 1 is a small header (`app_name`, `app
   `imageIndex` to binaries. Other threads show what work was in flight.
 - `asi` / `lastExceptionBacktrace` for ObjC/Swift exceptions: the message often names the cause outright.
 
-`bug_type` tells the kind: 309 crash, 298 hang/spin, 288 stackshot, 210 panic, 298/211 jetsam (check the file name).
+`bug_type` tells the kind: 309 crash, 298 jetsam (memory kill), 288 stackshot (hang/spin), 210 panic. The file
+name says it too (`<App>-…ips`, `JetsamEvent-…`, `….hang`, `….spin`, `panic-full-…`); when they disagree, trust the body.
 
 ## Rule out the boring causes first
 

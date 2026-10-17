@@ -25,10 +25,11 @@ outer.top = 10
 outer.right = 10
 
 [mode.main.binding]
-# Apps
+# Apps. Option + a letter stays free for typing and for readline in Ghostty (⌥B/⌥F word jumps),
+# so app launchers and window actions use Option+Shift.
 alt-enter = 'exec-and-forget open -na Ghostty'
-alt-b = 'exec-and-forget open -a Safari'
-alt-e = 'exec-and-forget open ~'
+alt-shift-b = 'exec-and-forget open -a Safari'
+alt-shift-e = 'exec-and-forget open ~'
 
 # Focus and move (vim keys and arrows)
 alt-h = 'focus left'
@@ -45,11 +46,11 @@ alt-shift-k = 'move up'
 alt-shift-l = 'move right'
 
 # Window state
-alt-f = 'fullscreen'
+alt-shift-f = 'fullscreen'
 alt-shift-space = 'layout floating tiling'
 alt-slash = 'layout tiles horizontal vertical'
 alt-comma = 'layout accordion horizontal vertical'
-alt-w = 'close'
+alt-shift-w = 'close'
 alt-minus = 'resize smart -50'
 alt-equal = 'resize smart +50'
 

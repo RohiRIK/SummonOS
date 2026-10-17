@@ -13,7 +13,7 @@ Plan: [`docs/plans/2026-10-17-summon.md`](../../docs/plans/2026-10-17-summon.md)
 
 | Path | What |
 |---|---|
-| `plugin/` | Claude Code plugin: skills `summon`, `mac-app`, `diagnose-crash-mac`, `mac-logs`; commands `/summon:setup`, `/summon:fix`, `/summon:theme`, `/summon:icon`, `/summon:new-menubar`, `/summon:new-app`, `/summon:new-screensaver`; `macctl` MCP server |
+| `plugin/` | Claude Code plugin (needs the `summon` and `macctl` binaries, which are still in review): skills `summon`, `mac-app`, `diagnose-crash-mac`, `mac-logs`; commands `/summon:setup`, `/summon:fix`, `/summon:theme`, `/summon:icon`, `/summon:new-menubar`, `/summon:new-app`, `/summon:new-screensaver`; `macctl` MCP server |
 | `themes/` | 9 themes (`theme.json` + 5K wallpapers): Summon Night, Summon Dawn, and Omarchy's Tokyo Night, Catppuccin, Gruvbox, Nord, Rosé Pine Dawn, Kanagawa, Everforest |
 | `config/` | Desktop layer: `Brewfile` (AeroSpace, Ghostty, JankyBorders, Nerd Font), `aerospace.toml` (Omarchy-style ⌥ keymap), Ghostty config with a drop-down quick terminal, borders, shell aliases (`a`, `ap`) |
 | `design/` | Logo, app icon, menu bar icon, wordmarks, and `generate.py`, which renders all of them plus the wallpapers |
@@ -23,12 +23,9 @@ Plan: [`docs/plans/2026-10-17-summon.md`](../../docs/plans/2026-10-17-summon.md)
 
 ## Install the plugin (Claude Code)
 
-```bash
-claude plugin marketplace add RohiRIK/macos-plugins   # or a local path to this repo
-claude plugin install summon
-```
-
-Or link it for development: `claude --plugin-dir incubator/summon/plugin`.
+Not yet: the skills and commands call the `summon` CLI and the `macctl` MCP server, which ship with the
+Swift PRs. Once those build, a marketplace entry and `plugin/.mcp.json` are added so it installs with
+`claude plugin install summon`. For development now: `claude --plugin-dir incubator/summon/plugin`.
 
 ## Default keys
 

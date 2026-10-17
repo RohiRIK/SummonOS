@@ -11,3 +11,4 @@ graphify-out/
 .build/
 build/
 .claude/worktrees/
+incubator/summon/design/.quick/

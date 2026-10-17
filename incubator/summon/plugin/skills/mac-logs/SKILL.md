@@ -31,8 +31,8 @@ log show --last 2h --style compact --predicate 'eventMessage CONTAINS[c] "denied
 # A window around an event
 log show --start "2026-10-17 22:10:00" --end "2026-10-17 22:20:00" --style compact --predicate '…'
 
-# Live, while the user reproduces it (stop with Ctrl-C or `timeout 60`)
-timeout 60 log stream --style compact --level debug --predicate 'process == "<name>"'
+# Live, while the user reproduces it, for 60 seconds (macOS has no `timeout`; never leave a stream running)
+log stream --style compact --level debug --predicate 'process == "<name>"' & pid=$!; sleep 60; kill $pid
 ```
 
 Predicate fields: `process`, `processImagePath`, `subsystem`, `category`, `sender`, `messageType`
