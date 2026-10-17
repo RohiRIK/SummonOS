@@ -1,0 +1,39 @@
+{
+  "name": "Ros\u00e9 Pine Dawn",
+  "slug": "rose-pine-dawn",
+  "appearance": "light",
+  "source": "omarchy:themes/rose-pine",
+  "colors": {
+    "background": "#faf4ed",
+    "foreground": "#575279",
+    "accent": "#56949f",
+    "accent2": "#907aa9",
+    "muted": "#cecacd",
+    "selection": "#dfdad9",
+    "cursor": "#575279",
+    "border_active": "#56949f",
+    "border_inactive": "#dfdad9"
+  },
+  "terminal": [
+    "#F2E9E1",
+    "#B4637A",
+    "#286983",
+    "#EA9D34",
+    "#56949F",
+    "#907AA9",
+    "#D7827E",
+    "#575279",
+    "#CECACD",
+    "#B4637A",
+    "#286983",
+    "#EA9D34",
+    "#56949F",
+    "#907AA9",
+    "#D7827E",
+    "#575279"
+  ],
+  "font": "JetBrainsMono Nerd Font",
+  "wallpapers": [
+    "1-portal.jpg"
+  ]
+}

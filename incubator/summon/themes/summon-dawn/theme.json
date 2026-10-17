@@ -1,0 +1,40 @@
+{
+  "name": "Summon Dawn",
+  "slug": "summon-dawn",
+  "appearance": "light",
+  "source": "summon",
+  "colors": {
+    "background": "#F7F4FF",
+    "foreground": "#2B2440",
+    "accent": "#6D4AFF",
+    "accent2": "#0098C7",
+    "muted": "#9A93B5",
+    "selection": "#DDD3FF",
+    "cursor": "#15111F",
+    "border_active": "#6D4AFF",
+    "border_inactive": "#DDD3FF"
+  },
+  "terminal": [
+    "#FFFFFF",
+    "#D63A63",
+    "#178A5B",
+    "#B07A00",
+    "#2F62D6",
+    "#9B3FD6",
+    "#0098C7",
+    "#2B2440",
+    "#9A93B5",
+    "#E8577D",
+    "#22A06E",
+    "#C98E0C",
+    "#4A7BEA",
+    "#B05AE8",
+    "#14B0DE",
+    "#15111F"
+  ],
+  "font": "JetBrainsMono Nerd Font",
+  "wallpapers": [
+    "1-portal.jpg",
+    "2-aurora.jpg"
+  ]
+}

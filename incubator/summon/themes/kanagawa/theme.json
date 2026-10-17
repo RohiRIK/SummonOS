@@ -1,0 +1,39 @@
+{
+  "name": "Kanagawa",
+  "slug": "kanagawa",
+  "appearance": "dark",
+  "source": "omarchy:themes/kanagawa",
+  "colors": {
+    "background": "#1f1f28",
+    "foreground": "#dcd7ba",
+    "accent": "#7e9cd8",
+    "accent2": "#e6c384",
+    "muted": "#54546D",
+    "selection": "#363646",
+    "cursor": "#dcd7ba",
+    "border_active": "#7e9cd8",
+    "border_inactive": "#363646"
+  },
+  "terminal": [
+    "#223249",
+    "#C34043",
+    "#76946A",
+    "#C0A36E",
+    "#7E9CD8",
+    "#957FB8",
+    "#6A9589",
+    "#DCD7BA",
+    "#54546D",
+    "#E82424",
+    "#98BB6C",
+    "#E6C384",
+    "#7FB4CA",
+    "#938AA9",
+    "#7AA89F",
+    "#DCD7BA"
+  ],
+  "font": "JetBrainsMono Nerd Font",
+  "wallpapers": [
+    "1-portal.jpg"
+  ]
+}

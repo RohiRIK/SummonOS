@@ -1,0 +1,39 @@
+{
+  "name": "Everforest",
+  "slug": "everforest",
+  "appearance": "dark",
+  "source": "omarchy:themes/everforest",
+  "colors": {
+    "background": "#2d353b",
+    "foreground": "#d3c6aa",
+    "accent": "#7fbbb3",
+    "accent2": "#a7c080",
+    "muted": "#475258",
+    "selection": "#3d484d",
+    "cursor": "#d3c6aa",
+    "border_active": "#7fbbb3",
+    "border_inactive": "#3d484d"
+  },
+  "terminal": [
+    "#343F44",
+    "#E67E80",
+    "#A7C080",
+    "#DBBC7F",
+    "#7FBBB3",
+    "#D699B6",
+    "#83C092",
+    "#D3C6AA",
+    "#475258",
+    "#E67E80",
+    "#A7C080",
+    "#DBBC7F",
+    "#7FBBB3",
+    "#D699B6",
+    "#83C092",
+    "#D3C6AA"
+  ],
+  "font": "JetBrainsMono Nerd Font",
+  "wallpapers": [
+    "1-portal.jpg"
+  ]
+}

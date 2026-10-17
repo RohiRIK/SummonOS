@@ -1,0 +1,11 @@
+{
+  "name": "macos-plugins",
+  "owner": { "name": "RohiRIK" },
+  "plugins": [
+    {
+      "name": "summon",
+      "source": "./incubator/summon/plugin",
+      "description": "Omarchy-style Mac: one agent you can summon anywhere, that sets up, themes, fixes and builds things on your Mac."
+    }
+  ]
+}
