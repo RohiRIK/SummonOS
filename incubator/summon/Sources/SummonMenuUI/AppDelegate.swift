@@ -1,0 +1,109 @@
+import AppKit
+import SummonCore
+import UserNotifications
+
+/// Owns everything that outlives a view: hotkeys, the launcher, the crash watcher, notifications, `summon://` URLs.
+@MainActor
+public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+    public let model = SummonModel()
+    public private(set) lazy var launcher = LauncherController(model: model)
+
+    static let crashCategory = "summon.crash"
+    static let diagnoseAction = "summon.crash.diagnose"
+    static let muteAction = "summon.crash.mute"
+
+    public override init() {
+        super.init()
+    }
+
+    public func applicationDidFinishLaunching(_ notification: Notification) {
+        HotKeyCenter.shared.register(id: SummonHotKey.menuID, keyCode: SummonHotKey.menuKey, modifiers: SummonHotKey.menuModifiers) { [weak self] in
+            self?.launcher.toggle()
+        }
+        HotKeyCenter.shared.register(id: SummonHotKey.agentID, keyCode: SummonHotKey.agentKey, modifiers: SummonHotKey.agentModifiers) { [weak self] in
+            self?.model.askAgent()
+        }
+        setUpNotifications()
+        model.onNewCrash = { [weak self] report in
+            self?.notify(report)
+        }
+        model.startWatching()
+    }
+
+    /// `summon://menu/<id>` opens the launcher at that entry; `summon://agent` starts the agent.
+    public func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls where url.scheme == "summon" {
+            switch url.host {
+            case "menu":
+                let id = url.pathComponents.dropFirst().first
+                launcher.show(startAt: id)
+            case "agent":
+                model.askAgent()
+            default:
+                break
+            }
+        }
+    }
+
+    // MARK: Notifications
+
+    private func setUpNotifications() {
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+        let diagnose = UNNotificationAction(identifier: Self.diagnoseAction, title: "Diagnose", options: [])
+        let mute = UNNotificationAction(identifier: Self.muteAction, title: "Mute This App", options: [])
+        let category = UNNotificationCategory(identifier: Self.crashCategory, actions: [diagnose, mute], intentIdentifiers: [], options: [])
+        center.setNotificationCategories([category])
+        center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+    }
+
+    private func notify(_ report: CrashReport) {
+        let content = UNMutableNotificationContent()
+        switch report.kind {
+        case .crash: content.title = "\(report.program) crashed"
+        case .hang: content.title = "\(report.program) stopped responding"
+        case .panic: content.title = "Your Mac restarted after a problem"
+        case .other: content.title = "\(report.program) wrote a diagnostic report"
+        }
+        content.body = "Click Diagnose to hand it to your agent."
+        content.categoryIdentifier = Self.crashCategory
+        content.userInfo = ["file": report.file, "program": report.program]
+        let request = UNNotificationRequest(identifier: report.file, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request) { _ in }
+    }
+
+    public nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let action = response.actionIdentifier
+        let info = response.notification.request.content.userInfo
+        let file = info["file"] as? String
+        let program = info["program"] as? String
+        completionHandler()
+        Task { @MainActor in
+            self.handle(action: action, file: file, program: program)
+        }
+    }
+
+    public nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
+    }
+
+    private func handle(action: String, file: String?, program: String?) {
+        switch action {
+        case Self.muteAction:
+            if let program { model.mute(program: program) }
+        case Self.diagnoseAction, UNNotificationDefaultActionIdentifier:
+            // Clicking the notification itself also diagnoses, like Omarchy's "Process crashed" toast.
+            if let file { model.diagnose(file: file) }
+        default:
+            break
+        }
+    }
+}
