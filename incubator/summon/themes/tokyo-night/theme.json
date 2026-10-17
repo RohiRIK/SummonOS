@@ -1,0 +1,39 @@
+{
+  "name": "Tokyo Night",
+  "slug": "tokyo-night",
+  "appearance": "dark",
+  "source": "omarchy:themes/tokyo-night",
+  "colors": {
+    "background": "#1a1b26",
+    "foreground": "#a9b1d6",
+    "accent": "#7aa2f7",
+    "accent2": "#bb9af7",
+    "muted": "#414868",
+    "selection": "#292e42",
+    "cursor": "#c0caf5",
+    "border_active": "#7aa2f7",
+    "border_inactive": "#292e42"
+  },
+  "terminal": [
+    "#24283B",
+    "#F7768E",
+    "#9ECE6A",
+    "#E0AF68",
+    "#7AA2F7",
+    "#AD8EE6",
+    "#449DAB",
+    "#A9B1D6",
+    "#414868",
+    "#FF7A93",
+    "#B9F27C",
+    "#FF9E64",
+    "#7DA6FF",
+    "#BB9AF7",
+    "#0DB9D7",
+    "#C0CAF5"
+  ],
+  "font": "JetBrainsMono Nerd Font",
+  "wallpapers": [
+    "1-portal.jpg"
+  ]
+}
