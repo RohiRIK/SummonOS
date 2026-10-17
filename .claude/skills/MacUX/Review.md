@@ -8,7 +8,7 @@ Run on every `#Preview` via Xcode MCP `RenderPreview` (light and dark), then on 
 - [ ] Increase Contrast and Reduce Transparency still readable.
 - [ ] No hard-coded colors; accent follows system accent.
 - [ ] Icons in one column; labels aligned on one leading edge.
-- [ ] Spacing only from the 4/8/12/16/20 scale.
+- [ ] Spacing from the 4/8/12/16/20 scale, except the menu measurements in `MenuPanel.md` (outer padding 6, 42 pt text column).
 - [ ] No text truncation at default size; long SSIDs/names truncate with `…` in the middle or tail, not clipped.
 - [ ] Live numbers use `.monospacedDigit()`; nothing jitters while updating.
 - [ ] Menu bar icon is a template image and matches system icon weight.
