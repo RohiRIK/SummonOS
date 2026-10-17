@@ -11,7 +11,7 @@ and turn it into a small set of skills. Result: 4 workspace skills + 2 installed
 | Apple HIG JSON (menu bar, menus, materials, toggles) | Design rules | Quoted rules in `MacUX/MenuPanel.md` |
 | Apple SwiftUI docs: *Applying Liquid Glass to custom views* | Glass API | Glass only on controls, never content |
 | [fayazara/macos-app-skills](https://github.com/fayazara/macos-app-skills) (★674, **no license**) | macOS patterns, settings UI, Sparkle, release | Read only; ideas in `MacAppBuild/Release.md`, `MacAppArchitecture/AppShapes.md` |
-| [AvdLee/SwiftUI-Agent-Skill](https://github.com/AvdLee/SwiftUI-Agent-Skill) (★3.6k, MIT) | Deep SwiftUI + macOS views + Liquid Glass | Installed as `swiftui-expert-skill` @ 9808b06 |
+| [AvdLee/SwiftUI-Agent-Skill](https://github.com/AvdLee/SwiftUI-Agent-Skill) (★3.6k, MIT) | Deep SwiftUI + macOS views + Liquid Glass | Installed as `swiftui-expert-skill` @ 204dba7 (v5.2.1, updated 2026-10-17) |
 | [twostraws/Swift-Concurrency-Agent-Skill](https://github.com/twostraws/Swift-Concurrency-Agent-Skill) (★547, MIT) | Swift 6 concurrency | Installed as `swift-concurrency-pro` @ bee3f69 |
 | twostraws/SwiftUI-Agent-Skill (MIT) | Compact SwiftUI reviewer | Skipped: overlaps AvdLee, which has macOS coverage |
 | dpearson2699/swift-ios-skills | iOS skills | Skipped: PolyForm Perimeter license, iOS focus |
