@@ -38,6 +38,8 @@ struct SystemTests {
         let undo = service.undoSteps(checkpoint)
         #expect(undo.count == 2)
         #expect(undo[0].arguments.contains("abc123"))
+        #expect(undo[0].arguments.contains("checkout"))  // restore never deletes files the commit lacks
+        #expect(undo[0].arguments.contains(":(exclude)summon/checkpoints.json"))
         #expect(undo[1].arguments == ["undo", "snap-1"])
     }
 
@@ -93,6 +95,7 @@ struct SystemTests {
         let cut = DebugBundle.truncate(text, maxLines: 3)
         #expect(cut == "(7 earlier lines omitted)\n8\n9\n10\n")
         #expect(DebugBundle.truncate("a", maxLines: 3) == "a\n")
+        #expect(DebugBundle.truncate("a\nb\nc\n", maxLines: 3) == "a\nb\nc\n")
     }
 
     @Test func catalogIsUniqueAndEncodes() throws {

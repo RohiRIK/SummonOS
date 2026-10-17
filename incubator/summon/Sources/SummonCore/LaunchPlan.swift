@@ -21,10 +21,10 @@ public enum AgentLauncher {
     public static func workingDirectory(current: String, home: String, workExists: Bool) -> String {
         let normalizedCurrent = (current as NSString).standardizingPath
         let normalizedHome = (home as NSString).standardizingPath
-        if normalizedCurrent == normalizedHome && workExists {
-            return (normalizedHome as NSString).appendingPathComponent("Work")
-        }
-        return normalizedCurrent
+        // A GUI app (the Summon Menu) starts with `/` as its folder: treat that like home.
+        let fromHomeOrRoot = normalizedCurrent == normalizedHome || normalizedCurrent == "/"
+        guard fromHomeOrRoot else { return normalizedCurrent }
+        return workExists ? (normalizedHome as NSString).appendingPathComponent("Work") : normalizedHome
     }
 
     /// Opens a new terminal window running `agentArgv` in `directory`.

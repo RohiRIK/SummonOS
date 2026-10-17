@@ -40,6 +40,9 @@ struct AgentTests {
         #expect(AgentLauncher.workingDirectory(current: "/Users/a/", home: "/Users/a", workExists: true) == "/Users/a/Work")
         #expect(AgentLauncher.workingDirectory(current: "/Users/a", home: "/Users/a", workExists: false) == "/Users/a")
         #expect(AgentLauncher.workingDirectory(current: "/Users/a/code", home: "/Users/a", workExists: true) == "/Users/a/code")
+        // Launched from the menu bar app, whose folder is `/`.
+        #expect(AgentLauncher.workingDirectory(current: "/", home: "/Users/a", workExists: true) == "/Users/a/Work")
+        #expect(AgentLauncher.workingDirectory(current: "/", home: "/Users/a", workExists: false) == "/Users/a")
     }
 
     @Test func ghosttyPlanPassesArgvAfterDashE() {

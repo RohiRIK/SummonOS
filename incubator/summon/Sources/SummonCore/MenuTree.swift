@@ -189,3 +189,18 @@ public enum JSONC {
         return output
     }
 }
+
+extension MenuTree {
+    /// The user's menu file when it exists and parses; otherwise the bundled default, with the reason
+    /// it was not used. One rule for the app and the CLI.
+    public static func load(from url: URL) -> (tree: MenuTree, problem: String?) {
+        guard let data = FileManager.default.contents(atPath: url.path) else {
+            return (.standard, nil)
+        }
+        do {
+            return (try MenuTree.parse(String(decoding: data, as: UTF8.self)), nil)
+        } catch {
+            return (.standard, "\(url.lastPathComponent) could not be read (\(error)); using the default menu.")
+        }
+    }
+}

@@ -128,15 +128,15 @@ public struct CheckpointService: Sendable {
         try TextFile.write(String(decoding: data, as: UTF8.self) + "\n", to: storeFile)
     }
 
-    /// The commands `undo` runs: put tracked `~/.config` files back as they were at the checkpoint commit,
-    /// then macctl undo of that snapshot. Files the agent created afterwards are left in place
-    /// (`git status` lists them), never deleted.
+    /// The commands `undo` runs: put `~/.config` files that existed at the checkpoint commit back as they
+    /// were (`git checkout <commit> -- .` never deletes files that commit lacks), keeping Summon's own
+    /// checkpoint history, then macctl undo of that snapshot. Files created afterwards stay in place.
     public func undoSteps(_ checkpoint: Checkpoint) -> [LaunchPlan] {
         var steps: [LaunchPlan] = []
         if let gitPath, let commit = checkpoint.configCommit {
             steps.append(LaunchPlan(
                 executable: gitPath,
-                arguments: ["-C", paths.userConfig.path, "restore", "--source", commit, "--staged", "--worktree", "--", "."]
+                arguments: ["-C", paths.userConfig.path, "checkout", commit, "--", ".", ":(exclude)summon/checkpoints.json"]
             ))
         }
         if let macctlPath, let snapshot = checkpoint.macctlSnapshot {

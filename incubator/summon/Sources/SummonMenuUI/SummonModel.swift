@@ -34,6 +34,7 @@ public final class SummonModel {
 
     /// Set by the app delegate to post a notification for each new report.
     @ObservationIgnored public var onNewCrash: ((CrashReport) -> Void)? = nil
+    @ObservationIgnored private var recentKey: [String] = []
     @ObservationIgnored private var watchTask: Task<Void, Never>? = nil
 
     static let crashCaptureKey = "crashCaptureEnabled"
@@ -62,18 +63,9 @@ public final class SummonModel {
     }
 
     func loadMenu() {
-        guard let data = FileManager.default.contents(atPath: paths.menuFile.path) else {
-            menu = MenuTree.standard
-            menuError = nil
-            return
-        }
-        do {
-            menu = try MenuTree.parse(String(decoding: data, as: UTF8.self))
-            menuError = nil
-        } catch {
-            menu = MenuTree.standard
-            menuError = "Your menu.jsonc could not be read (\(error)); showing the default menu."
-        }
+        let loaded = MenuTree.load(from: paths.menuFile)
+        menu = loaded.tree
+        menuError = loaded.problem
     }
 
     // MARK: Crash watching
@@ -98,13 +90,19 @@ public final class SummonModel {
         let watcher = CrashWatcher(paths: paths)
         let since = watcher.marker()
         let scanStart = Date()
-        let result = await Task.detached { () -> ([CrashReport], [CrashReport]) in
-            let recent = watcher.reports(since: nil, limit: 10)
+        let previousKey = recentKey
+        let result = await Task.detached { () -> ([CrashReport]?, [CrashReport], [String]) in
+            // Reports can be megabytes each: re-parse the recent list only when the files or mutes changed.
+            let key = watcher.reportFiles(since: nil).prefix(30).map(\.path) + watcher.muted().sorted()
+            let recent = key == previousKey ? nil : watcher.reports(since: nil, limit: 10)
             // The first scan only sets the marker: old reports never notify.
             let fresh = since == nil ? [] : watcher.reports(since: since, limit: 5)
-            return (recent, fresh)
+            return (recent, fresh, key)
         }.value
-        recentCrashes = result.0
+        if let recent = result.0 {
+            recentCrashes = recent
+        }
+        recentKey = result.2
         try? watcher.saveMarker(scanStart)
         if crashCaptureEnabled {
             for report in result.1 {

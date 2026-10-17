@@ -31,7 +31,7 @@ Swift PRs. Once those build, a marketplace entry and `plugin/.mcp.json` are adde
 
 | Keys | Does |
 |---|---|
-| ⌥Space | Summon Menu |
+| ⌃⌥Space | Summon Menu |
 | ⌃⌥⌘A | Summon the agent |
 | ⌃⌥⌘\` | Drop-down terminal (type `a` for the agent) |
 | ⌥1…9, ⌥⇧1…9 | Workspaces |
