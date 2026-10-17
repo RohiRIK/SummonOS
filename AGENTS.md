@@ -49,7 +49,8 @@ installed unmodified with their LICENSE files. Do not edit them; put our rules i
 4. **Build end to end:** no stubs, TODOs, or mock data standing in for required behavior; every new
    screen, action, and setting is reachable. Test-first for Core logic. Branch, never `main`.
 5. **Verify:** `MacAppBuild/Verify.md`: gate, previews, run the app, logs, manual checklist.
-6. **PR:** `gh pr create`, then `scripts/pr-report.sh` (report + previews as a comment). No GitHub Actions.
+6. **PR:** `gh pr create`, then `scripts/pr-report.sh` (report + previews as a comment). No GitHub Actions in plugin
+   repos; this workspace repo runs `.github/workflows/swift.yml` (build + test every Swift package on macOS).
 7. **Update memory:** the plugin's `PROJECT-CONTEXT.md` and, if new, `plugins.md`.
 
 ## Project memory (per plugin, from Glaze)
