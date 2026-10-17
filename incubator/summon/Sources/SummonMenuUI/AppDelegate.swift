@@ -17,11 +17,16 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
     }
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
-        HotKeyCenter.shared.register(id: SummonHotKey.menuID, keyCode: SummonHotKey.menuKey, modifiers: SummonHotKey.menuModifiers) { [weak self] in
+        let menuOK = HotKeyCenter.shared.register(id: SummonHotKey.menuID, keyCode: SummonHotKey.menuKey, modifiers: SummonHotKey.menuModifiers) { [weak self] in
             self?.launcher.toggle()
         }
-        HotKeyCenter.shared.register(id: SummonHotKey.agentID, keyCode: SummonHotKey.agentKey, modifiers: SummonHotKey.agentModifiers) { [weak self] in
+        let agentOK = HotKeyCenter.shared.register(id: SummonHotKey.agentID, keyCode: SummonHotKey.agentKey, modifiers: SummonHotKey.agentModifiers) { [weak self] in
             self?.model.askAgent()
+        }
+        // Another app may own the combination; say so instead of failing silently.
+        let taken = [menuOK ? nil : "⌃⌥Space", agentOK ? nil : "⌃⌥⌘A"].compactMap { $0 }
+        if !taken.isEmpty {
+            model.lastError = "Shortcut \(taken.joined(separator: " and ")) is taken by another app."
         }
         setUpNotifications()
         model.onNewCrash = { [weak self] report in
@@ -47,7 +52,13 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
 
     // MARK: Notifications
 
+    /// UNUserNotificationCenter raises an exception outside an .app bundle (`swift run SummonMenu`).
+    private var canNotify: Bool {
+        Bundle.main.bundleURL.pathExtension == "app" && Bundle.main.bundleIdentifier != nil
+    }
+
     private func setUpNotifications() {
+        guard canNotify else { return }
         let center = UNUserNotificationCenter.current()
         center.delegate = self
         let diagnose = UNNotificationAction(identifier: Self.diagnoseAction, title: "Diagnose", options: [])
@@ -58,6 +69,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
     }
 
     private func notify(_ report: CrashReport) {
+        guard canNotify else { return }
         let content = UNMutableNotificationContent()
         switch report.kind {
         case .crash: content.title = "\(report.program) crashed"

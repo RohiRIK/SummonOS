@@ -59,7 +59,8 @@ public struct DebugBundle: Sendable {
 
     /// Keeps the last `maxLines` lines, which for logs are the most recent.
     public static func truncate(_ text: String, maxLines: Int) -> String {
-        let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        var lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        if lines.last == "" { lines.removeLast() }  // a trailing newline ends the last line; it is not a line
         guard lines.count > maxLines else { return text.hasSuffix("\n") ? text : text + "\n" }
         let kept = lines.suffix(maxLines).joined(separator: "\n")
         return "(\(lines.count - maxLines) earlier lines omitted)\n" + kept + (kept.hasSuffix("\n") ? "" : "\n")

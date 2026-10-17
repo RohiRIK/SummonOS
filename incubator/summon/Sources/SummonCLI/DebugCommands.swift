@@ -81,9 +81,10 @@ enum MenuCommands {
 
     /// The user's menu when it exists and parses; otherwise the bundled default.
     static func loadTree(_ context: Context) throws -> MenuTree {
-        if let data = FileManager.default.contents(atPath: context.paths.menuFile.path) {
-            return try MenuTree.parse(String(decoding: data, as: UTF8.self))
+        let loaded = MenuTree.load(from: context.paths.menuFile)
+        if let problem = loaded.problem {
+            context.warn(problem)
         }
-        return MenuTree.standard
+        return loaded.tree
     }
 }

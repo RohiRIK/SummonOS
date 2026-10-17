@@ -72,9 +72,10 @@ public enum SummonHotKey {
     public static let menuID: UInt32 = 1
     public static let agentID: UInt32 = 2
 
-    /// ⌥Space opens the Summon Menu (Omarchy's Super+Space).
+    /// ⌃⌥Space opens the Summon Menu (Omarchy's Super+Space). Option alone is not allowed:
+    /// macOS 15 rejects hot keys whose only modifiers are Option or Option+Shift.
     public static let menuKey = UInt32(kVK_Space)
-    public static let menuModifiers = UInt32(optionKey)
+    public static let menuModifiers = UInt32(controlKey | optionKey)
 
     /// ⌃⌥⌘A starts the default agent (Omarchy's Super+Shift+Ctrl+A).
     public static let agentKey = UInt32(kVK_ANSI_A)

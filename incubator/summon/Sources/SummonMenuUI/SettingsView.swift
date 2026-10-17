@@ -29,7 +29,7 @@ public struct SettingsView: View {
                     }
                 }
                 LabeledContent("Start agent", value: "⌃⌥⌘A")
-                LabeledContent("Summon Menu", value: "⌥Space")
+                LabeledContent("Summon Menu", value: "⌃⌥Space")
             }
 
             Section("Crash Capture") {

@@ -18,9 +18,17 @@ public enum RunnerError: Error, Equatable, Sendable, CustomStringConvertible {
 }
 
 public enum Shell {
-    /// The real runner. Blocking work stays off the caller's actor because the closure is nonisolated.
+    /// The real runner. The blocking wait runs on a GCD thread, never on a Swift concurrency thread.
     public static let live: Runner = { path, arguments in
-        try Shell.runSync(path, arguments)
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, any Error>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    continuation.resume(returning: try Shell.runSync(path, arguments))
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
     }
 
     public static func runSync(_ path: String, _ arguments: [String]) throws -> String {
@@ -32,10 +40,23 @@ public enum Shell {
         process.standardOutput = pipe
         process.standardError = pipe
         process.standardInput = FileHandle.nullDevice
+        // Read as data arrives instead of to end-of-file: a child the command left running in the
+        // background (`caffeinate … &`) keeps the pipe open, and reading to EOF would wait for it.
+        let buffer = OutputBuffer()
+        let reader = pipe.fileHandleForReading
+        reader.readabilityHandler = { handle in
+            let chunk = handle.availableData
+            if chunk.isEmpty {
+                handle.readabilityHandler = nil
+            } else {
+                buffer.append(chunk)
+            }
+        }
         try process.run()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
-        let output = String(decoding: data, as: UTF8.self)
+        Thread.sleep(forTimeInterval: 0.05)  // let the handler take what the process wrote just before exiting
+        reader.readabilityHandler = nil
+        let output = String(decoding: buffer.data, as: UTF8.self)
         guard process.terminationStatus == 0 else {
             throw RunnerError.failed(path: path, status: process.terminationStatus, output: output)
         }
@@ -51,6 +72,24 @@ public enum Shell {
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         try process.run()
+    }
+}
+
+/// Collects pipe output from the readability handler's thread.
+final class OutputBuffer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage = Data()
+
+    func append(_ chunk: Data) {
+        lock.lock()
+        storage.append(chunk)
+        lock.unlock()
+    }
+
+    var data: Data {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
     }
 }
 

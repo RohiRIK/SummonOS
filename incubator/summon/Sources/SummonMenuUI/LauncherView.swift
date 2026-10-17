@@ -19,7 +19,7 @@ public struct LauncherView: View {
     }
 
     private var rows: [MenuItem] {
-        query.isEmpty ? model.visibleChildren(of: level) : model.menu.search(query)
+        query.isEmpty ? model.visibleChildren(of: level) : model.menu.search(query).filter { model.visibility[$0.id] != false }
     }
 
     public var body: some View {
@@ -101,9 +101,19 @@ public struct LauncherView: View {
         .onAppear(perform: reset)
         .onChange(of: model.launcherSession) { _, _ in reset() }
         .onChange(of: query) { _, _ in selection = 0 }
-        .task(id: level) {
+        // Re-check guards whenever the level changes or the launcher is shown again (the panel is reused).
+        .task(id: GuardKey(level: level, session: model.launcherSession)) {
             await model.evaluateGuards(model.menu.children(of: level))
         }
+        .task(id: query) {
+            guard !query.isEmpty else { return }
+            await model.evaluateGuards(model.menu.search(query))
+        }
+    }
+
+    private struct GuardKey: Hashable {
+        let level: String?
+        let session: Int
     }
 
     private func reset() {

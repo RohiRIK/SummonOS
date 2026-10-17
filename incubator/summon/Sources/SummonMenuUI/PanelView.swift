@@ -28,7 +28,7 @@ public struct PanelView: View {
                 model.askAgent()
             }
             .disabled(model.defaultAgent == nil || !model.agentInstalled)
-            MenuRow(title: "Open Summon Menu", systemImage: "command", shortcut: "⌥Space") {
+            MenuRow(title: "Open Summon Menu", systemImage: "command", shortcut: "⌃⌥Space") {
                 openLauncher()
             }
             MenuRow(title: "Diagnose Last Crash", systemImage: "stethoscope", shortcut: nil) {
