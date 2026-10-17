@@ -7,3 +7,6 @@ tools/private-patterns.txt
 .claude/settings.local.json
 graphify-out/
 .DS_Store
+# SwiftPM and tools/xcode-mcp.ts output, if ever run in place.
+.build/
+build/
