@@ -10,7 +10,9 @@ checkpoint before every agent session.
 - Incubating at `incubator/summon/` in `RohiRIK/macos-plugins`. Target repos: `mac-summon-dev` / `mac-summon`.
 - `plugin/`: Claude Code plugin (4 skills, 7 commands, `macctl` MCP). `themes/`: 9 theme.json + wallpapers.
   `config/`: Brewfile, AeroSpace, Ghostty, borders, zsh. `design/`: brand assets + `generate.py`.
-- Swift package (CLI `summon`, Summon Menu app): separate PR, not compiled yet (no Mac/CI in the cloud).
+- Swift package: `SummonCore` (agents, launch plans, .ips crash parsing + watcher, menu tree, themes + compilers,
+  checkpoints, debug bundle, hooks, command catalog), `summon` CLI, `SummonMenuUI` + `SummonMenu` app (menu bar panel,
+  ⌃⌥Space launcher, ⌃⌥⌘A agent, crash notifications, Settings). Written 2026-10-17, not compiled yet.
 - Bundle id `local.macplugins.summon`. Depends on `macctl` (draft PR #6) for every settings change.
 
 ## Constraints
@@ -21,6 +23,9 @@ checkpoint before every agent session.
 - Panel vs Settings window split from AGENTS.md applies to the Summon Menu app.
 
 ## Recent History
+### 2026-10-17 — Swift package (draft PR)
+- CLI, menu app, swift-testing tests; review fixes (cwd, checkpoint undo, runner, hotkey, guards). Needs a Mac/CI build.
+
 ### 2026-10-17 — Design, themes, plugin, configs
 - Logo (summoning circle around `›_`), app icon, menu bar template icon, wordmarks, banner.
 - Summon Night / Dawn themes + 7 Omarchy palette ports, 12 wallpapers at 5120×2880.
