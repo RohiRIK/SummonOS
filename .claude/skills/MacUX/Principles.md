@@ -4,7 +4,7 @@
 
 - Looks like Control Center, Wi-Fi menu, System Settings. Users already know those.
 - Instant: panel opens with cached data, then refreshes. Never a blank panel while loading.
-- Quiet: no splash, no onboarding, no badges for nothing. Ask for permission only when the user hits the feature that needs it, and say why.
+- Quiet: no splash, no badges for nothing. Onboarding only when the app cannot work without a permission (`MenuPanel.md` › App settings and onboarding). Otherwise ask for permission when the user hits the feature that needs it, and say why.
 - Reversible: destructive or system-changing actions (static IP, forget network) show what will change and need one explicit confirm.
 - Honest: show the real state. If a value is unknown, show `--` or a reason, never a fake value.
 
