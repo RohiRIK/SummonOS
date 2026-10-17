@@ -4,7 +4,8 @@
 
 - `CFBundleShortVersionString` = user-facing semver (`0.2.0`); `CFBundleVersion` = build number,
   +1 every release (Sparkle and macOS compare it).
-- Tag `v<version>` on `main` after the PR merges.
+- Bump both in `Resources/Info.plist` in the PR. `tools/release.sh` creates the `v<version>` tag and release
+  on the public repo; do not tag by hand.
 
 ## Package
 

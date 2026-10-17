@@ -32,15 +32,15 @@ Ask "which Apple UI does this resemble?" and copy its anatomy, not a generic web
 | Menu bar panel with a list | System Wi-Fi / Bluetooth menu (`MenuPanel.md`) |
 | Live numbers, current device/connection | Control Center module (`MenuPanel.md` › Live-data module) |
 | Several jobs in one panel | CodexBar tab switcher (`MenuPanel.md` › Everything in the panel) |
-| Editing settings in a panel | A tab with `SettingsGroup` / `SettingsRow`, System Settings wording |
+| Editing the app's job in a panel (IP settings) | A tab with `SettingsGroup` / `SettingsRow`, System Settings wording |
 | App preferences, permissions, theme | Settings window (⌘,) + first-launch onboarding (`MenuPanel.md` › App settings and onboarding) |
 
 **Check the reference apps already installed before inventing a pattern.** Look in `/Applications`
 for a polished app that solves the same problem (for menu bar apps: CodexBar). If its source is public
 and MIT or similar (`gh repo view <owner/repo> --json licenseInfo`, then read `LICENSE` itself: the API
-can report none when the file exists), clone it to the job tmp dir, find the view (`grep -rl` for
-`Switcher`, `Settings`, `Card`), and adapt the pattern with an attribution comment and the MIT notice in
-LICENSE. No license means read-only: learn, never copy.
+can report none when the file exists), clone it to a scratch dir outside `plugins/`, find the view (`grep -rl` for
+`Switcher`, `Settings`, `Card`), and adapt the pattern with an attribution comment and the upstream
+notice in `THIRD_PARTY_NOTICES.md` (keep `LICENSE` pure MIT). No license means read-only: learn, never copy.
 
 Fetch the HIG rule when unsure. Pages are JavaScript-rendered, so use the JSON endpoint:
 `https://developer.apple.com/tutorials/data/design/human-interface-guidelines/<page>.json`.
@@ -98,8 +98,3 @@ In the same turn:
 - The user's taste ("wants polished, not just functional") → workspace `tasks/lessons.md`.
 - The agreed design reference and preview paths → the plugin's `PROJECT-CONTEXT.md`.
 - Commit the previews and post `scripts/pr-report.sh`, so the PR shows the before and after.
-
-```bash
-echo '{"ts":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'","skill":"MacUX","workflow":"DesignPass","status":"ok","duration_s":'$SECONDS'}' \
-  >> ~/.claude/state/execution.jsonl
-```
