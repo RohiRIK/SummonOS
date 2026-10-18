@@ -28,6 +28,7 @@ struct SkillLinkTests {
         }
         // Antigravity reads ~/.gemini/config/skills (verified with agy 1.4.2), not ~/.antigravity.
         #expect(SkillLinker.agentFolders.contains(".gemini/config/skills"))
+        #expect(SkillLinker.agentFolders.contains(".pi/agent/skills"))
     }
 
     @Test func relinkingIsIdempotentAndRepointsOldLinks() throws {
