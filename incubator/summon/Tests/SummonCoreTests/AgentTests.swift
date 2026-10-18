@@ -46,14 +46,12 @@ struct AgentTests {
         #expect(store.load()?.id == "codex")
     }
 
-    @Test func launchFromHomeStartsInWork() {
-        #expect(AgentLauncher.workingDirectory(current: "/u/a", home: "/u/a", workExists: true) == "/u/a/Work")
-        #expect(AgentLauncher.workingDirectory(current: "/u/a/", home: "/u/a", workExists: true) == "/u/a/Work")
-        #expect(AgentLauncher.workingDirectory(current: "/u/a", home: "/u/a", workExists: false) == "/u/a")
-        #expect(AgentLauncher.workingDirectory(current: "/u/a/code", home: "/u/a", workExists: true) == "/u/a/code")
+    @Test func launchFromHomeStartsInTheProjectsFolder() {
+        #expect(AgentLauncher.workingDirectory(current: "/u/a", home: "/u/a", projects: "/u/a/Summon") == "/u/a/Summon")
+        #expect(AgentLauncher.workingDirectory(current: "/u/a/", home: "/u/a", projects: "/u/a/Summon/") == "/u/a/Summon")
+        #expect(AgentLauncher.workingDirectory(current: "/u/a/code", home: "/u/a", projects: "/u/a/Summon") == "/u/a/code")
         // Launched from the menu bar app, whose folder is `/`.
-        #expect(AgentLauncher.workingDirectory(current: "/", home: "/u/a", workExists: true) == "/u/a/Work")
-        #expect(AgentLauncher.workingDirectory(current: "/", home: "/u/a", workExists: false) == "/u/a")
+        #expect(AgentLauncher.workingDirectory(current: "/", home: "/u/a", projects: "/u/a/Summon") == "/u/a/Summon")
     }
 
     @Test func ghosttyPlanOpensAWindowInTheRunningApp() {

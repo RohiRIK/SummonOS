@@ -49,12 +49,15 @@ enum AgentCommands {
         }
 
         let fileManager = FileManager.default
-        var isDirectory: ObjCBool = false
-        let workExists = fileManager.fileExists(atPath: context.paths.work.path, isDirectory: &isDirectory) && isDirectory.boolValue
+        do {
+            try ProjectsFolder.ensure(context.paths)
+        } catch {
+            context.warn("summon: could not create \(context.paths.projects.path): \(error)")
+        }
         let directory = AgentLauncher.workingDirectory(
             current: fileManager.currentDirectoryPath,
             home: context.paths.home.path,
-            workExists: workExists
+            projects: context.paths.projects.path
         )
 
         var refs = ["agent": agent.id, "folder": directory]

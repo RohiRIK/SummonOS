@@ -74,4 +74,14 @@ struct MenuTests {
             #expect(matched, "\(item.id): \(action)")
         }
     }
+
+    @Test func makeSomethingStartsEveryAppKindFromItsTemplate() throws {
+        let tree = try MenuTree.parse(DefaultMenu.jsonc)
+        for kind in ProjectKind.allCases {
+            let id = "make.\(kind.rawValue)"
+            let action = try #require(tree.items.first { $0.id == id }?.action, "\(id) is missing")
+            #expect(action.contains("summon project new <name> --kind \(kind.rawValue)"), "\(id): \(action)")
+            #expect(!action.contains("scratch"))
+        }
+    }
 }
