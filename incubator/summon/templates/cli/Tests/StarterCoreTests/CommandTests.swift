@@ -14,7 +14,7 @@ import Testing
 
     @Test func helpAndVersionWin() throws {
         #expect(try Command.parse(["ada", "--help"]) == .help)
-        #expect(try Command.parse(["--version"]).output.hasSuffix(Command.version))
+        #expect(try Command.parse(["--version"]).output.hasSuffix(Command.versionNumber))
     }
 
     @Test func badInputIsAUsageError() {

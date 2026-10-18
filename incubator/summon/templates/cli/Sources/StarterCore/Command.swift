@@ -6,7 +6,7 @@ public enum Command: Equatable, Sendable {
     case greet(name: String, loud: Bool)
 
     public static let toolName = "cli-starter"
-    public static let version = "0.1.0"
+    public static let versionNumber = "0.1.0"
 
     public static let usage = """
     usage: \(toolName) [--loud] [name]
@@ -48,7 +48,7 @@ public enum Command: Equatable, Sendable {
     public var output: String {
         switch self {
         case .help: Self.usage
-        case .version: "\(Self.toolName) \(Self.version)"
+        case .version: "\(Self.toolName) \(Self.versionNumber)"
         case let .greet(name, loud):
             loud ? "HELLO, \(name.uppercased())!" : "Hello, \(name)."
         }
