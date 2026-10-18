@@ -7,7 +7,7 @@ public struct SkillLinker: Sendable {
     /// Relative to home. `.agents/skills` is the shared standard (OpenCode, Codex); Antigravity's CLI reads only
     /// `.gemini/config/skills` (verified with agy 1.4.2: not `~/.antigravity`, `~/.gemini/skills` or
     /// `~/.gemini/antigravity/skills`). OpenCode also reads `.claude/skills`.
-    public static let agentFolders = [".agents/skills", ".claude/skills", ".codex/skills", ".gemini/config/skills"]
+    public static let agentFolders = [".agents/skills", ".claude/skills", ".codex/skills", ".gemini/config/skills", ".pi/agent/skills"]
 
     public struct Result: Sendable, Equatable {
         public var linked: [String] = []
