@@ -16,13 +16,21 @@ checkpoint before every agent session.
 - Bundle id `local.macplugins.summon`. Depends on `macctl` (draft PR #6) for every settings change.
 
 ## Constraints
-- Agents run in auto mode with checkpoint + one-step undo (Rohi, 2026-10-17).
+- Agents run with permission prompts bypassed (YOLO: `--dangerously-skip-permissions` etc.) behind a checkpoint + one-step undo (Rohi, 2026-10-17; bypass 2026-10-18).
 - Third-party tools via Homebrew are allowed (AeroSpace, Ghostty, JankyBorders) (Rohi, 2026-10-17).
 - Shape: Claude Code plugin + native Summon Menu app (Rohi, 2026-10-17). Name chosen by Rohi: Summon.
 - Settings go through `macctl`; no passwordless sudo (Touch ID for sudo instead).
 - Panel vs Settings window split from AGENTS.md applies to the Summon Menu app.
 
 ## Recent History
+### 2026-10-18 — Agent opens one Ghostty window
+- `open -na Ghostty` spawned a new Ghostty process per launch (user saw two tabs). `LaunchPlan` now uses Ghostty's
+  AppleScript `new window` when it is running, `open -na` only on a cold start. Verified: 1 process, +1 window.
+### 2026-10-18 — Leaner panel and Settings (user request)
+- Panel: no Theme list, no Recent Activity, no Diagnose Last Crash row (history → Activity window, theme → Settings).
+  Recent Problems only when present, one row per program with "N times". `.ultraThinMaterial` window background (user
+  asked for more translucency). Width 300. Settings footer: "Powered by caffeine and questionable choices."
+- Settings: Agent, Notifications, Appearance, General only; shortcut rows and help text removed. 480×440, no scroll.
 ### 2026-10-18 — Plugin session hooks (milestone 3 of 3)
 - `plugin/hooks/hooks.json` + `summon-session.sh`: SessionStart/SessionEnd call `summon event hook start|end` (payload on
   stdin; compactions skipped; silent when summon is missing). `/summon:activity` command summarizes status and events.

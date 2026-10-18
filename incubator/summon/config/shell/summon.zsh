@@ -5,9 +5,9 @@ alias a='summon agent --inline'
 # Straight into a task: ap "why is my disk full?"
 ap() { summon agent prompt "$*"; }
 
-# Agents by name, in their auto modes (same flags as Omarchy's cx / cy).
-alias cx='claude --permission-mode auto'
-alias cy='codex --approve-for-me'
+# Agents by name, with permission prompts bypassed (same flags Summon launches with).
+alias cx='claude --dangerously-skip-permissions'
+alias cy='codex --dangerously-bypass-approvals-and-sandbox'
 
 # Quick helpers
 alias theme='summon theme set'

@@ -28,16 +28,34 @@ public enum AgentLauncher {
     }
 
     /// Opens a new terminal window running `agentArgv` in `directory`.
+    /// Both scripts are fixed text; the directory and every argv item arrive as osascript argv and are quoted there.
     public static func terminalPlan(agentArgv: [String], directory: String, terminal: TerminalApp) -> LaunchPlan {
+        let script: [String]
         switch terminal {
         case .ghostty:
-            return LaunchPlan(
-                executable: "/usr/bin/open",
-                arguments: ["-na", "Ghostty", "--args", "--working-directory=\(directory)", "-e"] + agentArgv
-            )
+            // `open -na Ghostty` started a second Ghostty app per launch (extra Dock icon, stray window).
+            // A running Ghostty (1.3+) gets one new window over AppleScript; a cold start opens exactly the -e window.
+            script = [
+                "on run argv",
+                "set cmd to \"\"",
+                "repeat with i from 2 to (count of argv)",
+                "set cmd to cmd & quoted form of (item i of argv) & \" \"",
+                "end repeat",
+                "if application \"Ghostty\" is running then",
+                "tell application \"Ghostty\"",
+                "activate",
+                "set cfg to new surface configuration",
+                "set initial working directory of cfg to item 1 of argv",
+                "set command of cfg to cmd",
+                "new window with configuration cfg",
+                "end tell",
+                "else",
+                "do shell script \"/usr/bin/open -na Ghostty --args --working-directory=\" & quoted form of (item 1 of argv) & \" -e \" & cmd",
+                "end if",
+                "end run",
+            ]
         case .terminal:
-            // A fixed script; the directory and every argv item arrive as osascript argv and are quoted there.
-            let script = [
+            script = [
                 "on run argv",
                 "set cmd to \"cd \" & quoted form of (item 1 of argv) & \" &&\"",
                 "repeat with i from 2 to (count of argv)",
@@ -49,15 +67,15 @@ public enum AgentLauncher {
                 "end tell",
                 "end run",
             ]
-            var arguments: [String] = []
-            for line in script {
-                arguments.append("-e")
-                arguments.append(line)
-            }
-            arguments.append(directory)
-            arguments.append(contentsOf: agentArgv)
-            return LaunchPlan(executable: "/usr/bin/osascript", arguments: arguments)
         }
+        var arguments: [String] = []
+        for line in script {
+            arguments.append("-e")
+            arguments.append(line)
+        }
+        arguments.append(directory)
+        arguments.append(contentsOf: agentArgv)
+        return LaunchPlan(executable: "/usr/bin/osascript", arguments: arguments)
     }
 
     public static func preferredTerminal(ghosttyInstalled: Bool) -> TerminalApp {

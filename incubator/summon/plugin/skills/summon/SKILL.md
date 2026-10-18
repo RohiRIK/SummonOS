@@ -36,7 +36,7 @@ Read a command's help before running it (`summon <group> <cmd> --help` never exe
 2. **Edit configs in `~/.config`, never the shipped copies.** Summon's defaults live in its install
    folder (`$(summon path)`); copy before you customize. Generated files under `~/.config/summon/current/`
    are overwritten on every `summon theme set`: change the theme JSON instead.
-3. **You run in auto mode, so stay inside the checkpoint.** Summon took a checkpoint when this session
+3. **You run with permission prompts bypassed, so stay inside the checkpoint.** Summon took a checkpoint when this session
    started (`macctl` snapshot + a git commit of `~/.config`). Things outside it, such as deleting files outside
    `~/.config`, uninstalling apps, changing login passwords, or anything under `/System`, need the user's
    explicit yes first.

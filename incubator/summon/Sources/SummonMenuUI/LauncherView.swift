@@ -25,18 +25,20 @@ public struct LauncherView: View {
     public var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
-                Image(systemName: "sparkles")
-                    .font(.title2)
-                    .foregroundStyle(.tint)
+                Image(systemName: level == nil ? "magnifyingglass" : "chevron.left")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
                 if let level {
                     Text(model.menu.path(to: level).joined(separator: " › "))
-                        .font(.title3)
+                        .font(.system(size: 20))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .fixedSize()
                 }
-                TextField(level == nil ? "Search Summon" : "Search", text: $query)
+                TextField(level == nil ? "Search Summon…" : "Search", text: $query)
                     .textFieldStyle(.plain)
-                    .font(.title3)
+                    .font(.system(size: 20, weight: .light))
                     .focused($searchFocused)
                     .onSubmit(activateSelection)
                     .onKeyPress(.downArrow) { move(1); return .handled }
@@ -53,7 +55,8 @@ public struct LauncherView: View {
                         return .handled
                     }
             }
-            .padding(14)
+            .padding(.horizontal, 18)
+            .frame(height: 56)
 
             Divider()
 
@@ -80,8 +83,9 @@ public struct LauncherView: View {
                                 .padding(20)
                         }
                     }
-                    .padding(6)
+                    .padding(8)
                 }
+                .scrollIndicators(.never)
                 .onChange(of: selection) { _, newValue in
                     guard newValue >= 0, newValue < rows.count else { return }
                     proxy.scrollTo(rows[newValue].id)
@@ -96,8 +100,14 @@ public struct LauncherView: View {
                     .lineLimit(2)
                     .padding(8)
             }
+
+            Divider()
+            footer
         }
-        .frame(width: 580, height: 420)
+        .frame(width: 620, height: Self.height)
+        .background(VisualEffectBackground())
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(.white.opacity(0.12)))
         .onAppear(perform: reset)
         .onChange(of: model.launcherSession) { _, _ in reset() }
         .onChange(of: query) { _, _ in selection = 0 }
@@ -109,6 +119,23 @@ public struct LauncherView: View {
             guard !query.isEmpty else { return }
             await model.evaluateGuards(model.menu.search(query))
         }
+    }
+
+    static let height: CGFloat = 450
+
+    /// Raycast-style action bar: where you are on the left, the keys that work here on the right.
+    private var footer: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "sparkles").foregroundStyle(.tint)
+            Text("Summon").foregroundStyle(.secondary)
+            Spacer()
+            KeyHint(key: "↵", label: rows.indices.contains(selection) && model.hasChildren(rows[selection]) ? "Open" : "Run")
+            if level != nil || !query.isEmpty { KeyHint(key: "←", label: "Back") }
+            KeyHint(key: "esc", label: "Close")
+        }
+        .font(.caption)
+        .padding(.horizontal, 14)
+        .frame(height: 34)
     }
 
     private struct GuardKey: Hashable {
@@ -162,36 +189,75 @@ struct LauncherRow: View {
     let hasChildren: Bool
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
+            // Icon tile: tinted when selected, quiet otherwise.
             Image(systemName: item.icon ?? "circle")
-                .frame(width: 22)
+                .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(isSelected ? AnyShapeStyle(Color.white) : AnyShapeStyle(HierarchicalShapeStyle.secondary))
-            VStack(alignment: .leading, spacing: 1) {
-                Text(item.label)
-                if let breadcrumb, !breadcrumb.isEmpty {
-                    Text(breadcrumb)
-                        .font(.caption)
-                        .foregroundStyle(isSelected ? AnyShapeStyle(Color.white.opacity(0.8)) : AnyShapeStyle(HierarchicalShapeStyle.tertiary))
-                }
+                .frame(width: 26, height: 26)
+                .background(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(isSelected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(HierarchicalShapeStyle.quaternary))
+                )
+            Text(item.label)
+            if let breadcrumb, !breadcrumb.isEmpty {
+                Text(breadcrumb)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
             }
             Spacer()
             if isChecked {
                 Image(systemName: "checkmark")
+                    .foregroundStyle(.tint)
             }
             if hasChildren {
                 Image(systemName: "chevron.right")
-                    .foregroundStyle(isSelected ? AnyShapeStyle(Color.white) : AnyShapeStyle(HierarchicalShapeStyle.tertiary))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
             }
         }
-        .foregroundStyle(isSelected ? AnyShapeStyle(Color.white) : AnyShapeStyle(HierarchicalShapeStyle.primary))
-        .padding(.horizontal, 10)
-        .frame(minHeight: 32)
+        .padding(.horizontal, 8)
+        .frame(minHeight: 40)
         .contentShape(Rectangle())
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isSelected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(Color.clear))
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(isSelected ? AnyShapeStyle(HierarchicalShapeStyle.quaternary) : AnyShapeStyle(Color.clear))
         )
     }
+}
+
+struct KeyHint: View {
+    let key: String
+    let label: String
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Text(label).foregroundStyle(.secondary)
+            Text(key)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 5)
+                .frame(minWidth: 18, minHeight: 18)
+                .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(.quaternary))
+        }
+    }
+}
+
+/// Behind-window blur, so the launcher is translucent like the menu bar panel.
+struct VisualEffectBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .hudWindow
+        view.blendingMode = .behindWindow
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+}
+
+/// Borderless panels refuse key status by default; the search field needs it.
+private final class KeyPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
 }
 
 /// Owns the launcher panel: centered on the screen with the pointer, closes when it loses focus.
@@ -230,22 +296,20 @@ public final class LauncherController {
     }
 
     private func makePanel() -> NSPanel {
-        let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 580, height: 420),
-            styleMask: [.titled, .nonactivatingPanel, .fullSizeContentView],
+        let panel = KeyPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 620, height: LauncherView.height),
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
-        panel.titleVisibility = .hidden
-        panel.titlebarAppearsTransparent = true
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = true
         panel.isMovableByWindowBackground = true
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
-        panel.standardWindowButton(.closeButton)?.isHidden = true
-        panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        panel.standardWindowButton(.zoomButton)?.isHidden = true
         let view = LauncherView(model: model, onClose: { [weak self] in self?.hide() })
         panel.contentView = NSHostingView(rootView: view)
         resignObserver = NotificationCenter.default.addObserver(
