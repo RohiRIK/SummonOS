@@ -31,7 +31,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         if !taken.isEmpty {
             model.lastError = "Shortcut \(taken.joined(separator: " and ")) is taken by another app."
         }
-        setUpNotifications()
+        // `summon doctor` reads this to report whether the app runs and its shortcuts registered.
+        let health = AppHealth(pid: ProcessInfo.processInfo.processIdentifier,
+                               hotkeys: ["⌃⌥Space": menuOK, "⌃⌥⌘A": agentOK])
+        try? AppHealthStore(paths: model.paths).save(health)
+        setUpNotifications(health: health)
         model.onNewCrash = { [weak self] report in
             self?.notify(report)
         }
@@ -65,7 +69,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         Bundle.main.bundleURL.pathExtension == "app" && Bundle.main.bundleIdentifier != nil
     }
 
-    private func setUpNotifications() {
+    private func setUpNotifications(health: AppHealth) {
         guard canNotify else { return }
         let center = UNUserNotificationCenter.current()
         center.delegate = self
@@ -73,7 +77,24 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         let mute = UNNotificationAction(identifier: Self.muteAction, title: "Mute This App", options: [])
         let category = UNNotificationCategory(identifier: Self.crashCategory, actions: [diagnose, mute], intentIdentifiers: [], options: [])
         center.setNotificationCategories([category])
-        center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        let store = AppHealthStore(paths: model.paths)
+        center.requestAuthorization(options: [.alert, .sound]) { _, _ in
+            UNUserNotificationCenter.current().getNotificationSettings { settings in
+                var updated = health
+                updated.notifications = AppDelegate.describe(settings.authorizationStatus)
+                try? store.save(updated)
+            }
+        }
+    }
+
+    nonisolated static func describe(_ status: UNAuthorizationStatus) -> String {
+        switch status {
+        case .authorized: return "authorized"
+        case .denied: return "denied"
+        case .notDetermined: return "notDetermined"
+        case .provisional: return "provisional"
+        default: return "unknown"
+        }
     }
 
     private func notify(_ report: CrashReport) {
