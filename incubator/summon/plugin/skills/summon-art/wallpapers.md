@@ -1,6 +1,6 @@
 # Wallpapers: making one that is actually nice
 
-Read this before making or changing a wallpaper, alone or as part of a new theme. "Make it nice" means
+Part of the `summon-art` skill. Read this before making or changing a wallpaper, alone or as part of a new theme. "Make it nice" means
 art-directed, not a gradient: a real concept, a palette taken from the theme, a composition that works
 behind a menu bar, a Dock and windows. Distilled from the Art skill's generation pipeline and color method.
 
@@ -16,7 +16,7 @@ behind a menu bar, a Dock and windows. Distilled from the Art skill's generation
 - Name the subject's world first, then its colors. A hue chosen from the subject is defensible; a hue chosen
   from habit is a default. **No default purple nebula, no blob gradient, no generic "abstract tech" swirl.**
 
-## 2. Palette from the theme
+## 2. Palette from the theme (a new theme: build it first with `SKILL.md` ยง 3)
 
 - The theme `background` is the dominant color (about 60% of the image). Windows sit on top of it, and terminals
   run at partial opacity, so the wallpaper must not fight them.
@@ -51,7 +51,7 @@ no frame, no people. High detail, clean, no artifacts.
 Generate every candidate into a preview folder first, never straight into the theme:
 
 ```bash
-OUT=~/Downloads/summon-wallpapers/<slug>; mkdir -p "$OUT"
+OUT=~/Downloads/summon-art/wallpaper-<slug>; mkdir -p "$OUT"
 FILE="$OUT/1-<concept>.jpg"; START=$(mktemp)
 NANOBANANA_MODEL=gemini-3-pro-image-preview timeout 300 agy --add-dir "$OUT" -p \
   "Generate an image. <prompt> Aspect ratio 16:9. Save the result to the exact absolute path \"$FILE\" (overwrite if it exists). Reply with only the saved file path."
@@ -94,4 +94,4 @@ sips -z 2880 5120 "$OUT/<chosen>.jpg" --out "$THEME/<n>-<concept>.jpg"   # 5120ร
 
 Add the file name to the theme's `wallpapers` list (first entry is the one `theme set` applies), then
 `summon theme set <slug>`. The wallpaper change goes through `macctl`, so it is in the checkpoint and undoable.
-Tell the user where the other candidates are (`~/Downloads/summon-wallpapers/<slug>/`) in case they change their mind.
+Tell the user where the other candidates are (`~/Downloads/summon-art/wallpaper-<slug>/`) in case they change their mind.
