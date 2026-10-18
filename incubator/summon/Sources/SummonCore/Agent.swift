@@ -15,10 +15,21 @@ public struct Agent: Sendable, Equatable, Codable {
     public let withPrompt: [String]
     /// Shown when the binary is missing.
     public let installHint: String
+    /// The CLI's model option (verified per CLI); nil when the interactive CLI has none.
+    public var modelFlag: String? = nil
+    /// The agent's own skill folder, relative to home; nil when unknown (it gets skill paths in the prompt instead).
+    public var skillFolder: String? = nil
 
     public func argv(prompt: String?) -> [String] {
         guard let prompt, !prompt.isEmpty else { return interactive }
         return withPrompt + [prompt]
+    }
+
+    /// `argv(prompt:)` with the model option right after the command, when the CLI has one.
+    public func argv(prompt: String?, model: String?) -> [String] {
+        let base = argv(prompt: prompt)
+        guard let modelFlag, let model = model?.trimmingCharacters(in: .whitespaces), !model.isEmpty else { return base }
+        return [base[0], modelFlag, model] + base.dropFirst()
     }
 }
 
@@ -28,19 +39,19 @@ public enum AgentRegistry {
             id: "claude", name: "Claude Code", command: "claude", aliases: ["claude-code"],
             interactive: ["claude", "--dangerously-skip-permissions"],
             withPrompt: ["claude", "--dangerously-skip-permissions", "--"],
-            installHint: "brew install --cask claude-code"
+            installHint: "brew install --cask claude-code", modelFlag: "--model", skillFolder: ".claude/skills"
         ),
         Agent(
             id: "codex", name: "Codex", command: "codex", aliases: ["openai-codex"],
             interactive: ["codex", "--dangerously-bypass-approvals-and-sandbox"],
             withPrompt: ["codex", "--dangerously-bypass-approvals-and-sandbox", "--"],
-            installHint: "brew install codex"
+            installHint: "brew install codex", modelFlag: "--model", skillFolder: ".codex/skills"
         ),
         Agent(
             id: "opencode", name: "OpenCode", command: "opencode", aliases: ["open-code"],
             interactive: ["opencode", "--auto"],
             withPrompt: ["opencode", "--auto", "--prompt"],
-            installHint: "brew install sst/tap/opencode"
+            installHint: "brew install sst/tap/opencode", skillFolder: ".config/opencode/skills"
         ),
         Agent(
             id: "copilot", name: "GitHub Copilot", command: "copilot", aliases: ["github-copilot"],
@@ -59,14 +70,14 @@ public enum AgentRegistry {
             id: "agy", name: "Antigravity", command: "agy", aliases: ["antigravity", "gemini", "gemini-cli"],
             interactive: ["agy", "--dangerously-skip-permissions"],
             withPrompt: ["agy", "--dangerously-skip-permissions", "--prompt-interactive"],
-            installHint: "npm install -g antigravity-cli"
+            installHint: "npm install -g antigravity-cli", modelFlag: "--model", skillFolder: ".gemini/config/skills"
         ),
         Agent(
             // Pi has no permission prompts: it runs its tools without asking, so there is no bypass flag.
             id: "pi", name: "Pi", command: "pi", aliases: ["pi-agent", "pi-coding-agent"],
             interactive: ["pi"],
             withPrompt: ["pi", "--"],
-            installHint: "bun add -g @earendil-works/pi-coding-agent"
+            installHint: "bun add -g @earendil-works/pi-coding-agent", modelFlag: "--model", skillFolder: ".pi/agent/skills"
         ),
         Agent(
             id: "grok", name: "Grok", command: "grok", aliases: ["grok-build"],
