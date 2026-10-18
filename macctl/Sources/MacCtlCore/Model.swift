@@ -79,6 +79,8 @@ public enum Backend: Sendable, Hashable {
     case defaults(domain: String, key: String, type: DefaultsType)
     /// `get` prints the current value; `set` receives the new value as `item 1 of argv` (`on run argv`).
     case appleScript(get: String, set: String)
+    /// The desktop picture through `NSWorkspace`: read = main screen, write = every screen.
+    case wallpaper
 
     public static let globalDomain = "NSGlobalDomain"
 }
