@@ -11,6 +11,12 @@ struct AgentTests {
         #expect(claude.argv(prompt: "") == claude.interactive)
     }
 
+    @Test func piTakesThePromptAfterDashDash() throws {
+        let pi = try #require(AgentRegistry.find("pi"))
+        #expect(pi.argv(prompt: nil) == ["pi"])
+        #expect(pi.argv(prompt: "-v is a prompt") == ["pi", "--", "-v is a prompt"])
+    }
+
     @Test func codexBypassesApprovalsAndSandbox() throws {
         let codex = try #require(AgentRegistry.find("codex"))
         #expect(codex.interactive == ["codex", "--dangerously-bypass-approvals-and-sandbox"])
