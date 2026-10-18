@@ -33,6 +33,8 @@ public struct SummonPaths: Sendable, Equatable {
     public var crashMutedFile: URL { state.appendingPathComponent("crash-muted") }
     /// Summon's own activity log (agent sessions, themes, undos), JSON Lines, oldest first.
     public var eventLogFile: URL { state.appendingPathComponent("events.jsonl") }
+    /// Written by the menu app on launch (pid, hotkeys, notification permission) for `summon doctor`.
+    public var appHealthFile: URL { state.appendingPathComponent("app.json") }
 
     /// Where macctl keeps the snapshot it saves before every change, one `<id>.json` each.
     public var macctlSnapshots: URL {
