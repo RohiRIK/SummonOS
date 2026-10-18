@@ -23,6 +23,12 @@ checkpoint before every agent session.
 - Panel vs Settings window split from AGENTS.md applies to the Summon Menu app.
 
 ## Recent History
+### 2026-10-18 — Activity: event log, timeline, status (milestone 1 of 3)
+- `EventLog` (`~/.local/state/summon/events.jsonl`), `ActivityFeed` (merges the log, macctl snapshot files,
+  checkpoints and crashes, sorted by date), `StatusProbe`; CLI `summon status`, `summon events`, `summon event add`.
+- `summon agent`, `theme set` and `undo-session` record events. Plan: `/mnt/project-files/plans/2026-10-18-summon-activity.md`
+  (next: Activity window in the menu app, then plugin session hooks).
+
 ### 2026-10-18 — Wallpaper through macctl
 - `summon theme set` sets the wallpaper with `macctl set desktop.wallpaper` when macctl is installed (undoable), else NSWorkspace.
 
