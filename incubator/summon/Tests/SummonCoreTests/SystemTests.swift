@@ -8,7 +8,7 @@ struct SystemTests {
         let paths = SummonPaths(home: try makeTempHome())
         let service = CheckpointService(paths: paths, runner: { _, _ in "" }, gitPath: "/usr/bin/git", macctlPath: "/usr/local/bin/macctl")
         let steps = service.createSteps(label: "x")
-        #expect(steps == [LaunchPlan(executable: "/usr/local/bin/macctl", arguments: ["snapshot", "create", "--label", "x"])])
+        #expect(steps == [LaunchPlan(executable: "/usr/local/bin/macctl", arguments: ["snapshot", "list", "--json"])])
     }
 
     @Test func checkpointCommitsConfigRepoAndRecordsIt() async throws {
@@ -16,13 +16,13 @@ struct SystemTests {
         let paths = SummonPaths(home: home)
         try FileManager.default.createDirectory(at: paths.userConfig.appendingPathComponent(".git"), withIntermediateDirectories: true)
         let log = CallLog()
-        let runner = fakeRunner(log, responses: ["git": "abc123\n", "macctl": "{\"id\": \"snap-1\"}"])
+        let runner = fakeRunner(log, responses: ["git": "abc123\n", "macctl": macctlList(["20271101-090000", "snap-1"])])
         let service = CheckpointService(paths: paths, runner: runner, gitPath: "/usr/bin/git", macctlPath: "/usr/local/bin/macctl")
 
         let (checkpoint, problems) = await service.create(label: "agent session", now: Date(timeIntervalSince1970: 1_800_000_000))
         #expect(problems.isEmpty)
         #expect(checkpoint.configCommit == "abc123")
-        #expect(checkpoint.macctlSnapshot == "snap-1")
+        #expect(checkpoint.macctlSnapshot == "20271101-090000")
         #expect(checkpoint.id == "20270115-080000")
 
         let calls = await log.calls
@@ -35,12 +35,35 @@ struct SystemTests {
         #expect(service.find("20270115-080000") == checkpoint)
         #expect(service.find("nope") == nil)
 
-        let undo = service.undoSteps(checkpoint)
-        #expect(undo.count == 2)
+        let undo = service.undoSteps(checkpoint, macctlSnapshots: ["s3", "s2"])
+        #expect(undo.count == 3)
         #expect(undo[0].arguments.contains("abc123"))
         #expect(undo[0].arguments.contains("checkout"))  // restore never deletes files the commit lacks
         #expect(undo[0].arguments.contains(":(exclude)summon/checkpoints.json"))
-        #expect(undo[1].arguments == ["undo", "snap-1"])
+        #expect(undo[1].arguments == ["undo", "s3", "--json"])
+        #expect(undo[2].arguments == ["undo", "s2", "--json"])
+    }
+
+    @Test func undoRevertsEveryMacctlSnapshotSinceTheMarker() async throws {
+        let paths = SummonPaths(home: try makeTempHome())
+        let at = Date(timeIntervalSince1970: 1_800_000_000)
+        let list = macctlList(["s4", "s3", "marker", "s1"], newest: at.addingTimeInterval(60))
+        let service = CheckpointService(paths: paths, runner: fakeRunner(CallLog(), responses: ["macctl": list]), gitPath: nil, macctlPath: "/usr/local/bin/macctl")
+        let snapshots = try CheckpointService.snapshots(fromListJSON: list)
+
+        let marked = Checkpoint(id: "c", label: "x", createdAt: at, configCommit: nil, macctlSnapshot: "marker")
+        let since = try await service.macctlSnapshots(after: marked)
+        #expect(since == ["s4", "s3"])
+
+        let empty = Checkpoint(id: "c", label: "x", createdAt: at, configCommit: nil, macctlSnapshot: CheckpointService.noSnapshots)
+        #expect(CheckpointService.snapshots(after: empty, in: snapshots) == ["s4", "s3", "marker", "s1"])
+
+        // Marker pruned from macctl's history: fall back to what was created after the checkpoint.
+        let pruned = Checkpoint(id: "c", label: "x", createdAt: at.addingTimeInterval(-30), configCommit: nil, macctlSnapshot: "gone")
+        #expect(CheckpointService.snapshots(after: pruned, in: snapshots) == ["s4", "s3"])
+
+        let noMacctl = Checkpoint(id: "c", label: "x", createdAt: at, configCommit: nil, macctlSnapshot: nil)
+        #expect(try await service.macctlSnapshots(after: noMacctl).isEmpty)
     }
 
     @Test func checkpointFailuresAreReportedNotThrown() async throws {
@@ -53,9 +76,15 @@ struct SystemTests {
         #expect(service.undoSteps(checkpoint).isEmpty)
     }
 
-    @Test func snapshotIDFromPlainOutput() {
-        #expect(CheckpointService.snapshotID(fromOutput: "Saved snapshot\n2026-10-17T20-00-00") == "2026-10-17T20-00-00")
-        #expect(CheckpointService.snapshotID(fromOutput: "") == "latest")
+    @Test func emptyMacctlHistoryRecordsNoneAndFailuresThrow() async throws {
+        let paths = SummonPaths(home: try makeTempHome())
+        let service = CheckpointService(paths: paths, runner: fakeRunner(CallLog(), responses: ["macctl": macctlList([])]), gitPath: nil, macctlPath: "/usr/local/bin/macctl")
+        let (checkpoint, problems) = await service.create(label: "x")
+        #expect(problems.isEmpty)
+        #expect(checkpoint.macctlSnapshot == CheckpointService.noSnapshots)
+
+        let failure = #"{"ok": false, "command": "snapshot list", "error": {"code": "x", "message": "y"}}"#
+        #expect(throws: RunnerError.self) { _ = try CheckpointService.snapshots(fromListJSON: failure) }
     }
 
     @Test func hooksRunInNameOrderAndSkipNonExecutables() async throws {
