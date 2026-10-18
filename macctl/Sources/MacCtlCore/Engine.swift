@@ -133,6 +133,11 @@ public struct Engine: MacCtlService {
             }
         }
 
+        // Only values that will actually be written must still be valid (a restored file may be gone).
+        for step in steps {
+            if let value = step.value { try backend.validate(value, for: step.setting) }
+        }
+
         let notes = Self.notes(for: steps.map { $0.setting })
         guard !steps.isEmpty else {
             return ApplyResult(snapshotID: nil, changes: [], dryRun: false, notes: notes)
@@ -197,6 +202,7 @@ public struct Engine: MacCtlService {
         for (id, raw) in profile.settings.sorted(by: { $0.key < $1.key }) {
             let setting = try registry.setting(id)
             let value = try setting.type.coerce(raw, id: id)
+            try backend.validate(value, for: setting)
             targets.append(Target(setting: setting, value: value))
         }
         return targets

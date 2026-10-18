@@ -3,7 +3,7 @@ import Foundation
 /// Every setting macctl knows. Ids are `<domain>.<name>`, lowercase kebab.
 /// `verifiedOn` stays empty until a human checks the setting on a real Mac.
 public enum Catalog {
-    public static let all: [Setting] = dock + finder + keyboard + screenshots + appearance
+    public static let all: [Setting] = dock + finder + keyboard + screenshots + appearance + desktop
 
     // MARK: Dock
 
@@ -186,6 +186,17 @@ public enum Catalog {
                 """
             ),
             systemDefault: .bool(false)
+        ),
+    ]
+
+    // MARK: Desktop
+
+    static let desktop: [Setting] = [
+        Setting(
+            id: "desktop.wallpaper",
+            summary: "Desktop picture for every screen: an absolute path (or ~) to an existing image file; reads the main screen's picture.",
+            type: .path,
+            backend: .wallpaper
         ),
     ]
 }

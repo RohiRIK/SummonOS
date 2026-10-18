@@ -39,6 +39,7 @@ macctl describe dock.tilesize
 macctl get dock.autohide dock.tilesize
 macctl set dock.autohide true --dry-run
 macctl set dock.autohide true
+macctl set desktop.wallpaper ~/Pictures/wall.jpg   # every screen; undo restores the old picture
 macctl diff profiles/default.json
 macctl apply profiles/default.json --only finder
 macctl snapshot list
@@ -105,7 +106,7 @@ Failure (the exit code matches the error):
   `permissions` (such as `"automation:com.apple.systemevents"`), `sideEffects` (such as
   `"restart:Dock"` or `"logout"`), `backend`, `verified`, `verifiedOn`, `systemDefault`, `current`, and
   `currentError` when the value could not be read.
-- `get`: an array of `{"id", "value"}`. `value` is `null` when the key is unset and has no known default.
+- `get`: an array of `{"id", "value"}`; `desktop.wallpaper` reads the main screen's picture path. `value` is `null` when the key is unset and has no known default.
 - `diff`: `{"profile", "changes": [{"id", "from", "to"}]}`. A missing `from` means the key is unset.
 - `set`, `apply`, `undo`: `{"snapshotID", "changes", "dryRun", "notes"}`.
 - `snapshot list`: an array of `{"id", "createdAt", "changeCount", "settings"}`.

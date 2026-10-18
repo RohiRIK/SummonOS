@@ -23,5 +23,10 @@ Source of truth: `Sources/MacCtlCore/Catalog.swift`. `macctl describe <id>` show
 | `screenshots.format` | `com.apple.screencapture` / `type` | enum png, jpg, pdf, heic, tiff | restart SystemUIServer | no |
 | `screenshots.disable-shadow` | `com.apple.screencapture` / `disable-shadow` | bool | restart SystemUIServer | no |
 | `appearance.dark-mode` | AppleScript: System Events `appearance preferences` / `dark mode` (Automation permission) | bool | none | no |
+| `desktop.wallpaper` | `NSWorkspace` desktop image: reads the main screen, sets every screen | path (existing file) | none | no |
+
+`desktop.wallpaper` refuses a missing file or a folder before anything is written (also on undo, if the
+old picture was deleted since). It has no system default, so `reset` is unsupported; `undo` restores the
+previous picture.
 
 Finder view codes: `Nlsv` list, `icnv` icons, `clmv` columns, `glyv` gallery.

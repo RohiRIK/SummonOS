@@ -140,6 +140,8 @@ struct SettingInfo: Encodable {
             return "defaults \(target) \(key) -\(type.rawValue)"
         case .appleScript:
             return "applescript"
+        case .wallpaper:
+            return "nsworkspace desktop image"
         }
     }
 }
