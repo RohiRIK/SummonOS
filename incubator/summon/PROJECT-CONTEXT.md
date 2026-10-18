@@ -23,6 +23,13 @@ checkpoint before every agent session.
 - Panel vs Settings window split from AGENTS.md applies to the Summon Menu app.
 
 ## Recent History
+### 2026-10-18 — kitty, muted apps, art-directed wallpapers
+- kitty: `TerminalApp.kitty` (`open -na kitty --args --single-instance`), `summon default terminal`, Settings "Open in"
+  picker (installed terminals only), Install › kitty, `generated/kitty.conf` from every theme. Not run for real: kitty not installed.
+- Settings › Notifications lists muted programs with Unmute (only when any). Verified mute → row → Unmute in the real app.
+- `plugin/skills/summon/Wallpapers.md`: Art-skill direction (mood → 3 concepts, theme palette, desktop composition,
+  Nano Banana via agy, review, user picks, install). agy saves into `~/.gemini/antigravity-cli/brain/…` instead of
+  the asked path; the recipe recovers it. Launcher › Make Something › New Wallpaper.
 ### 2026-10-18 — Agent opens one Ghostty window
 - `open -na Ghostty` spawned a new Ghostty process per launch (user saw two tabs). `LaunchPlan` now uses Ghostty's
   AppleScript `new window` when it is running, `open -na` only on a cold start. Verified: 1 process, +1 window.

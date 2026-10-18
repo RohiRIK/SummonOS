@@ -15,6 +15,11 @@ public final class SummonModel {
     public private(set) var recentCrashes: [CrashReport] = []
     public private(set) var themes: [Theme] = []
     public private(set) var currentThemeSlug: String? = nil
+    /// The terminal agents open in, and the ones Settings can offer.
+    public private(set) var terminal: TerminalApp = .terminal
+    public private(set) var installedTerminals: [TerminalApp] = [.terminal]
+    /// Programs whose crash notifications the user muted, sorted.
+    public private(set) var mutedPrograms: [String] = []
     public private(set) var menu: MenuTree
     public private(set) var menuError: String? = nil
     /// Last action error, shown under the row that caused it.
@@ -59,6 +64,10 @@ public final class SummonModel {
         let themeStore = ThemeStore(paths: paths)
         themes = themeStore.all()
         currentThemeSlug = themeStore.currentSlug()
+        let installed = TerminalApp.installed
+        installedTerminals = TerminalApp.allCases.filter { installed.contains($0) }
+        terminal = AgentLauncher.preferredTerminal(saved: DefaultTerminalStore(paths: paths).load(), installed: installed)
+        mutedPrograms = CrashWatcher(paths: paths).muted().sorted()
         loadMenu()
     }
 
@@ -155,6 +164,17 @@ public final class SummonModel {
         }
     }
 
+    public func unmute(program: String) {
+        Task {
+            await summon(["crash", "mute", program, "off"])
+            await scanCrashes()
+        }
+    }
+
+    public func setTerminal(_ terminal: TerminalApp) {
+        Task { await summon(["default", "terminal", terminal.rawValue]) }
+    }
+
     public func setTheme(_ slug: String) {
         Task { await summon(["theme", "set", slug]) }
     }
@@ -239,6 +259,9 @@ extension SummonModel {
         ]
         model.defaultAgent = AgentRegistry.find("claude")
         model.agentInstalled = true
+        model.installedTerminals = [.ghostty, .kitty, .terminal]
+        model.terminal = .ghostty
+        model.mutedPrograms = ["adminbyrequest"]
         return model
     }
 }
