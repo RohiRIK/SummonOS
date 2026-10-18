@@ -47,8 +47,11 @@ struct SummonCommand {
         case "agent":
             try await AgentCommands.agent(&args, context)
         case "default":
-            guard args.next() == "agent" else { throw CLIError("Usage: summon default agent [name]") }
-            try AgentCommands.defaultAgent(&args, context)
+            switch args.next() {
+            case "agent": try AgentCommands.defaultAgent(&args, context)
+            case "terminal": try AgentCommands.defaultTerminal(&args, context)
+            default: throw CLIError("Usage: summon default agent [name] | summon default terminal [name]")
+            }
         case "agents":
             try AgentCommands.list(&args, context)
         case "checkpoint":

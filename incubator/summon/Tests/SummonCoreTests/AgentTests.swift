@@ -59,6 +59,29 @@ struct AgentTests {
         #expect(script.contains("new window with configuration"))
     }
 
+    @Test func kittyPlanHandsOffToTheRunningInstance() {
+        let plan = AgentLauncher.terminalPlan(agentArgv: ["/bin/claude", "--", "it's"], directory: "/tmp/x", terminal: .kitty)
+        #expect(plan.executable == "/usr/bin/open")
+        #expect(plan.arguments == ["-na", "kitty", "--args", "--single-instance", "--directory", "/tmp/x", "/bin/claude", "--", "it's"])
+    }
+
+    @Test func savedTerminalWinsOnlyWhenInstalled() {
+        let installed: Set<TerminalApp> = [.ghostty, .kitty, .terminal]
+        #expect(AgentLauncher.preferredTerminal(saved: .kitty, installed: installed) == .kitty)
+        #expect(AgentLauncher.preferredTerminal(saved: nil, installed: installed) == .ghostty)
+        #expect(AgentLauncher.preferredTerminal(saved: .ghostty, installed: [.kitty, .terminal]) == .kitty)
+        #expect(AgentLauncher.preferredTerminal(saved: .kitty, installed: [.terminal]) == .terminal)
+    }
+
+    @Test func terminalChoiceRoundTrips() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: home) }
+        let store = DefaultTerminalStore(paths: SummonPaths(home: home))
+        #expect(store.load() == nil)
+        try store.save(.kitty)
+        #expect(store.load() == .kitty)
+    }
+
     @Test(arguments: [TerminalApp.ghostty, .terminal])
     func terminalPlanNeverSplicesValuesIntoTheScript(terminal: TerminalApp) {
         let hostile = "\"; do shell script \"rm -rf ~\" --"
