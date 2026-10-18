@@ -11,7 +11,7 @@ struct DoctorTests {
         home: URL,
         tools: Set<String> = [],
         onShellPath: Bool = true,
-        runner: Runner = fakeRunner(CallLog()),
+        runner: @escaping Runner = fakeRunner(CallLog()),
         running: Bool = true
     ) throws -> Doctor {
         let share = home.appendingPathComponent("share/summon", isDirectory: true)
