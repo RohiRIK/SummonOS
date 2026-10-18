@@ -16,3 +16,7 @@ Rules learned from corrections. One line each, newest last.
 - App settings (Open at Login, toggles, theme) never go in the menu bar panel, even when there is only one. Always a separate Settings window opened by `Settings…` (⌘,) in the panel footer. (mac-calendar, 2026-09-29)
 - Shell `rm`/`mv` are aliased to interactive (`-i`) and hang a tool call waiting for input. Use `/bin/rm -f` and `/bin/mv -f` in scripts. (2026-09-30, hit twice)
 - A full window needs its own DesignPass with rendered previews before it ships. The first Summon Activity window (tile grid of status cards, segmented filter, opened behind other apps) was judged "looks like shit" on the Mac. Read `MacUX/Windows.md` and `ActivityFeeds.md` first. (2026-10-18)
+
+## 2026-10-18 — Summon GUI: user wants less, not more
+- Menu bar panel shows only actions + problems when present. Lists of themes, recent activity, or repeated crash rows are
+  "too much data". Collapse repeats (one row per program + count). Settings: one control per row, no explanatory text.

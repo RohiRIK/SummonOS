@@ -148,11 +148,6 @@ public final class SummonModel {
         Task { await summon(["crash", "diagnose", file]) }
     }
 
-    public func diagnoseLatest() {
-        guard let latest = recentCrashes.first else { return }
-        diagnose(file: latest.file)
-    }
-
     public func mute(program: String) {
         Task {
             await summon(["crash", "mute", program])
