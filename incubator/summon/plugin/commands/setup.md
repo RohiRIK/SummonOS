@@ -7,7 +7,8 @@ Set up this Mac with Summon. Profile argument: $ARGUMENTS
 
 If no profile was given, use Summon's default profile at `$(summon path)/config/profile.json`.
 
-1. `macctl doctor` and `summon commands --json` to see what is available; report missing permissions with their links.
+1. `summon doctor`, `macctl doctor` and `summon commands --json` to see what is installed and available; report failed
+   checks with their fixes and missing permissions with their links.
 2. `macctl diff <profile>` and show the user the changes; then `macctl apply <profile>`.
 3. Apps: `brew bundle --file "$(summon path)/config/Brewfile"` (AeroSpace, Ghostty, JankyBorders, the font).
 4. Configs: copy `config/aerospace`, `config/ghostty`, `config/borders`, `config/shell` from the Summon install into
