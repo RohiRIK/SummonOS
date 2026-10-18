@@ -30,6 +30,30 @@ public enum ActivityLog {
         return parts.joined(separator: "  ")
     }
 
+    /// What the simple log shows: the title, plus setting changes. Details stay in the tooltip and the agent prompt.
+    public static func summary(_ event: ActivityEvent) -> String {
+        let title = clean(event.title)
+        let changes = event.changes.map { change -> String in
+            let values = "\(short(change.from ?? "unset")) → \(short(change.to))"
+            // "Changed dock.autohide" already names the setting.
+            return title.contains(change.id) ? values : "\(clean(change.id)) \(values)"
+        }
+        return changes.isEmpty ? title : title + ": " + changes.joined(separator: ", ")
+    }
+
+    /// File paths shrink to their last two parts (`catppuccin/1-portal.jpg`); other values stay as they are.
+    static func short(_ value: String) -> String {
+        let text = clean(value)
+        guard text.hasPrefix("/") || text.hasPrefix("~/") else { return text }
+        let parts = text.split(separator: "/")
+        return parts.count > 2 ? parts.suffix(2).joined(separator: "/") : text
+    }
+
+    /// Every agent start also logs a checkpoint; showing both doubles the log for no news. Undos stay.
+    public static func isShown(_ event: ActivityEvent) -> Bool {
+        event.kind != "checkpoint"
+    }
+
     public static func fields(_ event: ActivityEvent, home: String = NSHomeDirectory()) -> String {
         event.refs.keys.sorted().map { key in
             var value = clean(event.refs[key] ?? "")

@@ -54,3 +54,25 @@ extension ActivityLogTests {
         #expect(ActivityLog.fields(event, home: "/u/a") == "file=/tmp/x folder=~/Work")
     }
 }
+
+extension ActivityLogTests {
+    @Test func summaryIsTitleAndChangesOnly() {
+        let setting = ActivityEvent(id: "s", date: t0, category: .settings, kind: "setting.change", title: "Changed 1 setting",
+                                    detail: "profile apply", changes: [SettingChange(id: "dock.autohide", from: nil, to: "true")])
+        #expect(ActivityLog.summary(setting) == "Changed 1 setting: dock.autohide unset → true")
+        let wallpaper = ActivityEvent(id: "w", date: t0, category: .settings, kind: "setting.change", title: "Changed desktop.wallpaper",
+                                      changes: [SettingChange(id: "desktop.wallpaper", from: "/u/a/.config/summon/themes/nord/1-portal.jpg",
+                                                              to: "/u/a/.config/summon/themes/catppuccin/1-portal.jpg")])
+        #expect(ActivityLog.summary(wallpaper) == "Changed desktop.wallpaper: nord/1-portal.jpg → catppuccin/1-portal.jpg")
+        let agent = ActivityEvent(id: "a", date: t0, category: .agent, kind: EventKind.agentLaunch, title: "Started Claude Code",
+                                  detail: "a very long prompt", refs: ["folder": "/tmp"])
+        #expect(ActivityLog.summary(agent) == "Started Claude Code")
+    }
+
+    @Test func checkpointLinesAreHiddenUndosStay() {
+        let checkpoint = ActivityEvent(id: "c", date: t0, category: .checkpoint, kind: "checkpoint", title: "Checkpoint: agent session")
+        let undo = ActivityEvent(id: "u", date: t0, category: .checkpoint, kind: EventKind.sessionUndo, title: "Undid agent session")
+        #expect(!ActivityLog.isShown(checkpoint))
+        #expect(ActivityLog.isShown(undo))
+    }
+}
