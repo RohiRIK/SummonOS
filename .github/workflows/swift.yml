@@ -1,0 +1,54 @@
+# Builds and tests every Swift package in this repo on a macOS runner.
+# A package is any Package.swift outside .build/ and plugins/ (plugins are their own repos).
+name: Swift (macOS)
+
+on:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: swift-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.find.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: find
+        run: |
+          packages=$(find . -name Package.swift -not -path '*/.build/*' -not -path './plugins/*' \
+            -exec dirname {} \; | sed 's|^\./||' | sort | jq -R . | jq -sc .)
+          echo "packages=$packages" >> "$GITHUB_OUTPUT"
+          echo "Packages: $packages"
+
+  build-and-test:
+    needs: discover
+    if: needs.discover.outputs.packages != '[]'
+    runs-on: macos-26
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(needs.discover.outputs.packages) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.package }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+      - uses: actions/cache@v4
+        with:
+          path: ${{ matrix.package }}/.build
+          key: spm-${{ runner.os }}-${{ matrix.package }}-${{ hashFiles(format('{0}/Package.resolved', matrix.package), format('{0}/Package.swift', matrix.package)) }}
+          restore-keys: spm-${{ runner.os }}-${{ matrix.package }}-
+      - name: Build
+        run: swift build --build-tests
+      - name: Test
+        run: swift test --skip-build

@@ -1,0 +1,39 @@
+{
+  "name": "Catppuccin",
+  "slug": "catppuccin",
+  "appearance": "dark",
+  "source": "omarchy:themes/catppuccin",
+  "colors": {
+    "background": "#1e1e2e",
+    "foreground": "#cdd6f4",
+    "accent": "#89b4fa",
+    "accent2": "#f5c2e7",
+    "muted": "#585b70",
+    "selection": "#45475a",
+    "cursor": "#cdd6f4",
+    "border_active": "#89b4fa",
+    "border_inactive": "#45475a"
+  },
+  "terminal": [
+    "#313244",
+    "#F38BA8",
+    "#A6E3A1",
+    "#F9E2AF",
+    "#89B4FA",
+    "#F5C2E7",
+    "#94E2D5",
+    "#CDD6F4",
+    "#585B70",
+    "#F38BA8",
+    "#A6E3A1",
+    "#F9E2AF",
+    "#89B4FA",
+    "#F5C2E7",
+    "#94E2D5",
+    "#CDD6F4"
+  ],
+  "font": "JetBrainsMono Nerd Font",
+  "wallpapers": [
+    "1-portal.jpg"
+  ]
+}
