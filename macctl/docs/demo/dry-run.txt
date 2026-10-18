@@ -1,0 +1,4 @@
+# illustrative: written from the macctl source, not yet recorded on a Mac. tools/record-demos.sh replaces it.
+$ macctl set dock.autohide true --dry-run
+Dry run: 1 change would be made (nothing written).
+  dock.autohide  (unset)  ->  true
