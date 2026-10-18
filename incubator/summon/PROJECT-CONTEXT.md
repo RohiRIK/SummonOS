@@ -23,6 +23,12 @@ checkpoint before every agent session.
 - Panel vs Settings window split from AGENTS.md applies to the Summon Menu app.
 
 ## Recent History
+### 2026-10-18 — Activity as a simple log (user: "easier, not complicated")
+- Activity window = one plain list, oldest first, opens at the newest line: `HH:mm  sentence` in monospace, only
+  problems coloured, no columns or fields (full line in the tooltip and in copies). Checkpoint lines hidden (every
+  agent start logs one); paths shortened to their last two parts.
+- Ask bar at the bottom; selected lines go to the agent with the question. Right-click: Ask, Copy, Diagnose, Show in
+  Finder, Undo This Change / Session (confirmation). Status drawer, scopes and detail views removed.
 ### 2026-10-18 — kitty, muted apps, art-directed wallpapers
 - kitty: `TerminalApp.kitty` (`open -na kitty --args --single-instance`), `summon default terminal`, Settings "Open in"
   picker (installed terminals only), Install › kitty, `generated/kitty.conf` from every theme. Not run for real: kitty not installed.
