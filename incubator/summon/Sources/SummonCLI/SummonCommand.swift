@@ -1,0 +1,112 @@
+import Foundation
+import SummonCore
+
+/// Exit codes shared by every subcommand.
+enum ExitCode: Int32 {
+    case ok = 0
+    case error = 1
+    case missingDependency = 2
+    case unsupported = 4
+}
+
+struct CLIError: Error {
+    let message: String
+    let code: ExitCode
+
+    init(_ message: String, code: ExitCode = .error) {
+        self.message = message
+        self.code = code
+    }
+}
+
+@main
+struct SummonCommand {
+    @MainActor
+    static func main() async {
+        var args = Arguments(Array(CommandLine.arguments.dropFirst()))
+        let context = Context.live()
+        do {
+            try await dispatch(&args, context)
+            exit(ExitCode.ok.rawValue)
+        } catch let error as CLIError {
+            FileHandle.standardError.write(Data((error.message + "\n").utf8))
+            exit(error.code.rawValue)
+        } catch {
+            FileHandle.standardError.write(Data("summon: \(error)\n".utf8))
+            exit(ExitCode.error.rawValue)
+        }
+    }
+
+    @MainActor
+    static func dispatch(_ args: inout Arguments, _ context: Context) async throws {
+        guard let command = args.next() else {
+            print(CommandCatalog.helpText())
+            return
+        }
+        switch command {
+        case "agent":
+            try await AgentCommands.agent(&args, context)
+        case "default":
+            guard args.next() == "agent" else { throw CLIError("Usage: summon default agent [name]") }
+            try AgentCommands.defaultAgent(&args, context)
+        case "agents":
+            try AgentCommands.list(&args, context)
+        case "checkpoint":
+            try await AgentCommands.checkpoint(&args, context)
+        case "undo-session":
+            try await AgentCommands.undoSession(&args, context)
+        case "crash":
+            try await CrashCommands.run(&args, context)
+        case "theme":
+            try await ThemeCommands.run(&args, context)
+        case "debug":
+            try await DebugCommands.debug(&args, context)
+        case "hooks":
+            try await DebugCommands.hooks(&args, context)
+        case "menu":
+            try await MenuCommands.run(&args, context)
+        case "icon":
+            try IconCommands.run(&args, context)
+        case "path":
+            print(PathCommand.installPath())
+        case "commands":
+            if args.flag("--json") {
+                print(try CommandCatalog.json())
+            } else {
+                for info in CommandCatalog.all {
+                    print("summon \(info.route) \(info.args)".trimmingCharacters(in: .whitespaces))
+                    print("    \(info.summary)")
+                }
+            }
+        case "help", "--help", "-h":
+            print(CommandCatalog.helpText())
+        default:
+            throw CLIError("Unknown command: \(command)\n\n" + CommandCatalog.helpText())
+        }
+    }
+}
+
+/// What every subcommand needs, built once.
+struct Context: Sendable {
+    let paths: SummonPaths
+    let runner: Runner
+    let tools: ToolLocator
+
+    static func live() -> Context {
+        Context(paths: .live, runner: Shell.live, tools: .live())
+    }
+
+    var macctl: String? { tools.find("macctl") }
+    var git: String? { tools.find("git") }
+    var brew: String? { tools.find("brew") }
+
+    func printJSON<T: Encodable>(_ value: T) throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        print(String(decoding: try encoder.encode(value), as: UTF8.self))
+    }
+
+    func warn(_ message: String) {
+        FileHandle.standardError.write(Data((message + "\n").utf8))
+    }
+}
