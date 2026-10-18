@@ -28,10 +28,25 @@ public struct SettingsView: View {
                             .textSelection(.enabled)
                     }
                 }
+                if model.installedTerminals.count > 1 {
+                    Picker("Open in", selection: terminalBinding) {
+                        ForEach(model.installedTerminals, id: \.self) { terminal in
+                            Text(terminal.name).tag(terminal)
+                        }
+                    }
+                }
             }
 
             Section("Notifications") {
                 Toggle("Crashes and hangs", isOn: $model.crashCaptureEnabled)
+                ForEach(model.mutedPrograms, id: \.self) { program in
+                    LabeledContent {
+                        Button("Unmute") { model.unmute(program: program) }
+                    } label: {
+                        Text(verbatim: program)
+                        Text("Muted")
+                    }
+                }
             }
 
             if !model.themes.isEmpty {
@@ -65,7 +80,7 @@ public struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 440)
+        .frame(width: 480, height: 490)
     }
 
     private var agentBinding: Binding<String> {
@@ -74,6 +89,13 @@ public struct SettingsView: View {
             set: { newValue in
                 if !newValue.isEmpty { model.setDefaultAgent(newValue) }
             }
+        )
+    }
+
+    private var terminalBinding: Binding<TerminalApp> {
+        Binding(
+            get: { model.terminal },
+            set: { newValue in model.setTerminal(newValue) }
         )
     }
 

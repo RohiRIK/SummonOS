@@ -45,6 +45,15 @@ struct ThemeTests {
         #expect(text.components(separatedBy: "palette = ").count == 17)
     }
 
+    @Test func kittyConfig() throws {
+        let text = ThemeCompiler.kitty(try sample())
+        #expect(text.contains("background #0B0D17\n"))
+        #expect(text.contains("foreground #E6E1F5\n"))
+        #expect(text.contains("color0 #15172A\n"))
+        #expect(text.contains("color15 #E6E1F5\n"))
+        #expect(text.contains("font_family JetBrainsMono Nerd Font\n"))
+    }
+
     @Test func bordersArguments() throws {
         let args = ThemeCompiler.bordersArguments(try sample())
         #expect(args.contains("active_color=0xff8B5CF6"))
@@ -69,7 +78,7 @@ struct ThemeTests {
         #expect(store.all().map(\.slug) == ["summon-night"])
         let theme = try #require(store.theme("summon-night"))
         let written = try store.activate(theme)
-        #expect(written.count == 4)
+        #expect(written.count == 5)
         #expect(store.currentSlug() == "summon-night")
         #expect(store.wallpaperURL(theme)?.lastPathComponent == "wallpaper-1.jpg")
         #expect(store.wallpaperURL(theme, index: 3) == nil)

@@ -124,6 +124,21 @@ public enum ThemeCompiler {
         return lines.joined(separator: "\n") + "\n"
     }
 
+    /// Included from the user's kitty config with `include ~/.config/summon/generated/kitty.conf`.
+    public static func kitty(_ theme: Theme) -> String {
+        var lines = ["# \(header)", "# Theme: \(theme.name)"]
+        lines.append("background \(hash(theme.colors.background))")
+        lines.append("foreground \(hash(theme.colors.foreground))")
+        lines.append("cursor \(hash(theme.colors.cursor))")
+        lines.append("selection_background \(hash(theme.colors.selection))")
+        lines.append("selection_foreground \(hash(theme.colors.foreground))")
+        for (index, color) in theme.terminal.enumerated() {
+            lines.append("color\(index) \(hash(color))")
+        }
+        lines.append("font_family \(theme.font)")
+        return lines.joined(separator: "\n") + "\n"
+    }
+
     /// Arguments for JankyBorders: `borders <args…>` (also valid as `bordersrc` lines).
     public static func bordersArguments(_ theme: Theme) -> [String] {
         [
@@ -230,13 +245,15 @@ public struct ThemeStore: Sendable {
     public func activate(_ theme: Theme) throws -> [URL] {
         let ghostty = paths.generated.appendingPathComponent("ghostty.conf")
         let borders = paths.generated.appendingPathComponent("bordersrc")
+        let kitty = paths.generated.appendingPathComponent("kitty.conf")
         let claude = paths.generated.appendingPathComponent("claude-theme.json")
         try TextFile.write(ThemeCompiler.ghostty(theme), to: ghostty)
+        try TextFile.write(ThemeCompiler.kitty(theme), to: kitty)
         let bordersScript = "#!/bin/sh\n# \(ThemeCompiler.header)\nborders " + ThemeCompiler.bordersArguments(theme).joined(separator: " ") + "\n"
         try TextFile.write(bordersScript, to: borders)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: borders.path)
         try TextFile.write(ThemeCompiler.claudeTheme(theme), to: claude)
         try TextFile.write(theme.slug + "\n", to: paths.currentThemeFile)
-        return [ghostty, borders, claude, paths.currentThemeFile]
+        return [ghostty, kitty, borders, claude, paths.currentThemeFile]
     }
 }

@@ -49,10 +49,12 @@ public enum DefaultMenu {
         { "id": "make.app", "label": "New App", "icon": "macwindow", "action": "summon agent prompt 'Make me a new Mac app. Ask what it should do first, then follow the mac-app skill.'" },
         { "id": "make.screensaver", "label": "New Screensaver", "icon": "sparkles.tv", "action": "summon agent prompt 'Make me a new screensaver. Ask what it should show first, then follow the mac-app skill.'" },
         { "id": "make.theme", "label": "New Theme", "icon": "paintbrush", "action": "summon agent prompt 'Make me a new Summon theme. Ask for a mood or an image first, then follow the summon skill.'" },
+        { "id": "make.wallpaper", "label": "New Wallpaper", "icon": "photo.artframe", "aliases": ["background", "desktop"], "action": "summon agent prompt 'Make me a new wallpaper for the current Summon theme. Ask for a mood first, then follow the Wallpapers guide in the summon skill.'" },
         { "id": "make.icon", "label": "New Icon", "icon": "app.badge", "action": "summon agent prompt 'Make me a new icon. Ask what it is for and where to put it, then follow the summon skill.'" },
 
         { "id": "install", "label": "Install", "icon": "shippingbox", "aliases": ["brew", "app"] },
         { "id": "install.ghostty", "label": "Ghostty", "icon": "terminal", "when": "! test -d /Applications/Ghostty.app", "action": "summon agent prompt 'Install Ghostty with Homebrew and set it up with the current Summon theme.'" },
+        { "id": "install.kitty", "label": "kitty", "icon": "cat", "when": "! test -d /Applications/kitty.app", "action": "summon agent prompt 'Install kitty with Homebrew (brew install --cask kitty), add include ~/.config/summon/generated/kitty.conf to ~/.config/kitty/kitty.conf so it follows the Summon theme, then ask me whether agents should open in kitty (summon default terminal kitty).'" },
         { "id": "install.aerospace", "label": "AeroSpace Tiling", "icon": "rectangle.split.3x1", "when": "! command -v aerospace", "action": "summon agent prompt 'Install AeroSpace with Homebrew and set it up with the Summon keymap.'" },
         { "id": "install.borders", "label": "Window Borders", "icon": "square.dashed", "when": "! command -v borders", "action": "summon agent prompt 'Install JankyBorders with Homebrew and color it from the current Summon theme.'" },
 

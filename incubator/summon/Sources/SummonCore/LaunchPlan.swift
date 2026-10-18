@@ -13,7 +13,45 @@ public struct LaunchPlan: Sendable, Equatable {
 
 public enum TerminalApp: String, Sendable, Equatable, CaseIterable {
     case ghostty
+    case kitty
     case terminal
+
+    public var name: String {
+        switch self {
+        case .ghostty: return "Ghostty"
+        case .kitty: return "kitty"
+        case .terminal: return "Terminal"
+        }
+    }
+
+    public var isInstalled: Bool {
+        switch self {
+        case .terminal: return true
+        case .ghostty, .kitty:
+            let app = name + ".app"
+            return FileManager.default.fileExists(atPath: "/Applications/" + app)
+                || FileManager.default.fileExists(atPath: FileManager.default.homeDirectoryForCurrentUser.path + "/Applications/" + app)
+        }
+    }
+
+    public static var installed: Set<TerminalApp> { Set(allCases.filter(\.isInstalled)) }
+}
+
+/// `~/.config/summon/defaults/terminal`. Unset means the first installed of Ghostty, kitty, Terminal.
+public struct DefaultTerminalStore: Sendable {
+    public let paths: SummonPaths
+
+    public init(paths: SummonPaths) {
+        self.paths = paths
+    }
+
+    public func load() -> TerminalApp? {
+        TextFile.firstLine(paths.defaultTerminalFile).flatMap { TerminalApp(rawValue: $0.lowercased()) }
+    }
+
+    public func save(_ terminal: TerminalApp) throws {
+        try TextFile.write(terminal.rawValue + "\n", to: paths.defaultTerminalFile)
+    }
 }
 
 public enum AgentLauncher {
@@ -32,6 +70,12 @@ public enum AgentLauncher {
     public static func terminalPlan(agentArgv: [String], directory: String, terminal: TerminalApp) -> LaunchPlan {
         let script: [String]
         switch terminal {
+        case .kitty:
+            // --single-instance hands the window to a running kitty and exits, so no second kitty stays open.
+            return LaunchPlan(
+                executable: "/usr/bin/open",
+                arguments: ["-na", "kitty", "--args", "--single-instance", "--directory", directory] + agentArgv
+            )
         case .ghostty:
             // `open -na Ghostty` started a second Ghostty app per launch (extra Dock icon, stray window).
             // A running Ghostty (1.3+) gets one new window over AppleScript; a cold start opens exactly the -e window.
@@ -78,12 +122,9 @@ public enum AgentLauncher {
         return LaunchPlan(executable: "/usr/bin/osascript", arguments: arguments)
     }
 
-    public static func preferredTerminal(ghosttyInstalled: Bool) -> TerminalApp {
-        ghosttyInstalled ? .ghostty : .terminal
-    }
-
-    public static var ghosttyInstalled: Bool {
-        FileManager.default.fileExists(atPath: "/Applications/Ghostty.app")
-            || FileManager.default.fileExists(atPath: FileManager.default.homeDirectoryForCurrentUser.path + "/Applications/Ghostty.app")
+    /// The saved choice when it is still installed, else the first installed of Ghostty, kitty, Terminal.
+    public static func preferredTerminal(saved: TerminalApp?, installed: Set<TerminalApp>) -> TerminalApp {
+        if let saved, installed.contains(saved) { return saved }
+        return TerminalApp.allCases.first { installed.contains($0) } ?? .terminal
     }
 }
