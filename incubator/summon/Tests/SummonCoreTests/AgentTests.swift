@@ -71,14 +71,19 @@ struct AgentTests {
 
     @Test func argumentsTakeFlagsAnywhere() {
         var args = Arguments(["list", "--limit", "3", "--json", "rest"])
-        #expect(args.flag("--json"))
-        #expect(!args.flag("--json"))
-        #expect(args.option("--limit") == "3")
-        #expect(args.next() == "list")
+        let first = args.flag("--json")
+        let second = args.flag("--json")
+        let limit = args.option("--limit")
+        let command = args.next()
+        #expect(first)
+        #expect(!second)
+        #expect(limit == "3")
+        #expect(command == "list")
         #expect(args.items == ["rest"])
 
         var equals = Arguments(["--since=30m"])
-        #expect(equals.option("--since") == "30m")
+        let since = equals.option("--since")
+        #expect(since == "30m")
         #expect(equals.isEmpty)
     }
 }
