@@ -38,6 +38,9 @@ creates the repo pair. Tool details: `docs/tools.md`.
 | Port an Omarchy / Linux widget | `PortOmarchyPlugin` |
 | Actors, `Sendable`, cancellation, Swift 6 errors | `swift-concurrency-pro` |
 
+`tools/install-skills.sh` links these skills into `~/.claude/skills`, so Claude Code sessions anywhere on the
+Mac can use them; `git pull` keeps them current.
+
 `swiftui-expert-skill` (Antoine van der Lee) and `swift-concurrency-pro` (Paul Hudson) are MIT,
 installed unmodified with their LICENSE files. Do not edit them; put our rules in our own skills.
 
