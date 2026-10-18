@@ -23,6 +23,9 @@ checkpoint before every agent session.
 - Panel vs Settings window split from AGENTS.md applies to the Summon Menu app.
 
 ## Recent History
+### 2026-10-18 — Wallpaper through macctl
+- `summon theme set` sets the wallpaper with `macctl set desktop.wallpaper` when macctl is installed (undoable), else NSWorkspace.
+
 ### 2026-10-18 — Match macctl's real keys and snapshots
 - Profile, menu and `theme set` use `appearance.dark-mode` (true/false); macctl has no wallpaper or screensaver keys.
 - Checkpoints record macctl's newest snapshot id as a marker; undo reverts every macctl snapshot after it, newest first.

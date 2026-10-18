@@ -55,8 +55,13 @@ enum ThemeCommands {
         if wallpaper, let url = store.wallpaperURL(theme) {
             if FileManager.default.fileExists(atPath: url.path) {
                 do {
-                    for screen in NSScreen.screens {
-                        try NSWorkspace.shared.setDesktopImageURL(url, for: screen, options: [:])
+                    // Through macctl when installed, so `summon checkpoint undo` restores the old picture.
+                    if let macctl = context.macctl {
+                        _ = try await context.runner(macctl, ["set", "desktop.wallpaper", url.path, "--json"])
+                    } else {
+                        for screen in NSScreen.screens {
+                            try NSWorkspace.shared.setDesktopImageURL(url, for: screen, options: [:])
+                        }
                     }
                     print("  wallpaper: \(url.lastPathComponent)")
                 } catch {
