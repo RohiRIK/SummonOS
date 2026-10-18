@@ -55,9 +55,26 @@ skips a value that can no longer be written, says so in `notes`, and still recor
 - Known gap: `~/.config` is not a git repo, so `undo-session` leaves the generated theme files and
   `summon theme current` still says the last theme set.
 
-## 6. Dogfood: waiting for Rohi
+## 6. Dogfood: pass, with skill fixes
 
-Not run; Rohi wants to be there for it.
+Seven plain-language asks to a fresh headless Claude Code session in this repo, one resumed session.
+
+| Ask | What the agent did |
+|---|---|
+| hide my Dock | `macctl set dock.autohide true`, reported the snapshot. No `--dry-run` first; confirmed with `defaults read`; told the user `macctl undo dock.autohide` (wrong: undo takes a snapshot id). |
+| show file extensions | Read the current value, said it was already on, changed nothing. |
+| set my wallpaper to Tokyo Night | Did not find Summon's installed `tokyo-night` theme; downloaded an Omarchy image from GitHub with `curl`, then `macctl set desktop.wallpaper`. Warned up front that undo could not restore the old picture. |
+| turn on dark mode | Already on, changed nothing. |
+| make my key repeat as fast as possible | `macctl apply` of a two-setting profile (1 and 10, the catalog minimums), no `diff` first; mentioned the logout. |
+| turn on night shift | Said plainly macctl has no such setting and did not run a raw command. |
+| undo that wallpaper change | `macctl undo <snapshot id>`; reported honestly that the old file is gone, and corrected its earlier undo hint. |
+
+Never bypassed macctl for a write, always reported snapshot ids, mentioned the logout. Misses fixed in
+the MacSetup skill: always `--dry-run` first, confirm with `macctl get`, `undo` takes a snapshot id, and use
+`summon theme` for theme wallpapers instead of downloading.
+
+The old wallpaper path came back between tests: a Raycast extension sets `Loupe.heic` and later deletes
+the file, so macctl snapshots a path that soon disappears. Undo's skip-with-note handles it.
 
 ## 7. README demos
 
