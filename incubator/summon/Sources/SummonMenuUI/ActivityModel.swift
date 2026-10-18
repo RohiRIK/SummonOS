@@ -1,0 +1,292 @@
+import AppKit
+import Foundation
+import Observation
+import SummonCore
+import SwiftUI
+
+/// State for the Activity window and the panel's Recent Activity rows: the merged timeline, the status
+/// strip, the filter, and the undo actions. Crash reports come from `SummonModel`'s watcher, never re-parsed.
+@MainActor
+@Observable
+public final class ActivityModel {
+    public enum Filter: String, CaseIterable, Identifiable, Sendable {
+        case all = "All"
+        case settings = "Settings"
+        case agent = "Agent"
+        case checkpoints = "Checkpoints"
+        case problems = "Problems"
+
+        public var id: String { rawValue }
+
+        func matches(_ category: ActivityEvent.Category) -> Bool {
+            switch self {
+            case .all: return true
+            case .settings: return category == .settings || category == .theme
+            case .agent: return category == .agent
+            case .checkpoints: return category == .checkpoint
+            case .problems: return category == .problem
+            }
+        }
+    }
+
+    let summon: SummonModel
+    let runner: Runner
+
+    public private(set) var sources = ActivitySources()
+    public private(set) var events: [ActivityEvent] = []
+    public private(set) var status: SummonStatus? = nil
+    public private(set) var macctlProblems: [String] = []
+    public private(set) var macctlPath: String? = nil
+    /// The last undo or doctor failure, shown above the timeline.
+    public var lastError: String? = nil
+    /// An undo is running; the buttons are disabled meanwhile.
+    public private(set) var busy = false
+
+    public var filter: Filter = .all
+    public var query = ""
+    public var selection: ActivityEvent.ID? = nil
+    /// Bumped to ask the always-alive menu bar label to open the window (for `summon://activity`).
+    public private(set) var openRequest = 0
+
+    /// False for previews: no disk reads, commands or activation-policy changes.
+    @ObservationIgnored public internal(set) var live = true
+    @ObservationIgnored private var refreshTask: Task<Void, Never>? = nil
+    @ObservationIgnored private var loading = false
+
+    public init(summon: SummonModel, runner: @escaping Runner = Shell.live) {
+        self.summon = summon
+        self.runner = runner
+    }
+
+    // MARK: Derived
+
+    public var visibleEvents: [ActivityEvent] {
+        let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
+        return events.filter { event in
+            guard filter.matches(event.category) else { return false }
+            guard !needle.isEmpty else { return true }
+            let haystack = ([event.title, event.detail ?? ""] + event.changes.map(\.id)).joined(separator: " ").lowercased()
+            return haystack.contains(needle)
+        }
+    }
+
+    public struct DayGroup: Identifiable {
+        public let day: Date
+        public var events: [ActivityEvent]
+        public var id: Date { day }
+    }
+
+    /// Visible events grouped by calendar day, newest day first.
+    public var days: [DayGroup] {
+        let calendar = Calendar.current
+        var groups: [DayGroup] = []
+        for event in visibleEvents {
+            let day = calendar.startOfDay(for: event.date)
+            if groups.last?.day == day {
+                groups[groups.count - 1].events.append(event)
+            } else {
+                groups.append(DayGroup(day: day, events: [event]))
+            }
+        }
+        return groups
+    }
+
+    public var selectedEvent: ActivityEvent? {
+        guard let selection else { return nil }
+        return events.first { $0.id == selection }
+    }
+
+    /// The macctl snapshots taken after a checkpoint and before the next one: what that session changed.
+    public func changes(after checkpointID: String) -> [MacctlSnapshot] {
+        let ordered = sources.checkpoints.sorted { $0.createdAt < $1.createdAt }
+        guard let index = ordered.firstIndex(where: { $0.id == checkpointID }) else { return [] }
+        let end = index + 1 < ordered.count ? ordered[index + 1].createdAt : nil
+        return ActivityFeed.snapshots(sources.snapshots, from: ordered[index].createdAt, to: end)
+    }
+
+    /// Newer snapshots that touch any key of this one: undoing it would overwrite them.
+    public func laterOverlaps(_ snapshotID: String) -> [MacctlSnapshot] {
+        guard let target = sources.snapshots.first(where: { $0.id == snapshotID }) else { return [] }
+        let keys = Set(target.changes.map(\.id))
+        return sources.snapshots.filter { $0.createdAt > target.createdAt && !keys.isDisjoint(with: $0.changes.map(\.id)) }
+    }
+
+    // MARK: Loading
+
+    public func requestOpen() {
+        openRequest += 1
+    }
+
+    /// Reloads every source off the main actor. Cheap: small JSON files, no crash parsing.
+    public func refresh() async {
+        guard !loading else { return }
+        loading = true
+        defer { loading = false }
+        let paths = summon.paths
+        var loaded = await Task.detached { ActivitySources.load(paths: paths, crashLimit: 0) }.value
+        loaded.crashes = summon.recentCrashes
+        for report in loaded.crashes where loaded.crashDates[report.file] == nil {
+            loaded.crashDates[report.file] = ActivityFeed.crashDate(report)
+        }
+        apply(loaded)
+    }
+
+    func apply(_ loaded: ActivitySources) {
+        if loaded != sources {
+            sources = loaded
+            events = loaded.events
+        }
+        status = StatusProbe.build(
+            agent: summon.defaultAgent,
+            agentInstalled: summon.agentInstalled,
+            log: loaded.log,
+            macctlInstalled: macctlPath != nil,
+            macctlProblems: macctlProblems,
+            snapshots: loaded.snapshots,
+            checkpoints: loaded.checkpoints,
+            configIsRepo: loaded.configIsRepo,
+            crashes: loaded.crashes,
+            crashDates: loaded.crashDates
+        )
+    }
+
+    /// `macctl doctor` probes Automation through AppleScript, so it runs on open, not on every refresh.
+    public func checkMacctl() async {
+        macctlPath = ToolLocator.live().find("macctl")
+        guard let macctlPath else {
+            macctlProblems = []
+            return
+        }
+        do {
+            macctlProblems = StatusProbe.doctorProblems(fromJSON: try await runner(macctlPath, ["doctor", "--json"]))
+        } catch {
+            macctlProblems = ["doctor failed: \(error)"]
+        }
+        apply(sources)
+    }
+
+    /// Refreshes every few seconds while the window is open; the event files are tiny.
+    public func startAutoRefresh(interval: Duration = .seconds(3)) {
+        guard live, refreshTask == nil else { return }
+        refreshTask = Task { [weak self] in
+            await self?.checkMacctl()
+            while !Task.isCancelled {
+                await self?.refresh()
+                try? await Task.sleep(for: interval)
+            }
+        }
+    }
+
+    public func stopAutoRefresh() {
+        refreshTask?.cancel()
+        refreshTask = nil
+    }
+
+    // MARK: Actions
+
+    public func runAgent(prompt: String) {
+        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        summon.askAgent(prompt: trimmed.isEmpty ? nil : trimmed)
+        Task {
+            try? await Task.sleep(for: .seconds(1))
+            await refresh()
+        }
+    }
+
+    /// `macctl undo <id>`: restores the values that snapshot replaced.
+    public func undo(snapshot id: String) {
+        guard let macctlPath else {
+            lastError = "macctl is not installed."
+            return
+        }
+        perform { try await self.runner(macctlPath, ["undo", id, "--json"]) }
+    }
+
+    /// `summon checkpoint undo <id>`: settings and `~/.config` files back to that checkpoint.
+    public func undo(checkpoint id: String) {
+        guard let summonPath = summon.summonPath else {
+            lastError = "The summon command is missing. Reinstall Summon."
+            return
+        }
+        perform { try await self.runner(summonPath, ["checkpoint", "undo", id]) }
+    }
+
+    private func perform(_ work: @escaping @MainActor () async throws -> String) {
+        guard !busy else { return }
+        busy = true
+        Task {
+            do {
+                _ = try await work()
+                lastError = nil
+            } catch {
+                lastError = String(describing: error)
+            }
+            busy = false
+            await refresh()
+        }
+    }
+
+    public func reveal(_ file: String) {
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: file)])
+    }
+}
+
+extension ActivityModel {
+    /// Sample timeline for previews; never runs commands.
+    public static func preview(selecting index: Int? = nil) -> ActivityModel {
+        let summon = SummonModel.preview()
+        let model = ActivityModel(summon: summon) { _, _ in "" }
+        let now = Date()
+        let checkpoint = Checkpoint(id: "20261018-071000", label: "agent: tidy my Dock", createdAt: now.addingTimeInterval(-50 * 60),
+                                    configCommit: nil, macctlSnapshot: "20261018-090000")
+        let sources = ActivitySources(
+            log: [
+                LoggedEvent(time: now.addingTimeInterval(-49 * 60), kind: EventKind.agentLaunch, title: "Started Claude Code",
+                            detail: "tidy my Dock", refs: ["agent": "claude", "folder": "~/Work", "checkpoint": checkpoint.id]),
+                LoggedEvent(time: now.addingTimeInterval(-48 * 60), kind: EventKind.sessionStart, title: "Claude Code session",
+                            refs: ["session": "a1", "folder": "~/Work"]),
+                LoggedEvent(time: now.addingTimeInterval(-26 * 60 * 60), kind: EventKind.themeSet, title: "Theme: Summon Night",
+                            refs: ["theme": "summon-night"]),
+            ],
+            snapshots: [
+                MacctlSnapshot(id: "20261018-095500", createdAt: now.addingTimeInterval(-12 * 60), changes: [
+                    SettingChange(id: "dock.autohide", from: "false", to: "true"),
+                ]),
+                MacctlSnapshot(id: "20261018-094000", createdAt: now.addingTimeInterval(-30 * 60), changes: [
+                    SettingChange(id: "dock.tilesize", from: "64", to: "48"),
+                    SettingChange(id: "dock.show-recents", from: "true", to: "false"),
+                    SettingChange(id: "dock.minimize-effect", from: nil, to: "scale"),
+                ]),
+            ],
+            checkpoints: [checkpoint],
+            crashes: summon.recentCrashes,
+            configIsRepo: false
+        )
+        model.live = false
+        model.macctlPath = "/usr/local/bin/macctl"
+        model.apply(sources)
+        if let index, index < model.events.count {
+            model.selection = model.events[index].id
+        }
+        return model
+    }
+}
+
+/// Opens the Activity window when `ActivityModel.requestOpen()` is called from outside any view
+/// (`summon://activity`). Attach it to the menu bar label: the one view that is always alive.
+public struct ActivityOpener: ViewModifier {
+    public static let windowID = "activity"
+    let activity: ActivityModel
+    @Environment(\.openWindow) private var openWindow
+
+    public init(activity: ActivityModel) {
+        self.activity = activity
+    }
+
+    public func body(content: Content) -> some View {
+        content.onChange(of: activity.openRequest) {
+            NSApp.activate()
+            openWindow(id: Self.windowID)
+        }
+    }
+}

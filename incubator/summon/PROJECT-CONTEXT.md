@@ -23,6 +23,14 @@ checkpoint before every agent session.
 - Panel vs Settings window split from AGENTS.md applies to the Summon Menu app.
 
 ## Recent History
+### 2026-10-18 — Activity window (milestone 2 of 3)
+- `ActivityModel` + `ActivityView`: a `Window` scene ("Summon Activity") with a day-grouped timeline, filter and search,
+  a status overview when nothing is selected, per-event detail (old → new values, Undo This Change, Undo Session,
+  Diagnose/Mute for crashes) and a run bar (⌘↩ asks the default agent through `summon agent prompt`).
+- Panel: "Activity…" row, the 3 newest events, "running since" in the header. `summon://activity` opens the window.
+- The window switches the app to a regular activation policy while open (Dock icon, ⌘Tab), back to accessory on close.
+- Not yet run on a Mac: window opening from the menu bar label, activation policy switch, 3 s refresh.
+
 ### 2026-10-18 — Activity: event log, timeline, status (milestone 1 of 3)
 - `EventLog` (`~/.local/state/summon/events.jsonl`), `ActivityFeed` (merges the log, macctl snapshot files,
   checkpoints and crashes, sorted by date), `StatusProbe`; CLI `summon status`, `summon events`, `summon event add`.

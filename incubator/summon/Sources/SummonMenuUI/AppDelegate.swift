@@ -7,6 +7,7 @@ import UserNotifications
 public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     public let model = SummonModel()
     public private(set) lazy var launcher = LauncherController(model: model)
+    public private(set) lazy var activity = ActivityModel(summon: model)
 
     static let crashCategory = "summon.crash"
     static let diagnoseAction = "summon.crash.diagnose"
@@ -35,7 +36,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         model.startWatching()
     }
 
-    /// `summon://menu/<id>` opens the launcher at that entry; `summon://agent` starts the agent.
+    /// `summon://menu/<id>` opens the launcher at that entry; `summon://agent` starts the agent;
+    /// `summon://activity` opens the Activity window.
     public func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls where url.scheme == "summon" {
             switch url.host {
@@ -44,6 +46,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
                 launcher.show(startAt: id)
             case "agent":
                 model.askAgent()
+            case "activity":
+                activity.requestOpen()
             default:
                 break
             }
