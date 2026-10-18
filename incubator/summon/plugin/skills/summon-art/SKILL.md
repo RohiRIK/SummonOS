@@ -18,7 +18,7 @@ Topic guides next to this file; read the matching one before starting:
 - [`wallpapers.md`](wallpapers.md): desktop composition, prompt template, generate, review, install.
 - [`icons.md`](icons.md): app, folder and file icons that sit well in the Dock and Finder.
 
-A whole new theme = this file's palette method, then `wallpapers.md`, then the `summon` skill's
+A whole new theme = this file's palette method, then `wallpapers.md`, then the `summon-mac` skill's
 "Making a new theme" steps (`summon theme set <slug>`).
 
 ## 1. Brief
