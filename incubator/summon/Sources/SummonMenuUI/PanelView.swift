@@ -5,11 +5,14 @@ import SwiftUI
 /// The menu bar panel: the app's job (summon the agent, recent problems, theme). Preferences live in Settings.
 public struct PanelView: View {
     let model: SummonModel
+    let activity: ActivityModel
     let openLauncher: () -> Void
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.openWindow) private var openWindow
 
-    public init(model: SummonModel, openLauncher: @escaping () -> Void) {
+    public init(model: SummonModel, activity: ActivityModel, openLauncher: @escaping () -> Void) {
         self.model = model
+        self.activity = activity
         self.openLauncher = openLauncher
     }
 
@@ -35,6 +38,27 @@ public struct PanelView: View {
                 model.diagnoseLatest()
             }
             .disabled(model.recentCrashes.isEmpty || model.defaultAgent == nil)
+            MenuRow(title: "Activity…", systemImage: "list.bullet.rectangle", shortcut: nil) {
+                showActivity(selecting: nil)
+            }
+
+            PanelDivider()
+            SectionHeader(title: "Recent Activity")
+            let recent = activity.events.filter { $0.category != .problem }.prefix(3)
+            if recent.isEmpty {
+                Text("Nothing changed yet.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+            } else {
+                ForEach(recent) { event in
+                    MenuRow(title: event.title, systemImage: EventStyle.symbol(event),
+                            shortcut: event.date.formatted(.relative(presentation: .named, unitsStyle: .abbreviated))) {
+                        showActivity(selecting: event.id)
+                    }
+                }
+            }
 
             PanelDivider()
             SectionHeader(title: "Recent Problems")
@@ -77,6 +101,15 @@ public struct PanelView: View {
         }
         .padding(6)
         .frame(width: 320)
+        .task {
+            if activity.live { await activity.refresh() }
+        }
+    }
+
+    private func showActivity(selecting id: ActivityEvent.ID?) {
+        activity.selection = id
+        NSApp.activate()
+        openWindow(id: ActivityOpener.windowID)
     }
 
     private var header: some View {
@@ -100,7 +133,11 @@ public struct PanelView: View {
 
     private var agentLine: String {
         guard let agent = model.defaultAgent else { return "No default agent: choose one in Settings" }
-        return model.agentInstalled ? agent.name : "\(agent.name) is not installed"
+        guard model.agentInstalled else { return "\(agent.name) is not installed" }
+        if let since = activity.status?.agent.since, activity.status?.agent.running == true {
+            return "\(agent.name) · running since \(since.formatted(date: .omitted, time: .shortened))"
+        }
+        return agent.name
     }
 }
 
@@ -206,5 +243,6 @@ struct PanelDivider: View {
 }
 
 #Preview("Panel") {
-    PanelView(model: .preview(), openLauncher: {})
+    let activity = ActivityModel.preview()
+    return PanelView(model: activity.summon, activity: activity, openLauncher: {})
 }
