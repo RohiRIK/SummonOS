@@ -203,7 +203,7 @@ public struct ProjectService: Sendable {
     public let runner: Runner
     public let gitPath: String?
 
-    public init(paths: SummonPaths, runner: Runner, gitPath: String?) {
+    public init(paths: SummonPaths, runner: @escaping Runner, gitPath: String?) {
         self.paths = paths
         self.runner = runner
         self.gitPath = gitPath
@@ -294,7 +294,7 @@ public struct PrivateRepoService: Sendable {
     public let ghPath: String
     public let gitPath: String
 
-    public init(paths: SummonPaths, runner: Runner, ghPath: String, gitPath: String) {
+    public init(paths: SummonPaths, runner: @escaping Runner, ghPath: String, gitPath: String) {
         self.paths = paths
         self.runner = runner
         self.ghPath = ghPath
