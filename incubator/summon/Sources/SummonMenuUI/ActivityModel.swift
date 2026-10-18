@@ -227,9 +227,9 @@ extension ActivityModel {
         let sources = ActivitySources(
             log: [
                 LoggedEvent(time: now.addingTimeInterval(-49 * 60), kind: EventKind.agentLaunch, title: "Started Claude Code",
-                            detail: "tidy my Dock", refs: ["agent": "claude", "folder": "~/Work", "checkpoint": checkpoint.id]),
+                            detail: "tidy my Dock", refs: ["agent": "claude", "folder": "~/Summon/mac-battery", "checkpoint": checkpoint.id]),
                 LoggedEvent(time: now.addingTimeInterval(-48 * 60), kind: EventKind.sessionStart, title: "Claude Code session",
-                            refs: ["session": "a1", "folder": "~/Work"]),
+                            refs: ["session": "a1", "folder": "~/Summon/mac-battery"]),
                 LoggedEvent(time: now.addingTimeInterval(-26 * 60 * 60), kind: EventKind.themeSet, title: "Theme: Summon Night",
                             refs: ["theme": "summon-night"]),
             ],

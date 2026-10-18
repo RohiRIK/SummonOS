@@ -25,7 +25,8 @@ like they belong on the Mac. Unlike Glaze (React in a WebView + Node backend), w
 
 `.gitignore` is a root allowlist: anything new at the top level is ignored until it is added there.
 New plugins start with `tools/mp new <name>` in `scratch/`; `tools/mp promote` (owner's OK each time)
-creates the repo pair. Tool details: `docs/tools.md`.
+creates the repo pair. Tool details: `docs/tools.md`. Apps made through Summon are separate: they live in
+`~/Summon/<name>` (from `incubator/summon/templates/`), in Summon's private project list, never in `plugins.json`.
 
 ## Skills: which one when
 

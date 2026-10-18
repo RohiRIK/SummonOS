@@ -26,6 +26,8 @@ public struct SummonPaths: Sendable, Equatable {
     public var generated: URL { config.appendingPathComponent("generated", isDirectory: true) }
     public var hooks: URL { config.appendingPathComponent("hooks", isDirectory: true) }
     public var menuFile: URL { config.appendingPathComponent("menu.jsonc") }
+    /// Summon's private list of the projects it made. Stays on this Mac; never in plugins.json or a repo.
+    public var projectRegistryFile: URL { config.appendingPathComponent("projects.json") }
 
     /// Runtime state that is not configuration.
     public var state: URL { home.appendingPathComponent(".local/state/summon", isDirectory: true) }
@@ -41,7 +43,8 @@ public struct SummonPaths: Sendable, Equatable {
         home.appendingPathComponent("Library/Application Support/macctl/snapshots", isDirectory: true)
     }
 
-    public var work: URL { home.appendingPathComponent("Work", isDirectory: true) }
+    /// `~/Summon`: every project Summon makes lives in `~/Summon/<name>`, and agents start here.
+    public var projects: URL { home.appendingPathComponent("Summon", isDirectory: true) }
 
     /// Where macOS writes crash, hang and panic reports for this user and for the whole machine.
     public var diagnosticReportDirs: [URL] {
