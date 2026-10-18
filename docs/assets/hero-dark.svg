@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" width="1280" height="400" role="img" aria-label="macos-plugins: small native Mac apps, built with agents, in Swift">
+  <title>macos-plugins: small native Mac apps, built with agents, in Swift</title>
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#08060F"/><stop offset="1" stop-color="#0E0B1A"/></linearGradient><radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#9B7BFF" stop-opacity="0.35"/><stop offset="1" stop-color="#9B7BFF" stop-opacity="0"/></radialGradient></defs>
+  <rect width="1280" height="400" rx="24" fill="url(#bg)"/>
+  <defs><linearGradient id="gm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9B7BFF"/><stop offset="1" stop-color="#3DE1FF"/></linearGradient><linearGradient id="g0" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7AA8FF"/><stop offset="1" stop-color="#3DE1FF"/></linearGradient><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7CF2B0"/><stop offset="1" stop-color="#3DE1FF"/></linearGradient><linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9B7BFF"/><stop offset="1" stop-color="#3DE1FF"/></linearGradient><linearGradient id="g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D18BFF"/><stop offset="1" stop-color="#9B7BFF"/></linearGradient></defs>
+  <clipPath id="frame"><rect width="1280" height="400" rx="24"/></clipPath>
+  <g clip-path="url(#frame)"><circle cx="930" cy="200" r="420" fill="url(#glow)"/><g fill="none"><circle cx="930" cy="200" r="90" stroke="#9B7BFF" stroke-opacity="0.22" stroke-width="2"/><circle cx="930" cy="200" r="140" stroke="#3DE1FF" stroke-opacity="0.11" stroke-width="1"/><circle cx="930" cy="200" r="200" stroke="#9B7BFF" stroke-opacity="0.11" stroke-width="1"/><circle cx="930" cy="200" r="270" stroke="#3DE1FF" stroke-opacity="0.22" stroke-width="2"/><circle cx="930" cy="200" r="350" stroke="#9B7BFF" stroke-opacity="0.11" stroke-width="1"/><circle cx="930" cy="200" r="440" stroke="#3DE1FF" stroke-opacity="0.11" stroke-width="1"/><circle cx="930" cy="200" r="540" stroke="#9B7BFF" stroke-opacity="0.22" stroke-width="2"/></g></g>
+  <svg x="56" y="64" width="96" height="96" viewBox="0 0 1024 1024"><g fill="none" stroke="url(#gm)" stroke-linecap="round">
+    <circle cx="512" cy="512" r="396.3" stroke-width="26.6"/>
+    <circle cx="512" cy="512" r="347.6" stroke-width="9.2" opacity=".55"/>
+    <g stroke-width="12.3"><path d="M242.6 413.9A286.7 286.7 0 0 1 512.0 225.3" opacity=".8"/><path d="M731.6 327.7A286.7 286.7 0 0 1 760.3 655.4" opacity=".8"/><path d="M561.8 794.4A286.7 286.7 0 0 1 263.7 655.4" opacity=".8"/></g>
+  </g>
+  <g fill="url(#gm)"><path d="M512.0 51.2L563.2 102.4L512.0 153.6L460.8 102.4Z"/><path d="M866.7 274.4L899.5 307.2L866.7 340.0L834.0 307.2Z"/><path d="M866.7 684.0L899.5 716.8L866.7 749.6L834.0 716.8Z"/><path d="M512.0 888.8L544.8 921.6L512.0 954.4L479.2 921.6Z"/><path d="M157.3 684.0L190.0 716.8L157.3 749.6L124.5 716.8Z"/><path d="M157.3 274.4L190.0 307.2L157.3 340.0L124.5 307.2Z"/></g><g fill="none" stroke="#F6F3FF" stroke-width="56" stroke-linecap="round" stroke-linejoin="round"><path d="M332 372H692"/><path d="M412 452H612A40 40 0 0 1 652 492V612A40 40 0 0 1 612 652H412A40 40 0 0 1 372 612V492A40 40 0 0 1 412 452Z"/></g><circle cx="512" cy="372" r="34" fill="#F6F3FF"/></svg>
+  <text x="64" y="222" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="60" font-weight="700" fill="#F6F3FF" letter-spacing="-1.2">macos-plugins</text>
+  <text x="64" y="272" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="21" font-weight="400" fill="#E4DEF7">Small native Mac apps, built with agents.</text>
+  <text x="64" y="304" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="21" font-weight="400" fill="#E4DEF7" opacity=".72">Swift 6 and SwiftUI. Instant, offline, at home on a Mac.</text>
+  <rect x="620" y="72" width="300" height="120" rx="18" fill="#1A1530" fill-opacity="0.78" stroke="#2B2347" stroke-width="1.5"/>
+  <svg x="634" y="98" width="68" height="68" viewBox="0 0 1024 1024"><g fill="none" stroke="url(#g0)" stroke-linecap="round">
+    <circle cx="512" cy="512" r="396.3" stroke-width="26.6"/>
+    <circle cx="512" cy="512" r="347.6" stroke-width="9.2" opacity=".55"/>
+    <g stroke-width="12.3"><path d="M242.6 413.9A286.7 286.7 0 0 1 512.0 225.3" opacity=".8"/><path d="M731.6 327.7A286.7 286.7 0 0 1 760.3 655.4" opacity=".8"/><path d="M561.8 794.4A286.7 286.7 0 0 1 263.7 655.4" opacity=".8"/></g>
+  </g>
+  <g fill="url(#g0)"><path d="M512.0 51.2L563.2 102.4L512.0 153.6L460.8 102.4Z"/><path d="M866.7 274.4L899.5 307.2L866.7 340.0L834.0 307.2Z"/><path d="M866.7 684.0L899.5 716.8L866.7 749.6L834.0 716.8Z"/><path d="M512.0 888.8L544.8 921.6L512.0 954.4L479.2 921.6Z"/><path d="M157.3 684.0L190.0 716.8L157.3 749.6L124.5 716.8Z"/><path d="M157.3 274.4L190.0 307.2L157.3 340.0L124.5 307.2Z"/></g><g fill="none" stroke="#F6F3FF" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"><path d="M434.2 554.2A110 110 0 0 1 589.8 554.2"/><path d="M370.6 490.6A200 200 0 0 1 653.4 490.6"/><path d="M306.9 426.9A290 290 0 0 1 717.1 426.9"/></g><circle cx="512" cy="636" r="38" fill="#F6F3FF"/></svg>
+  <text x="716" y="118" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#F6F3FF">mac-network</text>
+  <text x="716" y="144" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="#E4DEF7" opacity=".8">Wi-Fi and IP settings</text>
+  <text x="716" y="164" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="#E4DEF7" opacity=".8">from the menu bar</text>
+  <rect x="936" y="72" width="300" height="120" rx="18" fill="#1A1530" fill-opacity="0.78" stroke="#2B2347" stroke-width="1.5"/>
+  <svg x="950" y="98" width="68" height="68" viewBox="0 0 1024 1024"><g fill="none" stroke="url(#g1)" stroke-linecap="round">
+    <circle cx="512" cy="512" r="396.3" stroke-width="26.6"/>
+    <circle cx="512" cy="512" r="347.6" stroke-width="9.2" opacity=".55"/>
+    <g stroke-width="12.3"><path d="M242.6 413.9A286.7 286.7 0 0 1 512.0 225.3" opacity=".8"/><path d="M731.6 327.7A286.7 286.7 0 0 1 760.3 655.4" opacity=".8"/><path d="M561.8 794.4A286.7 286.7 0 0 1 263.7 655.4" opacity=".8"/></g>
+  </g>
+  <g fill="url(#g1)"><path d="M512.0 51.2L563.2 102.4L512.0 153.6L460.8 102.4Z"/><path d="M866.7 274.4L899.5 307.2L866.7 340.0L834.0 307.2Z"/><path d="M866.7 684.0L899.5 716.8L866.7 749.6L834.0 716.8Z"/><path d="M512.0 888.8L544.8 921.6L512.0 954.4L479.2 921.6Z"/><path d="M157.3 684.0L190.0 716.8L157.3 749.6L124.5 716.8Z"/><path d="M157.3 274.4L190.0 307.2L157.3 340.0L124.5 307.2Z"/></g><g fill="none" stroke="#F6F3FF" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"><path d="M392 392H632A40 40 0 0 1 672 432V632A40 40 0 0 1 632 672H392A40 40 0 0 1 352 632V432A40 40 0 0 1 392 392Z"/><path d="M352 480H672"/><path d="M440 352V420"/><path d="M584 352V420"/></g><circle cx="436" cy="548" r="22" fill="#F6F3FF"/><circle cx="512" cy="548" r="22" fill="#F6F3FF"/><circle cx="588" cy="548" r="22" fill="#F6F3FF"/><circle cx="436" cy="616" r="22" fill="#F6F3FF"/><circle cx="512" cy="616" r="22" fill="#F6F3FF"/><circle cx="588" cy="616" r="22" fill="#F6F3FF"/></svg>
+  <text x="1032" y="118" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#F6F3FF">mac-calendar</text>
+  <text x="1032" y="144" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="#E4DEF7" opacity=".8">Calendar, events, reminders</text>
+  <text x="1032" y="164" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="#E4DEF7" opacity=".8">and Hebrew dates</text>
+  <rect x="620" y="208" width="300" height="120" rx="18" fill="#1A1530" fill-opacity="0.78" stroke="#2B2347" stroke-width="1.5"/>
+  <svg x="634" y="234" width="68" height="68" viewBox="0 0 1024 1024"><g fill="none" stroke="url(#g2)" stroke-linecap="round">
+    <circle cx="512" cy="512" r="396.3" stroke-width="26.6"/>
+    <circle cx="512" cy="512" r="347.6" stroke-width="9.2" opacity=".55"/>
+    <g stroke-width="12.3"><path d="M242.6 413.9A286.7 286.7 0 0 1 512.0 225.3" opacity=".8"/><path d="M731.6 327.7A286.7 286.7 0 0 1 760.3 655.4" opacity=".8"/><path d="M561.8 794.4A286.7 286.7 0 0 1 263.7 655.4" opacity=".8"/></g>
+  </g>
+  <g fill="url(#g2)"><path d="M512.0 51.2L563.2 102.4L512.0 153.6L460.8 102.4Z"/><path d="M866.7 274.4L899.5 307.2L866.7 340.0L834.0 307.2Z"/><path d="M866.7 684.0L899.5 716.8L866.7 749.6L834.0 716.8Z"/><path d="M512.0 888.8L544.8 921.6L512.0 954.4L479.2 921.6Z"/><path d="M157.3 684.0L190.0 716.8L157.3 749.6L124.5 716.8Z"/><path d="M157.3 274.4L190.0 307.2L157.3 340.0L124.5 307.2Z"/></g><g fill="none" stroke="#F6F3FF" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"><path d="M336 432H688"/><path d="M336 600H688"/></g><circle cx="602" cy="432" r="52" fill="#F6F3FF"/><circle cx="422" cy="600" r="52" fill="#F6F3FF"/></svg>
+  <text x="716" y="254" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#F6F3FF">macctl</text>
+  <text x="716" y="280" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="#E4DEF7" opacity=".8">Mac settings for agents,</text>
+  <text x="716" y="300" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="#E4DEF7" opacity=".8">with snapshots and undo</text>
+  <rect x="936" y="208" width="300" height="120" rx="18" fill="#1A1530" fill-opacity="0.78" stroke="#2B2347" stroke-width="1.5"/>
+  <svg x="950" y="234" width="68" height="68" viewBox="0 0 1024 1024"><g fill="none" stroke="url(#g3)" stroke-linecap="round">
+    <circle cx="512" cy="512" r="396.3" stroke-width="26.6"/>
+    <circle cx="512" cy="512" r="347.6" stroke-width="9.2" opacity=".55"/>
+    <g stroke-width="12.3"><path d="M242.6 413.9A286.7 286.7 0 0 1 512.0 225.3" opacity=".8"/><path d="M731.6 327.7A286.7 286.7 0 0 1 760.3 655.4" opacity=".8"/><path d="M561.8 794.4A286.7 286.7 0 0 1 263.7 655.4" opacity=".8"/></g>
+  </g>
+  <g fill="url(#g3)"><path d="M512.0 51.2L563.2 102.4L512.0 153.6L460.8 102.4Z"/><path d="M866.7 274.4L899.5 307.2L866.7 340.0L834.0 307.2Z"/><path d="M866.7 684.0L899.5 716.8L866.7 749.6L834.0 716.8Z"/><path d="M512.0 888.8L544.8 921.6L512.0 954.4L479.2 921.6Z"/><path d="M157.3 684.0L190.0 716.8L157.3 749.6L124.5 716.8Z"/><path d="M157.3 274.4L190.0 307.2L157.3 340.0L124.5 307.2Z"/></g><g fill="none" stroke="#F6F3FF" stroke-width="56.3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M362.0 373.8L508.4 506.9L362.0 640.0"/>
+    <path d="M589.8 629.4H679.9"/>
+  </g></svg>
+  <text x="1032" y="254" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#F6F3FF">Summon</text>
+  <text x="1032" y="280" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="#E4DEF7" opacity=".8">An agent you summon</text>
+  <text x="1032" y="300" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="400" fill="#E4DEF7" opacity=".8">from anywhere on the Mac</text>
+</svg>

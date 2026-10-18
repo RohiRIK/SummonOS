@@ -1,8 +1,36 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../docs/assets/macctl-logo-dark.svg">
+    <img alt="macctl" src="../docs/assets/macctl-logo-light.svg" height="96">
+  </picture>
+</p>
+
+<p align="center">
+  <a href="https://github.com/RohiRIK/macos-plugins/actions/workflows/swift.yml"><img alt="Swift (macOS) CI" src="https://github.com/RohiRIK/macos-plugins/actions/workflows/swift.yml/badge.svg"></a>
+  <img alt="Swift 6 | macOS 15+" src="../docs/assets/pill-swift-macos.svg">
+</p>
+
 # macctl
 
 A command-line tool that reads, sets, diffs, applies and undoes macOS settings. It is built for AI
 agents, and people can use it too. Every setting comes from a typed catalog, so an agent never has to
 guess a `defaults` key. Every change saves a snapshot first, and `macctl undo` restores it.
+
+<p align="center">
+  <img alt="macctl diff profiles/default.json lists nine settings that would change, from their current value to the profile's value" src="../docs/assets/demo/macctl-diff.svg" width="100%">
+</p>
+
+<sub>Terminal output on this page is illustrative until recorded on a Mac: it is written from the macctl
+source (`Sources/MacCtlCLI`), not captured. `tools/record-demos.sh` replaces it with real output.</sub>
+
+## Why
+
+- **A typed catalog.** Each setting has an id, a type (`bool`, `int 16...128`, `left|bottom|right`), a
+  risk tier, the permissions it needs and its side effects. `describe` shows all of it before you `set`.
+- **Snapshots and undo.** Every write saves the old values first. `macctl undo` puts them back, one
+  change at a time, including keys that were unset before.
+- **JSON for agents.** `--json`, or any pipe, gives exactly one object per run with stable error codes
+  and exit codes, so an agent can act on the result without parsing text.
 
 Requires macOS 15 or later.
 
@@ -11,6 +39,25 @@ Requires macOS 15 or later.
 ```sh
 swift build -c release
 cp .build/release/macctl /usr/local/bin/   # or anywhere on your PATH
+```
+
+## Quick tour
+
+**1. Check permissions.** `doctor` shows the macOS version, which permissions are granted, and a System
+Settings link for each missing one.
+
+<img alt="macctl doctor: macOS 26.0, Automation of System Events granted, snapshots folder writable" src="../docs/assets/demo/macctl-doctor.svg" width="100%">
+
+**2. Look before you write.** `diff` (above) shows what a profile would change. `--dry-run` does the
+same for `set` and `apply`. Neither writes anything.
+
+<img alt="macctl set dock.autohide true --dry-run: one change would be made, nothing written" src="../docs/assets/demo/macctl-dry-run.svg" width="100%">
+
+**3. Change, then undo.** A real `set` or `apply` prints the snapshot id it saved; `undo` restores it.
+
+```sh
+macctl set dock.autohide true    # Applied 1 change. Snapshot <id>. Revert with: macctl undo <id>
+macctl undo                      # restores the newest change that was not undone yet
 ```
 
 ## Commands
@@ -28,7 +75,12 @@ cp .build/release/macctl /usr/local/bin/   # or anywhere on your PATH
 | `macctl snapshot show <id>` | the old values one snapshot holds |
 | `macctl undo [<id>]` | restore a snapshot (the newest when no id is given) |
 
-Every command takes `--json`. Run `macctl <command> --help` for details.
+Every command takes `--json`. Run `macctl <command> --help` for details. The full catalog is in
+[`docs/settings.md`](docs/settings.md).
+
+<img alt="macctl list --domain dock: six Dock settings with type, risk and current value" src="../docs/assets/demo/macctl-list.svg" width="100%">
+
+<img alt="macctl describe dock.tilesize: id, summary, type, risk, current and default value, backend, permissions, side effects" src="../docs/assets/demo/macctl-describe.svg" width="100%">
 
 ### Examples
 
@@ -69,10 +121,14 @@ differ, and does nothing when the Mac already matches.
 
 `--only dock` applies just the settings whose id starts with `dock.`.
 
-## JSON output
+## Reference
+
+### JSON output
 
 Output is JSON when you pass `--json`, or when stdout is not a terminal (a pipe, or an agent's
 shell). Each run prints exactly one object, with sorted keys and ISO 8601 dates.
+
+<img alt="macctl get dock.autohide dock.tilesize --json prints one object with command, ok and result" src="../docs/assets/demo/macctl-get-json.svg" width="100%">
 
 Success:
 
@@ -117,7 +173,7 @@ Error codes: `unknown_setting`, `invalid_value`, `command_failed`, `permission_m
 `needs_confirmation`, `unsupported`, `snapshot_not_found`, `no_snapshots`, `invalid_profile`,
 `internal_error`.
 
-## Exit codes
+### Exit codes
 
 | Code | Meaning |
 |---|---|
@@ -129,7 +185,7 @@ Error codes: `unknown_setting`, `invalid_value`, `command_failed`, `permission_m
 
 Command-line usage errors (a missing argument) exit with 64 and print usage to stderr.
 
-## Safety
+### Safety
 
 - **Snapshots.** Before writing anything, `set`, `apply` and `undo` save the old values to
   `~/Library/Application Support/macctl/snapshots/`. `macctl undo` restores the newest one;
@@ -144,6 +200,16 @@ Command-line usage errors (a missing argument) exit with 64 and print usage to s
   into a shell or AppleScript text.
 - **Side effects.** Some settings need Dock or Finder restarted, or a logout. `apply` restarts each
   process once at the end and lists what still needs a logout in `notes`.
+
+## Demos
+
+The terminal cards are rendered from the transcripts in [`docs/demo/`](docs/demo) by
+`tools/readme-art.py` (from the repo root). To record real ones on a Mac, with macctl installed:
+
+```sh
+brew install vhs          # optional, for docs/demo/demo.gif
+tools/record-demos.sh     # runs only read-only commands, scrubs $HOME and tools/private-patterns.txt
+```
 
 ## License
 
