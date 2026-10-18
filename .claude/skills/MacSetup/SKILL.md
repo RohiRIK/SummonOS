@@ -1,6 +1,6 @@
 ---
 name: MacSetup
-description: "Read, change, and roll back macOS settings with the macctl CLI (Dock, Finder, keyboard, screenshots, dark mode) and apply JSON profiles. USE WHEN asked to configure or set up a Mac, change a system preference, or apply/undo a profile. NOT FOR building macOS apps (use MacAppBuild)."
+description: "Read, change, and roll back macOS settings with the macctl CLI (Dock, Finder, keyboard, screenshots, dark mode, wallpaper) and apply JSON profiles. USE WHEN asked to configure or set up a Mac, change a system preference, or apply/undo a profile. NOT FOR building macOS apps (use MacAppBuild)."
 ---
 
 # MacSetup: configure macOS through `macctl`

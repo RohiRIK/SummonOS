@@ -1,14 +1,17 @@
 import Foundation
 
-/// Reads and writes settings with the built-in tools: `defaults` and `osascript`.
+/// Reads and writes settings with the built-in tools: `defaults` and `osascript`, plus the desktop
+/// picture through an injected `WallpaperControlling` (`NSWorkspace` by default).
 ///
 /// Values only ever travel as argv items. AppleScript text is the fixed script from the catalog;
 /// the value goes after `--` so osascript never parses it as a flag or as code.
 public struct SystemBackend: SettingBackend {
     private let runner: Runner
+    private let wallpaper: any WallpaperControlling
 
-    public init(runner: @escaping Runner) {
+    public init(runner: @escaping Runner, wallpaper: any WallpaperControlling = LiveWallpaper()) {
         self.runner = runner
+        self.wallpaper = wallpaper
     }
 
     // MARK: SettingBackend
@@ -27,6 +30,9 @@ public struct SystemBackend: SettingBackend {
             let result = try await runner(Tool.osascript, ["-e", getScript])
             try Self.checkAppleScript(result, command: "osascript (\(setting.id) get)")
             return try Self.parseScriptOutput(result.stdout, type: setting.type, id: setting.id)
+
+        case .wallpaper:
+            return try await wallpaper.currentWallpaper().map(Value.string)
         }
     }
 
@@ -46,6 +52,27 @@ public struct SystemBackend: SettingBackend {
             // `--` ends osascript's own options: a value such as "-e" or "-rf" stays a value.
             let result = try await runner(Tool.osascript, ["-e", setScript, "--", value.description])
             try Self.checkAppleScript(result, command: "osascript (\(setting.id) set)")
+
+        case .wallpaper:
+            try validate(value, for: setting)
+            guard case .string(let path) = value else { return }
+            try await wallpaper.setWallpaper(ValueType.expandTilde(path))
+        }
+    }
+
+    /// A wallpaper must be an existing file (not a folder); other settings need no live check.
+    public func validate(_ value: Value, for setting: Setting) throws {
+        guard case .wallpaper = setting.backend else { return }
+        guard case .string(let raw) = value else {
+            throw MacCtlError.invalidValue(id: setting.id, value: value.description, reason: "expected a file path")
+        }
+        let path = ValueType.expandTilde(raw)
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) else {
+            throw MacCtlError.invalidValue(id: setting.id, value: raw, reason: "no such file")
+        }
+        if isDirectory.boolValue {
+            throw MacCtlError.invalidValue(id: setting.id, value: raw, reason: "is a folder; expected an image file")
         }
     }
 
@@ -67,11 +94,11 @@ public struct SystemBackend: SettingBackend {
                 throw Self.failure("defaults delete \(domain) \(key)", result)
             }
 
-        case .appleScript:
+        case .appleScript, .wallpaper:
             guard let systemDefault = setting.systemDefault else {
                 throw MacCtlError.unsupported(
                     id: setting.id,
-                    reason: "no known system default to restore for this AppleScript setting"
+                    reason: "no known system default to restore for this setting"
                 )
             }
             try await write(systemDefault, for: setting)
