@@ -126,3 +126,17 @@ tools/record-demos.sh [--no-gif]
   anything else is refused.
 - Replaces `$HOME` with `/Users/you` and every regex in `tools/private-patterns.txt` with `<private>`,
   in the transcripts and in the GIF.
+
+## install-skills.sh
+
+Links every skill in `.claude/skills/` into `~/.claude/skills/` (or `$CLAUDE_SKILLS_DIR`), so Claude Code
+sessions anywhere on the Mac can use them, not only sessions started inside this workspace.
+
+```bash
+tools/install-skills.sh              # add symlinks (idempotent; repoints links to an older checkout)
+tools/install-skills.sh --check      # linked / missing / blocked, changes nothing
+tools/install-skills.sh --uninstall  # removes only links that point into this workspace
+```
+
+Symlinks mean `git pull` updates the skills with no reinstall. A real folder with the same name is never
+replaced (reported as `blocked`, exit 1). Start a new Claude Code session to pick up added skills.

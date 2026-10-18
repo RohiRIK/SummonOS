@@ -33,6 +33,9 @@ Ask "which Apple UI does this resemble?" and copy its anatomy, not a generic web
 | Live numbers, current device/connection | Control Center module (`MenuPanel.md` › Live-data module) |
 | Several jobs in one panel | CodexBar tab switcher (`MenuPanel.md` › Everything in the panel) |
 | Editing the app's job in a panel (IP settings) | A tab with `SettingsGroup` / `SettingsRow`, System Settings wording |
+| The menu bar icon itself, right-click, ⌥-click | `MenuBarItem.md` |
+| A full window (history, library, main app) | Mail / System Settings anatomy (`Windows.md`) |
+| Events, history, running agent or job, undo | Console + Linear + Raycast grammar (`ActivityFeeds.md`) |
 | App preferences, permissions, theme | Settings window (⌘,) + first-launch onboarding (`MenuPanel.md` › App settings and onboarding) |
 
 **Check the reference apps already installed before inventing a pattern.** Look in `/Applications`
