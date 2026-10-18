@@ -37,6 +37,8 @@ public enum CommandCatalog {
         CommandInfo(route: "event add", summary: "Record an event in the timeline (used by the Claude Code plugin hooks)",
                     args: "<kind> <title...> [--detail text] [--ref key=value]...",
                     examples: ["summon event add session.start \"Claude Code session\" --ref session=abc --ref folder=~/Work"], risk: "user"),
+        CommandInfo(route: "event hook", summary: "Record a Claude Code SessionStart/SessionEnd hook payload read from stdin",
+                    args: "start|end", examples: ["summon event hook start < payload.json"], risk: "user"),
         CommandInfo(route: "icon set", summary: "Put a custom icon on any file, folder or app",
                     args: "<image> <path>", examples: ["summon icon set ~/Pictures/work.png ~/Work"], risk: "user"),
         CommandInfo(route: "icon reset", summary: "Remove a custom icon",

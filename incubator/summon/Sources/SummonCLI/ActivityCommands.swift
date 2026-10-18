@@ -103,8 +103,20 @@ enum ActivityCommands {
 
     /// `summon event add <kind> <title...> [--detail text] [--ref key=value]...`, for hooks and scripts.
     static func eventAdd(_ args: inout Arguments, _ context: Context) throws {
-        let usage = "Usage: summon event add <kind> <title...> [--detail text] [--ref key=value]..."
-        guard args.next() == "add" else { throw CLIError(usage) }
+        let usage = "Usage: summon event add <kind> <title...> [--detail text] [--ref key=value]...\n       summon event hook start|end   (Claude Code hook payload on stdin)"
+        let sub = args.next()
+        if sub == "hook" {
+            guard let phase = args.next(), args.isEmpty else { throw CLIError(usage) }
+            // Run by hand in a terminal there is no payload; never wait on the keyboard.
+            let payload = isatty(STDIN_FILENO) == 1 ? "" : String(decoding: FileHandle.standardInput.readDataToEndOfFile(), as: UTF8.self)
+            guard let event = SessionHook.event(phase: phase, payload: payload) else {
+                if phase != "start" && phase != "end" { throw CLIError(usage) }
+                return
+            }
+            try EventLog(paths: context.paths).append(event)
+            return
+        }
+        guard sub == "add" else { throw CLIError(usage) }
         let detail = args.option("--detail")
         var refs: [String: String] = [:]
         while let ref = args.option("--ref") {

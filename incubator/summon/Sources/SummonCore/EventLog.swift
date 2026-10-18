@@ -94,3 +94,37 @@ public struct EventLog: Sendable {
         try TextFile.write(lines.suffix(keep).joined(separator: "\n") + "\n", to: file)
     }
 }
+
+/// Turns a Claude Code `SessionStart` / `SessionEnd` hook payload (JSON on stdin) into a log entry.
+public enum SessionHook {
+    struct Payload: Decodable {
+        var session_id: String?
+        var cwd: String?
+        /// SessionStart: `startup`, `resume`, `clear`, `compact`.
+        var source: String?
+        /// SessionEnd: `clear`, `logout`, `prompt_input_exit`, `other`, ...
+        var reason: String?
+    }
+
+    /// `phase` is `start` or `end`. Nil when there is nothing to record: an unknown phase, or a
+    /// compaction (the same session carries on).
+    public static func event(phase: String, payload: String, agent: String = "Claude Code", now: Date = Date()) -> LoggedEvent? {
+        let decoded = try? JSONDecoder().decode(Payload.self, from: Data(payload.utf8))
+        var refs: [String: String] = [:]
+        refs["session"] = decoded?.session_id
+        refs["folder"] = decoded?.cwd
+        switch phase {
+        case "start":
+            if decoded?.source == "compact" { return nil }
+            let resumed = decoded?.source == "resume"
+            return LoggedEvent(time: now, kind: EventKind.sessionStart,
+                               title: resumed ? "\(agent) session resumed" : "\(agent) session started",
+                               detail: decoded?.cwd, refs: refs)
+        case "end":
+            return LoggedEvent(time: now, kind: EventKind.sessionEnd, title: "\(agent) session ended",
+                               detail: decoded?.reason.map { "Reason: \($0)" }, refs: refs)
+        default:
+            return nil
+        }
+    }
+}
