@@ -23,6 +23,11 @@ checkpoint before every agent session.
 - Panel vs Settings window split from AGENTS.md applies to the Summon Menu app.
 
 ## Recent History
+### 2026-10-18 — `summon` is the router skill
+- `summon` skill = router: "summon, <anything>" → summon-mac (settings, configs, installing themes), summon-art,
+  mac-app, diagnose-crash-mac, mac-logs, or the agent's best other installed skill. The old Mac-customization skill
+  is now `summon-mac`. Verified with agy: web app → FrontendDesign, Dock → summon-mac, wallpaper → summon-art.
+- Pi added as an agent (`pi`, `pi -- <prompt>`, skills in `~/.pi/agent/skills`).
 ### 2026-10-18 — summon-art skill (Art know-how shipped with Summon)
 - New shipped skill `plugin/skills/summon-art/`: brief → three concepts → OKLCH palette for theme.json (with a
   contrast check script) → Nano Banana via agy → review → install. `wallpapers.md` (moved from summon/Wallpapers.md)
