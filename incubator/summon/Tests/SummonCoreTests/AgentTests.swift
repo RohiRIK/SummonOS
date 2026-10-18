@@ -4,11 +4,16 @@ import Testing
 
 @Suite("Agents and launching")
 struct AgentTests {
-    @Test func claudeRunsInAutoModeAndTakesPromptAfterDashDash() throws {
+    @Test func claudeSkipsPermissionsAndTakesPromptAfterDashDash() throws {
         let claude = try #require(AgentRegistry.find("claude"))
-        #expect(claude.argv(prompt: nil) == ["claude", "--permission-mode", "auto"])
-        #expect(claude.argv(prompt: "-v is a prompt") == ["claude", "--permission-mode", "auto", "--", "-v is a prompt"])
+        #expect(claude.argv(prompt: nil) == ["claude", "--dangerously-skip-permissions"])
+        #expect(claude.argv(prompt: "-v is a prompt") == ["claude", "--dangerously-skip-permissions", "--", "-v is a prompt"])
         #expect(claude.argv(prompt: "") == claude.interactive)
+    }
+
+    @Test func codexBypassesApprovalsAndSandbox() throws {
+        let codex = try #require(AgentRegistry.find("codex"))
+        #expect(codex.interactive == ["codex", "--dangerously-bypass-approvals-and-sandbox"])
     }
 
     @Test func aliasesResolve() {
@@ -36,24 +41,28 @@ struct AgentTests {
     }
 
     @Test func launchFromHomeStartsInWork() {
-        #expect(AgentLauncher.workingDirectory(current: "/Users/a", home: "/Users/a", workExists: true) == "/Users/a/Work")
-        #expect(AgentLauncher.workingDirectory(current: "/Users/a/", home: "/Users/a", workExists: true) == "/Users/a/Work")
-        #expect(AgentLauncher.workingDirectory(current: "/Users/a", home: "/Users/a", workExists: false) == "/Users/a")
-        #expect(AgentLauncher.workingDirectory(current: "/Users/a/code", home: "/Users/a", workExists: true) == "/Users/a/code")
+        #expect(AgentLauncher.workingDirectory(current: "/u/a", home: "/u/a", workExists: true) == "/u/a/Work")
+        #expect(AgentLauncher.workingDirectory(current: "/u/a/", home: "/u/a", workExists: true) == "/u/a/Work")
+        #expect(AgentLauncher.workingDirectory(current: "/u/a", home: "/u/a", workExists: false) == "/u/a")
+        #expect(AgentLauncher.workingDirectory(current: "/u/a/code", home: "/u/a", workExists: true) == "/u/a/code")
         // Launched from the menu bar app, whose folder is `/`.
-        #expect(AgentLauncher.workingDirectory(current: "/", home: "/Users/a", workExists: true) == "/Users/a/Work")
-        #expect(AgentLauncher.workingDirectory(current: "/", home: "/Users/a", workExists: false) == "/Users/a")
+        #expect(AgentLauncher.workingDirectory(current: "/", home: "/u/a", workExists: true) == "/u/a/Work")
+        #expect(AgentLauncher.workingDirectory(current: "/", home: "/u/a", workExists: false) == "/u/a")
     }
 
-    @Test func ghosttyPlanPassesArgvAfterDashE() {
+    @Test func ghosttyPlanOpensAWindowInTheRunningApp() {
         let plan = AgentLauncher.terminalPlan(agentArgv: ["/bin/claude", "--", "it's"], directory: "/tmp/x", terminal: .ghostty)
-        #expect(plan.executable == "/usr/bin/open")
-        #expect(plan.arguments == ["-na", "Ghostty", "--args", "--working-directory=/tmp/x", "-e", "/bin/claude", "--", "it's"])
+        #expect(plan.executable == "/usr/bin/osascript")
+        let script = stride(from: 1, to: plan.arguments.count - 3, by: 2).map { plan.arguments[$0] }.joined(separator: "\n")
+        // `open -na` started a second Ghostty per launch; a running one gets a window over AppleScript.
+        #expect(script.contains("if application \"Ghostty\" is running then\ntell application \"Ghostty\""))
+        #expect(script.contains("new window with configuration"))
     }
 
-    @Test func terminalPlanNeverSplicesValuesIntoTheScript() {
+    @Test(arguments: [TerminalApp.ghostty, .terminal])
+    func terminalPlanNeverSplicesValuesIntoTheScript(terminal: TerminalApp) {
         let hostile = "\"; do shell script \"rm -rf ~\" --"
-        let plan = AgentLauncher.terminalPlan(agentArgv: ["/bin/claude", hostile], directory: "/tmp/x", terminal: .terminal)
+        let plan = AgentLauncher.terminalPlan(agentArgv: ["/bin/claude", hostile], directory: "/tmp/x", terminal: terminal)
         #expect(plan.executable == "/usr/bin/osascript")
         // Values only appear after the script lines, as argv.
         #expect(Array(plan.arguments.suffix(3)) == ["/tmp/x", "/bin/claude", hostile])

@@ -26,14 +26,14 @@ public enum AgentRegistry {
     public static let all: [Agent] = [
         Agent(
             id: "claude", name: "Claude Code", command: "claude", aliases: ["claude-code"],
-            interactive: ["claude", "--permission-mode", "auto"],
-            withPrompt: ["claude", "--permission-mode", "auto", "--"],
+            interactive: ["claude", "--dangerously-skip-permissions"],
+            withPrompt: ["claude", "--dangerously-skip-permissions", "--"],
             installHint: "brew install --cask claude-code"
         ),
         Agent(
             id: "codex", name: "Codex", command: "codex", aliases: ["openai-codex"],
-            interactive: ["codex", "--approve-for-me"],
-            withPrompt: ["codex", "--approve-for-me", "--"],
+            interactive: ["codex", "--dangerously-bypass-approvals-and-sandbox"],
+            withPrompt: ["codex", "--dangerously-bypass-approvals-and-sandbox", "--"],
             installHint: "brew install codex"
         ),
         Agent(
