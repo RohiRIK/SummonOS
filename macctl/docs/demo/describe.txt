@@ -1,10 +1,10 @@
-# illustrative: written from the macctl source, not yet recorded on a Mac. tools/record-demos.sh replaces it.
+# recorded on macOS 26.6.2 with macctl at 865dff3 by tools/record-demos.sh
 $ macctl describe dock.tilesize
 id:           dock.tilesize
 summary:      Dock icon size in points, 16 (tiny) to 128 (huge).
 type:         int 16...128
 risk:         user
-current:      48
+current:      52
 default:      48
 backend:      defaults com.apple.dock tilesize -int
 permissions:  none

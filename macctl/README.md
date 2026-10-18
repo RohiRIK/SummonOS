@@ -17,11 +17,11 @@ agents, and people can use it too. Every setting comes from a typed catalog, so 
 guess a `defaults` key. Every change saves a snapshot first, and `macctl undo` restores it.
 
 <p align="center">
-  <img alt="macctl diff profiles/default.json lists nine settings that would change, from their current value to the profile's value" src="../docs/assets/demo/macctl-diff.svg" width="100%">
+  <img alt="macctl diff profiles/default.json lists six settings that would change, from their current value to the profile's value" src="../docs/assets/demo/macctl-diff.svg" width="100%">
 </p>
 
-<sub>Terminal output on this page is illustrative until recorded on a Mac: it is written from the macctl
-source (`Sources/MacCtlCLI`), not captured. `tools/record-demos.sh` replaces it with real output.</sub>
+<sub>Terminal output on this page was recorded on macOS 26.6.2 by `tools/record-demos.sh` (read-only
+commands; the home folder is shown as `~`).</sub>
 
 ## Why
 
@@ -46,7 +46,7 @@ cp .build/release/macctl /usr/local/bin/   # or anywhere on your PATH
 **1. Check permissions.** `doctor` shows the macOS version, which permissions are granted, and a System
 Settings link for each missing one.
 
-<img alt="macctl doctor: macOS 26.0, Automation of System Events granted, snapshots folder writable" src="../docs/assets/demo/macctl-doctor.svg" width="100%">
+<img alt="macctl doctor: macOS 26.6.2, Automation of System Events granted, snapshots folder writable" src="../docs/assets/demo/macctl-doctor.svg" width="100%">
 
 **2. Look before you write.** `diff` (above) shows what a profile would change. `--dry-run` does the
 same for `set` and `apply`. Neither writes anything.
