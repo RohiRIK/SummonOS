@@ -1,6 +1,6 @@
 ---
 name: MacAppBuild
-description: "Scaffold, build, bundle, preview, verify, and release a native SwiftUI macOS app with SwiftPM and Xcode MCP. USE WHEN creating a new macOS plugin, building or testing it, rendering previews, checking a change before a PR, fixing build/bundle/signing problems, or releasing an .app. NOT FOR app structure or backend calls (use MacAppArchitecture), view design (use MacUX), or porting a Linux widget (use PortOmarchyPlugin)."
+description: "Scaffold, build, bundle, preview, verify, and release a native SwiftUI macOS app with SwiftPM and Xcode MCP. USE WHEN creating a new macOS plugin, building or testing it, rendering previews, checking a change before a PR, fixing build/bundle/signing problems, or releasing an .app. NOT FOR app structure or backend calls (use MacAppArchitecture), view design (use MacUX), or porting a Linux widget (use PortLinuxWidget)."
 category: reference
 effort: medium
 domain: dev

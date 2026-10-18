@@ -53,5 +53,17 @@ for skill in "$src"/*/; do
   fi
 done
 
+# Links into this workspace whose skill was renamed or removed (e.g. PortOmarchyPlugin -> PortLinuxWidget).
+for link in "$dest"/*; do
+  [ -L "$link" ] && [ ! -e "$link" ] || continue
+  case "$(readlink "$link")" in
+    "$src"/*)
+      case "$mode" in
+        --check) echo "stale    $(basename "$link")" ;;
+        *) rm "$link"; echo "removed  $(basename "$link") (skill no longer in the workspace)" ;;
+      esac ;;
+  esac
+done
+
 [ "$mode" = "--uninstall" ] || echo "skills folder: $dest (start a new Claude Code session to pick up changes)"
 exit "$blocked"
