@@ -34,57 +34,16 @@ public struct PanelView: View {
             MenuRow(title: "Open Summon Menu", systemImage: "command", shortcut: "⌃⌥Space") {
                 openLauncher()
             }
-            MenuRow(title: "Diagnose Last Crash", systemImage: "stethoscope", shortcut: nil) {
-                model.diagnoseLatest()
-            }
-            .disabled(model.recentCrashes.isEmpty || model.defaultAgent == nil)
             MenuRow(title: "Activity…", systemImage: "list.bullet.rectangle", shortcut: nil) {
                 showActivity(selecting: nil)
             }
 
-            PanelDivider()
-            SectionHeader(title: "Recent Activity")
-            let recent = activity.events.filter { $0.category != .problem }.prefix(3)
-            if recent.isEmpty {
-                Text("Nothing changed yet.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-            } else {
-                ForEach(recent) { event in
-                    MenuRow(title: event.title, systemImage: EventStyle.symbol(event),
-                            shortcut: event.date.formatted(.relative(presentation: .named, unitsStyle: .abbreviated))) {
-                        showActivity(selecting: event.id)
-                    }
-                }
-            }
-
-            PanelDivider()
-            SectionHeader(title: "Recent Problems")
-            if model.recentCrashes.isEmpty {
-                Text("No crashes or hangs reported.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-            } else {
-                ForEach(model.recentCrashes.prefix(5)) { report in
-                    CrashRow(report: report, diagnose: { model.diagnose(file: report.file) })
-                }
-            }
-
-            if !model.themes.isEmpty {
+            // Problems only when present; history lives in the Activity window, theme in Settings.
+            if !model.recentCrashes.isEmpty {
                 PanelDivider()
-                SectionHeader(title: "Theme")
-                ForEach(model.themes) { theme in
-                    MenuRow(
-                        title: theme.name,
-                        systemImage: theme.slug == model.currentThemeSlug ? "checkmark.circle.fill" : "circle",
-                        shortcut: nil
-                    ) {
-                        model.setTheme(theme.slug)
-                    }
+                SectionHeader(title: "Recent Problems")
+                ForEach(latestPerProgram.prefix(3), id: \.report.id) { item in
+                    CrashRow(report: item.report, count: item.count, diagnose: { model.diagnose(file: item.report.file) })
                 }
             }
 
@@ -100,7 +59,8 @@ public struct PanelView: View {
             .keyboardShortcut("q", modifiers: .command)
         }
         .padding(6)
-        .frame(width: 320)
+        .frame(width: 300)
+        .containerBackground(.ultraThinMaterial, for: .window)
         .task {
             if activity.live { await activity.refresh() }
         }
@@ -110,6 +70,15 @@ public struct PanelView: View {
         activity.selection = id
         NSApp.activate()
         openWindow(id: ActivityOpener.windowID)
+    }
+
+    /// One row per program (newest report first), so a crash loop does not fill the panel.
+    private var latestPerProgram: [(report: CrashReport, count: Int)] {
+        let counts = Dictionary(grouping: model.recentCrashes, by: \.program).mapValues(\.count)
+        var seen = Set<String>()
+        return model.recentCrashes
+            .filter { seen.insert($0.program).inserted }
+            .map { ($0, counts[$0.program] ?? 1) }
     }
 
     private var header: some View {
@@ -180,6 +149,7 @@ struct MenuRow: View {
 
 struct CrashRow: View {
     let report: CrashReport
+    let count: Int
     let diagnose: () -> Void
     @State private var hovering = false
 
@@ -219,7 +189,7 @@ struct CrashRow: View {
     }
 
     private var detail: String {
-        let parts: [String?] = [report.kind.rawValue.capitalized, report.signal ?? report.exceptionType, report.timestamp.map { String($0.prefix(16)) }]
+        let parts: [String?] = [report.kind.rawValue.capitalized, report.signal ?? report.exceptionType, count > 1 ? "\(count) times" : nil]
         return parts.compactMap { $0 }.joined(separator: " · ")
     }
 }

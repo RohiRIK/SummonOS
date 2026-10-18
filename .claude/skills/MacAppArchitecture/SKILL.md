@@ -33,6 +33,7 @@ How a plugin is put together behind the views. Decide the shape first, then fill
 - `NSDataDetector` resolves a time with no date or am/pm ("10:30") to its *next* occurrence: 22:30 after 10:30 in the morning. Read `HH:mm` from the text yourself (mac-calendar `QuickAdd.clock`). Date-only phrases come back at 12:00; decide "has a time" from the text.
 - `@AppStorage` has no `[String]` type on macOS 15; store a comma-joined `String`.
 - EventKit: request access only from a user action (`requestFullAccessToEvents` / `…ToReminders`, completion-handler form under Swift 6), `NSCalendarsFullAccessUsageDescription` / `NSRemindersFullAccessUsageDescription` in Info.plist, reload on `.EKEventStoreChanged`.
+- Opening Ghostty from an app: `open -na Ghostty --args -e …` starts a *second* Ghostty process each time (extra Dock icon, stray window, tabs merging oddly). If Ghostty is running, use its AppleScript (1.3+): `new surface configuration` + `new window with configuration`, argv joined with `quoted form of`. Use `open -na` only on a cold start (Summon `LaunchPlan.swift`).
 - A new feature is done only when it is reachable (menu, key, button), persisted if it should be, and verified running.
 
 ## Examples
