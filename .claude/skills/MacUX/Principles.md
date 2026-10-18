@@ -14,11 +14,16 @@
 - Spacing scale: 4, 8, 12, 16, 20. Panel padding 12-16. Row height ~28-32 (like the system Wi-Fi menu).
 - Sections separated by a `Divider()` with 8 pt vertical padding, or a small caps-free secondary header (`.font(.subheadline).foregroundStyle(.secondary)`).
 - Align on a leading edge. Icons in a fixed 16-20 pt column so labels line up.
+- Click targets: 28×28 pt default, 20×20 pt minimum for custom clickable views.
+- Corners: an inner rounded shape is concentric with its container (radius = outer − padding); never a hard-coded radius on anything touching a window edge.
 - Primary action bottom-right in forms; Cancel to its left. Use `.keyboardShortcut(.defaultAction)` and `.cancelAction`.
 
 ## Typography
 
 - System font only (SF Pro). Semantic styles: `.headline` for panel title, `.body` for rows, `.caption`/`.footnote` for detail.
+- macOS sizes are fixed (no Dynamic Type): `.title` 22, `.title2` 17, `.title3` 15, `.headline` 13 bold, `.body` 13,
+  `.callout` 12, `.subheadline` 11, `.footnote`/`.caption` 10. Nothing under 10 pt; no Light/Thin weights.
+  At most 3 sizes per panel.
 - Hierarchy through weight and `.secondary`/`.tertiary` foreground, not through size jumps.
 - `.monospacedDigit()` on any number that changes. `.monospaced()` for IPs and MACs only if they are aligned in a list.
 - Buttons and menu items: title case ("IP Settings…", "Forget This Network…"), as macOS does. Field labels and help text: sentence case ("Subnet mask").
