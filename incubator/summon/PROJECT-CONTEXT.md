@@ -23,6 +23,10 @@ checkpoint before every agent session.
 - Panel vs Settings window split from AGENTS.md applies to the Summon Menu app.
 
 ## Recent History
+### 2026-10-18 — Plugin session hooks (milestone 3 of 3)
+- `plugin/hooks/hooks.json` + `summon-session.sh`: SessionStart/SessionEnd call `summon event hook start|end` (payload on
+  stdin; compactions skipped; silent when summon is missing). `/summon:activity` command summarizes status and events.
+
 ### 2026-10-18 — Activity window (milestone 2 of 3)
 - `ActivityModel` + `ActivityView`: a `Window` scene ("Summon Activity") with a day-grouped timeline, filter and search,
   a status overview when nothing is selected, per-event detail (old → new values, Undo This Change, Undo Session,

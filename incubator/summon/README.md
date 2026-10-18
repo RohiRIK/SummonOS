@@ -36,7 +36,7 @@ Omarchy's Tokyo Night, Catppuccin, Gruvbox, Nord, Rosé Pine Dawn, Kanagawa and 
 
 | Path | What |
 |---|---|
-| `plugin/` | Claude Code plugin (needs the `summon` and `macctl` binaries, which are still in review): skills `summon`, `mac-app`, `diagnose-crash-mac`, `mac-logs`; commands `/summon:setup`, `/summon:fix`, `/summon:theme`, `/summon:icon`, `/summon:new-menubar`, `/summon:new-app`, `/summon:new-screensaver`; `macctl` MCP server |
+| `plugin/` | Claude Code plugin (needs the `summon` and `macctl` binaries, which are still in review): skills `summon`, `mac-app`, `diagnose-crash-mac`, `mac-logs`; commands `/summon:setup`, `/summon:fix`, `/summon:theme`, `/summon:icon`, `/summon:new-menubar`, `/summon:new-app`, `/summon:new-screensaver`, `/summon:activity`; `SessionStart`/`SessionEnd` hooks that record agent sessions for the Activity window; `macctl` MCP server |
 | `themes/` | 9 themes (`theme.json` + 5K wallpapers): Summon Night, Summon Dawn, and Omarchy's Tokyo Night, Catppuccin, Gruvbox, Nord, Rosé Pine Dawn, Kanagawa, Everforest |
 | `config/` | Desktop layer: `Brewfile` (AeroSpace, Ghostty, JankyBorders, Nerd Font), `aerospace.toml` (Omarchy-style ⌥ keymap), Ghostty config with a drop-down quick terminal, borders, shell aliases (`a`, `ap`) |
 | `design/` | Logo, app icon, menu bar icon, wordmarks, `generate.py`, which renders all of them plus the wallpapers, and `brandkit.py`, the palettes and SVG mark it shares with the workspace README art |
