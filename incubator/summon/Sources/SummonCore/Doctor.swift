@@ -146,6 +146,8 @@ public struct Doctor: Sendable {
         checks.append(contentsOf: [
             stateFolder(),
             eventLog(),
+            projectsFolder(),
+            projectRegistry(),
             skillLinks(),
             claudePlugin(),
         ])
@@ -185,7 +187,17 @@ public struct Doctor: Sendable {
             return DoctorCheck("install.files", .fail, "No skills in \(tilde(skills.path)), so agents get no Summon skills",
                                fix: "Reinstall with scripts/install.sh, or set SUMMON_PATH to the folder holding skills/ and themes/")
         }
-        return DoctorCheck("install.files", .pass, "\(tilde(share.path)): \(skillCount) skills, \(themeCount) themes")
+        let templates = share.appendingPathComponent("templates", isDirectory: true)
+        let missing = ProjectKind.allCases.filter { kind in
+            !FileManager.default.fileExists(atPath: templates.appendingPathComponent(kind.rawValue).path)
+        }
+        guard missing.isEmpty else {
+            return DoctorCheck("install.files", .warn,
+                               "\(skillCount) skills, \(themeCount) themes, but no project template for \(missing.map(\.rawValue).joined(separator: ", ")) in \(tilde(templates.path))",
+                               fix: "Reinstall with scripts/bundle.sh && scripts/install.sh (in incubator/summon)")
+        }
+        return DoctorCheck("install.files", .pass,
+                           "\(tilde(share.path)): \(skillCount) skills, \(themeCount) themes, \(ProjectKind.allCases.count) project templates")
     }
 
     // MARK: Config
@@ -349,6 +361,48 @@ public struct Doctor: Sendable {
                                fix: "Remove the broken lines, or move the file away to start a new log")
         }
         return DoctorCheck("state.events", .pass, "\(events.count) events\(last)")
+    }
+
+    // MARK: Projects
+
+    func projectsFolder() -> DoctorCheck {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: paths.projects.path, isDirectory: &isDirectory) else {
+            return DoctorCheck("projects.folder", .warn, "\(tilde(paths.projects.path)) is missing, so new projects have nowhere to go",
+                               fix: "mkdir ~/Summon (Summon.app also makes it on launch)")
+        }
+        guard isDirectory.boolValue else {
+            return DoctorCheck("projects.folder", .fail, "\(tilde(paths.projects.path)) is a file, not a folder",
+                               fix: "Move that file away, then: mkdir ~/Summon")
+        }
+        guard FileManager.default.isWritableFile(atPath: paths.projects.path) else {
+            return DoctorCheck("projects.folder", .fail, "\(tilde(paths.projects.path)) is not writable",
+                               fix: "sudo chown -R \"$USER\" ~/Summon")
+        }
+        return DoctorCheck("projects.folder", .pass, tilde(paths.projects.path))
+    }
+
+    func projectRegistry() -> DoctorCheck {
+        let file = tilde(paths.projectRegistryFile.path)
+        let registry: ProjectRegistry
+        do {
+            registry = try ProjectStore(paths: paths).load()
+        } catch {
+            return DoctorCheck("projects.registry", .fail, "\(file) cannot be read, so project commands refuse to save",
+                               fix: "Fix the JSON in \(file), or move it away to start an empty list")
+        }
+        guard !registry.projects.isEmpty else {
+            return DoctorCheck("projects.registry", .pass, "No projects yet")
+        }
+        let gone = registry.projects.filter { project in
+            !FileManager.default.fileExists(atPath: (project.path as NSString).expandingTildeInPath)
+        }
+        guard gone.isEmpty else {
+            return DoctorCheck("projects.registry", .warn,
+                               "\(registry.projects.count) projects; folder missing for \(Self.list(gone.map(\.name)))",
+                               fix: "Move the folders back, or remove those entries from \(file)")
+        }
+        return DoctorCheck("projects.registry", .pass, "\(registry.projects.count) projects, every folder present")
     }
 
     // MARK: Agents

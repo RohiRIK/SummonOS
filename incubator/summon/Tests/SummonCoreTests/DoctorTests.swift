@@ -19,6 +19,9 @@ struct DoctorTests {
             try writeFile("---\nname: \(name)\n---\n", to: share.appendingPathComponent("skills/\(name)/SKILL.md"))
         }
         try writeFile(sampleThemeJSON, to: share.appendingPathComponent("themes/summon-night/theme.json"))
+        for kind in ProjectKind.allCases {
+            try writeFile("// swift-tools-version: 6.0\n", to: share.appendingPathComponent("templates/\(kind.rawValue)/Package.swift"))
+        }
         let installed = tools
         let locator = ToolLocator(searchPath: ["/fake/bin"]) { path in
             installed.contains((path as NSString).lastPathComponent)
@@ -44,6 +47,11 @@ struct DoctorTests {
         let paths = SummonPaths(home: home)
         try fm.createDirectory(at: home.appendingPathComponent("Applications/Summon.app"), withIntermediateDirectories: true)
         try fm.createDirectory(at: home.appendingPathComponent(".config/.git"), withIntermediateDirectories: true)
+        let project = paths.projects.appendingPathComponent("mac-battery", isDirectory: true)
+        try fm.createDirectory(at: project, withIntermediateDirectories: true)
+        try ProjectStore(paths: paths).save(ProjectRegistry(projects: [
+            Project(name: "mac-battery", kind: .menubar, path: project.path, created: Date(timeIntervalSince1970: 1_800_000_000)),
+        ]))
         try writeFile("claude\n", to: paths.defaultAgentFile)
         try writeFile(DefaultMenu.jsonc, to: paths.menuFile)
         try writeFile(sampleThemeJSON, to: paths.themes.appendingPathComponent("summon-night/theme.json"))
@@ -86,6 +94,8 @@ struct DoctorTests {
         #expect(report.check("config.agent")?.fix == "summon default agent claude")
         #expect(report.check("app.running")?.status == .warn)
         #expect(report.check("state.events")?.status == .pass)  // no log yet is fine
+        #expect(report.check("projects.folder")?.status == .warn)
+        #expect(report.check("projects.registry")?.detail == "No projects yet")
         #expect(report.check("install.files")?.status == .pass)
         // Every check that did not pass says how to fix it.
         #expect(report.checks.filter { $0.status != .pass && $0.fix == nil }.isEmpty)
@@ -183,6 +193,33 @@ struct DoctorTests {
         let stopped = try await makeDoctor(home: home, running: false).run()
         #expect(stopped.check("app.running")?.status == .warn)
         #expect(stopped.check("app.hotkeys") == nil)
+    }
+
+    @Test func projectsFolderAndRegistry() async throws {
+        let home = try healthyHome()
+        let paths = SummonPaths(home: home)
+        try fm.removeItem(at: paths.projects.appendingPathComponent("mac-battery"))
+        let report = try await makeDoctor(home: home).run()
+        let registry = try #require(report.check("projects.registry"))
+        #expect(registry.status == .warn)
+        #expect(registry.detail.contains("folder missing for mac-battery"))
+        #expect(report.check("projects.folder")?.status == .pass)
+
+        try writeFile("{ broken", to: paths.projectRegistryFile)
+        try fm.removeItem(at: paths.projects)
+        let broken = try await makeDoctor(home: home).run()
+        #expect(broken.check("projects.registry")?.status == .fail)
+        #expect(broken.check("projects.folder")?.status == .warn)
+    }
+
+    @Test func missingProjectTemplateWarns() async throws {
+        let home = try healthyHome()
+        let doctor = try makeDoctor(home: home)
+        try fm.removeItem(at: doctor.share.appendingPathComponent("templates/screensaver"))
+        let report = await doctor.run()
+        let check = try #require(report.check("install.files"))
+        #expect(check.status == .warn)
+        #expect(check.detail.contains("no project template for screensaver"))
     }
 
     @Test func reportStatusAndRendering() {
