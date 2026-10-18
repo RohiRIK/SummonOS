@@ -28,19 +28,14 @@ public struct SettingsView: View {
                             .textSelection(.enabled)
                     }
                 }
-                LabeledContent("Start agent", value: "⌃⌥⌘A")
-                LabeledContent("Summon Menu", value: "⌃⌥Space")
             }
 
-            Section("Crash Capture") {
-                Toggle("Notify me when an app crashes or hangs", isOn: $model.crashCaptureEnabled)
-                Text("Diagnose hands the report to your default agent. Mute stops notifications for that app.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            Section("Notifications") {
+                Toggle("Crashes and hangs", isOn: $model.crashCaptureEnabled)
             }
 
             if !model.themes.isEmpty {
-                Section("Theme") {
+                Section("Appearance") {
                     Picker("Theme", selection: themeBinding) {
                         ForEach(model.themes) { theme in
                             Text(theme.name).tag(theme.slug)
@@ -49,7 +44,7 @@ public struct SettingsView: View {
                 }
             }
 
-            Section("General") {
+            Section {
                 Toggle("Open at Login", isOn: $openAtLogin)
                     .onChange(of: openAtLogin) { _, newValue in
                         setOpenAtLogin(newValue)
@@ -59,10 +54,18 @@ public struct SettingsView: View {
                         .font(.subheadline)
                         .foregroundStyle(.red)
                 }
+            } header: {
+                Text("General")
+            } footer: {
+                Text("Powered by caffeine and questionable choices.")
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 12)
             }
         }
         .formStyle(.grouped)
-        .frame(width: 520, height: 600)
+        .frame(width: 480, height: 440)
     }
 
     private var agentBinding: Binding<String> {
