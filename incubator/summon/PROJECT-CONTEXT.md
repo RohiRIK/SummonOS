@@ -23,6 +23,12 @@ checkpoint before every agent session.
 - Panel vs Settings window split from AGENTS.md applies to the Summon Menu app.
 
 ## Recent History
+### 2026-10-18 — Activity as terminal logs (user request)
+- Activity window is a log (Console.app layout): `HH:mm:ss  LEVEL  source  message  key=value`, monospaced, oldest
+  first, follows new lines, day separators, filter + scopes, ⌘C / Copy as plain lines, home paths as `~`.
+- Drawer below: selected line's details and actions, or the status overview. Select lines → run bar attaches them;
+  "Ask Agent About This Line" in the context menu. `ActivityLog` (Core) builds lines, cleans untrusted text, and the
+  prompt (question + newest 50 lines).
 ### 2026-10-18 — kitty, muted apps, art-directed wallpapers
 - kitty: `TerminalApp.kitty` (`open -na kitty --args --single-instance`), `summon default terminal`, Settings "Open in"
   picker (installed terminals only), Install › kitty, `generated/kitty.conf` from every theme. Not run for real: kitty not installed.

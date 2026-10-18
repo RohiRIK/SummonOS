@@ -2,11 +2,14 @@ import AppKit
 import SummonCore
 import SwiftUI
 
-/// The Activity window: everything that changed this Mac, newest first, with the status overview when
-/// nothing is selected and a bar to ask the agent at the bottom.
+/// The Activity window as a log (Console.app layout): one line per event, oldest at the top, following new
+/// lines like `tail -f`; the selected line's details and actions (or the status overview) in the drawer below;
+/// a bar to ask the agent, with the selected lines attached.
 public struct ActivityView: View {
     @Bindable var model: ActivityModel
     @State private var prompt = ""
+    @State private var selected: Set<ActivityEvent.ID> = []
+    @State private var follow = true
     @FocusState private var promptFocused: Bool
 
     public init(model: ActivityModel) {
@@ -14,19 +17,15 @@ public struct ActivityView: View {
     }
 
     public var body: some View {
-        NavigationSplitView {
-            timeline
-                .navigationSplitViewColumnWidth(min: 300, ideal: 360, max: 480)
-        } detail: {
-            if let event = model.selectedEvent {
-                EventDetailView(model: model, event: event)
-            } else {
-                OverviewView(model: model)
-            }
+        VSplitView {
+            logPane
+                .frame(minHeight: 220)
+            drawer
+                .frame(minHeight: 140, idealHeight: 230)
         }
-        .searchable(text: $model.query, placement: .sidebar, prompt: "Search settings, apps, prompts")
+        .searchable(text: $model.query, placement: .toolbar, prompt: "Filter")
         .toolbar {
-            ToolbarItem(placement: .principal) {
+            ToolbarItem(placement: .navigation) {
                 Picker("Show", selection: $model.filter) {
                     ForEach(ActivityModel.Filter.allCases) { filter in
                         Text(filter.rawValue).tag(filter)
@@ -36,12 +35,25 @@ public struct ActivityView: View {
                 .labelsHidden()
                 .fixedSize()
             }
+            ToolbarItemGroup(placement: .primaryAction) {
+                Toggle(isOn: $follow) {
+                    Label("Follow", systemImage: "arrow.down.to.line")
+                }
+                .help("Keep the newest line in view")
+                Button {
+                    copy(selected.isEmpty ? Set(model.visibleEvents.map(\.id)) : selected)
+                } label: {
+                    Label("Copy", systemImage: "doc.on.doc")
+                }
+                .help(selected.isEmpty ? "Copy every visible line" : "Copy the selected lines (⌘C)")
+            }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             runBar
         }
         .frame(minWidth: 760, minHeight: 480)
         .onAppear {
+            if let id = model.selection { selected = [id] }
             guard model.live else { return }
             // An accessory app's window gets no Dock icon or ⌘Tab; become a regular app while it is open.
             NSApp.setActivationPolicy(.regular)
@@ -53,44 +65,101 @@ public struct ActivityView: View {
             model.stopAutoRefresh()
             NSApp.setActivationPolicy(.accessory)
         }
+        .onChange(of: selected) { _, newValue in
+            model.selection = newValue.count == 1 ? newValue.first : nil
+        }
+        .onChange(of: model.selection) { _, newValue in
+            // The panel can open the window on one event.
+            if let newValue, !selected.contains(newValue) {
+                selected = [newValue]
+                follow = false
+            }
+        }
     }
 
-    // MARK: Timeline
+    // MARK: Log
 
-    private var timeline: some View {
-        List(selection: $model.selection) {
-            if let error = model.lastError {
-                Label(error, systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
-                    .font(.callout)
-                    .lineLimit(4)
-            }
-            ForEach(model.days) { group in
-                Section(Self.dayTitle(group.day)) {
-                    ForEach(group.events) { event in
-                        EventRow(event: event)
+    /// Oldest first, like a terminal.
+    private var lines: [ActivityEvent] {
+        model.visibleEvents.sorted { $0.date < $1.date }
+    }
+
+    private var logPane: some View {
+        ScrollViewReader { proxy in
+            List(selection: $selected) {
+                if let error = model.lastError {
+                    Text(verbatim: "ERROR  \(error)")
+                        .foregroundStyle(.red)
+                }
+                ForEach(Array(lines.enumerated()), id: \.element.id) { index, event in
+                    if index == 0 || !Calendar.current.isDate(event.date, inSameDayAs: lines[index - 1].date) {
+                        DaySeparator(day: event.date)
+                            .selectionDisabled()
+                            .listRowSeparator(.hidden)
                     }
+                    LogLine(event: event)
+                        .tag(event.id)
+                        .id(event.id)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 1, leading: 10, bottom: 1, trailing: 10))
                 }
             }
-        }
-        .overlay {
-            if model.visibleEvents.isEmpty {
-                ContentUnavailableView(
-                    model.query.isEmpty ? "No Activity Yet" : "No Matches",
-                    systemImage: model.query.isEmpty ? "clock" : "magnifyingglass",
-                    description: Text(model.query.isEmpty
-                        ? "Settings changes, checkpoints, agent sessions and crashes show up here."
-                        : "Nothing matches \u{201C}\(model.query)\u{201D}.")
-                )
+            .listStyle(.plain)
+            .environment(\.defaultMinListRowHeight, 18)
+            .contextMenu(forSelectionType: ActivityEvent.ID.self) { ids in
+                Button("Ask Agent About \(ids.count == 1 ? "This Line" : "\(ids.count) Lines")…") {
+                    selected = ids
+                    promptFocused = true
+                }
+                .disabled(!canRun)
+                Button("Copy") { copy(ids) }
+            }
+            .onCopyCommand {
+                [NSItemProvider(object: ActivityLog.transcript(events(for: selected)) as NSString)]
+            }
+            .overlay {
+                if lines.isEmpty {
+                    ContentUnavailableView(
+                        model.query.isEmpty ? "No Activity Yet" : "No Matches",
+                        systemImage: model.query.isEmpty ? "terminal" : "magnifyingglass",
+                        description: Text(model.query.isEmpty
+                            ? "Settings changes, checkpoints, agent sessions and crashes show up here."
+                            : "Nothing matches \u{201C}\(model.query)\u{201D}.")
+                    )
+                }
+            }
+            .onAppear { scrollToEnd(proxy) }
+            .onChange(of: lines.last?.id) { _, _ in
+                if follow { scrollToEnd(proxy) }
+            }
+            .onChange(of: follow) { _, newValue in
+                if newValue { scrollToEnd(proxy) }
             }
         }
     }
 
-    static func dayTitle(_ day: Date) -> String {
-        let calendar = Calendar.current
-        if calendar.isDateInToday(day) { return "Today" }
-        if calendar.isDateInYesterday(day) { return "Yesterday" }
-        return day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+    private func scrollToEnd(_ proxy: ScrollViewProxy) {
+        guard let last = lines.last?.id else { return }
+        proxy.scrollTo(last, anchor: .bottom)
+    }
+
+    private func events(for ids: Set<ActivityEvent.ID>) -> [ActivityEvent] {
+        model.events.filter { ids.contains($0.id) }
+    }
+
+    private func copy(_ ids: Set<ActivityEvent.ID>) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(ActivityLog.transcript(events(for: ids)), forType: .string)
+    }
+
+    // MARK: Drawer
+
+    @ViewBuilder private var drawer: some View {
+        if let event = model.selectedEvent {
+            EventDetailView(model: model, event: event)
+        } else {
+            OverviewView(model: model)
+        }
     }
 
     // MARK: Run bar
@@ -101,12 +170,23 @@ public struct ActivityView: View {
             HStack(spacing: 10) {
                 Image(systemName: "sparkles")
                     .foregroundStyle(.tint)
+                if !selected.isEmpty {
+                    Button {
+                        selected = []
+                    } label: {
+                        Label("\(selected.count) line\(selected.count == 1 ? "" : "s")", systemImage: "xmark.circle.fill")
+                            .labelStyle(.titleAndIcon)
+                    }
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                    .help("These lines go to the agent with your question. Click to detach them.")
+                }
                 TextField(promptPlaceholder, text: $prompt)
                     .textFieldStyle(.plain)
                     .focused($promptFocused)
                     .onSubmit(run)
                 Button(action: run) {
-                    Label("Run", systemImage: "return")
+                    Label(selected.isEmpty ? "Run" : "Ask", systemImage: "return")
                 }
                 .keyboardShortcut(.return, modifiers: .command)
                 .disabled(!canRun)
@@ -124,7 +204,8 @@ public struct ActivityView: View {
 
     private var promptPlaceholder: String {
         guard let agent = model.summon.defaultAgent else { return "Choose a default agent in Settings to run it here" }
-        return "Ask \(agent.name)… (empty starts a plain session)"
+        if !selected.isEmpty { return "Ask \(agent.name) about the selected lines… (empty: explain and fix)" }
+        return "Ask \(agent.name)… (select lines to ask about them)"
     }
 
     private var agentProblem: String {
@@ -134,37 +215,85 @@ public struct ActivityView: View {
 
     private func run() {
         guard canRun else { return }
-        model.runAgent(prompt: prompt)
+        if selected.isEmpty {
+            model.runAgent(prompt: prompt)
+        } else {
+            model.runAgent(prompt: ActivityLog.askPrompt(question: prompt, events: events(for: selected)))
+        }
         prompt = ""
     }
 }
 
-// MARK: - Rows
+// MARK: - Lines
 
-struct EventRow: View {
+/// `14:02:31  INFO   agent       Started Claude Code  folder=~/Work`: level coloured, everything else quiet.
+struct LogLine: View {
     let event: ActivityEvent
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Image(systemName: EventStyle.symbol(event))
-                .foregroundStyle(EventStyle.tint(event))
-                .frame(width: 18)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(event.title).lineLimit(1)
-                if let detail = event.detail {
-                    Text(detail)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-            Spacer(minLength: 8)
-            Text(event.date.formatted(date: .omitted, time: .shortened))
-                .font(.subheadline)
+        let level = ActivityLog.level(event)
+        HStack(spacing: 14) {
+            Text(event.date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).second(.twoDigits)))
                 .foregroundStyle(.tertiary)
-                .monospacedDigit()
+                .fixedSize()
+                .help(event.date.formatted(date: .complete, time: .standard))
+            Text(verbatim: level.rawValue)
+                .fontWeight(.semibold)
+                .foregroundStyle(Self.color(level))
+                .fixedSize()
+                .frame(width: 40, alignment: .leading)
+            Text(verbatim: ActivityLog.source(event))
+                .foregroundStyle(.secondary)
+                .fixedSize()
+                .frame(width: 76, alignment: .leading)
+            Text(verbatim: ActivityLog.message(event))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .layoutPriority(1)
+            Text(verbatim: ActivityLog.fields(event))
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 0)
+        }
+        .font(.system(size: 11.5, design: .monospaced))
+        .lineLimit(1)
+    }
+
+    static func color(_ level: ActivityLog.Level) -> Color {
+        switch level {
+        case .info: return .secondary
+        case .warn: return .orange
+        case .error: return .red
+        }
+    }
+}
+
+/// `── Today ──` between days, the way `journalctl` marks a reboot.
+struct DaySeparator: View {
+    let day: Date
+
+    var body: some View {
+        HStack(spacing: 8) {
+            line
+            Text(verbatim: Self.title(day))
+                .font(.system(size: 11.5, design: .monospaced))
+                .foregroundStyle(.tertiary)
+                .fixedSize()
+            line
         }
         .padding(.vertical, 2)
+    }
+
+    private var line: some View {
+        Rectangle().fill(.quaternary).frame(height: 1)
+    }
+
+    static func title(_ day: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(day) { return "Today" }
+        if calendar.isDateInYesterday(day) { return "Yesterday" }
+        return day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
     }
 }
 
@@ -261,7 +390,7 @@ struct OverviewView: View {
 
     private func checkpointText(_ status: SummonStatus) -> String {
         guard let checkpoint = status.lastCheckpoint else { return "None yet: one is taken when the agent starts" }
-        return "\(checkpoint.label), \(checkpoint.createdAt.formatted(.relative(presentation: .named)))"
+        return "\(ActivityLog.clean(checkpoint.label)), \(checkpoint.createdAt.formatted(.relative(presentation: .named)))"
     }
 }
 
