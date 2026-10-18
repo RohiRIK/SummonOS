@@ -11,10 +11,14 @@ details; this page only shows the order. Rules: [`AGENTS.md`](../AGENTS.md).
 
 ## 2. Scaffold
 
-- New repo pair: private `<name>-dev` (all history, PRs) and public `<name>` (snapshots only).
-- Clone the dev repo into `plugins/<name>/`, kebab-case, bundle id `local.macplugins.<name>`.
+- `tools/mp new <name> --kind menubar`: copies `examples/menubar-starter` to `scratch/<name>/`, renames it,
+  and registers it in `plugins.json` (kebab-case, bundle id `local.macplugins.<name>`). Commit
+  `plugins.json` and `plugins.md`.
 - Package layout, `Info.plist`, scripts: `MacAppBuild/Scaffold.md`. Three targets: `<App>Core`
   (logic, tested), `<App>UI` (views, previews), `<App>` (`@main` only).
+- When it is worth keeping, and only with the owner's OK: `tools/mp promote <name> --yes` creates the repo
+  pair, private `<name>-dev` (all history, PRs) and public `<name>` (snapshots only), and moves it to
+  `plugins/<name>/`. An existing plugin on another machine: `tools/mp clone <name>`.
 - Add `PROJECT-CONTEXT.md` at the repo root (sections in [`AGENTS.md`](../AGENTS.md#project-memory-per-plugin-from-glaze)).
 
 ## 3. Build
@@ -57,6 +61,6 @@ Bump `CFBundleShortVersionString` and `CFBundleVersion` first (`MacAppBuild/Rele
 
 - Update the plugin's `PROJECT-CONTEXT.md` (Recent History, newest first).
 - Move the finished plan from `tasks/todo.md` to `docs/plans/YYYY-MM-DD-<name>.md`; `todo.md` keeps only the active plan.
-- New plugin or new status: update [`plugins.md`](../plugins.md).
+- New plugin or new status: update `plugins.json`, then `tools/mp index` regenerates [`plugins.md`](../plugins.md).
 - Lessons go in the skill that owns them ([`AGENTS.md`](../AGENTS.md#record-learnings-on-the-fly));
   user corrections go in `tasks/lessons.md`.

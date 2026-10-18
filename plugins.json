@@ -1,0 +1,82 @@
+{
+  "plugins": [
+    {
+      "name": "mac-network",
+      "kind": "menubar",
+      "status": "shipped",
+      "devRepo": "RohiRIK/mac-network-dev",
+      "publicRepo": "RohiRIK/mac-network",
+      "bundleId": "local.macplugins.mac-network",
+      "portedFrom": {
+        "name": "rohi.network",
+        "url": "https://github.com/RohiRIK/rohi.network",
+        "platform": "Omarchy"
+      },
+      "version": null,
+      "example": false,
+      "path": "plugins/mac-network",
+      "devRepoNote": "PR #1 merged",
+      "statusNote": "public snapshot 2026-09-29"
+    },
+    {
+      "name": "mac-calendar",
+      "kind": "menubar",
+      "status": "shipped",
+      "devRepo": "RohiRIK/mac-calendar-dev",
+      "publicRepo": "RohiRIK/mac-calendar",
+      "bundleId": "local.macplugins.mac-calendar",
+      "portedFrom": null,
+      "version": null,
+      "example": true,
+      "path": "plugins/mac-calendar",
+      "devRepoNote": "PR #1 merged",
+      "statusNote": "public snapshot 2026-09-30"
+    },
+    {
+      "name": "macctl",
+      "kind": "cli",
+      "status": "incubating",
+      "devRepo": null,
+      "publicRepo": null,
+      "bundleId": null,
+      "portedFrom": null,
+      "version": "0.1.0",
+      "example": false,
+      "path": "macctl",
+      "summary": "CLI for AI agents to read, set, diff, apply and undo macOS settings",
+      "where": "`macctl/` on [PR #6](https://github.com/RohiRIK/macos-plugins/pull/6), plan `docs/plans/2026-10-16-macctl.md`",
+      "statusNote": "milestone 1 written, not yet compiled on a Mac"
+    },
+    {
+      "name": "mac-assistant",
+      "kind": "app",
+      "status": "incubating",
+      "devRepo": null,
+      "publicRepo": null,
+      "bundleId": null,
+      "portedFrom": null,
+      "version": null,
+      "example": false,
+      "path": "incubator/mac-assistant",
+      "summary": "Local Mac diagnostics assistant with a policy broker and typed tools",
+      "where": "`incubator/mac-assistant/` on branch `feat/mac-assistant`",
+      "statusNote": "Phase 1 (read-only diagnostics)"
+    },
+    {
+      "name": "summon",
+      "title": "Summon",
+      "kind": "app",
+      "status": "incubating",
+      "devRepo": null,
+      "publicRepo": null,
+      "bundleId": "local.macplugins.summon",
+      "portedFrom": null,
+      "version": "0.1.0",
+      "example": false,
+      "path": "incubator/summon",
+      "summary": "Omarchy-style Mac: an agent you summon anywhere, crash/log handoff, themes, tiling, app builders",
+      "where": "`incubator/summon/`, plan `docs/plans/2026-10-17-summon.md`",
+      "statusNote": "design, themes, plugin, configs merged; Swift app in a draft PR, not yet compiled"
+    }
+  ]
+}

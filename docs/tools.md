@@ -4,6 +4,50 @@ Scripts in [`tools/`](../tools). Run them from the workspace root. Per-plugin sc
 (`scripts/test.sh`, `bundle.sh`, `check.sh`, `pr-report.sh`) live in each plugin repo and are
 described in `MacAppBuild/Scaffold.md`.
 
+## mp
+
+Manages the plugin home: the registry `plugins.json` (source of truth), the generated `plugins.md`, and
+the `plugins/` and `scratch/` folders. Needs `jq` and `git`; `gh` for `promote` and `clone`.
+
+```bash
+tools/mp new <name> [--kind menubar|app|screensaver]   # scratch/<name> from examples/<kind>-starter, registered
+tools/mp promote <name> [--owner <login>] [--yes]      # private <name>-dev + public <name>, moves to plugins/
+tools/mp clone (<name>... | --all)                     # clones registered dev repos into plugins/<name>
+tools/mp list [--json]                                 # the registry
+tools/mp status                                        # branch, dirty, version, registry vs disk, unregistered folders
+tools/mp index [--check]                               # regenerates plugins.md; --check fails if it is stale
+tools/mp adopt <path> [--name n] [--kind k] [--status s]   # registers an existing folder
+```
+
+- Home: `$MACPLUGINS_HOME`, else the repo that holds `mp`, else `~/Developer/macplugins`. Symlink `mp` into
+  `~/.local/bin` to call it from anywhere.
+- `new` copies the starter, renames `Starter` to the PascalCase name and `menubar-starter` to the kebab-case
+  name, runs `git init`, registers it as `scratch`, and rewrites `plugins.md`. `app` and `screensaver` start
+  from the menu bar starter until they have their own.
+- `promote` prints the `gh repo create` commands and the move, and runs nothing without `--yes`. It creates
+  GitHub repos, so it needs the owner's OK every time.
+- Edit `plugins.json` by hand for notes (`statusNote`, `devRepoNote`, `summary`, `where`, `title`), then run
+  `tools/mp index`. Never edit `plugins.md` directly.
+
+Registry fields: `name`, `kind` (menubar / app / cli / claude-plugin / screensaver), `status` (scratch /
+incubating / dev / shipped / archived), `devRepo`, `publicRepo` (`owner/repo` or null), `bundleId`,
+`portedFrom` (`{name, url, platform}` or null), `version` (null when unknown), `example` (true when the app
+is a reference to clone on demand), `path` (relative to the home).
+
+## check-workspace.sh
+
+Workspace hygiene gate, meant for CI (job snippet in `tools/ci/check-workspace.yml`; paste it into
+`.github/workflows/swift.yml`).
+
+```bash
+tools/check-workspace.sh
+```
+
+- Fails on a `Package.swift` outside the allowed roots (`macctl/`, `incubator/`, `examples/`, listed once
+  at the top of the script).
+- Fails on a tracked file over 2 MB, except the Summon wallpaper and brand allowlist, which it prints.
+- Runs `tools/mp index --check` when `jq` is installed.
+
 ## publish-public.sh
 
 Publishes a dev-repo branch to the public repo as one clean commit.

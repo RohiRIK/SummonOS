@@ -1,14 +1,55 @@
-# Plugins are their own repos (private <name>-dev + public <name>).
-plugins/
+# Root allowlist: everything at the top level is ignored unless re-allowed below,
+# so a folder an agent creates at the root (plugins/, scratch/, anything new) is never committed.
+/*
+
+# Workspace know-how.
+!/.claude/
+!/.github/
+!/.gitignore
+!/.mcp.json
+!/AGENTS.md
+!/CLAUDE.md
+!/README.md
+!/plugins.json
+!/plugins.md
+!/docs/
+!/examples/
+!/tasks/
+!/tools/
+
+# Still in this repo until they move to their own repos (needs the owner's OK).
+# Remove these two lines when macctl/ and incubator/summon/ have moved out.
+!/macctl/
+!/incubator/
+
+# Not re-allowed on purpose: plugins/<name>/ (dev-repo clones) and scratch/<name>/ (agent-made apps).
+
 # Private values used by tools/publish-public.sh.
 tools/private-patterns.txt
 # Symlink into the central skills library (absolute path); installed per machine.
 .claude/skills/MacPluginPlaybook
 .claude/settings.local.json
-graphify-out/
-.DS_Store
-# SwiftPM and tools/xcode-mcp.ts output, if ever run in place.
-.build/
-build/
 .claude/worktrees/
 incubator/summon/design/.quick/
+graphify-out/
+
+# Build output (SwiftPM, Xcode, tools/xcode-mcp.ts).
+.build/
+build/
+.swiftpm/
+DerivedData/
+*.xcresult
+*.app
+*.zip
+*.dmg
+
+# Recordings. Committed demo GIFs live only under <project>/docs/demo/.
+*.mov
+*.mp4
+*.gif
+!**/docs/demo/*.gif
+
+# Python and macOS clutter.
+__pycache__/
+*.pyc
+.DS_Store

@@ -35,10 +35,24 @@ If they are not installed, follow the summary below.
 Every app gets a separate **Settings window** (`Settings` scene, `.formStyle(.grouped)`), opened with ⌘,.
 Settings never go inside the menu bar panel; the panel footer has `Settings…` and `Quit` only.
 
+## Where new apps go
+
+New apps start in the plugin home, `$MACPLUGINS_HOME` (default `~/Developer/macplugins`, the
+`macos-plugins` workspace clone), under `scratch/<name>/`. When the workspace's `mp` tool is available,
+create the app with it; it copies the menu bar starter, renames it, and registers it in `plugins.json`:
+
+```bash
+mp="${MACPLUGINS_HOME:-$HOME/Developer/macplugins}/tools/mp"
+"$mp" new <name> --kind menubar        # or --kind app / --kind screensaver (starts from the menu bar starter)
+```
+
+Without `mp`, create `$MACPLUGINS_HOME/scratch/<name>/` by hand with the layout below. Never create GitHub
+repos yourself: `mp promote <name>` needs the owner's OK every time.
+
 ## Layout (SwiftPM, no .xcodeproj)
 
 ```
-~/Work/<name>/
+$MACPLUGINS_HOME/scratch/<name>/
 ├── Package.swift            swift-tools-version 6.0, platforms [.macOS(.v15)]
 ├── Sources/<App>/           @main only
 ├── Sources/<App>UI/         views, @Observable model, #Previews (library product, so previews run)
