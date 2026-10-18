@@ -1,0 +1,5 @@
+# illustrative: written from the macctl source, not yet recorded on a Mac. tools/record-demos.sh replaces it.
+$ macctl doctor
+macOS 26.0
+ok  Automation: com.apple.systemevents  granted
+ok  Snapshots writable                  /Users/you/Library/Application Support/macctl/snapshots

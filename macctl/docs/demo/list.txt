@@ -1,0 +1,9 @@
+# illustrative: written from the macctl source, not yet recorded on a Mac. tools/record-demos.sh replaces it.
+$ macctl list --domain dock
+ID                    TYPE               RISK  CURRENT
+dock.autohide         bool               user  false
+dock.tilesize         int 16...128       user  48
+dock.show-recents     bool               user  true
+dock.orientation      left|bottom|right  user  bottom
+dock.minimize-effect  genie|scale|suck   user  genie
+dock.autohide-delay   double 0.0...5.0   user  0.5
