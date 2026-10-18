@@ -29,6 +29,7 @@ enum ThemeCommands {
                 throw CLIError("No theme \"\(slug)\". See: summon theme list")
             }
             try await apply(theme, store: store, wallpaper: !skipWallpaper, context)
+            ActivityCommands.record(LoggedEvent(kind: EventKind.themeSet, title: "Theme: \(theme.name)", refs: ["theme": theme.slug]), context)
         default:
             throw CLIError("Usage: summon theme list|current|set <slug>")
         }

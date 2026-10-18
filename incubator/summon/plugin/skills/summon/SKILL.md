@@ -22,6 +22,8 @@ summon commands --json      # every Summon command: summary, args, examples, ris
 macctl list --json          # every Mac setting macctl knows, with its current value
 macctl doctor               # permissions and what is missing
 summon checkpoint list      # what earlier sessions changed
+summon status --json        # agent, macctl health, last change, last checkpoint, recent crashes
+summon events --limit 20    # timeline: settings changes and undos, checkpoints, sessions, themes, crashes
 ```
 
 Read a command's help before running it (`summon <group> <cmd> --help` never executes anything).
