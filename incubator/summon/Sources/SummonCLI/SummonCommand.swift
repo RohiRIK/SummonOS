@@ -29,7 +29,10 @@ struct SummonCommand {
             try await dispatch(&args, context)
             exit(ExitCode.ok.rawValue)
         } catch let error as CLIError {
-            FileHandle.standardError.write(Data((error.message + "\n").utf8))
+            // An empty message means the command already printed why (`summon doctor` with a failed check).
+            if !error.message.isEmpty {
+                FileHandle.standardError.write(Data((error.message + "\n").utf8))
+            }
             exit(error.code.rawValue)
         } catch {
             FileHandle.standardError.write(Data("summon: \(error)\n".utf8))
@@ -69,6 +72,8 @@ struct SummonCommand {
             try ActivityCommands.eventAdd(&args, context)
         case "status":
             try await ActivityCommands.status(&args, context)
+        case "doctor":
+            try await DoctorCommand.run(&args, context)
         case "crash":
             try await CrashCommands.run(&args, context)
         case "theme":
