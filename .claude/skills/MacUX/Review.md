@@ -13,6 +13,16 @@ Run on every `#Preview` via Xcode MCP `RenderPreview` (light and dark), then on 
 - [ ] Live numbers use `.monospacedDigit()`; nothing jitters while updating.
 - [ ] Menu bar icon is a template image and matches system icon weight.
 
+## Windows and feeds
+
+- [ ] No tile grid of status cards; status is in the toolbar, subtitle or a bottom strip (`Windows.md`).
+- [ ] At most 3 toolbar groups, one prominent action, every toolbar command also in the menu bar.
+- [ ] No glass on rows, cards or detail; custom glass gated by `#available(macOS 26, *)` with a fallback.
+- [ ] Rows: verb-first title, colour only on the leading symbol, each state a distinct symbol shape.
+- [ ] Every row has ↵, a context menu and a ⌘K entry; no no-op rows.
+- [ ] The window opens **in front** from the panel, the hotkey and the URL scheme, and the Dock icon goes
+      away when it closes (checked in the real app, not previews).
+
 ## Behavior
 
 - [ ] Panel opens instantly with last-known data.

@@ -1,6 +1,6 @@
 ---
 name: MacUX
-description: "Advanced macOS UX/UI for SwiftUI apps: HIG, menu bar panels, Liquid Glass, SF Symbols, materials, typography, motion, keyboard, accessibility, polish review. USE WHEN designing, building, redesigning, or reviewing any macOS view, panel, or settings screen, or when the user says the UI looks bad, clipped, or unpolished. NOT FOR app structure, data or backend calls (use MacAppArchitecture) or build/verify (use MacAppBuild). For deep SwiftUI API questions also load swiftui-expert-skill."
+description: "Advanced macOS UX/UI for SwiftUI apps: HIG (Tahoe and Golden Gate), menu bar icon and panels, full windows, activity feeds and agent status, Liquid Glass, SF Symbols, materials, typography, motion, keyboard, accessibility, polish review. USE WHEN designing, building, redesigning, or reviewing any macOS view, panel, window, status item, or settings screen, or when the user says the UI looks bad, clipped, or unpolished. NOT FOR app structure, data or backend calls (use MacAppArchitecture) or build/verify (use MacAppBuild). For deep SwiftUI API questions also load swiftui-expert-skill."
 category: workflow
 effort: medium
 domain: design
@@ -16,8 +16,17 @@ Makes plugins look and feel like they shipped with macOS. Bar: "beautiful by def
 |----------|---------|------|
 | **DesignPass** | new screen, redesign, "make it look better", any UI complaint or screenshot | `Workflows/DesignPass.md` |
 
+| Surface | Read first |
+|---------|-----------|
+| The menu bar icon, click behaviour, `MenuBarExtra` vs `NSStatusItem` + `NSPanel` | `MenuBarItem.md` |
+| Menu bar panel content | `MenuPanel.md` |
+| A full window (main, Activity, library): toolbar, sidebar, inspector, glass, bringing it to the front | `Windows.md` |
+| Event lists, history, status overview, running jobs or agents, undo | `ActivityFeeds.md` |
+
 ## Quick Reference
 
+- **Status lives in the chrome, problems only when present.** No dashboard tile grids in windows (`Windows.md`, `ActivityFeeds.md`).
+- **Use system containers and draw nothing yourself** (`NavigationSplitView`, toolbar, `List`, `Form`, inspector): they track Tahoe → Golden Gate restyles; hand-drawn chrome does not.
 - **Menu bar panels: `MenuPanel.md` first.** Copy the system Wi-Fi menu anatomy; HIG says menu, not popover; no glass on content; no `Form`.
 - Principles, spacing, type, color, motion: `Principles.md`. Read before the first view. Ends with Glaze design-system rules (flat, semantic roles, one primary action, Settings window, design-reference fidelity).
 - Ready-made SwiftUI patterns (panel header, rows, status dot, inline editor, glass, empty/error states): `Patterns.md`.
@@ -41,6 +50,13 @@ Makes plugins look and feel like they shipped with macOS. Bar: "beautiful by def
 - Menu bar icon must be a template image (SF Symbol or `isTemplate = true`) so it adapts to light/dark menu bars.
 - Spinners for work under 300 ms cause flicker. Delay showing progress, or keep the old value dimmed.
 - Numbers that update live need `.monospacedDigit()` or the row jitters.
+- A `Window` opened from a menu bar (accessory) app lands **behind** the frontmost app: `NSApp.activate()` is only a request since macOS 14. Use the four-step recipe in `Windows.md` (regular policy, activate, openWindow, raise from `viewDidMoveToWindow`). Seen on Summon's Activity window via `summon://activity`.
+- Every `Window` scene in a menu bar app needs `.defaultLaunchBehavior(.suppressed)`, or a ghost window appears at launch or restore.
+- `MenuBarExtra` cannot be opened from code, has no right-click menu and no live label. Needing any of those means `NSStatusItem` + `NSPanel` (`MenuBarItem.md`).
+- A borderless `NSPanel` refuses key status: override `canBecomeKey` or its text fields never get keystrokes.
+- Untrusted strings (crash process names, prompts, file names) can carry bidi overrides and control characters. Sanitise in Core, render with `Text(verbatim:)`. Upside-down glyphs are a rendering bug instead (Core Text in a flipped context, subviews added in `updateNSView`).
+- Hide no-op events ("Undid 0 settings"): a feed row must describe a change that happened.
+- Tahoe (26) and Golden Gate (27) look different (floating vs edge-to-edge sidebar, soft vs hard scroll edges, menu icons on vs minimal). Check previews on the user's OS; never imitate one version's look by hand.
 
 ## Examples
 
