@@ -28,6 +28,10 @@ public struct SummonPaths: Sendable, Equatable {
     public var menuFile: URL { config.appendingPathComponent("menu.jsonc") }
     /// Summon's private list of the projects it made. Stays on this Mac; never in plugins.json or a repo.
     public var projectRegistryFile: URL { config.appendingPathComponent("projects.json") }
+    /// Recurring agent tasks (`summon task`), each run by its own LaunchAgent.
+    public var tasksFile: URL { config.appendingPathComponent("tasks.json") }
+    /// `~/Library/LaunchAgents`, where each enabled task's job file lives.
+    public var launchAgents: URL { home.appendingPathComponent("Library/LaunchAgents", isDirectory: true) }
 
     /// Runtime state that is not configuration.
     public var state: URL { home.appendingPathComponent(".local/state/summon", isDirectory: true) }
@@ -37,6 +41,8 @@ public struct SummonPaths: Sendable, Equatable {
     public var eventLogFile: URL { state.appendingPathComponent("events.jsonl") }
     /// Written by the menu app on launch (pid, hotkeys, notification permission) for `summon doctor`.
     public var appHealthFile: URL { state.appendingPathComponent("app.json") }
+    /// One folder per task: each run's output (`<run id>.log`) and the lock of a run in progress.
+    public var taskState: URL { state.appendingPathComponent("tasks", isDirectory: true) }
 
     /// Where macctl keeps the snapshot it saves before every change, one `<id>.json` each.
     public var macctlSnapshots: URL {

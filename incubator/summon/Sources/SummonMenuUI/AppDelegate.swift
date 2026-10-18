@@ -12,6 +12,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
     static let crashCategory = "summon.crash"
     static let diagnoseAction = "summon.crash.diagnose"
     static let muteAction = "summon.crash.mute"
+    nonisolated static let taskCategory = "summon.task"
 
     public override init() {
         super.init()
@@ -38,6 +39,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         setUpNotifications(health: health)
         model.onNewCrash = { [weak self] report in
             self?.notify(report)
+        }
+        model.onTaskRun = { [weak self] run in
+            self?.notify(task: run)
         }
         model.startWatching()
         // Every launch relinks the shipped skills, so an updated or moved app still reaches every agent.
@@ -76,7 +80,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         let diagnose = UNNotificationAction(identifier: Self.diagnoseAction, title: "Diagnose", options: [])
         let mute = UNNotificationAction(identifier: Self.muteAction, title: "Mute This App", options: [])
         let category = UNNotificationCategory(identifier: Self.crashCategory, actions: [diagnose, mute], intentIdentifiers: [], options: [])
-        center.setNotificationCategories([category])
+        let task = UNNotificationCategory(identifier: Self.taskCategory, actions: [], intentIdentifiers: [], options: [])
+        center.setNotificationCategories([category, task])
         let store = AppHealthStore(paths: model.paths)
         center.requestAuthorization(options: [.alert, .sound]) { _, _ in
             UNUserNotificationCenter.current().getNotificationSettings { settings in
@@ -113,6 +118,18 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         UNUserNotificationCenter.current().add(request) { _ in }
     }
 
+    /// A finished task run; clicking it opens Activity, where the run links to its output.
+    private func notify(task run: LoggedEvent) {
+        guard canNotify else { return }
+        let content = UNMutableNotificationContent()
+        content.title = run.title
+        content.body = run.detail ?? ""
+        content.categoryIdentifier = Self.taskCategory
+        content.userInfo = ["task": run.refs["task"] ?? ""]
+        let id = "task:\(run.refs["task"] ?? ""):\(run.time.timeIntervalSince1970)"
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: id, content: content, trigger: nil)) { _ in }
+    }
+
     public nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
@@ -122,9 +139,14 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         let info = response.notification.request.content.userInfo
         let file = info["file"] as? String
         let program = info["program"] as? String
+        let isTask = response.notification.request.content.categoryIdentifier == Self.taskCategory
         completionHandler()
         Task { @MainActor in
-            self.handle(action: action, file: file, program: program)
+            if isTask {
+                self.activity.requestOpen()
+            } else {
+                self.handle(action: action, file: file, program: program)
+            }
         }
     }
 

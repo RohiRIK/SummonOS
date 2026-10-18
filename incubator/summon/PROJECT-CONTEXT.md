@@ -17,11 +17,15 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   PROJECT-CONTEXT.md, `scripts/check.sh`; CI builds them). `summon project new` copies one to `~/Summon/<name>` and
   records it in the private `~/.config/summon/projects.json`; `summon project repo` makes a private repo after a
   native dialog. Core: `Projects.swift`. Bundled into `Contents/share/summon/templates`.
+- Recurring tasks: `AgentTasks.swift` (schedule, `tasks.json` store, LaunchAgent plist + launchctl, `TaskRunner`),
+  `summon task …` in `TaskCommands.swift`, Settings › Tasks, task notifications from the app's 30 s watch loop.
 - Bundle id `local.macplugins.summon`. Depends on `macctl` (`macctl/` in the workspace) for every settings change.
 
 ## Constraints
 - Original design: Omarchy and other projects are research, not a spec to port (Rohi, 2026-10-18).
 - Agents run with permission prompts bypassed (YOLO: `--dangerously-skip-permissions` etc.) behind a checkpoint + one-step undo (Rohi, 2026-10-17; bypass 2026-10-18).
+- Scheduled tasks run headless WITHOUT bypass flags (read and report only); a task that may change the Mac needs
+  Rohi's explicit opt-in first (2026-10-18).
 - Third-party tools via Homebrew are allowed (AeroSpace, Ghostty, JankyBorders) (Rohi, 2026-10-17).
 - Shape: Claude Code plugin + native Summon Menu app (Rohi, 2026-10-17). Name chosen by Rohi: Summon.
 - Settings go through `macctl`; no passwordless sudo (Touch ID for sudo instead).
@@ -33,6 +37,14 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   publishing is a separate choice through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18).
 
 ## Recent History
+### 2026-10-18 — Recurring tasks
+- `summon task add|list|run|log|enable|disable|remove`; schedules `--every 30m|2h|1d` (min 5 m) or `--at HH:MM
+  [--days …]`; one LaunchAgent per task running `summon task run <id> --scheduled` (removed or disabled tasks
+  clean up their own job).
+- A run: lock (no overlap), checkpoint `task: <id>`, headless argv (`Agent.headless`: claude, codex, copilot only),
+  output to `~/.local/state/summon/tasks/<id>/<run>.log` (20 kept), timeout (30 m default), `task.run` event.
+- App: Settings › Tasks (list, Run Now, on/off, Remove, Add Task sheet), "Task results" notification toggle;
+  clicking a task notification opens Activity. Doctor check `tasks`. Not yet run on a Mac.
 ### 2026-10-18 — Docs: original framing, features list
 - README no longer pitches Summon as an Omarchy port; the seven community palettes are credited as such.
 - Every command, menu entry, setting and skill is listed in the workspace's `docs/features.md`.

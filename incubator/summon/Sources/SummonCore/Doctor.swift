@@ -148,6 +148,7 @@ public struct Doctor: Sendable {
             eventLog(),
             projectsFolder(),
             projectRegistry(),
+            tasks(),
             skillLinks(),
             claudePlugin(),
         ])
@@ -403,6 +404,37 @@ public struct Doctor: Sendable {
                                fix: "Move the folders back, or remove those entries from \(file)")
         }
         return DoctorCheck("projects.registry", .pass, "\(registry.projects.count) projects, every folder present")
+    }
+
+    /// Every enabled task needs its LaunchAgent file and an agent that can run headless.
+    func tasks() -> DoctorCheck {
+        let file = tilde(paths.tasksFile.path)
+        let list: TaskList
+        do {
+            list = try TaskStore(paths: paths).load()
+        } catch {
+            return DoctorCheck("tasks", .fail, "\(file) cannot be read, so tasks do not run and `summon task` refuses to save",
+                               fix: "Fix the JSON in \(file), or move it away to start an empty list")
+        }
+        let enabled = list.tasks.filter(\.enabled)
+        guard !enabled.isEmpty else {
+            return DoctorCheck("tasks", .pass, list.tasks.isEmpty ? "No tasks" : "\(list.tasks.count) tasks, all off")
+        }
+        let unscheduled = enabled.filter { !FileManager.default.fileExists(atPath: TaskLaunchAgent.file($0.id, paths: paths).path) }
+        if !unscheduled.isEmpty {
+            return DoctorCheck("tasks", .warn, "No LaunchAgent for \(Self.list(unscheduled.map(\.id))), so it never runs on its own",
+                               fix: "summon task enable \(unscheduled[0].id)")
+        }
+        let fallback = DefaultAgentStore(paths: paths).load()
+        let stuck = enabled.filter { task in
+            let agent = task.agent.flatMap(AgentRegistry.find) ?? fallback
+            return agent?.headless == nil
+        }
+        if !stuck.isEmpty {
+            return DoctorCheck("tasks", .warn, "\(Self.list(stuck.map(\.id))) would be skipped: no agent that can run tasks",
+                               fix: "summon default agent claude (or codex, copilot)")
+        }
+        return DoctorCheck("tasks", .pass, "\(enabled.count) of \(list.tasks.count) tasks scheduled")
     }
 
     // MARK: Agents

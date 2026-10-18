@@ -75,7 +75,23 @@ sections:
   - Terminal: which terminal agents open in.
   - Notifications: crash and hang alerts, muted programs with Unmute.
   - Appearance: the theme.
-  - Tasks: empty until recurring tasks ship (planned).
+  - Tasks: each recurring task with its schedule and last result, Run Now, on/off, Remove, and Add Task…
+    (name, prompt, every few hours / every day / weekdays at a time).
+
+### Recurring tasks
+
+- **A prompt on a schedule:** `summon task add <name> --every 2h` or `--at 09:00 [--days weekdays]`
+  `-- "<prompt>"` saves the task in `~/.config/summon/tasks.json` and gives it its own LaunchAgent
+  (`~/Library/LaunchAgents/local.macplugins.summon.task.<name>.plist`). A run missed while the Mac slept
+  happens on wake; a run never overlaps the previous one.
+- **Read and report only:** tasks run the agent headless under its own permission rules, never with
+  prompts skipped (Claude Code `--print`, Codex `exec --sandbox read-only`, Copilot `-p`). Other agents
+  cannot run tasks yet.
+- **Each run:** a checkpoint first, the agent started in `~/Summon` (or `--folder`), stopped after
+  `--timeout` (30 minutes by default), output kept per run (`summon task log <name>`, last 20 runs), and
+  the result in Activity (a failed run shows as a problem) plus a notification (Settings › Notifications).
+- Also `task list [--json]`, `task run <name>` (run now and wait), `task enable|disable|remove <name>`.
+  `summon doctor` checks that every enabled task has its LaunchAgent and an agent that can run it.
 
 ### Activity and status from the command line
 
@@ -131,7 +147,7 @@ Every `summon` command, with arguments and examples: `summon commands --json`.
 
 ### Planned
 
-- Recurring agent tasks (`summon task add|list|remove|run`, run by launchd, managed in Settings › Tasks).
+- Tasks that may change the Mac (opt-in per task, permission prompts skipped behind the checkpoint).
 - A changelog ([`tasks/todo.md`](../tasks/todo.md), item E).
 
 ## macctl

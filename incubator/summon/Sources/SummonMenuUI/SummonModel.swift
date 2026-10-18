@@ -24,6 +24,14 @@ public final class SummonModel {
     public private(set) var agentSettings = AgentSettings()
     /// Skills Summon ships, from `summon skills`; empty until `loadShippedSkills()` runs.
     public private(set) var shippedSkills: [String] = []
+    /// Recurring tasks (`~/.config/summon/tasks.json`), read here, changed through `summon task`.
+    public private(set) var tasks: [AgentTask] = []
+    /// The newest run of each task, by id, from the event log.
+    public private(set) var lastTaskRuns: [String: LoggedEvent] = [:]
+    /// Set when tasks.json cannot be read; Settings shows it instead of an empty list.
+    public private(set) var tasksError: String? = nil
+    /// Tasks started with Run Now that have not finished.
+    public private(set) var runningTasks: Set<String> = []
     public private(set) var menu: MenuTree
     public private(set) var menuError: String? = nil
     /// Last action error, shown under the row that caused it.
@@ -41,18 +49,28 @@ public final class SummonModel {
         didSet { UserDefaults.standard.set(crashCaptureEnabled, forKey: Self.crashCaptureKey) }
     }
 
+    public var taskNotificationsEnabled: Bool {
+        didSet { UserDefaults.standard.set(taskNotificationsEnabled, forKey: Self.taskNotificationsKey) }
+    }
+
     /// Set by the app delegate to post a notification for each new report.
     @ObservationIgnored public var onNewCrash: ((CrashReport) -> Void)? = nil
     @ObservationIgnored private var recentKey: [String] = []
     @ObservationIgnored private var watchTask: Task<Void, Never>? = nil
+    /// Set by the app delegate to post a notification for each finished task run.
+    @ObservationIgnored public var onTaskRun: ((LoggedEvent) -> Void)? = nil
+    /// Time of the newest task run already seen; nil until the first scan, which never notifies.
+    @ObservationIgnored private var lastTaskRunSeen: Date? = nil
 
     static let crashCaptureKey = "crashCaptureEnabled"
+    static let taskNotificationsKey = "taskNotificationsEnabled"
 
     public init(paths: SummonPaths = .live, runner: @escaping Runner = Shell.live) {
         self.paths = paths
         self.runner = runner
         self.menu = MenuTree.standard
         self.crashCaptureEnabled = UserDefaults.standard.object(forKey: Self.crashCaptureKey) as? Bool ?? true
+        self.taskNotificationsEnabled = UserDefaults.standard.object(forKey: Self.taskNotificationsKey) as? Bool ?? true
         reload()
     }
 
@@ -73,7 +91,18 @@ public final class SummonModel {
         terminal = AgentLauncher.preferredTerminal(saved: DefaultTerminalStore(paths: paths).load(), installed: installed)
         mutedPrograms = CrashWatcher(paths: paths).muted().sorted()
         agentSettings = AgentSettingsStore(paths: paths).load()
+        loadTasks()
         loadMenu()
+    }
+
+    func loadTasks() {
+        do {
+            tasks = try TaskStore(paths: paths).load().tasks
+            tasksError = nil
+        } catch {
+            tasksError = "\(paths.tasksFile.path) is not valid: \(error.localizedDescription)"
+        }
+        lastTaskRuns = EventLog(paths: paths).lastTaskRuns()
     }
 
     func loadMenu() {
@@ -90,6 +119,7 @@ public final class SummonModel {
             while !Task.isCancelled {
                 guard let model = self else { return }
                 await model.scanCrashes()
+                await model.scanTaskRuns()
                 try? await Task.sleep(for: interval)
             }
         }
@@ -121,6 +151,26 @@ public final class SummonModel {
         if crashCaptureEnabled {
             for report in result.1 {
                 onNewCrash?(report)
+            }
+        }
+    }
+
+    /// Notifies about task runs that finished since the last scan, whoever started them (launchd or Run Now).
+    func scanTaskRuns() async {
+        let log = EventLog(paths: paths)
+        let runs = await Task.detached { log.read().filter { $0.kind == EventKind.taskRun } }.value
+        let newest = runs.last?.time
+        guard let seen = lastTaskRunSeen else {
+            lastTaskRunSeen = newest ?? Date()
+            return
+        }
+        let fresh = runs.filter { $0.time > seen }
+        guard !fresh.isEmpty else { return }
+        lastTaskRunSeen = newest
+        loadTasks()
+        if taskNotificationsEnabled {
+            for run in fresh {
+                onTaskRun?(run)
             }
         }
     }
@@ -196,6 +246,31 @@ public final class SummonModel {
     public func setAgentSkill(_ name: String, on: Bool, for id: String) {
         let skills = agentSettings.skills(for: id, shipped: shippedSkills, turning: name, on: on)
         Task { await summon(AgentSettingsCommand.skills(skills, for: id)) }
+    }
+
+    /// Adds a task through the CLI (which writes its LaunchAgent). Returns false and sets `lastError` on failure.
+    public func addTask(name: String, prompt: String, schedule: TaskSchedule) async -> Bool {
+        await summon(["task", "add", name] + schedule.arguments + ["--", prompt])
+        return lastError == nil
+    }
+
+    public func setTask(_ id: String, enabled: Bool) {
+        Task { await summon(["task", enabled ? "enable" : "disable", id]) }
+    }
+
+    /// Waits for the run; the result arrives as an Activity entry and a notification.
+    public func runTask(_ id: String) {
+        guard !runningTasks.contains(id) else { return }
+        runningTasks.insert(id)
+        Task {
+            await summon(["task", "run", id])
+            runningTasks.remove(id)
+            await scanTaskRuns()
+        }
+    }
+
+    public func removeTask(_ id: String) {
+        Task { await summon(["task", "remove", id]) }
     }
 
     /// Asks the bundled CLI which skills ship, so the app and `summon agents set` agree on the names.
@@ -294,6 +369,18 @@ extension SummonModel {
             return try? JSONDecoder().decode(Theme.self, from: Data(json.utf8))
         }
         model.currentThemeSlug = "summon-night"
+        model.tasks = [
+            AgentTask(id: "morning-crashes", prompt: "Summarize crash reports from the last day and say which app to look at first.",
+                      schedule: .daily(hour: 9, minute: 0, weekdays: [1, 2, 3, 4, 5])),
+            AgentTask(id: "disk-space", prompt: "Check free disk space and list the five largest folders in ~/Library/Caches.",
+                      schedule: .every(minutes: 360), enabled: false),
+        ]
+        model.lastTaskRuns = [
+            "morning-crashes": LoggedEvent(time: Date().addingTimeInterval(-3_600), kind: EventKind.taskRun,
+                                           title: "Task morning-crashes finished", detail: "No new crashes.",
+                                           refs: ["task": "morning-crashes", "status": "ok"]),
+        ]
+        model.runningTasks = []
         return model
     }
 }

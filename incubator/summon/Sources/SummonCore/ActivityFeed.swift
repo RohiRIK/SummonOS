@@ -164,6 +164,8 @@ public enum ActivityFeed {
         switch entry.kind {
         case EventKind.themeSet: category = .theme
         case EventKind.sessionUndo: category = .checkpoint
+        // A task that did not finish is something to look at, like a crash.
+        case EventKind.taskRun: category = entry.refs["status"] == TaskRunStatus.ok.rawValue ? .agent : .problem
         default: category = .agent
         }
         // Not the line number: trimming the log would shift it and lose the selection.

@@ -19,6 +19,10 @@ public struct Agent: Sendable, Equatable, Codable {
     public var modelFlag: String? = nil
     /// The agent's own skill folder, relative to home; nil when unknown (it gets skill paths in the prompt instead).
     public var skillFolder: String? = nil
+    /// argv prefix for a scheduled task: the CLI prints its answer and exits, under its own permission rules
+    /// (no bypass flag), so a run nobody watches can read and report but not change things. The prompt is
+    /// appended last. nil when the CLI has no verified mode like that, so tasks cannot use it.
+    public var headless: [String]? = nil
 
     public func argv(prompt: String?) -> [String] {
         guard let prompt, !prompt.isEmpty else { return interactive }
@@ -31,6 +35,15 @@ public struct Agent: Sendable, Equatable, Codable {
         guard let modelFlag, let model = model?.trimmingCharacters(in: .whitespaces), !model.isEmpty else { return base }
         return [base[0], modelFlag, model] + base.dropFirst()
     }
+
+    /// The task argv for `prompt`, with the model option before a trailing `--`; nil without a headless mode.
+    public func headlessArgv(prompt: String, model: String?) -> [String]? {
+        guard var base = headless else { return nil }
+        if let modelFlag, let model = model?.trimmingCharacters(in: .whitespaces), !model.isEmpty {
+            base.insert(contentsOf: [modelFlag, model], at: base.last == "--" ? base.count - 1 : base.count)
+        }
+        return base + [prompt]
+    }
 }
 
 public enum AgentRegistry {
@@ -39,13 +52,15 @@ public enum AgentRegistry {
             id: "claude", name: "Claude Code", command: "claude", aliases: ["claude-code"],
             interactive: ["claude", "--dangerously-skip-permissions"],
             withPrompt: ["claude", "--dangerously-skip-permissions", "--"],
-            installHint: "brew install --cask claude-code", modelFlag: "--model", skillFolder: ".claude/skills"
+            installHint: "brew install --cask claude-code", modelFlag: "--model", skillFolder: ".claude/skills",
+            headless: ["claude", "--print", "--"]
         ),
         Agent(
             id: "codex", name: "Codex", command: "codex", aliases: ["openai-codex"],
             interactive: ["codex", "--dangerously-bypass-approvals-and-sandbox"],
             withPrompt: ["codex", "--dangerously-bypass-approvals-and-sandbox", "--"],
-            installHint: "brew install codex", modelFlag: "--model", skillFolder: ".codex/skills"
+            installHint: "brew install codex", modelFlag: "--model", skillFolder: ".codex/skills",
+            headless: ["codex", "exec", "--sandbox", "read-only", "--"]
         ),
         Agent(
             id: "opencode", name: "OpenCode", command: "opencode", aliases: ["open-code"],
@@ -57,7 +72,8 @@ public enum AgentRegistry {
             id: "copilot", name: "GitHub Copilot", command: "copilot", aliases: ["github-copilot"],
             interactive: ["copilot", "--allow-all"],
             withPrompt: ["copilot", "--allow-all", "--interactive"],
-            installHint: "npm install -g @github/copilot"
+            installHint: "npm install -g @github/copilot",
+            headless: ["copilot", "--no-ask-user", "-s", "-p"]
         ),
         Agent(
             // A one-word prompt naming a subcommand would run that subcommand, so `agent --` is spelled out.

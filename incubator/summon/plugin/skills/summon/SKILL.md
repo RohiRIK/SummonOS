@@ -22,6 +22,7 @@ gets one route per job, in order.
 | Building a native Mac app: menu bar app, window app, command-line tool, screensaver, packaging an icon | `mac-app` |
 | An app crashed, hung, quit unexpectedly, the Mac restarted, a `.ips` report | `diagnose-crash-mac` |
 | Logs, why something fails or keeps restarting, Wi-Fi/Bluetooth/sleep trouble | `mac-logs` |
+| Doing something on a schedule: "every morning", "each hour", "remind me weekly to check…" | `summon task add <name> --every 2h` or `--at 09:00 [--days weekdays]` `-- "<prompt>"`; tasks read and report, they cannot change the Mac |
 | Anything else: a web app, a script, a document, a data job | The best match among your other installed skills (below); none fits → do it directly |
 
 Skill files, for harnesses without a skill mechanism: `summon skills` prints every path. Read the file and follow it.

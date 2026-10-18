@@ -11,7 +11,7 @@ Order confirmed by the owner: A, B, C, D, then changelog + README, each merged o
 - [x] B. Per-agent settings: enabled, model, which Summon skills it gets (`~/.config/summon/agents.json`); linker and
       launch honour them; model flags verified per CLI.
 - [x] C. Settings window with a sidebar (General, Agents, Terminal, Notifications, Appearance, Tasks); few plain rows each.
-- [ ] D. Recurring agent tasks: `summon task add|list|remove|run`, launchd LaunchAgent, headless print mode, checkpoint,
+- [x] D. Recurring agent tasks: `summon task add|list|remove|run`, launchd LaunchAgent, headless print mode, checkpoint,
       result in Activity + notification; managed in Settings › Tasks.
 - [ ] E. CHANGELOG + README refresh; PR; merge on clean CI.
 

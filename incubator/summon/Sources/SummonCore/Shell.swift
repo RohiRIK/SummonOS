@@ -129,3 +129,84 @@ public struct ToolLocator: Sendable {
         return nil
     }
 }
+
+extension Shell {
+    /// The real `TaskExecutor`. Output goes to the log file, not a pipe, so a child left running cannot block it.
+    public static let logged: TaskExecutor = { path, arguments, directory, log, timeout in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<TaskExit, any Error>) in
+            DispatchQueue.global(qos: .utility).async {
+                do {
+                    continuation.resume(returning: try Shell.runLogged(path, arguments, directory: directory, log: log, timeout: timeout))
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Runs to the end or until `timeout` seconds pass (then SIGTERM, and SIGKILL ten seconds later).
+    public static func runLogged(_ path: String, _ arguments: [String], directory: URL, log: URL, timeout: TimeInterval) throws -> TaskExit {
+        let manager = FileManager.default
+        try manager.createDirectory(at: log.deletingLastPathComponent(), withIntermediateDirectories: true)
+        guard manager.createFile(atPath: log.path, contents: nil) else {
+            throw RunnerError.failed(path: path, status: -1, output: "could not create \(log.path)")
+        }
+        let handle = try FileHandle(forWritingTo: log)
+        defer { try? handle.close() }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = arguments
+        process.currentDirectoryURL = directory
+        process.standardInput = FileHandle.nullDevice
+        process.standardOutput = handle
+        process.standardError = handle
+        try process.run()
+        let watch = TimeoutWatch(process)
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + timeout) {
+            watch.expire()
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 10) { watch.forceKill() }
+        }
+        process.waitUntilExit()
+        watch.finish()
+        return TaskExit(status: process.terminationStatus, timedOut: watch.timedOut)
+    }
+}
+
+/// Stops a process that runs too long, and never signals it once it has exited (its pid may be reused).
+final class TimeoutWatch: @unchecked Sendable {
+    private let lock = NSLock()
+    private let process: Process
+    private var finished = false
+    private var fired = false
+
+    init(_ process: Process) {
+        self.process = process
+    }
+
+    func expire() {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !finished, process.isRunning else { return }
+        fired = true
+        process.terminate()
+    }
+
+    func forceKill() {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !finished, process.isRunning else { return }
+        kill(process.processIdentifier, SIGKILL)
+    }
+
+    func finish() {
+        lock.lock()
+        finished = true
+        lock.unlock()
+    }
+
+    var timedOut: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return fired
+    }
+}

@@ -88,6 +88,8 @@ struct SummonCommand {
             try IconCommands.run(&args, context)
         case "project":
             try await ProjectCommands.run(&args, context)
+        case "task":
+            try await TaskCommands.run(&args, context)
         case "path":
             print(PathCommand.installPath())
         case "skills":

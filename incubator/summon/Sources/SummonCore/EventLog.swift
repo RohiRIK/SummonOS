@@ -32,6 +32,8 @@ public enum EventKind {
     /// `summon project new` made a project in ~/Summon; `summon project repo` gave it a private repo.
     public static let projectNew = "project.new"
     public static let projectRepo = "project.repo"
+    /// A recurring task ran (`summon task run`); refs `task`, `status`, `checkpoint`, `log`.
+    public static let taskRun = "task.run"
 }
 
 /// Append-only JSON Lines file, newest last. Unreadable lines are skipped, never fatal.
