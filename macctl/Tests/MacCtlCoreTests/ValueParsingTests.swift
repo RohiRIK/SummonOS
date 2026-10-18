@@ -51,6 +51,8 @@ struct ValueParsingTests {
         let type = ValueType.enumeration(["light", "dark"])
         #expect(try type.parse("dark", id: "appearance.mode") == .string("dark"))
         await expectMacCtlError("invalid_value") { try type.parse("Dark", id: "appearance.mode") }
+        #expect(try type.parse(" dark\n", id: "appearance.mode") == .string("dark"))
+        #expect(try ValueType.string.parse(" keep spaces ", id: "x.y") == .string(" keep spaces "))
         #expect(type.validate(.string("blue")) == "must be one of: light, dark")
     }
 

@@ -181,6 +181,24 @@ struct EngineTests {
         #expect(await h.restarter.calls == [[.restart(process: "Dock")], [.restart(process: "Dock")]])
     }
 
+    @Test func repeatedUndoStepsBackInsteadOfToggling() async throws {
+        let h = Harness(stored: ["dock.tilesize": .int(64)])
+        let first = try await h.engine.apply(
+            Profile(name: "a", settings: ["dock.tilesize": .int(40)]), dryRun: false, confirmed: false)
+        _ = try await h.engine.apply(
+            Profile(name: "b", settings: ["dock.tilesize": .int(30)]), dryRun: false, confirmed: false)
+
+        _ = try await h.engine.undo(snapshotID: nil)
+        #expect(await h.backend.stored["dock.tilesize"] == .int(40))
+        let second = try await h.engine.undo(snapshotID: nil)
+        #expect(await h.backend.stored["dock.tilesize"] == .int(64))
+        #expect(try h.engine.snapshots().first?.undoes == first.snapshotID)
+        #expect(second.snapshotID != nil)
+
+        // Everything is undone: a third bare undo has nothing left.
+        await expectMacCtlError("no_snapshots") { try await h.engine.undo(snapshotID: nil) }
+    }
+
     @Test func undoByIDAndErrors() async throws {
         let h = Harness()
         await expectMacCtlError("no_snapshots") { try await h.engine.undo(snapshotID: nil) }

@@ -143,7 +143,7 @@ public enum Catalog {
     static let screenshots: [Setting] = [
         Setting(
             id: "screenshots.location",
-            summary: "Folder where new screenshots are saved; ~ is expanded and the folder must already exist.",
+            summary: "Folder where new screenshots are saved; ~ is expanded and a missing folder is created.",
             type: .path,
             backend: .defaults(domain: "com.apple.screencapture", key: "location", type: .string),
             after: restartUIServer,
