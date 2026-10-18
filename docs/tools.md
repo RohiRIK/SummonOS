@@ -36,8 +36,8 @@ is a reference to clone on demand), `path` (relative to the home).
 
 ## check-workspace.sh
 
-Workspace hygiene gate, meant for CI (job snippet in `tools/ci/check-workspace.yml`; paste it into
-`.github/workflows/swift.yml`).
+Workspace hygiene gate, meant for CI. Not in CI yet: the job snippet is in `tools/ci/check-workspace.yml`,
+and the owner has to paste it into `.github/workflows/swift.yml` (agents cannot edit workflows).
 
 ```bash
 tools/check-workspace.sh

@@ -1,14 +1,14 @@
 ---
-name: PortOmarchyPlugin
-description: "Port an Omarchy/Quickshell/Linux bar widget (QML, manifest.json, nmcli/iw helpers) into a native macOS menu bar app. USE WHEN porting, converting, or migrating a Linux or Omarchy plugin to macOS. NOT FOR building a new app from scratch (use MacAppArchitecture, then MacAppBuild)."
+name: PortLinuxWidget
+description: "Port a Linux bar widget (Quickshell/QML, Waybar, Omarchy plugins with manifest.json, nmcli/iw helpers) into a native macOS menu bar app. USE WHEN porting, converting, or migrating a Linux widget or script to macOS. NOT FOR building a new app from scratch (use MacAppArchitecture, then MacAppBuild)."
 category: workflow
 effort: high
 domain: dev
 ---
 
-# PortOmarchyPlugin
+# PortLinuxWidget
 
-Turns an Omarchy bar widget into a SwiftUI menu bar app with the same features, keys, and tests.
+Turns a Linux bar widget (often a Quickshell/Omarchy plugin) into a SwiftUI menu bar app with the same features, keys, and tests.
 
 ## Workflow Routing
 

@@ -2,7 +2,7 @@
 
 ## Overview
 `macctl`: a Swift CLI that AI agents (and people) use to read, set, diff, apply, and undo macOS
-settings natively, Omarchy-style (opinionated desired-state profiles). Plan: `docs/plans/2026-10-16-macctl.md`
+settings natively, with opinionated desired-state profiles. Plan: `docs/plans/2026-10-16-macctl.md`
 in the workspace. Agent instructions: workspace skill `MacSetup`.
 
 ## Current State

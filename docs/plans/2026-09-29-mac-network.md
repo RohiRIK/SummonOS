@@ -5,7 +5,7 @@ Status: Phase 3 in review: https://github.com/RohiRIK/mac-network/pull/1 (55 tes
 Source: https://github.com/RohiRIK/rohi.network (Omarchy bar widget: `Panel.qml` 2182 lines,
 `Model.js` 25 pure helpers, `settings.py` nmcli wrapper, 84 tests).
 Target: native SwiftUI `MenuBarExtra` app. Repo: https://github.com/RohiRIK/mac-network (private).
-Linux-to-macOS mapping: `.claude/skills/PortOmarchyPlugin/Mapping.md`.
+Linux-to-macOS mapping: `.claude/skills/PortLinuxWidget/Mapping.md`.
 
 ## Decisions
 
@@ -18,7 +18,7 @@ Linux-to-macOS mapping: `.claude/skills/PortOmarchyPlugin/Mapping.md`.
 ## Phase 0: Workspace
 
 - [x] `AGENTS.md` + `CLAUDE.md` (`@AGENTS.md`)
-- [x] Skill `PortOmarchyPlugin` (Port workflow + Mapping.md)
+- [x] Skill `PortLinuxWidget` (Port workflow + Mapping.md)
 - [x] Skill `MacAppBuild` (Scaffold.md, gotchas)
 - [x] Skill `MacUX` (Principles, Patterns (type-checked), Review checklist)
 - [x] `plugins.md`, `tasks/lessons.md`
