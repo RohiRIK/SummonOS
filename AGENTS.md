@@ -10,14 +10,22 @@ like they belong on the Mac. Unlike Glaze (React in a WebView + Node backend), w
 ```
 .                            this workspace: the private repo `macos-plugins` (skills, tools, docs, plans)
 ├── AGENTS.md                this file; CLAUDE.md points here
-├── plugins.md               index of every plugin + its GitHub repo
+├── plugins.json             plugin registry (source of truth): repos, status, kind, bundle id, path
+├── plugins.md               index of every plugin, generated from plugins.json by `tools/mp index`
 ├── docs/research/           research notes behind the skills
 ├── docs/plans/              finished and long plans, one file each: YYYY-MM-DD-<name>.md
-├── tools/                   workspace scripts: xcode-mcp.ts, render-previews.sh, publish-public.sh, release.sh
+├── tools/                   workspace scripts: mp, check-workspace.sh, publish-public.sh, release.sh, previews
+├── examples/                menubar-starter/ (CI-built skeleton that `tools/mp new` copies)
 ├── .claude/skills/          shared skills, used by every plugin (see below)
 ├── plugins/<name>/          one folder per plugin, each its own git repo (gitignored here)
-└── tasks/                   todo.md (current plan only), lessons.md (mistakes)
+├── scratch/<name>/          agent-made apps with no repo yet, from `tools/mp new` (gitignored)
+├── tasks/                   todo.md (current plan only), lessons.md (mistakes)
+└── macctl/, incubator/      still here until they move to their own repos (owner's OK)
 ```
+
+`.gitignore` is a root allowlist: anything new at the top level is ignored until it is added there.
+New plugins start with `tools/mp new <name>` in `scratch/`; `tools/mp promote` (owner's OK each time)
+creates the repo pair. Tool details: `docs/tools.md`.
 
 ## Skills: which one when
 
@@ -105,3 +113,5 @@ The user does not want app settings inside the menu bar panel. Every plugin foll
 - Commits: conventional (`feat:`, `fix:`, ...).
 - Build caches live in `~/Library/Caches/macplugins/<name>` (never `.build/` inside Google Drive).
 - Git repos live in Google Drive: push after every commit; if `.git` breaks, re-clone from GitHub.
+  Planned, pending the owner's OK: move the workspace to `~/Developer/macplugins` (`$MACPLUGINS_HOME`),
+  off Google Drive. Until then this rule stands.

@@ -1,12 +1,23 @@
 # Scaffold
 
-Reference plugin: `plugins/mac-network/`. Copy its skeleton, then rename. Replace `App` with the
-PascalCase name (`MacBattery`) and `<name>` with the kebab-case plugin name (`mac-battery`).
+Start every new plugin with `mp new` from the workspace root:
+
+```bash
+tools/mp new <name> --kind menubar
+```
+
+It copies `examples/menubar-starter/` (this layout, CI-built) to `$MACPLUGINS_HOME/scratch/<name>/`,
+renames `Starter` to the PascalCase name (`MacBattery`) and `menubar-starter` to the kebab-case name
+(`mac-battery`), runs `git init`, and registers it in `plugins.json`. Never write a new plugin anywhere
+else. Repos come later, with the owner's OK: `tools/mp promote <name> --yes` (see `docs/tools.md`).
+
+The starter has no `scripts/` yet: copy them from `plugins/mac-network/` (below). In the snippets on
+this page, `App` stands for the PascalCase name and `<name>` for the kebab-case name.
 
 ## Layout
 
 ```
-plugins/<name>/
+scratch/<name>/                 plugins/<name>/ after mp promote
 ├── Package.swift
 ├── Sources/
 │   ├── App/            @main only
