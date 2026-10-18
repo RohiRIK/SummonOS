@@ -1,0 +1,12 @@
+# illustrative: written from the macctl source, not yet recorded on a Mac. tools/record-demos.sh replaces it.
+$ macctl diff profiles/default.json
+default: 9 changes
+  appearance.dark-mode         false    ->  true
+  dock.autohide                (unset)  ->  true
+  dock.show-recents            (unset)  ->  false
+  dock.tilesize                (unset)  ->  40
+  finder.show-extensions       (unset)  ->  true
+  finder.show-pathbar          (unset)  ->  true
+  keyboard.initial-key-repeat  (unset)  ->  15
+  keyboard.key-repeat          (unset)  ->  2
+  screenshots.location         (unset)  ->  /Users/you/Pictures/Screenshots

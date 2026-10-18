@@ -195,7 +195,8 @@ def wordmark_svg(text: str, p: dict, glyph_svg: str | None = None, height: int =
     size = round(height * 0.48, 1)
     gap = round(height * 0.18, 1)
     spacing = -0.01 * size
-    width = math.ceil(height + gap + text_width(text, size, 700, spacing) + height * 0.1)
+    # Slack after the text: viewers without Inter fall back to SF Pro or Segoe UI, which run a bit wider.
+    width = math.ceil(height + gap + text_width(text, size, 700, spacing) + height * 0.25)
     baseline = round(height / 2 + size * 0.36, 1)
     label = escape(text)
     tracking = f' letter-spacing="{spacing:g}"'

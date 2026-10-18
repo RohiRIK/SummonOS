@@ -1,0 +1,16 @@
+# illustrative: written from the macctl source, not yet recorded on a Mac. tools/record-demos.sh replaces it.
+$ macctl get dock.autohide dock.tilesize --json
+{
+  "command" : "get",
+  "ok" : true,
+  "result" : [
+    {
+      "id" : "dock.autohide",
+      "value" : false
+    },
+    {
+      "id" : "dock.tilesize",
+      "value" : 48
+    }
+  ]
+}

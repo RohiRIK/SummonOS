@@ -97,3 +97,32 @@ bun tools/xcode-mcp.ts <ToolName> '<json args>' [--out dir]
 ```
 
 Text results print to stdout. Image results are saved as PNGs in `--out` (default `./build/previews`).
+
+## readme-art.py
+
+Renders the README art in `docs/assets/` as plain SVG: workspace wordmark, macctl logo, hero banner,
+lifecycle diagram (each light and dark), project icons, the "Swift 6 / macOS 15+" pill, and terminal
+cards from `macctl/docs/demo/*.txt`.
+
+```bash
+python3 tools/readme-art.py           # write the SVGs
+python3 tools/readme-art.py --check   # exit 1 if a committed SVG is stale
+```
+
+- Pure Python, deterministic (frozen Inter metrics, no dates). Palettes and the ring mark come from
+  `incubator/summon/design/brandkit.py`.
+- Text that would overflow its box stops the script with the offending string.
+
+## record-demos.sh
+
+On a Mac with `macctl` installed: re-records the demo transcripts in `macctl/docs/demo/`, re-renders
+the cards, and records `demo.gif` with [vhs](https://github.com/charmbracelet/vhs) when installed.
+
+```bash
+tools/record-demos.sh [--no-gif]
+```
+
+- Runs only read-only commands (`doctor`, `list`, `describe`, `get`, `diff`, `snapshot`, `--dry-run`);
+  anything else is refused.
+- Replaces `$HOME` with `/Users/you` and every regex in `tools/private-patterns.txt` with `<private>`,
+  in the transcripts and in the GIF.
