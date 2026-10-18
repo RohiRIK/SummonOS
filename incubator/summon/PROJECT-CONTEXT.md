@@ -13,6 +13,10 @@ checkpoint before every agent session.
 - Swift package: `SummonCore` (agents, launch plans, .ips crash parsing + watcher, menu tree, themes + compilers,
   checkpoints, debug bundle, hooks, command catalog), `summon` CLI, `SummonMenuUI` + `SummonMenu` app (menu bar panel,
   ⌃⌥Space launcher, ⌃⌥⌘A agent, crash notifications, Settings). Written 2026-10-17, not compiled yet.
+- Projects: `templates/{menubar,app,cli,screensaver}` (each a buildable package with README, MIT LICENSE,
+  PROJECT-CONTEXT.md, `scripts/check.sh`; CI builds them). `summon project new` copies one to `~/Summon/<name>` and
+  records it in the private `~/.config/summon/projects.json`; `summon project repo` makes a private repo after a
+  native dialog. Core: `Projects.swift`. Bundled into `Contents/share/summon/templates`.
 - Bundle id `local.macplugins.summon`. Depends on `macctl` (draft PR #6) for every settings change.
 
 ## Constraints
@@ -21,8 +25,26 @@ checkpoint before every agent session.
 - Shape: Claude Code plugin + native Summon Menu app (Rohi, 2026-10-17). Name chosen by Rohi: Summon.
 - Settings go through `macctl`; no passwordless sudo (Touch ID for sudo instead).
 - Panel vs Settings window split from AGENTS.md applies to the Summon Menu app.
+- Projects live in `~/Summon/<name>` (created on install, app launch and agent launch; agents start there). The
+  project list is private to the Mac: never `plugins.json`, never `tools/mp new/promote` (Rohi, 2026-10-18).
+- GitHub: only a private repo, only through `summon project repo` after the user clicks the native NSAlert (Cancel
+  is the default button; no flag skips it; no GUI session = no). CI is added with the repo, not before. Public
+  publishing is a separate choice through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18).
 
 ## Recent History
+### 2026-10-18 — Projects: templates, ~/Summon, private list, private repos (folds in PR #34)
+- Four templates (menu bar app, window app, CLI tool, screensaver), bundle ids `local.summon.<name>`, each with
+  `scripts/check.sh` (build, tests, plist lint, bundle / release + `--help`), LICENSE and PROJECT-CONTEXT.md.
+- `summon project new|list|path|forget|repo`; `ProjectService` copies the template (renames `Starter` and
+  `<kind>-starter`, fills the date), `git init` + first commit, registers. `PrivateRepoService` asks the approver
+  before writing anything, adds `.github/workflows/check.yml`, runs `gh repo create … --private`, pushes.
+- `~/Work` is gone: `SummonPaths.projects` = `~/Summon`; agents launched from `~` or `/` start there.
+- Make Something and `/summon:new-*` (new: New Command-Line Tool, `/summon:new-cli`) run `summon project new`
+  instead of the workspace's `scratch/`. Existing `~/.config/summon/menu.jsonc` keeps the old entries until
+  `summon menu init --force`.
+- PR #34 (Settings window with a sidebar: General, Agents, Terminal, Notifications, Appearance, Tasks) is in the
+  same PR. Its previews were never rendered; needs a look on the Mac.
+- Not run on a Mac yet: the dialog, `gh repo create`, the templates' bundle scripts.
 ### 2026-10-18 — `summon doctor`
 - `summon doctor [--json]` (SummonCore `Doctor`): pass/warn/fail with a fix for install (app, CLI on PATH, shared
   files), config (folder, default agent, agents.json, terminal, menu, themes, ~/.config git), macctl (+ its doctor),

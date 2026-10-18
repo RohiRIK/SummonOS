@@ -1,10 +1,11 @@
 ---
 name: mac-app
 description: >
-  Build a new native Mac app the Summon way: a menu bar app, a full window app, a screensaver,
-  or an app icon. Swift 6 + SwiftUI, SwiftPM, follows the current Summon theme, ships as a signed .app.
-  Use when asked to make, build, or scaffold an app, menu bar widget, utility, screensaver, or icon.
-  Triggers: new app, menu bar app, status bar item, widget, screensaver, .saver, app icon, icns, "make me an app".
+  Build a new native Mac app the Summon way: a menu bar app, a full window app, a command-line tool, a
+  screensaver, or an app icon. Starts from Summon's template in ~/Summon/<name>; Swift 6 + SwiftUI, SwiftPM,
+  follows the current Summon theme. Use when asked to make, build, or scaffold an app, menu bar widget, utility,
+  CLI tool, screensaver, or icon. Triggers: new app, menu bar app, status bar item, widget, command-line tool,
+  CLI, screensaver, .saver, app icon, icns, "make me an app".
 ---
 
 # Building a Mac app with Summon
@@ -29,42 +30,60 @@ If they are not installed, follow the summary below.
 |---|---|
 | "show X in the menu bar", a status, a few actions | **Menu bar app**: `MenuBarExtra` (`.window` style panel), `LSUIElement = true` |
 | A tool with its own window, documents, sidebars | **Full app**: `WindowGroup` + `NavigationSplitView`, Dock icon, menus with ⌘ shortcuts |
+| Something to run in a terminal or from scripts and agents | **CLI tool**: one executable, no UI |
 | Something to look at when idle | **Screensaver**: `.saver` bundle, `ScreenSaverView` subclass |
 | An icon for an app, file, or folder | **Icon**: see below |
 
 Every app gets a separate **Settings window** (`Settings` scene, `.formStyle(.grouped)`), opened with ⌘,.
 Settings never go inside the menu bar panel; the panel footer has `Settings…` and `Quit` only.
 
-## Where new apps go
+## Where new apps go: `~/Summon/<name>`
 
-New apps start in the plugin home, `$MACPLUGINS_HOME` (default `~/Developer/macplugins`, the
-`macos-plugins` workspace clone), under `scratch/<name>/`. When the workspace's `mp` tool is available,
-create the app with it; it copies the menu bar starter, renames it, and registers it in `plugins.json`:
+Every project starts from Summon's template for its kind and lives in its own folder under `~/Summon`
+(Summon creates it on install and on every launch; agents start there). Agree a short kebab-case name with the
+user, then:
 
 ```bash
-mp="${MACPLUGINS_HOME:-$HOME/Developer/macplugins}/tools/mp"
-"$mp" new <name> --kind menubar        # or --kind app / --kind screensaver (starts from the menu bar starter)
+summon project new <name> --kind menubar      # or app, cli, screensaver
+cd "$(summon project path <name>)"
 ```
 
-Without `mp`, create `$MACPLUGINS_HOME/scratch/<name>/` by hand with the layout below. Never create GitHub
-repos yourself: `mp promote <name>` needs the owner's OK every time.
+That copies the template, renames `Starter` to the PascalCase name, makes a git repo with a first commit, and
+records the project in Summon's private list (`~/.config/summon/projects.json`, `summon project list`). The list
+stays on this Mac: never add a Summon project to the workspace's `plugins.json` or anything public, and never use
+the workspace's `mp new` / `mp promote` for it.
+
+| Kind | Template gives you |
+|---|---|
+| `menubar` | `MenuBarExtra` panel with `Settings…`/`Quit` footer, Settings window, `LSUIElement` |
+| `app` | `WindowGroup` + `NavigationSplitView`, menu commands with ⌘ shortcuts, Settings window |
+| `cli` | One executable, argument parsing in a tested Core, `scripts/install.sh` into `~/.local/bin` |
+| `screensaver` | `ScreenSaverView` subclass, tested animation Core, `scripts/bundle.sh` → `.saver`, `scripts/install.sh` |
+
+Every template has `README.md`, `LICENSE` (MIT), `PROJECT-CONTEXT.md` (keep it current after each change) and
+`scripts/check.sh` (the gate). No CI until the project has a repo.
+
+**GitHub.** Never run `gh repo create` or push to a new remote yourself. When the user wants a repo, run
+`summon project repo <name>`: Summon shows a native dialog, and only the user's click creates a **private** repo
+(with CI that runs `scripts/check.sh`). Summon never makes a public repo; publishing later is the user's separate
+choice, made only with the macos-plugins workspace's `tools/publish-public.sh` (noreply identity).
 
 ## Layout (SwiftPM, no .xcodeproj)
 
 ```
-$MACPLUGINS_HOME/scratch/<name>/
+~/Summon/<name>/
 ├── Package.swift            swift-tools-version 6.0, platforms [.macOS(.v15)]
-├── Sources/<App>/           @main only
+├── Sources/<App>/           @main only (main.swift for a CLI, the ScreenSaverView for a saver)
 ├── Sources/<App>UI/         views, @Observable model, #Previews (library product, so previews run)
 ├── Sources/<App>Core/       logic and tool wrappers, Foundation only, tested
 ├── Tests/<App>CoreTests/    swift-testing
-├── Resources/Info.plist     bundle id local.macplugins.<name>
-└── scripts/                 test.sh, bundle.sh (builds the .app), check.sh (the gate)
+├── Resources/Info.plist     bundle id local.summon.<name>
+├── scripts/                 check.sh (the gate), bundle.sh (.app / .saver), install.sh (cli, saver)
+├── README.md, LICENSE, PROJECT-CONTEXT.md
 ```
 
 Rules: Swift 6 strict concurrency, `@MainActor` UI, no third-party dependencies, shell tools by
-absolute path with argv arrays (never a shell string), Core logic test-first. Build caches in
-`~/Library/Caches/macplugins/<name>`.
+absolute path with argv arrays (never a shell string), Core logic test-first.
 
 ## Follow the Summon theme
 
@@ -74,8 +93,9 @@ Colors: `background`, `foreground`, `accent`, `accent2`, `muted`, `selection`.
 
 ## Screensaver specifics
 
-- A `.saver` is a bundle with `NSPrincipalClass` = your `ScreenSaverView` subclass. SwiftPM builds a
-  dynamic library; `scripts/bundle.sh` assembles `<Name>.saver/Contents/{Info.plist,MacOS/<Name>}`.
+- A `.saver` is a bundle with `NSPrincipalClass` = your `ScreenSaverView` subclass (the template fixes its
+  Objective-C name with `@objc(<Name>View)`). SwiftPM builds a dynamic library; `scripts/bundle.sh` assembles
+  `<Name>.saver/Contents/{Info.plist,MacOS/<Name>}`.
 - macOS 14+ hosts third-party savers in `legacyScreenSaver`. Known traps: the process outlives the saver,
   so stop timers and display links in `stopAnimation()` and on `NSNotification.Name("com.apple.screensaver.willstop")`;
   `isPreview` views are tiny; never block `animateOneFrame()`.
@@ -96,6 +116,6 @@ Colors: `background`, `foreground`, `accent`, `accent2`, `muted`, `selection`.
 
 ## Verify before calling it done
 
-`scripts/check.sh` passes (build + tests), the app launches from the bundle, every screen and setting
-is reachable, and the user saw it run. Then add it to the Summon Menu (`~/.config/summon/menu.jsonc`) if it
+`scripts/check.sh` passes, the app launches from the bundle, every screen and setting is reachable,
+`PROJECT-CONTEXT.md` says what changed, and the user saw it run. Then add it to the Summon Menu (`~/.config/summon/menu.jsonc`) if it
 has an action worth summoning.

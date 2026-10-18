@@ -1,5 +1,6 @@
 #!/bin/bash
-# Installs Summon for this user: the app in ~/Applications, `summon` on PATH, and the themes in ~/.config/summon.
+# Installs Summon for this user: the app in ~/Applications, `summon` on PATH, the themes in ~/.config/summon,
+# and ~/Summon, where every project lives and agents start.
 # Run scripts/bundle.sh first. Safe to run again: it replaces the app and adds themes without touching yours.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -7,7 +8,7 @@ cd "$(dirname "$0")/.."
 APP="build/Summon.app"
 [[ -d $APP ]] || { echo "Run scripts/bundle.sh first." >&2; exit 1; }
 
-mkdir -p "$HOME/Applications" "$HOME/.local/bin" "$HOME/.config/summon/themes"
+mkdir -p "$HOME/Applications" "$HOME/.local/bin" "$HOME/.config/summon/themes" "$HOME/Summon"
 rm -rf "$HOME/Applications/Summon.app"
 cp -R "$APP" "$HOME/Applications/Summon.app"
 ln -sf "$HOME/Applications/Summon.app/Contents/MacOS/summon" "$HOME/.local/bin/summon"
