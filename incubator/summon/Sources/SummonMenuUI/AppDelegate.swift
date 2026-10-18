@@ -34,6 +34,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
             self?.notify(report)
         }
         model.startWatching()
+        // Every launch relinks the shipped skills, so an updated or moved app still reaches every agent.
+        Task { await model.summon(["skills", "link", "--quiet"]) }
     }
 
     /// `summon://menu/<id>` opens the launcher at that entry; `summon://agent` starts the agent;

@@ -67,7 +67,7 @@ enum AgentCommands {
         ), context)
 
         // argv[0] stays the command name; the absolute path is what actually runs, so a GUI PATH cannot miss it.
-        let argv = agent.argv(prompt: prompt)
+        let argv = agent.argv(prompt: prompt.map { $0 + SkillCommands.promptFooter() })
         if inline {
             _ = fileManager.changeCurrentDirectoryPath(directory)
             execReplacing(agentPath, argv)
