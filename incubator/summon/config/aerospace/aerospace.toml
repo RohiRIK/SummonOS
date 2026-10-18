@@ -1,0 +1,104 @@
+# Summon's AeroSpace config: Omarchy-style tiling with Option (⌥) as the "Super" key.
+# Installed to ~/.config/aerospace/aerospace.toml by /summon:setup. Reload: ⌥⇧; then Esc, or `aerospace reload-config`.
+# Reference: https://nikitabobko.github.io/AeroSpace/guide
+
+start-at-login = true
+
+# Tiling like Hyprland's dwindle: split along the longer side.
+default-root-container-layout = 'tiles'
+default-root-container-orientation = 'auto'
+enable-normalization-flatten-containers = true
+enable-normalization-opposite-orientation-for-nested-containers = true
+
+# Move the mouse to the focused monitor, as Omarchy does.
+on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
+
+# Borders and gaps follow the Summon theme; `summon theme set` restarts borders.
+after-startup-command = ['exec-and-forget /bin/zsh -lc "brew services start borders >/dev/null 2>&1 || true"']
+
+[gaps]
+inner.horizontal = 10
+inner.vertical = 10
+outer.left = 10
+outer.bottom = 10
+outer.top = 10
+outer.right = 10
+
+[mode.main.binding]
+# Apps. Option + a letter stays free for typing and for readline in Ghostty (⌥B/⌥F word jumps),
+# so app launchers and window actions use Option+Shift.
+alt-enter = 'exec-and-forget open -na Ghostty'
+alt-shift-b = 'exec-and-forget open -a Safari'
+alt-shift-e = 'exec-and-forget open ~'
+
+# Focus and move (vim keys and arrows)
+alt-h = 'focus left'
+alt-j = 'focus down'
+alt-k = 'focus up'
+alt-l = 'focus right'
+alt-left = 'focus left'
+alt-down = 'focus down'
+alt-up = 'focus up'
+alt-right = 'focus right'
+alt-shift-h = 'move left'
+alt-shift-j = 'move down'
+alt-shift-k = 'move up'
+alt-shift-l = 'move right'
+
+# Window state
+alt-shift-f = 'fullscreen'
+alt-shift-space = 'layout floating tiling'
+alt-slash = 'layout tiles horizontal vertical'
+alt-comma = 'layout accordion horizontal vertical'
+alt-shift-w = 'close'
+alt-minus = 'resize smart -50'
+alt-equal = 'resize smart +50'
+
+# Workspaces 1-9
+alt-1 = 'workspace 1'
+alt-2 = 'workspace 2'
+alt-3 = 'workspace 3'
+alt-4 = 'workspace 4'
+alt-5 = 'workspace 5'
+alt-6 = 'workspace 6'
+alt-7 = 'workspace 7'
+alt-8 = 'workspace 8'
+alt-9 = 'workspace 9'
+alt-shift-1 = 'move-node-to-workspace 1'
+alt-shift-2 = 'move-node-to-workspace 2'
+alt-shift-3 = 'move-node-to-workspace 3'
+alt-shift-4 = 'move-node-to-workspace 4'
+alt-shift-5 = 'move-node-to-workspace 5'
+alt-shift-6 = 'move-node-to-workspace 6'
+alt-shift-7 = 'move-node-to-workspace 7'
+alt-shift-8 = 'move-node-to-workspace 8'
+alt-shift-9 = 'move-node-to-workspace 9'
+alt-tab = 'workspace-back-and-forth'
+alt-shift-tab = 'move-workspace-to-monitor --wrap-around next'
+
+# ⌥⇧; enters service mode (reload, reset, join)
+alt-shift-semicolon = 'mode service'
+
+[mode.service.binding]
+esc = ['reload-config', 'mode main']
+r = ['flatten-workspace-tree', 'mode main']
+f = ['layout floating tiling', 'mode main']
+backspace = ['close-all-windows-but-current', 'mode main']
+alt-shift-h = ['join-with left', 'mode main']
+alt-shift-j = ['join-with down', 'mode main']
+alt-shift-k = ['join-with up', 'mode main']
+alt-shift-l = ['join-with right', 'mode main']
+
+# Float the windows that never tile well.
+[[on-window-detected]]
+if.app-id = 'com.apple.systempreferences'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'local.macplugins.summon'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.finder'
+if.window-title-regex-substring = 'Info'
+run = 'layout floating'

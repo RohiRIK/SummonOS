@@ -1,0 +1,41 @@
+{
+  "name": "Summon Night",
+  "slug": "summon-night",
+  "appearance": "dark",
+  "source": "summon",
+  "colors": {
+    "background": "#0E0B1A",
+    "foreground": "#E4DEF7",
+    "accent": "#9B7BFF",
+    "accent2": "#3DE1FF",
+    "muted": "#5C567A",
+    "selection": "#2B2347",
+    "cursor": "#F6F3FF",
+    "border_active": "#9B7BFF",
+    "border_inactive": "#2B2347"
+  },
+  "terminal": [
+    "#1A1530",
+    "#FF6B8B",
+    "#7CF2B0",
+    "#FFD479",
+    "#7AA8FF",
+    "#D18BFF",
+    "#3DE1FF",
+    "#E4DEF7",
+    "#5C567A",
+    "#FF8FA6",
+    "#A3F7C9",
+    "#FFE2A3",
+    "#A2C2FF",
+    "#E2B2FF",
+    "#8AEDFF",
+    "#F6F3FF"
+  ],
+  "font": "JetBrainsMono Nerd Font",
+  "wallpapers": [
+    "1-portal.jpg",
+    "2-aurora.jpg",
+    "3-sigil.jpg"
+  ]
+}
