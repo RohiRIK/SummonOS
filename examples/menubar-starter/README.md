@@ -8,6 +8,9 @@ Start a new plugin from it with `tools/mp new <name> --kind menubar`. That copie
 `$MACPLUGINS_HOME/scratch/<name>/`, renames `Starter` to the PascalCase name and `menubar-starter` to
 the kebab-case name, and registers it in `plugins.json`.
 
+This starter is for workspace plugins. Apps made through Summon start from
+`incubator/summon/templates/<kind>` instead ([which path?](../../docs/workflow.md#which-path)).
+
 ## Layout
 
 | Path | What it is |

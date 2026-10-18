@@ -1,10 +1,10 @@
 # Project Context
 
 ## Overview
-Summon brings the Omarchy 4.0 experience to macOS for Rohi: one default coding agent summoned from anywhere
+Summon is Rohi's agent layer for macOS: one default coding agent summoned from anywhere
 (hotkey, drop-down terminal, menu bar, Summon Menu, notifications), the Mac handing it crashes and failures,
 skills linked into every agent CLI, one theme across macOS, terminal, tiling, borders and agents, and a
-checkpoint before every agent session.
+checkpoint before every agent session. It started from research on Omarchy 4.0; it is designed as its own thing.
 
 ## Current State
 - Incubating at `incubator/summon/` in `RohiRIK/macos-plugins`. Target repos: `mac-summon-dev` / `mac-summon`.
@@ -12,14 +12,15 @@ checkpoint before every agent session.
   `config/`: Brewfile, AeroSpace, Ghostty, borders, zsh. `design/`: brand assets + `generate.py`.
 - Swift package: `SummonCore` (agents, launch plans, .ips crash parsing + watcher, menu tree, themes + compilers,
   checkpoints, debug bundle, hooks, command catalog), `summon` CLI, `SummonMenuUI` + `SummonMenu` app (menu bar panel,
-  ⌃⌥Space launcher, ⌃⌥⌘A agent, crash notifications, Settings). Written 2026-10-17, not compiled yet.
+  ⌃⌥Space launcher, ⌃⌥⌘A agent, crash notifications, Activity window, Settings). Builds on CI; installed and used on Rohi's Mac 2026-10-18.
 - Projects: `templates/{menubar,app,cli,screensaver}` (each a buildable package with README, MIT LICENSE,
   PROJECT-CONTEXT.md, `scripts/check.sh`; CI builds them). `summon project new` copies one to `~/Summon/<name>` and
   records it in the private `~/.config/summon/projects.json`; `summon project repo` makes a private repo after a
   native dialog. Core: `Projects.swift`. Bundled into `Contents/share/summon/templates`.
-- Bundle id `local.macplugins.summon`. Depends on `macctl` (draft PR #6) for every settings change.
+- Bundle id `local.macplugins.summon`. Depends on `macctl` (`macctl/` in the workspace) for every settings change.
 
 ## Constraints
+- Original design: Omarchy and other projects are research, not a spec to port (Rohi, 2026-10-18).
 - Agents run with permission prompts bypassed (YOLO: `--dangerously-skip-permissions` etc.) behind a checkpoint + one-step undo (Rohi, 2026-10-17; bypass 2026-10-18).
 - Third-party tools via Homebrew are allowed (AeroSpace, Ghostty, JankyBorders) (Rohi, 2026-10-17).
 - Shape: Claude Code plugin + native Summon Menu app (Rohi, 2026-10-17). Name chosen by Rohi: Summon.
@@ -32,6 +33,9 @@ checkpoint before every agent session.
   publishing is a separate choice through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18).
 
 ## Recent History
+### 2026-10-18 — Docs: original framing, features list
+- README no longer pitches Summon as an Omarchy port; the seven community palettes are credited as such.
+- Every command, menu entry, setting and skill is listed in the workspace's `docs/features.md`.
 ### 2026-10-18 — Projects: templates, ~/Summon, private list, private repos (folds in PR #34)
 - Four templates (menu bar app, window app, CLI tool, screensaver), bundle ids `local.summon.<name>`, each with
   `scripts/check.sh` (build, tests, plist lint, bundle / release + `--help`), LICENSE and PROJECT-CONTEXT.md.

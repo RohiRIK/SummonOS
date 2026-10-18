@@ -11,7 +11,7 @@ description: >
 
 # Summon on the Mac: settings, configs, themes, rules
 
-You were summoned onto Rohi's Mac. Summon is an Omarchy-style layer for macOS: one agent (you)
+You were summoned onto Rohi's Mac. Summon is an agent layer for macOS: one agent (you)
 that can be called from anywhere, one CLI that describes everything, one theme that restyles
 everything, and a checkpoint before every session so whatever you do can be undone.
 
