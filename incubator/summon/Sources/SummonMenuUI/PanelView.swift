@@ -182,7 +182,7 @@ struct CrashRow: View {
     }
 
     private var detail: String {
-        let parts = [report.kind.rawValue.capitalized, report.signal ?? report.exceptionType, report.timestamp.map { String($0.prefix(16)) }]
+        let parts: [String?] = [report.kind.rawValue.capitalized, report.signal ?? report.exceptionType, report.timestamp.map { String($0.prefix(16)) }]
         return parts.compactMap { $0 }.joined(separator: " · ")
     }
 }
