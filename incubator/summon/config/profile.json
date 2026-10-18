@@ -2,7 +2,7 @@
   "name": "summon-default",
   "version": 1,
   "settings": {
-    "appearance.mode": "dark",
+    "appearance.dark-mode": true,
     "dock.autohide": true,
     "dock.tilesize": 40,
     "dock.show-recents": false,

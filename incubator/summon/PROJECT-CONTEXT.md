@@ -23,6 +23,10 @@ checkpoint before every agent session.
 - Panel vs Settings window split from AGENTS.md applies to the Summon Menu app.
 
 ## Recent History
+### 2026-10-18 — Match macctl's real keys and snapshots
+- Profile, menu and `theme set` use `appearance.dark-mode` (true/false); macctl has no wallpaper or screensaver keys.
+- Checkpoints record macctl's newest snapshot id as a marker; undo reverts every macctl snapshot after it, newest first.
+
 ### 2026-10-18 — Swift package merged (PR #13)
 - CLI, menu app, swift-testing tests; review fixes (cwd, checkpoint undo, runner, hotkey, guards).
 - Green on macOS CI (Xcode 26.6, Swift 6.3): builds, 38 tests pass. Not yet run by hand on a Mac (bundle, hotkeys, notifications).

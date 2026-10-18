@@ -66,7 +66,9 @@ Colors: `background`, `foreground`, `accent`, `accent2`, `muted`, `selection`.
   so stop timers and display links in `stopAnimation()` and on `NSNotification.Name("com.apple.screensaver.willstop")`;
   `isPreview` views are tiny; never block `animateOneFrame()`.
 - Draw with Core Animation or Metal, or host SwiftUI with `NSHostingView`. Respect the theme colors.
-- Install: copy to `~/Library/Screen Savers/`, then `macctl set screensaver.module <Name>`.
+- Install: copy to `~/Library/Screen Savers/`, then let the user pick it in System Settings › Screen Saver.
+  macctl has no screen saver setting yet, so selecting it from the shell is a raw `defaults -currentHost`
+  write (Summon rule 1: only with the user's yes, and report the command).
 
 ## Icons
 

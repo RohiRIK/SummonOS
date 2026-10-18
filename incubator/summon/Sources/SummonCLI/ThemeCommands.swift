@@ -43,7 +43,7 @@ enum ThemeCommands {
         // macOS appearance goes through macctl, so it is snapshotted and undoable.
         if let macctl = context.macctl {
             do {
-                _ = try await context.runner(macctl, ["set", "appearance.mode", theme.appearance])
+                _ = try await context.runner(macctl, ["set", "appearance.dark-mode", theme.appearance == "dark" ? "true" : "false"])
                 print("  appearance: \(theme.appearance)")
             } catch {
                 context.warn("  appearance not changed: \(error)")

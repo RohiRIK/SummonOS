@@ -138,7 +138,7 @@ enum AgentCommands {
             for problem in problems { context.warn(problem) }
             let commit = checkpoint.configCommit ?? "none"
             let snapshot = checkpoint.macctlSnapshot ?? "none"
-            print("Checkpoint \(checkpoint.id) \"\(checkpoint.label)\": config commit \(commit), macctl snapshot \(snapshot)")
+            print("Checkpoint \(checkpoint.id) \"\(checkpoint.label)\": config commit \(commit), macctl marker \(snapshot)")
         case "list":
             let all = service.list()
             if args.flag("--json") {
@@ -174,9 +174,10 @@ enum AgentCommands {
             if let id { throw CLIError("No checkpoint \(id). See: summon checkpoint list") }
             throw CLIError("No checkpoint yet. One is taken every time `summon agent` starts.")
         }
-        let steps = service.undoSteps(checkpoint)
+        let snapshots = try await service.macctlSnapshots(after: checkpoint)
+        let steps = service.undoSteps(checkpoint, macctlSnapshots: snapshots)
         guard !steps.isEmpty else {
-            throw CLIError("Checkpoint \(checkpoint.id) has nothing to restore (no ~/.config git repo and no macctl snapshot).")
+            throw CLIError("Checkpoint \(checkpoint.id) has nothing to restore (no ~/.config git repo and no macctl changes since).")
         }
         for step in steps {
             let line = ([step.executable] + step.arguments).joined(separator: " ")
