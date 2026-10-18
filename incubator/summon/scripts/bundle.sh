@@ -28,8 +28,9 @@ done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 cp design/brand/menubar-icon.png design/brand/menubar-icon@2x.png "$APP/Contents/Resources/"
 
-# Shared files: themes (with wallpapers), skills, config templates, logo.
+# Shared files: themes (with wallpapers), skills, config templates, project templates, logo.
 cp -R themes "$APP/Contents/share/summon/themes"
+rsync -a --exclude .build --exclude .swiftpm --exclude build templates/ "$APP/Contents/share/summon/templates/"
 cp -R plugin/skills "$APP/Contents/share/summon/skills"
 cp -R config "$APP/Contents/share/summon/config"
 cp -R design/brand "$APP/Contents/share/summon/assets"

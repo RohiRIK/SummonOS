@@ -11,6 +11,11 @@ renames `Starter` to the PascalCase name (`MacBattery`) and `menubar-starter` to
 (`mac-battery`), runs `git init`, and registers it in `plugins.json`. Never write a new plugin anywhere
 else. Repos come later, with the owner's OK: `tools/mp promote <name> --yes` (see `docs/tools.md`).
 
+This is for plugins of this workspace. Apps a user makes through Summon do not go here: they start with
+`summon project new <name> --kind menubar|app|cli|screensaver` in `~/Summon/<name>` from Summon's own templates
+(`incubator/summon/templates/`, each with `scripts/check.sh`, `LICENSE` and `PROJECT-CONTEXT.md`), are listed only
+in Summon's private `~/.config/summon/projects.json`, and get a private repo only through `summon project repo`.
+
 The starter has no `scripts/` yet: copy them from `plugins/mac-network/` (below). In the snippets on
 this page, `App` stands for the PascalCase name and `<name>` for the kebab-case name.
 

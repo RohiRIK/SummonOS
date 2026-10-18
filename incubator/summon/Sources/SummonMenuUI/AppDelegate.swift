@@ -18,6 +18,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
     }
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
+        // Every project lives in ~/Summon and agents start there, so it exists from the first launch.
+        try? ProjectsFolder.ensure(.live)
         let menuOK = HotKeyCenter.shared.register(id: SummonHotKey.menuID, keyCode: SummonHotKey.menuKey, modifiers: SummonHotKey.menuModifiers) { [weak self] in
             self?.launcher.toggle()
         }

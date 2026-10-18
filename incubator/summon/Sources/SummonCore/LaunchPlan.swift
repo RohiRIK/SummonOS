@@ -55,14 +55,14 @@ public struct DefaultTerminalStore: Sendable {
 }
 
 public enum AgentLauncher {
-    /// Agents refuse to remember trust for the home folder, so a launch from `~` starts in `~/Work` when it exists.
-    public static func workingDirectory(current: String, home: String, workExists: Bool) -> String {
+    /// Agents refuse to remember trust for the home folder, so a launch from `~` starts in the projects folder
+    /// (`~/Summon`, created on install and on every launch).
+    public static func workingDirectory(current: String, home: String, projects: String) -> String {
         let normalizedCurrent = (current as NSString).standardizingPath
         let normalizedHome = (home as NSString).standardizingPath
         // A GUI app (the Summon Menu) starts with `/` as its folder: treat that like home.
         let fromHomeOrRoot = normalizedCurrent == normalizedHome || normalizedCurrent == "/"
-        guard fromHomeOrRoot else { return normalizedCurrent }
-        return workExists ? (normalizedHome as NSString).appendingPathComponent("Work") : normalizedHome
+        return fromHomeOrRoot ? (projects as NSString).standardizingPath : normalizedCurrent
     }
 
     /// Opens a new terminal window running `agentArgv` in `directory`.

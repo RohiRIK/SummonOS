@@ -14,3 +14,13 @@ Order confirmed by the owner: A, B, C, D, then changelog + README, each merged o
 - [ ] D. Recurring agent tasks: `summon task add|list|remove|run`, launchd LaunchAgent, headless print mode, checkpoint,
       result in Activity + notification; managed in Settings › Tasks.
 - [ ] E. CHANGELOG + README refresh; PR; merge on clean CI.
+
+# Plan: Summon projects (2026-10-18, Rohi's handoff; "fold all together")
+
+- [x] Templates for menubar, app, cli, screensaver in `incubator/summon/templates/`, each with check.sh, LICENSE,
+      PROJECT-CONTEXT.md; no CI until a repo exists.
+- [x] `~/Summon` created on install and launch; agents start there; skills say `~/Summon`.
+- [x] Private registry `~/.config/summon/projects.json`; `summon project new|list|path|forget`.
+- [x] `summon project repo`: private only, after a native dialog enforced in code; adds CI.
+- [x] Make Something + `/summon:new-*` use the templates.
+- [ ] Run on the Mac: dialog, gh repo create, each template's check.sh; render #34's Settings previews.

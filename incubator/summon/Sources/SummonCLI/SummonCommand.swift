@@ -81,6 +81,8 @@ struct SummonCommand {
             try await MenuCommands.run(&args, context)
         case "icon":
             try IconCommands.run(&args, context)
+        case "project":
+            try await ProjectCommands.run(&args, context)
         case "path":
             print(PathCommand.installPath())
         case "skills":
