@@ -49,7 +49,7 @@ public enum DefaultMenu {
         { "id": "make.menubar", "label": "New Menu Bar App", "icon": "menubar.rectangle", "action": "summon agent prompt 'Make me a new menu bar app. Ask what it should show first, then follow the mac-app skill.'" },
         { "id": "make.app", "label": "New App", "icon": "macwindow", "action": "summon agent prompt 'Make me a new Mac app. Ask what it should do first, then follow the mac-app skill.'" },
         { "id": "make.screensaver", "label": "New Screensaver", "icon": "sparkles.tv", "action": "summon agent prompt 'Make me a new screensaver. Ask what it should show first, then follow the mac-app skill.'" },
-        { "id": "make.theme", "label": "New Theme", "icon": "paintbrush", "action": "summon agent prompt 'Make me a new Summon theme. Ask for a mood or an image first, then use the summon-art skill for the palette and wallpaper and the summon skill to install it.'" },
+        { "id": "make.theme", "label": "New Theme", "icon": "paintbrush", "action": "summon agent prompt 'Make me a new Summon theme. Ask for a mood or an image first, then use the summon-art skill for the palette and wallpaper and the summon-mac skill to install it.'" },
         { "id": "make.wallpaper", "label": "New Wallpaper", "icon": "photo.artframe", "aliases": ["background", "desktop"], "action": "summon agent prompt 'Make me a new wallpaper for the current Summon theme. Ask for a mood first, then follow the summon-art skill (wallpapers guide).'" },
         { "id": "make.icon", "label": "New Icon", "icon": "app.badge", "action": "summon agent prompt 'Make me a new icon. Ask what it is for and where to put it, then follow the summon-art skill (icons guide) and the mac-app skill to package and place it.'" },
 
