@@ -56,6 +56,8 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   report access. Exit 1 when any check fails.
 - The menu app writes `~/.local/state/summon/app.json` on launch (pid, hotkeys registered, notification permission)
   because only the app knows those.
+- Doctor also checks the four project templates in the shared files, `~/Summon` (projects.folder) and
+  `projects.json` (projects.registry: broken file fails, missing project folders warn).
 ### 2026-10-18 — Per-agent model and skills
 - `~/.config/summon/agents.json` (AgentSettings): per agent a model and the Summon skills it gets (default: CLI's
   model, every skill). `summon agents set <agent> --model … --skills a,b | --all-skills | --default-model`.
