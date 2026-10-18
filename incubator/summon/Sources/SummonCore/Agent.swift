@@ -62,6 +62,13 @@ public enum AgentRegistry {
             installHint: "npm install -g antigravity-cli"
         ),
         Agent(
+            // Pi has no permission prompts: it runs its tools without asking, so there is no bypass flag.
+            id: "pi", name: "Pi", command: "pi", aliases: ["pi-agent", "pi-coding-agent"],
+            interactive: ["pi"],
+            withPrompt: ["pi", "--"],
+            installHint: "bun add -g @earendil-works/pi-coding-agent"
+        ),
+        Agent(
             id: "grok", name: "Grok", command: "grok", aliases: ["grok-build"],
             interactive: ["grok", "--permission-mode", "bypassPermissions"],
             withPrompt: ["grok", "--permission-mode", "bypassPermissions", "--"],

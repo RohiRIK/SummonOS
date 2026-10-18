@@ -19,6 +19,7 @@ public enum DefaultMenu {
         { "id": "agent.default.copilot", "label": "GitHub Copilot", "icon": "person.2", "when": "command -v copilot", "checked": "[ \"$(summon default agent)\" = copilot ]", "action": "summon default agent copilot" },
         { "id": "agent.default.cursor-agent", "label": "Cursor CLI", "icon": "cursorarrow.rays", "when": "command -v cursor-agent", "checked": "[ \"$(summon default agent)\" = cursor-agent ]", "action": "summon default agent cursor-agent" },
         { "id": "agent.default.agy", "label": "Antigravity", "icon": "airplane", "when": "command -v agy", "checked": "[ \"$(summon default agent)\" = agy ]", "action": "summon default agent agy" },
+        { "id": "agent.default.pi", "label": "Pi", "icon": "p.circle", "when": "command -v pi", "checked": "[ \"$(summon default agent)\" = pi ]", "action": "summon default agent pi" },
         { "id": "agent.default.grok", "label": "Grok", "icon": "bolt", "when": "command -v grok", "checked": "[ \"$(summon default agent)\" = grok ]", "action": "summon default agent grok" },
 
         { "id": "style", "label": "Style", "icon": "paintpalette", "aliases": ["look", "appearance"] },
