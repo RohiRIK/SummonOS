@@ -34,6 +34,9 @@ public struct SystemBackend: SettingBackend {
         switch setting.backend {
         case .defaults(let domain, let key, let type):
             let (flag, text) = try Self.defaultsArgument(value, type: type, id: setting.id)
+            if case .path = setting.type, case .string(let path) = value {
+                try Self.createDirectory(path, id: setting.id)
+            }
             let result = try await runner(Tool.defaults, ["write", Self.domainArgument(domain), key, flag, text])
             if result.exitCode != 0 {
                 throw Self.failure("defaults write \(domain) \(key)", result)
@@ -43,6 +46,16 @@ public struct SystemBackend: SettingBackend {
             // `--` ends osascript's own options: a value such as "-e" or "-rf" stays a value.
             let result = try await runner(Tool.osascript, ["-e", setScript, "--", value.description])
             try Self.checkAppleScript(result, command: "osascript (\(setting.id) set)")
+        }
+    }
+
+    /// A path setting (screenshot folder) points at a folder that may not exist yet; create it so
+    /// the write takes effect instead of failing silently.
+    static func createDirectory(_ path: String, id: String) throws {
+        do {
+            try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
+        } catch {
+            throw MacCtlError.invalidValue(id: id, value: path, reason: "cannot create folder: \(error.localizedDescription)")
         }
     }
 

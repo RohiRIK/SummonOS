@@ -51,7 +51,9 @@ public struct FileSnapshotStore: SnapshotStore, SnapshotStoreDiagnostics {
         let decoder = Self.decoder()
         let snapshots = try files.map { try decoder.decode(Snapshot.self, from: Data(contentsOf: $0)) }
         return snapshots.sorted { a, b in
-            a.createdAt != b.createdAt ? a.createdAt > b.createdAt : a.id > b.id
+            a.createdAt != b.createdAt
+                ? a.createdAt > b.createdAt
+                : a.id.compare(b.id, options: .numeric) == .orderedDescending
         }
     }
 

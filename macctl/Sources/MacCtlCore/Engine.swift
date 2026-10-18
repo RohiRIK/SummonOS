@@ -42,7 +42,7 @@ public struct Engine: MacCtlService {
     public func get(_ id: String) async throws -> Value? {
         let setting = try registry.setting(id)
         try await requirePermissions([setting])
-        return try await backend.read(setting) ?? setting.systemDefault
+        return try await backend.read(setting) ?? setting.systemDefault.map(setting.type.normalize)
     }
 
     public func parse(_ text: String, for id: String) throws -> Value {
@@ -88,13 +88,19 @@ public struct Engine: MacCtlService {
     }
 
     /// Restores `from` for each change of the snapshot, in reverse order; `from == nil` resets the key.
-    /// The undo itself is snapshotted first, so it can be undone too.
+    /// The undo itself is snapshotted first (marked `undoes`), so it can be undone by id.
+    /// Without an id, picks the newest change that is not an undo and was not undone yet, so repeated
+    /// `undo` steps further back instead of toggling.
     public func undo(snapshotID: String?) async throws -> ApplyResult {
         let snapshot: Snapshot
         if let snapshotID {
             snapshot = try snapshotStore.load(id: snapshotID)
         } else {
-            guard let newest = try snapshotStore.list().first else { throw MacCtlError.noSnapshots }
+            let all = try snapshotStore.list()
+            let undone = Set(all.compactMap(\.undoes))
+            guard let newest = all.first(where: { $0.undoes == nil && !undone.contains($0.id) }) else {
+                throw MacCtlError.noSnapshots
+            }
             snapshot = newest
         }
 
@@ -131,7 +137,7 @@ public struct Engine: MacCtlService {
         guard !steps.isEmpty else {
             return ApplyResult(snapshotID: nil, changes: [], dryRun: false, notes: notes)
         }
-        let undoSnapshot = try saveSnapshot(undoChanges)
+        let undoSnapshot = try saveSnapshot(undoChanges, undoes: snapshot.id)
         try await write(steps)
         return ApplyResult(snapshotID: undoSnapshot.id, changes: undoChanges, dryRun: false, notes: notes)
     }
@@ -201,7 +207,7 @@ public struct Engine: MacCtlService {
         var planned: [Planned] = []
         for target in targets {
             let stored = try await backend.read(target.setting)
-            let effective = stored ?? target.setting.systemDefault
+            let effective = stored ?? target.setting.systemDefault.map(target.setting.type.normalize)
             if let effective, effective.sameValue(as: target.value) { continue }
             planned.append(Planned(setting: target.setting, change: Change(id: target.setting.id, from: stored, to: target.value)))
         }
@@ -224,10 +230,12 @@ public struct Engine: MacCtlService {
         }
     }
 
-    private func saveSnapshot(_ changes: [Change]) throws -> Snapshot {
+    private func saveSnapshot(_ changes: [Change], undoes: String? = nil) throws -> Snapshot {
         let date = now()
         let existing = try Set(snapshotStore.list().map(\.id))
-        let snapshot = Snapshot(id: FileSnapshotStore.makeID(date: date, existing: existing), createdAt: date, changes: changes)
+        let snapshot = Snapshot(
+            id: FileSnapshotStore.makeID(date: date, existing: existing), createdAt: date, changes: changes,
+            undoes: undoes)
         try snapshotStore.save(snapshot)
         return snapshot
     }

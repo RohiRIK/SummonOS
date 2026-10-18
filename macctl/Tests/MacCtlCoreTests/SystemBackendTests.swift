@@ -298,9 +298,10 @@ struct SystemBackendTests {
     @Test func automationStatusMapping() {
         #expect(SystemPermissionProbe.automationCheck(status: 0, bundleID: "com.apple.systemevents").granted)
         let notRunning = SystemPermissionProbe.automationCheck(status: -600, bundleID: "com.apple.systemevents")
-        #expect(!notRunning.granted)
+        // Not running or not asked yet must not block: the first Apple Event shows the prompt.
+        #expect(notRunning.granted)
         #expect(notRunning.detail.contains("not running"))
-        #expect(!SystemPermissionProbe.automationCheck(status: -1744, bundleID: "x").granted)
+        #expect(SystemPermissionProbe.automationCheck(status: -1744, bundleID: "x").granted)
         #expect(!SystemPermissionProbe.automationCheck(status: -1743, bundleID: "x").granted)
     }
 

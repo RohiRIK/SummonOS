@@ -8,6 +8,10 @@ import ApplicationServices
 
 /// Checks TCC permissions without ever showing a prompt.
 ///
+/// `granted` means "will not be refused": Automation that has not been asked yet (-1744) or whose
+/// target is not running (-600) counts as granted, because the first real Apple Event shows the
+/// consent prompt. Only an explicit denial blocks a write.
+///
 /// TCC attributes grants to the responsible process (the terminal or app that launched macctl),
 /// so a result describes that host, not the macctl binary itself.
 public struct SystemPermissionProbe: PermissionProbe {
@@ -75,9 +79,9 @@ public struct SystemPermissionProbe: PermissionProbe {
         case -1743: // errAEEventNotPermitted
             return Check(granted: false, detail: "Automation of \(bundleID) was denied; allow it in System Settings")
         case -1744: // errAEEventWouldRequireUserConsent
-            return Check(granted: false, detail: "Automation of \(bundleID) has not been asked yet; macOS will prompt on first use")
+            return Check(granted: true, detail: "Automation of \(bundleID) has not been asked yet; macOS will prompt on first use")
         case -600: // procNotFound
-            return Check(granted: false, detail: "\(bundleID) is not running, so its Automation permission cannot be checked; open it and re-run")
+            return Check(granted: true, detail: "\(bundleID) is not running; macOS will prompt on first use if Automation was never asked")
         default:
             return Check(granted: false, detail: "Automation check for \(bundleID) failed (OSStatus \(status))")
         }

@@ -50,6 +50,15 @@ struct SnapshotStoreTests {
         #expect(try store.list().map(\.id) == ["b", "a"])
     }
 
+    @Test func sameSecondCollisionSuffixesSortNumerically() throws {
+        let (store, dir) = makeStore()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        for id in ["20261018-040000", "20261018-040000-2", "20261018-040000-9", "20261018-040000-10"] {
+            try store.save(Snapshot(id: id, createdAt: date, changes: []))
+        }
+        #expect(try store.list().first?.id == "20261018-040000-10")
+    }
+
     @Test func loadMissingOrUnsafeID() async {
         let (store, dir) = makeStore()
         defer { try? FileManager.default.removeItem(at: dir) }

@@ -34,8 +34,10 @@ extension ValueType {
                 throw MacCtlError.invalidValue(id: id, value: text, reason: "expected a number")
             }
             raw = .double(d)
-        case .string, .enumeration:
+        case .string:
             raw = .string(text)
+        case .enumeration:
+            raw = .string(trimmed)
         case .path:
             raw = .string(trimmed)
         }

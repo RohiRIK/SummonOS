@@ -151,10 +151,13 @@ public struct Snapshot: Sendable, Hashable, Codable, Identifiable {
     public let id: String
     public let createdAt: Date
     public let changes: [Change]
+    /// Set on the snapshot an `undo` records: the id of the snapshot it reverted.
+    public let undoes: String?
 
-    public init(id: String, createdAt: Date, changes: [Change]) {
+    public init(id: String, createdAt: Date, changes: [Change], undoes: String? = nil) {
         self.id = id
         self.createdAt = createdAt
         self.changes = changes
+        self.undoes = undoes
     }
 }
