@@ -19,6 +19,8 @@ public enum CommandCatalog {
                     args: "[--inline] <prompt...>", examples: ["summon agent prompt \"Why is my Mac slow?\""], risk: "launch"),
         CommandInfo(route: "default agent", summary: "Show or set the default coding agent",
                     args: "[claude|codex|opencode|copilot|cursor-agent|agy|grok]", examples: ["summon default agent", "summon default agent claude"], risk: "user"),
+        CommandInfo(route: "default terminal", summary: "Show or set the terminal agents open in (unset: first installed of Ghostty, kitty, Terminal)",
+                    args: "[ghostty|kitty|terminal]", examples: ["summon default terminal", "summon default terminal kitty"], risk: "user"),
         CommandInfo(route: "agents", summary: "List the agents Summon knows, whether each is installed, and how to install it",
                     args: "[--json]", examples: ["summon agents --json"], risk: "read"),
         CommandInfo(route: "checkpoint create", summary: "Take a checkpoint now (macctl snapshot + git commit of ~/.config)",

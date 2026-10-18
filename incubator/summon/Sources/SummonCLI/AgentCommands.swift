@@ -72,7 +72,7 @@ enum AgentCommands {
             _ = fileManager.changeCurrentDirectoryPath(directory)
             execReplacing(agentPath, argv)
         }
-        let terminal = AgentLauncher.preferredTerminal(ghosttyInstalled: AgentLauncher.ghosttyInstalled)
+        let terminal = AgentLauncher.preferredTerminal(saved: DefaultTerminalStore(paths: context.paths).load(), installed: TerminalApp.installed)
         let plan = AgentLauncher.terminalPlan(agentArgv: [agentPath] + argv.dropFirst(), directory: directory, terminal: terminal)
         _ = try await context.runner(plan.executable, plan.arguments)
     }
@@ -102,6 +102,22 @@ enum AgentCommands {
         } else {
             print("Default agent is now \(agent.name).")
         }
+    }
+
+    /// `summon default terminal [name]`. Without a name, prints the terminal agents will open in.
+    static func defaultTerminal(_ args: inout Arguments, _ context: Context) throws {
+        let store = DefaultTerminalStore(paths: context.paths)
+        guard let name = args.next() else {
+            print(AgentLauncher.preferredTerminal(saved: store.load(), installed: TerminalApp.installed).rawValue)
+            return
+        }
+        guard let terminal = TerminalApp(rawValue: name.lowercased()) else {
+            throw CLIError("Unknown terminal: \(name)\nKnown: " + TerminalApp.allCases.map(\.rawValue).joined(separator: ", "))
+        }
+        try store.save(terminal)
+        print(terminal.isInstalled
+            ? "Agents now open in \(terminal.name)."
+            : "Saved \(terminal.name), but it is not installed; agents open in \(AgentLauncher.preferredTerminal(saved: terminal, installed: TerminalApp.installed).name) until it is.")
     }
 
     struct AgentRow: Encodable {

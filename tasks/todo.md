@@ -3,19 +3,19 @@
 The active plan goes here. When a plan is done, move it to `docs/plans/YYYY-MM-DD-<name>.md`
 and leave this file with only what is still in progress.
 
-# Plan: `macctl` — macOS setup CLI for AI agents (new tool)
+# Plan: Summon — Kitty, muted apps, art-directed wallpapers (2026-10-18)
 
-Status: milestone 1 written (draft PR #6), not yet compiled. Full plan: `docs/plans/2026-10-16-macctl.md`.
-Repos: `mac-ctl-dev` (private) / `mac-ctl` (public). Bundle id `local.macplugins.macctl`.
+Branch `feat/summon-kitty-mute-wallpapers`. User OK'd items 1 and 3 plus the wallpaper skill; promote (4) needs a separate OK.
 
-## Decisions
-- Swift binary (Core / CLI / later MCP + helper app), JSON profiles, snapshot before every change, `--json` everywhere.
-- `swift-argument-parser` approved by the user as the one dependency (exception to the no-deps rule).
+- [x] Kitty: `TerminalApp.kitty` (open -na kitty --single-instance: one window, one process), `defaults/terminal`
+      + `summon default terminal <name>`, Settings "Terminal" picker (installed only), Install › Kitty menu entry. Tests first.
+- [x] Muted apps: Settings › Notifications lists muted programs with Unmute, only when non-empty.
+- [x] Wallpapers: `plugin/skills/summon/Wallpapers.md` with Art-skill direction (concept from mood, palette from theme,
+      composition for a desktop, Nano Banana via agy, candidates → preview → pick → 5120×2880 into theme). Link from SKILL.md.
+- [x] Verify: check.sh, real app screenshots, one real wallpaper generation through the documented path.
+- [x] PR, merge on green CI.
 
-## Milestone 1
-- [ ] Scaffold `mac-ctl-dev`, PROJECT-CONTEXT.md
-- [ ] Core test-first: registry, values, profile diff, snapshots, restart batching
-- [ ] Backends: defaults, killall, AppleScript (argv only + injection test)
-- [ ] ~15 settings verified on a real Mac (dock, finder, keyboard, screenshots, dark mode)
-- [ ] Commands: doctor, list, describe, get, set, diff, apply, snapshot list, undo
-- [ ] Sample profile + `MacSetup` skill; verify apply/undo on the Mac; PR + report
+## Review
+- All gates green (55 tests). Settings, muted list, Unmute verified in the real app; two real wallpaper candidates generated
+  in ~/Downloads/summon-wallpapers/catppuccin/ (the second has a film-frame border: the review step's job).
+- Not verified: kitty launch (kitty not installed), Ghostty cold start.
