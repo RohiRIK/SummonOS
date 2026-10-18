@@ -23,6 +23,13 @@ checkpoint before every agent session.
 - Panel vs Settings window split from AGENTS.md applies to the Summon Menu app.
 
 ## Recent History
+### 2026-10-18 — Skills linked into every agent (Omarchy's way)
+- `summon skills link` (also run by install.sh and on every app launch) symlinks every shipped skill into
+  `~/.agents/skills`, `~/.claude/skills`, `~/.codex/skills`, `~/.gemini/config/skills`; a real folder of the user's is kept.
+- Antigravity's CLI reads only `~/.gemini/config/skills` (probed with agy 1.4.2; not `~/.antigravity`, `~/.gemini/skills`,
+  `~/.gemini/antigravity/skills`). Verified: agy and Claude Code list all four Summon skills after linking.
+- Every agent prompt ends with the skill file paths ("if your harness has no skill mechanism, read the file"); the crash
+  prompt now points at the shipped copy (it named a file that never existed).
 ### 2026-10-18 — Activity as a simple log (user: "easier, not complicated")
 - Activity window = one plain list, oldest first, opens at the newest line: `HH:mm  sentence` in monospace, only
   problems coloured, no columns or fields (full line in the tooltip and in copies). Checkpoint lines hidden (every

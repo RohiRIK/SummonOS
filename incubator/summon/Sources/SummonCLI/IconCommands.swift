@@ -32,6 +32,40 @@ enum IconCommands {
     }
 }
 
+enum SkillCommands {
+    static var source: URL {
+        URL(fileURLWithPath: PathCommand.installPath()).appendingPathComponent("skills", isDirectory: true)
+    }
+
+    /// `summon skills` lists the shipped skill files; `summon skills link` links them into every agent's folder.
+    static func run(_ args: inout Arguments, _ context: Context) throws {
+        switch args.next() {
+        case nil, "list":
+            SkillLinker.skillFiles(in: source).forEach { print($0) }
+        case "link":
+            let quiet = args.flag("--quiet")
+            let result = try SkillLinker(home: context.paths.home).link(from: source)
+            for path in result.kept {
+                context.warn("Leaving your own \(path) in place")
+            }
+            if !quiet {
+                print("Linked \(SkillLinker.skillNames(in: source).joined(separator: ", ")) into " +
+                      SkillLinker.agentFolders.map { "~/" + $0 }.joined(separator: ", "))
+            }
+        default:
+            throw CLIError("Usage: summon skills [list] | summon skills link [--quiet]")
+        }
+    }
+
+    /// Appended to every agent prompt, as Omarchy does: agents without a skill mechanism read the files directly.
+    static func promptFooter() -> String {
+        let files = SkillLinker.skillFiles(in: source)
+        guard !files.isEmpty else { return "" }
+        return "\n\nSummon skills (use the one that fits; if your harness has no skill mechanism, read the file and follow it):\n"
+            + files.map { "  \($0)" }.joined(separator: "\n")
+    }
+}
+
 enum PathCommand {
     /// Where Summon's shared files live (themes, skills, wallpapers): `$SUMMON_PATH`, else `<binary>/../share/summon`,
     /// else the folder holding the binary. Printed by `summon path` so skills never hard-code it.
