@@ -131,3 +131,31 @@ struct ActivityTests {
         #expect(StatusProbe.doctorProblems(fromJSON: "nope") == ["doctor output could not be read"])
     }
 }
+
+@Suite("Session hooks")
+struct SessionHookTests {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+    @Test func startAndEndCarryTheSessionAndFolder() throws {
+        let start = try #require(SessionHook.event(phase: "start", payload: #"{"session_id":"abc","cwd":"/Users/x/Work","source":"startup","hook_event_name":"SessionStart"}"#, now: now))
+        #expect(start.kind == EventKind.sessionStart)
+        #expect(start.title == "Claude Code session started")
+        #expect(start.refs == ["session": "abc", "folder": "/Users/x/Work"])
+        let end = try #require(SessionHook.event(phase: "end", payload: #"{"session_id":"abc","reason":"prompt_input_exit"}"#, now: now))
+        #expect(end.kind == EventKind.sessionEnd)
+        #expect(end.detail == "Reason: prompt_input_exit")
+        #expect(StatusProbe.openSession(in: [start, end], now: now) == nil)
+        #expect(StatusProbe.openSession(in: [start], now: now) == start)
+    }
+
+    @Test func compactionAndUnknownPhasesRecordNothing() {
+        #expect(SessionHook.event(phase: "start", payload: #"{"session_id":"abc","source":"compact"}"#) == nil)
+        #expect(SessionHook.event(phase: "middle", payload: "{}") == nil)
+    }
+
+    @Test func badPayloadStillRecords() throws {
+        let event = try #require(SessionHook.event(phase: "start", payload: "not json", now: now))
+        #expect(event.refs.isEmpty)
+        #expect(event.title == "Claude Code session started")
+    }
+}

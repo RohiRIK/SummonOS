@@ -1,0 +1,11 @@
+{
+  "description": "Tell Summon when an agent session starts and ends, so the Activity window shows it as running.",
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/summon-session.sh\" start", "timeout": 10 } ] }
+    ],
+    "SessionEnd": [
+      { "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/summon-session.sh\" end", "timeout": 10 } ] }
+    ]
+  }
+}
