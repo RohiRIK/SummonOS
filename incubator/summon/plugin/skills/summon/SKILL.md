@@ -70,7 +70,7 @@ Then `summon theme set <slug>`. Wallpapers: 5120×2880 JPEG next to `theme.json`
 
 | Keys | Does |
 |---|---|
-| ⌥Space | Summon Menu |
+| ⌃⌥Space | Summon Menu |
 | ⌃⌥⌘A | Summon the agent in a new terminal |
 | ⌃⌥⌘\` | Drop-down terminal (Ghostty quick terminal); type `a` for the agent |
 | ⌥1…9 / ⌥⇧1…9 | Go to / move window to workspace |
@@ -78,7 +78,7 @@ Then `summon theme set <slug>`. Wallpapers: 5120×2880 JPEG next to `theme.json`
 | ⌥Return | New Ghostty window |
 | ⌥⇧F / ⌥⇧W | Fullscreen / close window; ⌥⇧Space float toggle |
 
-Change them in `aerospace.toml` (window keys) and Summon's Settings window (⌥Space, ⌃⌥⌘A).
+Change them in `aerospace.toml` (window keys) and Summon's Settings window (⌃⌥Space, ⌃⌥⌘A).
 
 ## Building something new
 
