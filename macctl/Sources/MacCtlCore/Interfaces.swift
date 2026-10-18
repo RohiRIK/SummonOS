@@ -9,6 +9,13 @@ public protocol SettingBackend: Sendable {
     func write(_ value: Value, for setting: Setting) async throws
     /// Remove the stored value so the system default applies again (`defaults delete`).
     func reset(_ setting: Setting) async throws
+    /// Checks a value against the live system before any write (for example that a file exists).
+    /// The engine calls it for every value of a batch before the first write. Default: accepts all.
+    func validate(_ value: Value, for setting: Setting) throws
+}
+
+extension SettingBackend {
+    public func validate(_ value: Value, for setting: Setting) throws {}
 }
 
 /// Runs side effects (killall Dock, ...) once each, after a batch of writes.
