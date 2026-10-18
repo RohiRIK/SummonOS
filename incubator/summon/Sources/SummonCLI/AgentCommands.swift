@@ -38,9 +38,11 @@ enum AgentCommands {
             throw CLIError("\(agent.name) is not installed. Install it with: \(agent.installHint)", code: .missingDependency)
         }
 
+        var checkpointID: String?
         if checkpoint {
             let service = CheckpointService(paths: context.paths, runner: context.runner, gitPath: context.git, macctlPath: context.macctl)
-            let (_, problems) = await service.create(label: prompt.map { "agent: " + String($0.prefix(60)) } ?? "agent session")
+            let (taken, problems) = await service.create(label: prompt.map { "agent: " + String($0.prefix(60)) } ?? "agent session")
+            checkpointID = taken.id
             for problem in problems {
                 context.warn("checkpoint: \(problem)")
             }
@@ -54,6 +56,15 @@ enum AgentCommands {
             home: context.paths.home.path,
             workExists: workExists
         )
+
+        var refs = ["agent": agent.id, "folder": directory]
+        refs["checkpoint"] = checkpointID
+        ActivityCommands.record(LoggedEvent(
+            kind: EventKind.agentLaunch,
+            title: "Started \(agent.name)",
+            detail: prompt.map { String($0.prefix(200)) },
+            refs: refs
+        ), context)
 
         // argv[0] stays the command name; the absolute path is what actually runs, so a GUI PATH cannot miss it.
         let argv = agent.argv(prompt: prompt)
@@ -189,6 +200,12 @@ enum AgentCommands {
             }
         }
         if !dryRun {
+            ActivityCommands.record(LoggedEvent(
+                kind: EventKind.sessionUndo,
+                title: "Restored checkpoint \(checkpoint.label)",
+                detail: snapshots.isEmpty ? nil : "Undid macctl snapshots " + snapshots.joined(separator: ", "),
+                refs: ["checkpoint": checkpoint.id]
+            ), context)
             print("Restored checkpoint \(checkpoint.id) \"\(checkpoint.label)\". Files created after it were left in place; see `git -C ~/.config status`.")
         }
     }
