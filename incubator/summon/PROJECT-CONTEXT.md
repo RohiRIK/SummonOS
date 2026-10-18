@@ -45,6 +45,13 @@ checkpoint before every agent session.
 - PR #34 (Settings window with a sidebar: General, Agents, Terminal, Notifications, Appearance, Tasks) is in the
   same PR. Its previews were never rendered; needs a look on the Mac.
 - Not run on a Mac yet: the dialog, `gh repo create`, the templates' bundle scripts.
+### 2026-10-18 — `summon doctor`
+- `summon doctor [--json]` (SummonCore `Doctor`): pass/warn/fail with a fix for install (app, CLI on PATH, shared
+  files), config (folder, default agent, agents.json, terminal, menu, themes, ~/.config git), macctl (+ its doctor),
+  state folder, event log, skill links per installed agent, Claude Code plugin, app/hotkeys/notifications, crash
+  report access. Exit 1 when any check fails.
+- The menu app writes `~/.local/state/summon/app.json` on launch (pid, hotkeys registered, notification permission)
+  because only the app knows those.
 ### 2026-10-18 — Per-agent model and skills
 - `~/.config/summon/agents.json` (AgentSettings): per agent a model and the Summon skills it gets (default: CLI's
   model, every skill). `summon agents set <agent> --model … --skills a,b | --all-skills | --default-model`.

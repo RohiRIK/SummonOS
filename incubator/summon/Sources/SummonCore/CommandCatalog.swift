@@ -39,6 +39,8 @@ public enum CommandCatalog {
                     args: "[--dry-run]", examples: ["summon undo-session"], risk: "user"),
         CommandInfo(route: "status", summary: "Agent, macctl, last change, last checkpoint and recent problems at a glance",
                     args: "[--json]", examples: ["summon status", "summon status --json"], risk: "read"),
+        CommandInfo(route: "doctor", summary: "Check Summon's own install and setup: app, CLI, config, macctl, event log, hotkeys, permissions, skill links",
+                    args: "[--json]", examples: ["summon doctor", "summon doctor --json"], risk: "read"),
         CommandInfo(route: "events", summary: "The activity timeline: settings changes, undos, checkpoints, agent sessions, themes, crashes",
                     args: "[--json] [--limit N] [--kind settings|agent|checkpoint|theme|problem]",
                     examples: ["summon events --limit 10", "summon events --kind settings --json"], risk: "read"),
