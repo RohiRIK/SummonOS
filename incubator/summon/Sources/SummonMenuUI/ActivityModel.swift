@@ -96,21 +96,6 @@ public final class ActivityModel {
         return events.first { $0.id == selection }
     }
 
-    /// The macctl snapshots taken after a checkpoint and before the next one: what that session changed.
-    public func changes(after checkpointID: String) -> [MacctlSnapshot] {
-        let ordered = sources.checkpoints.sorted { $0.createdAt < $1.createdAt }
-        guard let index = ordered.firstIndex(where: { $0.id == checkpointID }) else { return [] }
-        let end = index + 1 < ordered.count ? ordered[index + 1].createdAt : nil
-        return ActivityFeed.snapshots(sources.snapshots, from: ordered[index].createdAt, to: end)
-    }
-
-    /// Newer snapshots that touch any key of this one: undoing it would overwrite them.
-    public func laterOverlaps(_ snapshotID: String) -> [MacctlSnapshot] {
-        guard let target = sources.snapshots.first(where: { $0.id == snapshotID }) else { return [] }
-        let keys = Set(target.changes.map(\.id))
-        return sources.snapshots.filter { $0.createdAt > target.createdAt && !keys.isDisjoint(with: $0.changes.map(\.id)) }
-    }
-
     // MARK: Loading
 
     public func requestOpen() {
