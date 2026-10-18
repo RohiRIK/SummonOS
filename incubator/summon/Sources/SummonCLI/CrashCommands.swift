@@ -68,12 +68,8 @@ enum CrashCommands {
         return try CrashReport.parse(String(decoding: data, as: UTF8.self), file: path)
     }
 
-    /// Installed by the Summon plugin; the menu app and the CLI point agents at the same copy.
+    /// The shipped copy, the one `summon skills link` points every agent at.
     static func skillPath(_ context: Context) -> String {
-        let candidates = [
-            context.paths.home.appendingPathComponent(".claude/skills/diagnose-crash-mac/SKILL.md").path,
-            context.paths.config.appendingPathComponent("skills/diagnose-crash-mac/SKILL.md").path,
-        ]
-        return candidates.first { FileManager.default.fileExists(atPath: $0) } ?? candidates[1]
+        SkillCommands.source.appendingPathComponent("diagnose-crash-mac/SKILL.md").path
     }
 }
