@@ -23,8 +23,9 @@ checkpoint before every agent session.
 - Panel vs Settings window split from AGENTS.md applies to the Summon Menu app.
 
 ## Recent History
-### 2026-10-17 — Swift package (draft PR)
-- CLI, menu app, swift-testing tests; review fixes (cwd, checkpoint undo, runner, hotkey, guards). Needs a Mac/CI build.
+### 2026-10-18 — Swift package merged (PR #13)
+- CLI, menu app, swift-testing tests; review fixes (cwd, checkpoint undo, runner, hotkey, guards).
+- Green on macOS CI (Xcode 26.6, Swift 6.3): builds, 38 tests pass. Not yet run by hand on a Mac (bundle, hotkeys, notifications).
 
 ### 2026-10-17 — Design, themes, plugin, configs
 - Logo (summoning circle around `›_`), app icon, menu bar template icon, wordmarks, banner.
