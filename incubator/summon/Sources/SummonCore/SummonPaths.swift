@@ -20,6 +20,7 @@ public struct SummonPaths: Sendable, Equatable {
     public var config: URL { userConfig.appendingPathComponent("summon", isDirectory: true) }
     public var defaultAgentFile: URL { config.appendingPathComponent("defaults/agent") }
     public var defaultTerminalFile: URL { config.appendingPathComponent("defaults/terminal") }
+    public var agentSettingsFile: URL { config.appendingPathComponent("agents.json") }
     public var currentThemeFile: URL { config.appendingPathComponent("current-theme") }
     public var themes: URL { config.appendingPathComponent("themes", isDirectory: true) }
     public var generated: URL { config.appendingPathComponent("generated", isDirectory: true) }

@@ -53,7 +53,12 @@ struct SummonCommand {
             default: throw CLIError("Usage: summon default agent [name] | summon default terminal [name]")
             }
         case "agents":
-            try AgentCommands.list(&args, context)
+            if args.items.first == "set" {
+                _ = args.next()
+                try AgentCommands.set(&args, context)
+            } else {
+                try AgentCommands.list(&args, context)
+            }
         case "checkpoint":
             try await AgentCommands.checkpoint(&args, context)
         case "undo-session":

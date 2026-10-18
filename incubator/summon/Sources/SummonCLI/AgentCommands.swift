@@ -67,7 +67,9 @@ enum AgentCommands {
         ), context)
 
         // argv[0] stays the command name; the absolute path is what actually runs, so a GUI PATH cannot miss it.
-        let argv = agent.argv(prompt: prompt.map { $0 + SkillCommands.promptFooter() })
+        let settings = AgentSettingsStore(paths: context.paths).load()
+        let argv = agent.argv(prompt: prompt.map { $0 + SkillCommands.promptFooter(agent: agent.id, settings: settings) },
+                              model: settings.model(for: agent.id))
         if inline {
             _ = fileManager.changeCurrentDirectoryPath(directory)
             execReplacing(agentPath, argv)
@@ -127,15 +129,46 @@ enum AgentCommands {
         let path: String?
         let isDefault: Bool
         let installHint: String
+        let model: String?
+        let skills: [String]
+    }
+
+    /// `summon agents set <agent> [--model <m> | --default-model] [--skills a,b | --all-skills]`.
+    static func set(_ args: inout Arguments, _ context: Context) throws {
+        guard let name = args.next(), let agent = AgentRegistry.find(name) else {
+            throw CLIError("Usage: summon agents set <agent> [--model <model> | --default-model] [--skills a,b | --all-skills]")
+        }
+        let store = AgentSettingsStore(paths: context.paths)
+        var settings = store.load()
+        let shipped = SkillLinker.skillNames(in: SkillCommands.source)
+        if args.flag("--default-model") { settings.setModel(nil, for: agent.id) }
+        if let model = args.option("--model") {
+            guard agent.modelFlag != nil else { throw CLIError("\(agent.name) has no model option; set its model in its own config.") }
+            settings.setModel(model, for: agent.id)
+        }
+        if args.flag("--all-skills") { settings.setSkills(nil, for: agent.id) }
+        if let list = args.option("--skills") {
+            let names = list.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            let unknown = names.filter { !shipped.contains($0) }
+            guard unknown.isEmpty else { throw CLIError("Unknown skill: \(unknown.joined(separator: ", "))\nShipped: \(shipped.joined(separator: ", "))") }
+            settings.setSkills(names, for: agent.id)
+        }
+        try store.save(settings)
+        _ = try SkillLinker(home: context.paths.home).link(from: SkillCommands.source, settings: settings)
+        let model = settings.model(for: agent.id) ?? "its default"
+        print("\(agent.name): model \(model); skills \(settings.skills(for: agent.id, shipped: shipped).joined(separator: ", "))")
     }
 
     static func list(_ args: inout Arguments, _ context: Context) throws {
         let json = args.flag("--json")
         let current = DefaultAgentStore(paths: context.paths).load()?.id
+        let settings = AgentSettingsStore(paths: context.paths).load()
+        let shipped = SkillLinker.skillNames(in: SkillCommands.source)
         let rows = AgentRegistry.all.map { agent -> AgentRow in
             let path = context.tools.find(agent.command)
             return AgentRow(id: agent.id, name: agent.name, installed: path != nil, path: path,
-                            isDefault: agent.id == current, installHint: agent.installHint)
+                            isDefault: agent.id == current, installHint: agent.installHint,
+                            model: settings.model(for: agent.id), skills: settings.skills(for: agent.id, shipped: shipped))
         }
         if json {
             try context.printJSON(rows)
@@ -144,7 +177,8 @@ enum AgentCommands {
         for row in rows {
             let mark = row.isDefault ? "*" : " "
             let state = row.installed ? "installed" : "not installed (\(row.installHint))"
-            print("\(mark) \(row.id.padding(toLength: 13, withPad: " ", startingAt: 0)) \(row.name): \(state)")
+            let model = row.model.map { " · model \($0)" } ?? ""
+            print("\(mark) \(row.id.padding(toLength: 13, withPad: " ", startingAt: 0)) \(row.name): \(state)\(model) · skills \(row.skills.joined(separator: ","))")
         }
     }
 

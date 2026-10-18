@@ -4,10 +4,17 @@ import Foundation
 /// `omarchy-provision-user` does: symlinks (so an app update reaches every agent), every skill folder (so shipping a
 /// new skill needs no code change), and a real folder of the user's with the same name is left alone.
 public struct SkillLinker: Sendable {
-    /// Relative to home. `.agents/skills` is the shared standard (OpenCode, Codex); Antigravity's CLI reads only
-    /// `.gemini/config/skills` (verified with agy 1.4.2: not `~/.antigravity`, `~/.gemini/skills` or
-    /// `~/.gemini/antigravity/skills`). OpenCode also reads `.claude/skills`.
-    public static let agentFolders = [".agents/skills", ".claude/skills", ".codex/skills", ".gemini/config/skills", ".pi/agent/skills"]
+    /// Each agent's own folder (from `AgentRegistry`), so a skill can go to one agent and not another:
+    /// Claude `.claude/skills`, Codex `.codex/skills`, OpenCode `.config/opencode/skills`, Antigravity
+    /// `.gemini/config/skills` (verified: not `~/.antigravity`), Pi `.pi/agent/skills`. OpenCode also reads
+    /// `.claude/skills`, so it sees Claude's choice too. The shared `.agents/skills` is not used: it would hand every
+    /// skill to every agent that reads it.
+    public static var agentFolders: [String] {
+        AgentRegistry.all.compactMap(\.skillFolder)
+    }
+
+    /// Folders Summon linked into before per-agent choices; its links there are removed.
+    static let retiredFolders = [".agents/skills"]
 
     public struct Result: Sendable, Equatable {
         public var linked: [String] = []
@@ -21,27 +28,45 @@ public struct SkillLinker: Sendable {
         self.home = home
     }
 
-    public func link(from source: URL) throws -> Result {
+    public func link(from source: URL, settings: AgentSettings) throws -> Result {
         let fm = FileManager.default
         var result = Result()
-        let skills = Self.skillNames(in: source)
-        for folder in Self.agentFolders {
+        let shipped = Self.skillNames(in: source)
+        for agent in AgentRegistry.all {
+            guard let folder = agent.skillFolder else { continue }
             let dir = home.appendingPathComponent(folder, isDirectory: true)
             try fm.createDirectory(at: dir, withIntermediateDirectories: true)
-            for name in skills {
+            let chosen = Set(settings.skills(for: agent.id, shipped: shipped))
+            for name in shipped {
                 let link = dir.appendingPathComponent(name)
-                let target = source.appendingPathComponent(name).path
-                if (try? fm.destinationOfSymbolicLink(atPath: link.path)) != nil {
+                let isLink = (try? fm.destinationOfSymbolicLink(atPath: link.path)) != nil
+                if !chosen.contains(name) {
+                    if isLink, isOurs(link, name: name) { try fm.removeItem(at: link) }
+                    continue
+                }
+                if isLink {
                     try fm.removeItem(at: link)
                 } else if fm.fileExists(atPath: link.path) {
                     result.kept.append(link.path)
                     continue
                 }
-                try fm.createSymbolicLink(atPath: link.path, withDestinationPath: target)
+                try fm.createSymbolicLink(atPath: link.path, withDestinationPath: source.appendingPathComponent(name).path)
                 result.linked.append(link.path)
             }
         }
+        for folder in Self.retiredFolders {
+            for name in shipped {
+                let link = home.appendingPathComponent(folder).appendingPathComponent(name)
+                if isOurs(link, name: name) { try fm.removeItem(at: link) }
+            }
+        }
         return result
+    }
+
+    /// A symlink to some Summon install's copy of this skill (`…/share/summon/skills/<name>`), not the user's own.
+    func isOurs(_ link: URL, name: String) -> Bool {
+        guard let target = try? FileManager.default.destinationOfSymbolicLink(atPath: link.path) else { return false }
+        return target.hasSuffix("/share/summon/skills/" + name) || target.hasSuffix("/plugin/skills/" + name)
     }
 
     /// Folders under `source` that hold a `SKILL.md`, sorted.
