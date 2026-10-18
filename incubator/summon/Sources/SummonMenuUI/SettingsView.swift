@@ -2,29 +2,26 @@ import ServiceManagement
 import SummonCore
 import SwiftUI
 
-/// The Settings window (⌘,): a sidebar of sections, one grouped form each. Every app preference lives here,
-/// never in the menu bar panel.
+/// The Settings window (⌘,): one toolbar tab per section (the macOS app-settings layout), one grouped form each.
+/// Every app preference lives here, never in the menu bar panel.
 public struct SettingsView: View {
     @Bindable var model: SummonModel
-    @State private var section: SettingsSection? = .initial
+
+    /// Tasks joins when recurring tasks exist (todo item D); an empty tab is not shipped.
+    static let sections = SettingsSection.allCases.filter { $0 != .tasks }
 
     public init(model: SummonModel) {
         self.model = model
     }
 
     public var body: some View {
-        NavigationSplitView {
-            List(SettingsSection.allCases, selection: $section) { item in
-                Label(item.title, systemImage: item.systemImage)
-                    .tag(item)
+        TabView {
+            ForEach(Self.sections) { section in
+                SettingsSectionView(section: section, model: model)
+                    .tabItem { Label(section.title, systemImage: section.systemImage) }
             }
-            .navigationSplitViewColumnWidth(170)
-            .toolbar(removing: .sidebarToggle)
-        } detail: {
-            SettingsSectionView(section: section ?? .initial, model: model)
-                .navigationTitle((section ?? .initial).title)
         }
-        .frame(width: 640, height: 440)
+        .frame(width: 580)
         .task { await model.loadShippedSkills() }
     }
 }
@@ -35,6 +32,15 @@ struct SettingsSectionView: View {
     @Bindable var model: SummonModel
 
     var body: some View {
+        // Short tabs fit their rows; Agents (a row per skill) gets room and scrolls.
+        if section == .agents {
+            AgentsSettings(model: model).frame(height: 520)
+        } else {
+            content.fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder private var content: some View {
         switch section {
         case .general: GeneralSettings()
         case .agents: AgentsSettings(model: model)
@@ -142,6 +148,8 @@ struct AgentsSettings: View {
                 Section("Skills") {
                     ForEach(model.shippedSkills, id: \.self) { skill in
                         Toggle(skill, isOn: skillBinding(skill, agent: agent.id))
+                            // The router is how "summon, <anything>" reaches the other skills: always on.
+                            .disabled(skill == "summon")
                     }
                 }
             }
@@ -274,30 +282,30 @@ struct TasksSettings: View {
 
 #Preview("General") {
     SettingsSectionView(section: .general, model: .preview())
-        .frame(width: 470, height: 440)
+        .frame(width: 580)
 }
 
 #Preview("Agents") {
     SettingsSectionView(section: .agents, model: .preview())
-        .frame(width: 470, height: 440)
+        .frame(width: 580)
 }
 
 #Preview("Terminal") {
     SettingsSectionView(section: .terminal, model: .preview())
-        .frame(width: 470, height: 440)
+        .frame(width: 580)
 }
 
 #Preview("Notifications") {
     SettingsSectionView(section: .notifications, model: .preview())
-        .frame(width: 470, height: 440)
+        .frame(width: 580)
 }
 
 #Preview("Appearance") {
     SettingsSectionView(section: .appearance, model: .preview())
-        .frame(width: 470, height: 440)
+        .frame(width: 580)
 }
 
 #Preview("Tasks") {
     SettingsSectionView(section: .tasks, model: .preview())
-        .frame(width: 470, height: 440)
+        .frame(width: 580)
 }
