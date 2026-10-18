@@ -20,6 +20,10 @@ public final class SummonModel {
     public private(set) var installedTerminals: [TerminalApp] = [.terminal]
     /// Programs whose crash notifications the user muted, sorted.
     public private(set) var mutedPrograms: [String] = []
+    /// Per-agent model and skill choices (`~/.config/summon/agents.json`), read here, changed through the CLI.
+    public private(set) var agentSettings = AgentSettings()
+    /// Skills Summon ships, from `summon skills`; empty until `loadShippedSkills()` runs.
+    public private(set) var shippedSkills: [String] = []
     public private(set) var menu: MenuTree
     public private(set) var menuError: String? = nil
     /// Last action error, shown under the row that caused it.
@@ -68,6 +72,7 @@ public final class SummonModel {
         installedTerminals = TerminalApp.allCases.filter { installed.contains($0) }
         terminal = AgentLauncher.preferredTerminal(saved: DefaultTerminalStore(paths: paths).load(), installed: installed)
         mutedPrograms = CrashWatcher(paths: paths).muted().sorted()
+        agentSettings = AgentSettingsStore(paths: paths).load()
         loadMenu()
     }
 
@@ -183,6 +188,23 @@ public final class SummonModel {
         Task { await summon(["default", "agent", id]) }
     }
 
+    /// nil or blank goes back to the CLI's own default model.
+    public func setAgentModel(_ model: String?, for id: String) {
+        Task { await summon(AgentSettingsCommand.model(model, for: id)) }
+    }
+
+    public func setAgentSkill(_ name: String, on: Bool, for id: String) {
+        let skills = agentSettings.skills(for: id, shipped: shippedSkills, turning: name, on: on)
+        Task { await summon(AgentSettingsCommand.skills(skills, for: id)) }
+    }
+
+    /// Asks the bundled CLI which skills ship, so the app and `summon agents set` agree on the names.
+    public func loadShippedSkills() async {
+        guard let summonPath else { return }
+        guard let output = try? await runner(summonPath, ["skills", "list"]) else { return }
+        shippedSkills = AgentSettingsCommand.skillNames(fromList: output)
+    }
+
     // MARK: Launcher
 
     public func prepareLauncher(startAt level: String?) {
@@ -262,6 +284,16 @@ extension SummonModel {
         model.installedTerminals = [.ghostty, .kitty, .terminal]
         model.terminal = .ghostty
         model.mutedPrograms = ["adminbyrequest"]
+        model.shippedSkills = ["diagnose-crash-mac", "mac-app", "mac-logs", "summon", "summon-art", "summon-mac"]
+        model.agentSettings.setModel("opus", for: "claude")
+        model.agentSettings.setSkills(["summon", "summon-mac"], for: "codex")
+        // Decoded without validation: previews need names, not full palettes.
+        model.themes = [("Summon Night", "summon-night", "dark"), ("Summon Dawn", "summon-dawn", "light")].compactMap { name, slug, look in
+            let colors = ##"{"background":"#0B0D17","foreground":"#E6E1F5","accent":"#8B5CF6","accent2":"#22D3EE","muted":"#6B6880","selection":"#2A2440","cursor":"#C4B5FD","border_active":"#8B5CF6","border_inactive":"#2A2440"}"##
+            let json = ##"{"name":"\##(name)","slug":"\##(slug)","appearance":"\##(look)","colors":\##(colors),"terminal":[],"font":"JetBrainsMono Nerd Font","wallpapers":[]}"##
+            return try? JSONDecoder().decode(Theme.self, from: Data(json.utf8))
+        }
+        model.currentThemeSlug = "summon-night"
         return model
     }
 }

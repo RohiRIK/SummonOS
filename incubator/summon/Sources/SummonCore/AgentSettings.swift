@@ -54,3 +54,41 @@ public struct AgentSettingsStore: Sendable {
         try TextFile.write(String(decoding: try encoder.encode(settings), as: UTF8.self) + "\n", to: paths.agentSettingsFile)
     }
 }
+
+extension AgentSettings {
+    /// The agent's skill list after turning `name` on or off; nil when every shipped skill ends up on,
+    /// so the agent keeps getting new skills as they ship.
+    public func skills(for id: String, shipped: [String], turning name: String, on: Bool) -> [String]? {
+        var chosen = Set(skills(for: id, shipped: shipped))
+        if on { chosen.insert(name) } else { chosen.remove(name) }
+        let result = shipped.filter(chosen.contains)
+        return result == shipped ? nil : result
+    }
+}
+
+/// `summon agents set` arguments, so the app changes `agents.json` through the CLI (which also relinks skills)
+/// instead of writing the file itself. `=` forms keep a value starting with `-` from reading as a flag.
+public enum AgentSettingsCommand {
+    public static func model(_ model: String?, for id: String) -> [String] {
+        let trimmed = model?.trimmingCharacters(in: .whitespaces) ?? ""
+        return trimmed.isEmpty
+            ? ["agents", "set", id, "--default-model"]
+            : ["agents", "set", id, "--model=" + trimmed]
+    }
+
+    /// nil puts the agent back on every shipped skill; an empty list gives it none.
+    public static func skills(_ skills: [String]?, for id: String) -> [String] {
+        guard let skills else { return ["agents", "set", id, "--all-skills"] }
+        return ["agents", "set", id, "--skills=" + skills.joined(separator: ",")]
+    }
+
+    /// Skill names from `summon skills` output (one `…/<name>/SKILL.md` path per line), sorted.
+    public static func skillNames(fromList output: String) -> [String] {
+        let names = output.split(separator: "\n").compactMap { line -> String? in
+            let parts = line.trimmingCharacters(in: .whitespaces).split(separator: "/")
+            guard parts.count >= 2, parts.last == "SKILL.md" else { return nil }
+            return String(parts[parts.count - 2])
+        }
+        return Array(Set(names)).sorted()
+    }
+}
