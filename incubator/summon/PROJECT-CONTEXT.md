@@ -23,6 +23,13 @@ checkpoint before every agent session.
 - Panel vs Settings window split from AGENTS.md applies to the Summon Menu app.
 
 ## Recent History
+### 2026-10-18 — Per-agent model and skills
+- `~/.config/summon/agents.json` (AgentSettings): per agent a model and the Summon skills it gets (default: CLI's
+  model, every skill). `summon agents set <agent> --model … --skills a,b | --all-skills | --default-model`.
+- Model flag only where verified: claude/codex/agy/pi `--model`; OpenCode's TUI has none (config chooses).
+- Linker uses each agent's own folder (claude, codex, `.config/opencode/skills`, agy `.gemini/config/skills`, pi) and
+  removes Summon links from the shared `~/.agents/skills` (it would leak skills to every agent). Codex reads
+  `~/.codex/skills` (probed). OpenCode also reads `~/.claude/skills`, so it sees Claude's choice too.
 ### 2026-10-18 — `summon` is the router skill
 - `summon` skill = router: "summon, <anything>" → summon-mac (settings, configs, installing themes), summon-art,
   mac-app, diagnose-crash-mac, mac-logs, or the agent's best other installed skill. The old Mac-customization skill
