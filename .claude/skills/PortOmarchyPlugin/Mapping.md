@@ -60,3 +60,4 @@ Grow this table every port. Verify a row on a real Mac before adding it.
 | Default-route interface | `route -n get default`, line `interface: en0`. |
 | Join a saved Wi-Fi network | CoreWLAN `associate(password: nil)` cannot read the system keychain; use `networksetup -setairportnetwork <dev> <ssid>` (no password: uses saved one). Reports failure on stdout with exit 0. |
 | Join a new network with password | CoreWLAN `associate(to:password:)` in-process. Never `networksetup ... <password>`: argv is visible in `ps`. |
+| Agent skills (Omarchy `default/agents/skills` → `~/.agents`, `~/.claude`, `~/.codex`, `~/.gemini/config` skill dirs) | Same symlink loop (`summon skills link`). Antigravity CLI reads only `~/.gemini/config/skills`, not `~/.antigravity` (editor extensions) or `~/.gemini/skills`. OpenCode reads `~/.claude/skills` and `~/.agents/skills`: one skill in both logs "duplicate skill name" but works. |

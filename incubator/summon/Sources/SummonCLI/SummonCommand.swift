@@ -78,6 +78,8 @@ struct SummonCommand {
             try IconCommands.run(&args, context)
         case "path":
             print(PathCommand.installPath())
+        case "skills":
+            try SkillCommands.run(&args, context)
         case "commands":
             if args.flag("--json") {
                 print(try CommandCatalog.json())
