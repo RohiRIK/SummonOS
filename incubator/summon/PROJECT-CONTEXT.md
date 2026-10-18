@@ -23,6 +23,12 @@ checkpoint before every agent session.
 - Panel vs Settings window split from AGENTS.md applies to the Summon Menu app.
 
 ## Recent History
+### 2026-10-18 — summon-art skill (Art know-how shipped with Summon)
+- New shipped skill `plugin/skills/summon-art/`: brief → three concepts → OKLCH palette for theme.json (with a
+  contrast check script) → Nano Banana via agy → review → install. `wallpapers.md` (moved from summon/Wallpapers.md)
+  and `icons.md`. Named `summon-art`, not `art`: APFS is case-insensitive and `art` would replace the user's `Art` link.
+- New Theme / New Wallpaper / New Icon prompts name it; `summon skills link` puts it in every agent's folder
+  (verified: agy and Claude Code list it).
 ### 2026-10-18 — Skills linked into every agent (Omarchy's way)
 - `summon skills link` (also run by install.sh and on every app launch) symlinks every shipped skill into
   `~/.agents/skills`, `~/.claude/skills`, `~/.codex/skills`, `~/.gemini/config/skills`; a real folder of the user's is kept.
