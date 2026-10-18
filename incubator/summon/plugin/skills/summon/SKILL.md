@@ -69,9 +69,9 @@ colors, 16 terminal colors, font, wallpapers), check contrast: foreground on bac
 inactive outlines and backgrounds, never body text, so they only need to be visible (about 1.5:1).
 Then `summon theme set <slug>`. Wallpapers: 5120×2880 JPEG next to `theme.json`.
 
-**Any new or "nicer" wallpaper: follow `Wallpapers.md` next to this file.** Three art-directed concepts from the
-user's mood and the theme palette, generated with Nano Banana, reviewed, picked by the user, then installed.
-Never ship a plain gradient when the user asked for something nice.
+**Palette, wallpaper, icons, any image: use the `summon-art` skill** (`$(summon path)/skills/summon-art/SKILL.md`).
+Mood → three concepts → palette from the subject (contrast checked) → images generated with Nano Banana → reviewed
+→ the user picks → installed. Never ship a plain gradient or a default palette when the user asked for something nice.
 
 ## Keybindings (default)
 
