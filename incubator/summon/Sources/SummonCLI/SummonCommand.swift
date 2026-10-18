@@ -55,6 +55,12 @@ struct SummonCommand {
             try await AgentCommands.checkpoint(&args, context)
         case "undo-session":
             try await AgentCommands.undoSession(&args, context)
+        case "events":
+            try ActivityCommands.events(&args, context)
+        case "event":
+            try ActivityCommands.eventAdd(&args, context)
+        case "status":
+            try await ActivityCommands.status(&args, context)
         case "crash":
             try await CrashCommands.run(&args, context)
         case "theme":

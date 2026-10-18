@@ -29,6 +29,13 @@ public struct SummonPaths: Sendable, Equatable {
     public var state: URL { home.appendingPathComponent(".local/state/summon", isDirectory: true) }
     public var crashMarkerFile: URL { state.appendingPathComponent("crash-marker") }
     public var crashMutedFile: URL { state.appendingPathComponent("crash-muted") }
+    /// Summon's own activity log (agent sessions, themes, undos), JSON Lines, oldest first.
+    public var eventLogFile: URL { state.appendingPathComponent("events.jsonl") }
+
+    /// Where macctl keeps the snapshot it saves before every change, one `<id>.json` each.
+    public var macctlSnapshots: URL {
+        home.appendingPathComponent("Library/Application Support/macctl/snapshots", isDirectory: true)
+    }
 
     public var work: URL { home.appendingPathComponent("Work", isDirectory: true) }
 
