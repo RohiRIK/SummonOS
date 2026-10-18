@@ -3,11 +3,26 @@
 How a plugin goes from idea to a public release. Each step names the skill or script that owns the
 details; this page only shows the order. Rules: [`AGENTS.md`](../AGENTS.md).
 
+## Which path?
+
+There are two ways to start an app, and they do not mix:
+
+| | Workspace plugin | Summon project |
+|---|---|---|
+| For | Apps that belong to this workspace and get a `<name>-dev` / `<name>` repo pair | Anything a user asks Summon's agent to make on their Mac |
+| Start | `tools/mp new <name> --kind menubar` | `summon project new <name> --kind menubar\|app\|cli\|screensaver` |
+| Template | `examples/menubar-starter` | `incubator/summon/templates/<kind>` |
+| Folder | `scratch/<name>/`, then `plugins/<name>/` after `tools/mp promote` | `~/Summon/<name>` |
+| Listed in | `plugins.json` / `plugins.md` | `~/.config/summon/projects.json` (private to the Mac) |
+| GitHub | `tools/mp promote --yes`, owner's OK each time | `summon project repo <name>`, after a native dialog; always private |
+
+The rest of this page is the workspace-plugin path.
+
 ## 1. Plan
 
 - Write the plan in `tasks/todo.md`: explicit requirements, inferred decisions, phases.
 - Pick the app shape (menu bar extra, panel, window): `MacAppArchitecture/AppShapes.md`.
-- Porting a Linux/Omarchy widget: `PortOmarchyPlugin` (mappings in `Mapping.md`).
+- Porting a Linux widget or script: `PortLinuxWidget` (mappings in `Mapping.md`).
 
 ## 2. Scaffold
 
@@ -19,7 +34,7 @@ details; this page only shows the order. Rules: [`AGENTS.md`](../AGENTS.md).
 - When it is worth keeping, and only with the owner's OK: `tools/mp promote <name> --yes` creates the repo
   pair, private `<name>-dev` (all history, PRs) and public `<name>` (snapshots only), and moves it to
   `plugins/<name>/`. An existing plugin on another machine: `tools/mp clone <name>`.
-- Add `PROJECT-CONTEXT.md` at the repo root (sections in [`AGENTS.md`](../AGENTS.md#project-memory-per-plugin-from-glaze)).
+- Add `PROJECT-CONTEXT.md` at the repo root (sections in [`AGENTS.md`](../AGENTS.md#project-memory-per-plugin)).
 
 ## 3. Build
 

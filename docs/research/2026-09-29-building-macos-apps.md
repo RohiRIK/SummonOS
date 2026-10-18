@@ -67,7 +67,7 @@ compiled Swift "sidecar". The SDK mirrors Electron's API surface.
 | `MacAppArchitecture` (new) | Shapes, layers, state, concurrency, backend calls, persistence, secrets, system tools, admin, permissions, polling, lifecycle, logging |
 | `MacAppBuild` (renamed from MacMenuBarApp) | Scaffold, build, previews, verification loop, PR report, release |
 | `MacUX` (updated) | HIG, system-menu look, Glaze design rules, review checklist |
-| `PortOmarchyPlugin` (kept) | Linux → macOS port recipe and API mapping |
+| `PortLinuxWidget` (kept) | Linux → macOS port recipe and API mapping |
 | `swiftui-expert-skill` (installed) | SwiftUI API depth |
 | `swift-concurrency-pro` (installed) | Concurrency correctness |
 

@@ -1,9 +1,11 @@
 # AGENTS.md — macOS plugins workspace
 
-Workspace for building small native macOS apps ("plugins"): menu bar extras, panels, utilities.
-Many start as ports of existing Linux/Omarchy bar widgets. The bar is the one
-[Glaze](https://www.glaze.app/) sets: real native apps that launch instantly, work offline, and look
-like they belong on the Mac. Unlike Glaze (React in a WebView + Node backend), we write Swift/SwiftUI.
+Workspace for building small native macOS apps ("plugins"): menu bar extras, panels, utilities, and the
+tools around them (`macctl`, Summon). The bar: real native apps that launch instantly, work offline, and look
+like they belong on the Mac, written in Swift/SwiftUI. What every project does today: `docs/features.md`.
+
+We design our own apps. Other projects (Omarchy, Glaze, ...) are research, not something to copy: borrow an
+idea only when it fits, and credit it in `THIRD_PARTY_NOTICES.md` when code or assets come from it.
 
 ## Layout
 
@@ -12,8 +14,9 @@ like they belong on the Mac. Unlike Glaze (React in a WebView + Node backend), w
 ├── AGENTS.md                this file; CLAUDE.md points here
 ├── plugins.json             plugin registry (source of truth): repos, status, kind, bundle id, path
 ├── plugins.md               index of every plugin, generated from plugins.json by `tools/mp index`
+├── docs/features.md         every feature of every project, in one place
 ├── docs/research/           research notes behind the skills
-├── docs/plans/              finished and long plans, one file each: YYYY-MM-DD-<name>.md
+├── docs/plans/              finished and long plans, one file each: YYYY-MM-DD-<name>.md (index: README.md)
 ├── tools/                   workspace scripts: mp, check-workspace.sh, publish-public.sh, release.sh, previews
 ├── examples/                menubar-starter/ (CI-built skeleton that `tools/mp new` copies)
 ├── .claude/skills/          shared skills, used by every plugin (see below)
@@ -36,7 +39,7 @@ creates the repo pair. Tool details: `docs/tools.md`. Apps made through Summon a
 | Plan an app or feature; state, concurrency, API calls, storage, secrets, system tools | `MacAppArchitecture` |
 | Any view, panel, window, or settings UI; a redesign or UI complaint | `MacUX` › `DesignPass` workflow (+ `swiftui-expert-skill` for API depth) |
 | Scaffold, build, previews, verify, PR, release | `MacAppBuild` |
-| Port an Omarchy / Linux widget | `PortOmarchyPlugin` |
+| Port a Linux widget or script | `PortLinuxWidget` |
 | Actors, `Sendable`, cancellation, Swift 6 errors | `swift-concurrency-pro` |
 
 `tools/install-skills.sh` links these skills into `~/.claude/skills`, so Claude Code sessions anywhere on the
@@ -64,9 +67,10 @@ installed unmodified with their LICENSE files. Do not edit them; put our rules i
 5. **Verify:** `MacAppBuild/Verify.md`: gate, previews, run the app, logs, manual checklist.
 6. **PR:** `gh pr create`, then `scripts/pr-report.sh` (report + previews as a comment). No GitHub Actions in plugin
    repos; this workspace repo runs `.github/workflows/swift.yml` (build + test every Swift package on macOS).
-7. **Update memory:** the plugin's `PROJECT-CONTEXT.md` and, if new, `plugins.md`.
+7. **Update memory:** the plugin's `PROJECT-CONTEXT.md`; `plugins.json` + `tools/mp index` if status changed;
+   `docs/features.md` when a user-visible feature is added or removed.
 
-## Project memory (per plugin, from Glaze)
+## Project memory (per plugin)
 
 Each plugin keeps `PROJECT-CONTEXT.md` at its repo root: the short, current truth about the app.
 
@@ -84,7 +88,7 @@ Update it after every completed change. Keep it concise; it is not a log dump.
 
 Write the lesson in the same turn it is learned:
 
-- macOS API quirk or Linux mapping → `PortOmarchyPlugin/Mapping.md`.
+- macOS API quirk or Linux mapping → `PortLinuxWidget/Mapping.md`.
 - Structure, data, backend, system-tool lesson → `MacAppArchitecture` Gotchas or its context file.
 - Build, preview, signing, release → `MacAppBuild` Gotchas.
 - UI/UX → `MacUX` Gotchas, `MenuPanel.md`, or `Principles.md`.

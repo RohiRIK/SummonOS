@@ -1,4 +1,4 @@
-# Linux / Omarchy to macOS mapping
+# Linux to macOS mapping
 
 Grow this table every port. Verify a row on a real Mac before adding it.
 
