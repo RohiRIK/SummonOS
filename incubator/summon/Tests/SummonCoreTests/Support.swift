@@ -82,3 +82,13 @@ let sampleCrashIPS = """
   ]
 }
 """
+
+/// `macctl snapshot list --json` output for these ids, newest first, one minute apart.
+func macctlList(_ ids: [String], newest: Date = Date(timeIntervalSince1970: 1_800_000_000)) -> String {
+    let formatter = ISO8601DateFormatter()
+    let rows = ids.enumerated().map { index, id in
+        let date = formatter.string(from: newest.addingTimeInterval(Double(-60 * index)))
+        return #"{"id": "\#(id)", "createdAt": "\#(date)", "changeCount": 1, "settings": ["dock.autohide"]}"#
+    }
+    return #"{"ok": true, "command": "snapshot list", "result": ["# + rows.joined(separator: ", ") + "]}"
+}

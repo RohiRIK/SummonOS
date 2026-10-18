@@ -1,7 +1,8 @@
 import Foundation
 
 /// Taken before every summoned agent session so `summon checkpoint undo` can put things back:
-/// a macctl snapshot of system settings, and a git commit of `~/.config` when it is a repo.
+/// a marker in macctl's snapshot history (macctl snapshots on every change, so undo reverts every
+/// snapshot after the marker), and a git commit of `~/.config` when it is a repo.
 /// Recorded in `~/.config/summon/checkpoints.json`, newest last.
 public struct Checkpoint: Sendable, Equatable, Codable, Identifiable {
     /// `yyyyMMdd-HHmmss`, unique enough for a person taking checkpoints by hand.
@@ -10,7 +11,8 @@ public struct Checkpoint: Sendable, Equatable, Codable, Identifiable {
     public var createdAt: Date
     /// Commit hash in `~/.config`, when it is a git repo.
     public var configCommit: String?
-    /// What `macctl snapshot create` printed (its snapshot id), when a snapshot was taken.
+    /// Newest macctl snapshot id when the checkpoint was taken, `"none"` when macctl had none yet,
+    /// nil when macctl was not available. Undo reverts every macctl snapshot newer than this.
     public var macctlSnapshot: String?
 
     public init(id: String, label: String, createdAt: Date, configCommit: String?, macctlSnapshot: String?) {
@@ -53,7 +55,7 @@ public struct CheckpointService: Sendable {
     public func createSteps(label: String) -> [LaunchPlan] {
         var steps: [LaunchPlan] = []
         if let macctlPath {
-            steps.append(LaunchPlan(executable: macctlPath, arguments: ["snapshot", "create", "--label", label]))
+            steps.append(LaunchPlan(executable: macctlPath, arguments: ["snapshot", "list", "--json"]))
         }
         if let gitPath, configIsRepo {
             let dir = paths.userConfig.path
@@ -71,8 +73,8 @@ public struct CheckpointService: Sendable {
             do {
                 let output = try await runner(step.executable, step.arguments)
                 if step.executable == macctlPath {
-                    let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
-                    snapshot = Self.snapshotID(fromOutput: trimmed)
+                    let snapshots = try Self.snapshots(fromListJSON: output)
+                    snapshot = snapshots.first?.id ?? Self.noSnapshots
                 }
             } catch {
                 problems.append(String(describing: error))
@@ -95,15 +97,45 @@ public struct CheckpointService: Sendable {
         return (checkpoint, problems)
     }
 
-    /// macctl may print a line or JSON; take a JSON `id` if there is one, else the last non-empty line.
-    static func snapshotID(fromOutput output: String) -> String {
-        if let data = output.data(using: .utf8),
-           let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-           let id = object["id"] as? String {
-            return id
+    /// Marker for "macctl had no snapshots yet", so undo reverts all of them.
+    public static let noSnapshots = "none"
+
+    public struct SnapshotSummary: Sendable, Equatable, Decodable {
+        public var id: String
+        public var createdAt: Date
+    }
+
+    /// Parses `macctl snapshot list --json`: `{"ok": true, "result": [{"id", "createdAt", ...}]}`, newest first.
+    public static func snapshots(fromListJSON output: String) throws -> [SnapshotSummary] {
+        struct Envelope: Decodable {
+            var ok: Bool
+            var result: [SnapshotSummary]?
         }
-        let lines = output.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        return lines.last ?? "latest"
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let envelope = try decoder.decode(Envelope.self, from: Data(output.utf8))
+        guard envelope.ok, let result = envelope.result else {
+            throw RunnerError.failed(path: "macctl", status: 1, output: output)
+        }
+        return result
+    }
+
+    /// The snapshots taken after `checkpoint`, newest first: everything listed before its marker.
+    /// If the marker is gone from macctl's history, falls back to snapshots created after the checkpoint.
+    public static func snapshots(after checkpoint: Checkpoint, in snapshots: [SnapshotSummary]) -> [String] {
+        guard let marker = checkpoint.macctlSnapshot else { return [] }
+        if marker != noSnapshots, !snapshots.contains(where: { $0.id == marker }) {
+            return snapshots.filter { $0.createdAt > checkpoint.createdAt }.map(\.id)
+        }
+        return snapshots.prefix(while: { $0.id != marker }).map(\.id)
+    }
+
+    /// Asks macctl which snapshots came after the checkpoint. Read-only.
+    public func macctlSnapshots(after checkpoint: Checkpoint) async throws -> [String] {
+        guard let macctlPath, checkpoint.macctlSnapshot != nil else { return [] }
+        let output = try await runner(macctlPath, ["snapshot", "list", "--json"])
+        let all = try Self.snapshots(fromListJSON: output)
+        return Self.snapshots(after: checkpoint, in: all)
     }
 
     /// Oldest first.
@@ -130,8 +162,10 @@ public struct CheckpointService: Sendable {
 
     /// The commands `undo` runs: put `~/.config` files that existed at the checkpoint commit back as they
     /// were (`git checkout <commit> -- .` never deletes files that commit lacks), keeping Summon's own
-    /// checkpoint history, then macctl undo of that snapshot. Files created afterwards stay in place.
-    public func undoSteps(_ checkpoint: Checkpoint) -> [LaunchPlan] {
+    /// checkpoint history, then `macctl undo` of each snapshot taken since, newest first (from
+    /// `macctlSnapshots(after:)`), which restores every setting to its value at the checkpoint.
+    /// Files created afterwards stay in place.
+    public func undoSteps(_ checkpoint: Checkpoint, macctlSnapshots: [String] = []) -> [LaunchPlan] {
         var steps: [LaunchPlan] = []
         if let gitPath, let commit = checkpoint.configCommit {
             steps.append(LaunchPlan(
@@ -139,8 +173,10 @@ public struct CheckpointService: Sendable {
                 arguments: ["-C", paths.userConfig.path, "checkout", commit, "--", ".", ":(exclude)summon/checkpoints.json"]
             ))
         }
-        if let macctlPath, let snapshot = checkpoint.macctlSnapshot {
-            steps.append(LaunchPlan(executable: macctlPath, arguments: snapshot == "latest" ? ["undo"] : ["undo", snapshot]))
+        if let macctlPath {
+            for snapshot in macctlSnapshots {
+                steps.append(LaunchPlan(executable: macctlPath, arguments: ["undo", snapshot, "--json"]))
+            }
         }
         return steps
     }

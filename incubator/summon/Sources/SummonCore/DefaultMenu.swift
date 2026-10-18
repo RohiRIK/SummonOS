@@ -23,8 +23,8 @@ public enum DefaultMenu {
         { "id": "style.theme.tokyo-night", "label": "Tokyo Night", "icon": "moon", "checked": "[ \"$(cat ~/.config/summon/current-theme 2>/dev/null)\" = tokyo-night ]", "action": "summon theme set tokyo-night" },
         { "id": "style.theme.catppuccin", "label": "Catppuccin", "icon": "cup.and.saucer", "checked": "[ \"$(cat ~/.config/summon/current-theme 2>/dev/null)\" = catppuccin ]", "action": "summon theme set catppuccin" },
         { "id": "style.theme.gruvbox", "label": "Gruvbox", "icon": "leaf", "checked": "[ \"$(cat ~/.config/summon/current-theme 2>/dev/null)\" = gruvbox ]", "action": "summon theme set gruvbox" },
-        { "id": "style.dark", "label": "Dark Mode", "icon": "circle.lefthalf.filled", "when": "command -v macctl", "action": "macctl set appearance.mode dark" },
-        { "id": "style.light", "label": "Light Mode", "icon": "sun.max", "when": "command -v macctl", "action": "macctl set appearance.mode light" },
+        { "id": "style.dark", "label": "Dark Mode", "icon": "circle.lefthalf.filled", "when": "command -v macctl", "action": "macctl set appearance.dark-mode true" },
+        { "id": "style.light", "label": "Light Mode", "icon": "sun.max", "when": "command -v macctl", "action": "macctl set appearance.dark-mode false" },
         { "id": "style.screensaver", "label": "Start Screensaver", "icon": "sparkles.tv", "action": "open -a ScreenSaverEngine" },
 
         { "id": "setup", "label": "Setup", "icon": "gearshape", "aliases": ["settings", "preferences"] },
