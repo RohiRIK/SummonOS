@@ -7,16 +7,14 @@
   <circle cx="40" cy="19" r="6" fill="#FEBC2E"/>
   <circle cx="60" cy="19" r="6" fill="#28C840"/>
   <text x="249" y="23.5" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#E4DEF7" text-anchor="middle" opacity=".6">macctl list</text>
-  <rect x="414" y="9" width="72" height="20" rx="10" fill="none" stroke="#8C86A6"/>
-  <text x="450" y="23" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#8C86A6" text-anchor="middle">illustrative</text>
   <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="14" xml:space="preserve">
     <text x="22" y="70" style="white-space:pre"><tspan fill="#9B7BFF" font-weight="700">$</tspan> <tspan fill="#F6F3FF" font-weight="700">macctl list --domain dock</tspan></text>
     <text x="22" y="91" style="white-space:pre"><tspan fill="#8C86A6" font-weight="700">ID                    TYPE               RISK  CURRENT</tspan></text>
     <text x="22" y="112" style="white-space:pre"><tspan fill="#E4DEF7">dock.autohide         bool               user  <tspan fill="#FFD479">false</tspan></tspan></text>
-    <text x="22" y="133" style="white-space:pre"><tspan fill="#E4DEF7">dock.tilesize         int 16...128       user  <tspan fill="#FFD479">48</tspan></tspan></text>
-    <text x="22" y="154" style="white-space:pre"><tspan fill="#E4DEF7">dock.show-recents     bool               user  <tspan fill="#FFD479">true</tspan></tspan></text>
-    <text x="22" y="175" style="white-space:pre"><tspan fill="#E4DEF7">dock.orientation      left|bottom|right  user  bottom</tspan></text>
-    <text x="22" y="196" style="white-space:pre"><tspan fill="#E4DEF7">dock.minimize-effect  genie|scale|suck   user  genie</tspan></text>
+    <text x="22" y="133" style="white-space:pre"><tspan fill="#E4DEF7">dock.tilesize         int 16...128       user  <tspan fill="#FFD479">52</tspan></tspan></text>
+    <text x="22" y="154" style="white-space:pre"><tspan fill="#E4DEF7">dock.show-recents     bool               user  <tspan fill="#FFD479">false</tspan></tspan></text>
+    <text x="22" y="175" style="white-space:pre"><tspan fill="#E4DEF7">dock.orientation      left|bottom|right  user  left</tspan></text>
+    <text x="22" y="196" style="white-space:pre"><tspan fill="#E4DEF7">dock.minimize-effect  genie|scale|suck   user  scale</tspan></text>
     <text x="22" y="217" style="white-space:pre"><tspan fill="#E4DEF7">dock.autohide-delay   double 0.0...5.0   user  <tspan fill="#FFD479">0.5</tspan></tspan></text>
   </g>
 </svg>
