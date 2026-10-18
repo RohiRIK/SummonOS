@@ -146,15 +146,19 @@ struct WallpaperTests {
         #expect(await rig.wallpaper.sets.isEmpty)
     }
 
-    @Test func undoFailsCleanlyWhenOldPictureIsGone() async throws {
+    @Test func undoSkipsPictureThatIsGoneAndMovesOn() async throws {
         let new = try Self.makeImage("new.jpg")
         let rig = Self.makeRig(current: "/nonexistent/macctl/old.jpg")
-        _ = try await rig.engine.apply(
+        let applied = try await rig.engine.apply(
             Profile(name: "t", settings: ["desktop.wallpaper": .string(new)]), dryRun: false, confirmed: false)
+        #expect(applied.notes.contains { $0.contains("Undo cannot restore the current desktop.wallpaper") })
 
-        await expectMacCtlError("invalid_value") { try await rig.engine.undo(snapshotID: nil) }
+        let undone = try await rig.engine.undo(snapshotID: nil)
+        #expect(undone.changes.isEmpty)
+        #expect(undone.notes.contains { $0.contains("Could not restore desktop.wallpaper") })
         #expect(await rig.wallpaper.sets == [new])
-        #expect(rig.store.saved.count == 1)  // no undo snapshot was recorded
+        #expect(rig.store.saved.count == 2)  // the undo is recorded, so the next undo steps further back
+        await expectMacCtlError("no_snapshots") { try await rig.engine.undo(snapshotID: nil) }
     }
 
     @Test func relativePathIsRejected() async throws {

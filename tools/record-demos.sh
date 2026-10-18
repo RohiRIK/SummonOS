@@ -5,7 +5,7 @@
 #   tools/record-demos.sh --no-gif   # transcripts + SVG cards only
 #
 # For each macctl/docs/demo/*.txt it runs every `$ macctl ...` line from macctl/ in a pseudo-terminal
-# (so output is the human form, not JSON), saves stdout, replaces $HOME with /Users/you and every regex in
+# (so output is the human form, not JSON), saves stdout, replaces $HOME with ~ and every regex in
 # tools/private-patterns.txt (if present, one per line) with <private>, then runs tools/readme-art.py
 # and `vhs macctl/docs/demo/demo.tape`. Read-only: it refuses any command that could write
 # (set/apply/undo without --dry-run). Needs macctl on PATH (see macctl/README.md, Install).
@@ -46,12 +46,12 @@ else
   echo "record-demos: no tools/private-patterns.txt; only \$HOME is redacted" >&2
 fi
 
-redact() {
-  python3 - "$PATTERNS" "$HOME" <<'PY'
+# The script goes in through -c: stdin is the transcript being redacted.
+readonly REDACT_PY="$(cat <<'PY'
 import re, sys
 patterns, home = sys.argv[1], sys.argv[2]
 text = sys.stdin.read().replace("\r", "").replace("^D\b\b", "")  # `script` artifacts
-text = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", text).replace(home, "/Users/you")
+text = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", text).replace(home, "~")
 try:
     lines = open(patterns).read().splitlines()
 except FileNotFoundError:
@@ -61,7 +61,8 @@ for p in lines:
         text = re.sub(p, "<private>", text)
 sys.stdout.write(text.rstrip("\n") + "\n")
 PY
-}
+)"
+redact() { python3 -c "$REDACT_PY" "$PATTERNS" "$HOME"; }
 
 readonly MACOS="$(sw_vers -productVersion)"
 readonly SHA="$(git -C "$ROOT" rev-parse --short HEAD)"

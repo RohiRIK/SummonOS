@@ -71,7 +71,11 @@ public struct Engine: MacCtlService {
         }
 
         let changes = planned.map(\.change)
-        let notes = Self.notes(for: planned.map(\.setting))
+        let lost = planned.compactMap { item -> String? in
+            guard let from = item.change.from, let reason = unrestorable(from, for: item.setting) else { return nil }
+            return "Undo cannot restore the current \(item.setting.id) (\(reason))."
+        }
+        let notes = lost + Self.notes(for: planned.map(\.setting))
         guard !dryRun, !planned.isEmpty else {
             return ApplyResult(snapshotID: nil, changes: changes, dryRun: dryRun, notes: notes)
         }
@@ -133,15 +137,21 @@ public struct Engine: MacCtlService {
             }
         }
 
-        // Only values that will actually be written must still be valid (a restored file may be gone).
-        for step in steps {
-            if let value = step.value { try backend.validate(value, for: step.setting) }
+        // A value that can no longer be written (the old wallpaper file was deleted) is skipped with
+        // a note, so it neither blocks the rest of the undo nor every later `undo`.
+        var skipped: [String] = []
+        for (index, step) in steps.enumerated().reversed() {
+            guard let value = step.value, let reason = unrestorable(value, for: step.setting) else { continue }
+            steps.remove(at: index)
+            undoChanges.remove(at: index)
+            skipped.insert("Could not restore \(step.setting.id): \(reason). Left as is.", at: 0)
         }
 
-        let notes = Self.notes(for: steps.map { $0.setting })
-        guard !steps.isEmpty else {
+        let notes = skipped + Self.notes(for: steps.map { $0.setting })
+        guard !steps.isEmpty || !skipped.isEmpty else {
             return ApplyResult(snapshotID: nil, changes: [], dryRun: false, notes: notes)
         }
+        // Saved even when everything was skipped, so the snapshot counts as undone.
         let undoSnapshot = try saveSnapshot(undoChanges, undoes: snapshot.id)
         try await write(steps)
         return ApplyResult(snapshotID: undoSnapshot.id, changes: undoChanges, dryRun: false, notes: notes)
@@ -276,6 +286,18 @@ public struct Engine: MacCtlService {
         }
         guard !effects.isEmpty else { return }
         try await restarter.run(effects)
+    }
+
+    /// Why `value` can no longer be written (for example a deleted wallpaper file), or nil.
+    private func unrestorable(_ value: Value, for setting: Setting) -> String? {
+        do {
+            try backend.validate(value, for: setting)
+            return nil
+        } catch let MacCtlError.invalidValue(_, _, reason) {
+            return reason
+        } catch {
+            return "\(error)"
+        }
     }
 
     private static func notes(for settings: [Setting]) -> [String] {
