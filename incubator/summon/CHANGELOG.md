@@ -26,6 +26,11 @@ version numbers yet; entries are grouped by day and point at the pull request.
 - `summon://settings` opens the Settings window. (#35)
 
 ### Changed
+- **Settings › Agents redesigned** (after Hermes's settings, lean): the agents on the left with a status dot and
+  Default, **All Agents** on top (default agent, where agents open, the skills every agent gets, shared plugins),
+  and the same sections for every agent: Account, Model (picked from that agent's list, or Custom…), Skills
+  ("Same as All Agents" or Custom, with Use All Agents), Plugins (installed, OpenLTM as a recommended Install /
+  Fix…, Add). The Terminal tab moved into All Agents. CLI: `summon agents defaults [--skills a,b | --all-skills]`.
 - Settings uses toolbar tabs (General, Agents, Terminal, Notifications, Appearance, Tasks) instead of a
   sidebar. Short tabs fit their rows; the `summon` router skill cannot be switched off for an agent. (#35)
 - Settings › Tasks is view only (schedule, agent, last result); tasks are made by describing them to the agent.
