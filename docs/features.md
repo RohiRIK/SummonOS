@@ -131,6 +131,13 @@ Commands: `/summon:setup`, `/summon:fix`, `/summon:theme`, `/summon:icon`, `/sum
 
 Every `summon` command, with arguments and examples: `summon commands --json`.
 
+### ~/Summon: one home
+
+- Everything Summon and its agents make lives in `~/Summon`: `Apps/<name>` (projects from the templates), `Art/<job>`
+  (wallpaper and icon candidates), `Tasks/<id>` (a log per task run), `Themes` (a link to the installed themes).
+  Agents start there. `~/Summon/.gitignore` keeps the generated parts out of git. `summon home` sets it up and moves
+  older Summon files in.
+
 ### Recurring agent tasks
 
 - Describe it, the agent sets it up: `summon task new "every weekday at 9, check brew updates"` (or Summon Menu ›

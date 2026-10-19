@@ -33,6 +33,12 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   publishing is a separate choice through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18).
 
 ## Recent History
+### 2026-10-19 — ~/Summon is the one home
+- Owner: "everything should be in the Summon folder" (an agent's wallpaper ended in agy's brain folder, its candidates
+  in ~/Downloads, its theme in ~/.config). `SummonPaths.summonHome` = ~/Summon; `apps` (= `projects`) Apps/, `art`
+  Art/, `taskLogs` Tasks/; Themes is a link to ~/.config/summon/themes (where theme set reads; ~/.config is not a git
+  repo here). `SummonHome.ensure|migrate` (`summon home`, install.sh, every app launch): folders, link, .gitignore,
+  one-time moves (registry paths updated). Agents and tasks start in ~/Summon. Skills/commands use the new paths.
 ### 2026-10-19 — Agents settings, Hermes-style
 - Studied Hermes.app's Settings (Providers/Accounts, Model from the provider's list or Custom model…, Plugins with
   Skills/Toolsets search and "N of M"). Summon's lean version: master-detail Agents tab (780×560): All Agents

@@ -131,7 +131,7 @@ enum TaskCommands {
         let service = CheckpointService(paths: context.paths, runner: context.runner, gitPath: context.git, macctlPath: context.macctl)
         let (checkpoint, _) = await service.create(label: "task: \(task.name)")
 
-        let folder = context.paths.projects
+        let folder = context.paths.summonHome
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let logDir = context.paths.taskLogs.appendingPathComponent(task.id, isDirectory: true)
         try FileManager.default.createDirectory(at: logDir, withIntermediateDirectories: true)

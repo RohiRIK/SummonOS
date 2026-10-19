@@ -22,7 +22,7 @@ enum ProjectCommands {
         URL(fileURLWithPath: PathCommand.installPath()).appendingPathComponent("templates", isDirectory: true)
     }
 
-    /// `summon project new <name> --kind <kind> [--json]`: copies the template to ~/Summon/<name> and registers it.
+    /// `summon project new <name> --kind <kind> [--json]`: copies the template to ~/Summon/Apps/<name> and registers it.
     static func new(_ args: inout Arguments, _ context: Context) async throws {
         let json = args.flag("--json")
         let kindName = args.option("--kind")

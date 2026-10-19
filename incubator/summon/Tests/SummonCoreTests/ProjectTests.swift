@@ -45,7 +45,7 @@ struct ProjectTests {
 
     @Test func projectsLiveInSummonUnderHome() throws {
         let paths = SummonPaths(home: try makeTempHome())
-        #expect(paths.projects.path.hasSuffix("/Summon"))
+        #expect(paths.projects.path.hasSuffix("/Summon/Apps"))
         #expect(paths.projectRegistryFile.path.hasSuffix("/.config/summon/projects.json"))
         try ProjectsFolder.ensure(paths)
         var isDirectory: ObjCBool = false
