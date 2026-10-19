@@ -152,7 +152,7 @@ public enum ActivityFeed {
                 category: .problem,
                 kind: report.kind.rawValue,
                 title: report.kind == .memory
-                    ? "Memory ran low" + (report.process.map { ": \($0) used the most" } ?? "")
+                    ? (report.process.map { "\($0) was stopped: \(report.exceptionType ?? "memory")" } ?? "Memory ran low")
                     : "\(report.program) \(pastTense(report.kind))",
                 detail: what.isEmpty ? nil : what,
                 refs: ["file": report.file]

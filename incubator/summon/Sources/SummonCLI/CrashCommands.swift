@@ -18,7 +18,7 @@ enum CrashCommands {
                 for report in reports {
                     let when = report.timestamp ?? "unknown time"
                     let detail = [report.exceptionType, report.signal].compactMap { $0 }.joined(separator: " ")
-                    print("\(when)  \(report.kind.rawValue.padding(toLength: 5, withPad: " ", startingAt: 0))  \(report.program)  \(detail)")
+                    print("\(when)  \(report.kind.rawValue.padding(toLength: 6, withPad: " ", startingAt: 0))  \(report.program)  \(detail)")
                     print("    \(report.file)")
                 }
             }

@@ -31,8 +31,10 @@ version numbers yet; entries are grouped by day and point at the pull request.
 - Settings › Tasks is view only (schedule, agent, last result); tasks are made by describing them to the agent.
 
 ### Fixed
-- Low-memory (Jetsam, bug_type 298) reports showed as a "Hang" named after the file; they now read "Low memory ·
-  <app> used the most" (hangs are bug_type 288).
+- Low-memory (Jetsam, bug_type 298) reports showed as a "Hang" named after the file (hangs are bug_type 288). They
+  now name the process macOS stopped and why ("knowledgeconstructiond · Stopped · over its own memory limit"), not
+  the biggest bystander; routine kills (over its own cap, idle) are listed but not announced.
+- Clicking a Recent Problems row runs Diagnose, like its button.
 - Summon found an old Homebrew OpenCode (1.15) before your bun one (2.0); your own folders now come first, as in
   your shell.
 - Ask Agent with Pi (or any `#!/usr/bin/env node` agent) failed in Ghostty with `env: node: No such file or
