@@ -137,6 +137,9 @@ Every `summon` command, with arguments and examples: `summon commands --json`.
   (wallpaper and icon candidates), `Tasks/<id>` (a log per task run), `Themes` (a link to the installed themes).
   Agents start there. `~/Summon/.gitignore` keeps the generated parts out of git. `summon home` sets it up and moves
   older Summon files in.
+- Kept tidy once a day (or `summon clean --apply`, Settings › General › Clean Now…): old task logs, art jobs untouched
+  30 days and Antigravity originals after 14 days go to the Trash; apps are never touched; unfinished or broken
+  themes are reported. `summon clean` previews.
 
 ### Recurring agent tasks
 

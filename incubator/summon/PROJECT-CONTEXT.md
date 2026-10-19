@@ -33,6 +33,13 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   publishing is a separate choice through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18).
 
 ## Recent History
+### 2026-10-19 — summon clean
+- `SummonCleaner` (Core): plan → Trash (`FileManager.trashItem`), owner's rules: logs newest 20 / ≤30 days, removed
+  task folder after 7 days, art job untouched 30 days, Antigravity originals 14 days; Apps never touched; notes for
+  unknown apps, themes without a wallpaper, invalid theme.json. Once a day from app launch (`--if-due`, stamp in
+  state/clean-last); Settings › General › Clean Now… (preview in the dialog). `summon theme check`.
+- Found: agent-made themes (hearts-valley-theme, prance-coffee-style) wrote `oklch(…)` and `//` comments into
+  theme.json, so theme list skipped them silently. Root cause: summon-art says "work in OKLCH" without "store #RRGGBB".
 ### 2026-10-19 — ~/Summon is the one home
 - Owner: "everything should be in the Summon folder" (an agent's wallpaper ended in agy's brain folder, its candidates
   in ~/Downloads, its theme in ~/.config). `SummonPaths.summonHome` = ~/Summon; `apps` (= `projects`) Apps/, `art`

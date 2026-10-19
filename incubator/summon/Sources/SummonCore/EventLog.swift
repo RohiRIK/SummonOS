@@ -35,6 +35,8 @@ public enum EventKind {
     /// A recurring task ran (`summon task run`).
     public static let taskDone = "task.done"
     public static let taskFailed = "task.failed"
+    /// `summon clean` moved old files from ~/Summon to the Trash.
+    public static let summonClean = "summon.clean"
 }
 
 /// Append-only JSON Lines file, newest last. Unreadable lines are skipped, never fatal.
