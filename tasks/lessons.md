@@ -26,3 +26,5 @@ Rules learned from corrections. One line each, newest last.
   Actions billing: "job was not started because recent account payments have failed"). The owner's rule is merge only
   on clean CI. Rule: merge only after `gh pr checks <n>` exits 0 (`gh pr checks <n> && gh pr merge <n> …`), never with
   `;`. When CI cannot run, stop and tell the owner; do not substitute the local gate silently.
+- 2026-10-19 update from the owner: GitHub Actions will not be paid for. The gate is `tools/local-ci.sh <pr>`, which
+  posts a `local / swift (macOS)` status on the commit; merge with `tools/local-ci.sh <pr> && gh pr merge <pr> …`.

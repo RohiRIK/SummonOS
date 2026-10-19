@@ -34,6 +34,18 @@ incubating / dev / shipped / archived), `devRepo`, `publicRepo` (`owner/repo` or
 `portedFrom` (`{name, url, platform}` or null), `version` (null when unknown), `example` (true when the app
 is a reference to clone on demand), `path` (relative to the home).
 
+## local-ci.sh
+
+`tools/local-ci.sh [ref|pr-number] [--no-post]`: what `.github/workflows/swift.yml` does, run on this Mac. Checks out
+exactly that commit in a temporary worktree, builds and tests every `Package.swift` outside `.build/` and `plugins/`
+(build cache in `~/Library/Caches/macplugins/local-ci`, logs per package under `logs/<sha>/`), and posts the result
+as the commit status `local / swift (macOS)` (pending, then success or failure). Commit statuses are free; GitHub
+Actions runs need a paid plan the owner does not have. Merge a PR only when its head has the green status:
+
+```bash
+tools/local-ci.sh 42 && gh pr merge 42 --merge --delete-branch
+```
+
 ## check-workspace.sh
 
 Workspace hygiene gate, meant for CI. Not in CI yet: the job snippet is in `tools/ci/check-workspace.yml`,
@@ -124,7 +136,7 @@ tools/record-demos.sh [--no-gif]
 
 - Runs only read-only commands (`doctor`, `list`, `describe`, `get`, `diff`, `snapshot`, `--dry-run`);
   anything else is refused.
-- Replaces `$HOME` with `/Users/you` and every regex in `tools/private-patterns.txt` with `<private>`,
+- Replaces `$HOME` with a placeholder home (user `you`) and every regex in `tools/private-patterns.txt` with `<private>`,
   in the transcripts and in the GIF.
 
 ## install-skills.sh

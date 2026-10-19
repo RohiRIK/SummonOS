@@ -50,6 +50,16 @@ struct RecurringTaskTests {
         #expect(try #require(AgentRegistry.find("grok")).headless(prompt: "p", model: nil) == nil)
     }
 
+    @Test func setupPromptHandsTheAgentTheJob() {
+        let prompt = TaskSetup.prompt(description: "every weekday at 9 check brew updates")
+        #expect(prompt.contains("every weekday at 9 check brew updates"))
+        #expect(prompt.contains("summon task add"))
+        #expect(prompt.contains("unattended"))
+        let open = TaskSetup.prompt(description: nil)
+        #expect(open.contains("Ask me what should run and when"))
+        #expect(TaskSetup.prompt(description: "  ") == open)
+    }
+
     @Test func storeRoundTripsAndMakesUniqueIDs() throws {
         let store = TaskStore(paths: SummonPaths(home: try makeTempHome()))
         #expect(store.load().isEmpty)
