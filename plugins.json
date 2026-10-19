@@ -50,7 +50,7 @@
     {
       "name": "mac-assistant",
       "kind": "app",
-      "status": "incubating",
+      "status": "archived",
       "devRepo": null,
       "publicRepo": null,
       "bundleId": null,
@@ -59,8 +59,8 @@
       "example": false,
       "path": "incubator/mac-assistant",
       "summary": "Local Mac diagnostics assistant with a policy broker and typed tools",
-      "where": "branch `feat/mac-assistant` only (not on main)",
-      "statusNote": "Phase 1 (read-only diagnostics); last commit 2026-10-03"
+      "where": "tag `archive/mac-assistant` (branch deleted)",
+      "statusNote": "Archived 2026-10-19: the first idea that became Summon; Phase 0/1 skeleton from 2026-10-03"
     },
     {
       "name": "summon",
