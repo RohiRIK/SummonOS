@@ -62,6 +62,8 @@ Read a command's help before running it (`summon <group> <cmd> --help` never exe
 | Hooks | `~/.config/summon/hooks/<event>.d/` (theme-set, post-login, post-update, wake, battery-low) | `summon hooks run <event>` |
 | Apps | `~/.config/summon/Brewfile` | `brew bundle --file ~/.config/summon/Brewfile` |
 | Default agent | `~/.config/summon/defaults/agent` | `summon default agent <name>` |
+| Per-agent model and skills | `~/.config/summon/agents.json` | `summon agents set <agent> --model <m> --skills a,b` |
+| Recurring agent tasks | `~/.config/summon/tasks.json`, logs in `~/.local/state/summon/tasks/<id>/` | `summon task add "<prompt>" --at 09:00 [--weekdays] \| --every 2h [--agent <id>]`, `task list`, `task run <id>`, `task remove <id>` |
 
 ## Making a new theme
 

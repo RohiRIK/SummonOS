@@ -19,10 +19,21 @@ public struct Agent: Sendable, Equatable, Codable {
     public var modelFlag: String? = nil
     /// The agent's own skill folder, relative to home; nil when unknown (it gets skill paths in the prompt instead).
     public var skillFolder: String? = nil
+    /// argv before the prompt for an unattended run that prints its answer and exits (recurring tasks); nil when
+    /// not verified for this CLI.
+    public var headlessPrefix: [String]? = nil
 
     public func argv(prompt: String?) -> [String] {
         guard let prompt, !prompt.isEmpty else { return interactive }
         return withPrompt + [prompt]
+    }
+
+    /// The unattended form, model option right after the command (a global option for every verified CLI).
+    public func headless(prompt: String, model: String?) -> [String]? {
+        guard let headlessPrefix else { return nil }
+        let base = headlessPrefix + [prompt]
+        guard let modelFlag, let model = model?.trimmingCharacters(in: .whitespaces), !model.isEmpty else { return base }
+        return [base[0], modelFlag, model] + base.dropFirst()
     }
 
     /// `argv(prompt:)` with the model option right after the command, when the CLI has one.
@@ -39,19 +50,22 @@ public enum AgentRegistry {
             id: "claude", name: "Claude Code", command: "claude", aliases: ["claude-code"],
             interactive: ["claude", "--dangerously-skip-permissions"],
             withPrompt: ["claude", "--dangerously-skip-permissions", "--"],
-            installHint: "brew install --cask claude-code", modelFlag: "--model", skillFolder: ".claude/skills"
+            installHint: "brew install --cask claude-code", modelFlag: "--model", skillFolder: ".claude/skills",
+            headlessPrefix: ["claude", "-p", "--dangerously-skip-permissions", "--"]
         ),
         Agent(
             id: "codex", name: "Codex", command: "codex", aliases: ["openai-codex"],
             interactive: ["codex", "--dangerously-bypass-approvals-and-sandbox"],
             withPrompt: ["codex", "--dangerously-bypass-approvals-and-sandbox", "--"],
-            installHint: "brew install codex", modelFlag: "--model", skillFolder: ".codex/skills"
+            installHint: "brew install codex", modelFlag: "--model", skillFolder: ".codex/skills",
+            headlessPrefix: ["codex", "exec", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", "--"]
         ),
         Agent(
             id: "opencode", name: "OpenCode", command: "opencode", aliases: ["open-code"],
             interactive: ["opencode", "--auto"],
             withPrompt: ["opencode", "--auto", "--prompt"],
-            installHint: "brew install sst/tap/opencode", skillFolder: ".config/opencode/skills"
+            installHint: "brew install sst/tap/opencode", skillFolder: ".config/opencode/skills",
+            headlessPrefix: ["opencode", "run", "--auto"]
         ),
         Agent(
             id: "copilot", name: "GitHub Copilot", command: "copilot", aliases: ["github-copilot"],
@@ -70,14 +84,16 @@ public enum AgentRegistry {
             id: "agy", name: "Antigravity", command: "agy", aliases: ["antigravity", "gemini", "gemini-cli"],
             interactive: ["agy", "--dangerously-skip-permissions"],
             withPrompt: ["agy", "--dangerously-skip-permissions", "--prompt-interactive"],
-            installHint: "npm install -g antigravity-cli", modelFlag: "--model", skillFolder: ".gemini/config/skills"
+            installHint: "npm install -g antigravity-cli", modelFlag: "--model", skillFolder: ".gemini/config/skills",
+            headlessPrefix: ["agy", "--dangerously-skip-permissions", "-p"]
         ),
         Agent(
             // Pi has no permission prompts: it runs its tools without asking, so there is no bypass flag.
             id: "pi", name: "Pi", command: "pi", aliases: ["pi-agent", "pi-coding-agent"],
             interactive: ["pi"],
             withPrompt: ["pi", "--"],
-            installHint: "bun add -g @earendil-works/pi-coding-agent", modelFlag: "--model", skillFolder: ".pi/agent/skills"
+            installHint: "bun add -g @earendil-works/pi-coding-agent", modelFlag: "--model", skillFolder: ".pi/agent/skills",
+            headlessPrefix: ["pi", "-p", "--"]
         ),
         Agent(
             id: "grok", name: "Grok", command: "grok", aliases: ["grok-build"],

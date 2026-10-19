@@ -20,6 +20,9 @@ public final class SummonModel {
     public private(set) var installedTerminals: [TerminalApp] = [.terminal]
     /// Programs whose crash notifications the user muted, sorted.
     public private(set) var mutedPrograms: [String] = []
+    /// Recurring agent tasks (`tasks.json`) and each one's last result ("done"/"failed"), from the event log.
+    public private(set) var tasks: [RecurringTask] = []
+    public private(set) var taskResults: [String: String] = [:]
     /// Per-agent model and skill choices (`~/.config/summon/agents.json`), read here, changed through the CLI.
     public private(set) var agentSettings = AgentSettings()
     /// Skills Summon ships, from `summon skills`; empty until `loadShippedSkills()` runs.
@@ -68,6 +71,11 @@ public final class SummonModel {
         let themeStore = ThemeStore(paths: paths)
         themes = themeStore.all()
         currentThemeSlug = themeStore.currentSlug()
+        tasks = TaskStore(paths: paths).load()
+        let events = EventLog(paths: paths).read()
+        taskResults = Dictionary(events.compactMap { event in
+            event.refs["task"].map { ($0, event.kind == EventKind.taskFailed ? "failed" : "done") }
+        }, uniquingKeysWith: { _, newer in newer })
         let installed = TerminalApp.installed
         installedTerminals = TerminalApp.allCases.filter { installed.contains($0) }
         terminal = AgentLauncher.preferredTerminal(saved: DefaultTerminalStore(paths: paths).load(), installed: installed)
@@ -178,6 +186,31 @@ public final class SummonModel {
 
     public func setTerminal(_ terminal: TerminalApp) {
         Task { await summon(["default", "terminal", terminal.rawValue]) }
+    }
+
+    /// Agents that can run a task unattended, installed here.
+    public var taskAgents: [Agent] {
+        AgentRegistry.all.filter { $0.headlessPrefix != nil && ToolLocator.live().find($0.command) != nil }
+    }
+
+    public func addTask(prompt: String, schedule: TaskSchedule, agent: String?) {
+        var arguments = ["task", "add", prompt]
+        switch schedule.kind {
+        case .daily: arguments += ["--at", String(format: "%02d:%02d", schedule.hour, schedule.minute)]
+        case .weekdays: arguments += ["--at", String(format: "%02d:%02d", schedule.hour, schedule.minute), "--weekdays"]
+        case .interval: arguments += ["--every", "\(schedule.everyHours)h"]
+        }
+        if let agent { arguments += ["--agent", agent] }
+        Task { await summon(arguments) }
+    }
+
+    public func removeTask(_ id: String) {
+        Task { await summon(["task", "remove", id]) }
+    }
+
+    /// Runs in the background; the result shows in Activity and as a notification.
+    public func runTaskNow(_ id: String) {
+        Task { await summon(["task", "run", id]) }
     }
 
     public func setTheme(_ slug: String) {
@@ -294,6 +327,9 @@ extension SummonModel {
             return try? JSONDecoder().decode(Theme.self, from: Data(json.utf8))
         }
         model.currentThemeSlug = "summon-night"
+        model.tasks = [RecurringTask(id: "brew", name: "Brew check", prompt: "Check brew updates and summarize", agent: "claude",
+                                    schedule: TaskSchedule(kind: .weekdays, hour: 9, minute: 0))]
+        model.taskResults = ["brew": "done"]
         return model
     }
 }

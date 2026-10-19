@@ -7,8 +7,7 @@ import SwiftUI
 public struct SettingsView: View {
     @Bindable var model: SummonModel
 
-    /// Tasks joins when recurring tasks exist (todo item D); an empty tab is not shipped.
-    static let sections = SettingsSection.allCases.filter { $0 != .tasks }
+    static let sections = SettingsSection.allCases
 
     public init(model: SummonModel) {
         self.model = model
@@ -32,9 +31,9 @@ struct SettingsSectionView: View {
     @Bindable var model: SummonModel
 
     var body: some View {
-        // Short tabs fit their rows; Agents (a row per skill) gets room and scrolls.
-        if section == .agents {
-            AgentsSettings(model: model).frame(height: 520)
+        // Short tabs fit their rows; Agents (a row per skill) and Tasks get room and scroll.
+        if section == .agents || section == .tasks {
+            content.frame(height: 520)
         } else {
             content.fixedSize(horizontal: false, vertical: true)
         }
@@ -47,7 +46,7 @@ struct SettingsSectionView: View {
         case .terminal: TerminalSettings(model: model)
         case .notifications: NotificationSettings(model: model)
         case .appearance: AppearanceSettings(model: model)
-        case .tasks: TasksSettings()
+        case .tasks: TasksSettings(model: model)
         }
     }
 }
@@ -267,10 +266,69 @@ struct AppearanceSettings: View {
 
 // MARK: Tasks
 
-/// Recurring agent tasks (`summon task`) are not built yet (todo item D); until then the section is empty.
+/// Recurring agent tasks (`summon task`): what runs when, Run Now, Delete, and a short form to add one.
 struct TasksSettings: View {
+    let model: SummonModel
+    @State private var prompt = ""
+    @State private var kind: TaskSchedule.Kind = .daily
+    @State private var time = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: Date()) ?? Date()
+    @State private var hours = 2
+    @State private var agent = ""
+
     var body: some View {
-        ContentUnavailableView("No Tasks", systemImage: "clock.arrow.circlepath")
+        Form {
+            Section {
+                if model.tasks.isEmpty {
+                    Text("No tasks yet.").foregroundStyle(.secondary)
+                }
+                ForEach(model.tasks) { task in
+                    LabeledContent {
+                        HStack {
+                            Button("Run Now") { model.runTaskNow(task.id) }
+                            Button("Delete", role: .destructive) { model.removeTask(task.id) }
+                        }
+                    } label: {
+                        Text(verbatim: task.name)
+                        Text(verbatim: detail(task))
+                    }
+                }
+            }
+            Section("New Task") {
+                TextField("Prompt", text: $prompt, prompt: Text("Check brew updates and summarize"))
+                Picker("Runs", selection: $kind) {
+                    Text("Every day").tag(TaskSchedule.Kind.daily)
+                    Text("Weekdays").tag(TaskSchedule.Kind.weekdays)
+                    Text("Every few hours").tag(TaskSchedule.Kind.interval)
+                }
+                if kind == .interval {
+                    Stepper("Every \(hours) hours", value: $hours, in: 1...24)
+                } else {
+                    DatePicker("At", selection: $time, displayedComponents: .hourAndMinute)
+                }
+                Picker("Agent", selection: $agent) {
+                    Text("Default agent").tag("")
+                    ForEach(model.taskAgents, id: \.id) { agent in
+                        Text(agent.name).tag(agent.id)
+                    }
+                }
+                Button("Add Task", action: add)
+                    .disabled(prompt.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private func detail(_ task: RecurringTask) -> String {
+        let agent = task.agent.flatMap { AgentRegistry.find($0)?.name } ?? "default agent"
+        let last = model.taskResults[task.id].map { " · last run \($0)" } ?? ""
+        return "\(task.schedule.summary) · \(agent)\(last)"
+    }
+
+    private func add() {
+        let parts = Calendar.current.dateComponents([.hour, .minute], from: time)
+        let schedule = TaskSchedule(kind: kind, hour: parts.hour ?? 9, minute: parts.minute ?? 0, everyHours: hours)
+        model.addTask(prompt: prompt, schedule: schedule, agent: agent.isEmpty ? nil : agent)
+        prompt = ""
     }
 }
 
