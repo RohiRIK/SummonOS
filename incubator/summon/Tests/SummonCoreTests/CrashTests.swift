@@ -19,7 +19,7 @@ struct CrashTests {
 
     @Test func textBodyKeepsHeaderFacts() throws {
         let text = """
-        {"app_name":"Slow","bug_type":"298","timestamp":"2026-10-17 11:00:00.00 +0000"}
+        {"app_name":"Slow","bug_type":"288","timestamp":"2026-10-17 11:00:00.00 +0000"}
         Date/Time: 2026-10-17 11:00:00 +0000
         Duration: 5.00s
         """
