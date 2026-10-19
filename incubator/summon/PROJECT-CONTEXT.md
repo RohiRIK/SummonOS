@@ -33,6 +33,12 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   publishing is a separate choice through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18).
 
 ## Recent History
+### 2026-10-19 — Agent plugins and a shared catalog
+- `AgentPlugins` (Core): list/install per agent from real output: `claude plugin list|install name@marketplace`,
+  `agy plugin list|install <folder>`, `pi list|install npm:<pkg>`, OpenCode `plugin` array in `opencode.json`
+  (edited with a `.summon-backup`), Codex `mcp list` (read-only). `PluginCatalog`: OpenLTM builds for claude,
+  opencode, pi; `summon plugins install|fix`. Settings › Agents: Plugins + Shared plugins sections (not seen on
+  screen yet: SwiftUI scroll is out of reach for automation; data verified through the CLI).
 ### 2026-10-19 — Problems archive; low-memory events
 - `ProblemArchive` (Core, `~/.local/state/summon/problems-archived.json`): the panel shows reports ≤ 24 h old and
   not archived; Diagnose archives that program's reports; Clear archives the rest. Activity is unchanged.
