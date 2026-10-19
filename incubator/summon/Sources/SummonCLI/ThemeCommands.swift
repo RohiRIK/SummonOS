@@ -20,6 +20,19 @@ enum ThemeCommands {
             for theme in themes {
                 print("\(theme.slug == current ? "*" : " ") \(theme.slug.padding(toLength: 16, withPad: " ", startingAt: 0)) \(theme.name) (\(theme.appearance))")
             }
+        case "check":
+            // Why a theme does not show in `theme list`: broken files are skipped there, silently.
+            guard let slug = args.next() else { throw CLIError("Usage: summon theme check <slug>") }
+            let file = context.paths.themes.appendingPathComponent(slug).appendingPathComponent("theme.json")
+            guard let data = FileManager.default.contents(atPath: file.path) else { throw CLIError("No \(file.path)") }
+            do {
+                let theme = try Theme.decode(data)
+                print("\(theme.name): valid")
+            } catch let error as Theme.ValidationError {
+                throw CLIError("\(file.path): \(error) — colors are #RRGGBB, 16 terminal colors, slug a-z 0-9 -")
+            } catch {
+                throw CLIError("\(file.path) is not valid JSON (no comments, no trailing commas): \(error.localizedDescription)")
+            }
         case "current":
             if let slug = store.currentSlug() { print(slug) }
         case "set":

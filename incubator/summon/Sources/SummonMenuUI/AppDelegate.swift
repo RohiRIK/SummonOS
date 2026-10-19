@@ -44,6 +44,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         Task {
             await model.summon(["skills", "link", "--quiet"])
             await model.summon(["home", "--quiet"])
+            // Once a day: old Summon files to the Trash (summon clean shows what and why).
+            await model.summon(["clean", "--apply", "--if-due", "--quiet"])
         }
     }
 
