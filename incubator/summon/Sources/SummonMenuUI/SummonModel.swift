@@ -32,6 +32,8 @@ public final class SummonModel {
     /// What each agent's CLI reports (login, models), filled on demand; ids being checked right now.
     public private(set) var agentStatus: [String: AgentStatus] = [:]
     public private(set) var checkingAgents: Set<String> = []
+    /// Agents whose CLI is on this Mac, in registry order.
+    public private(set) var installedAgentIDs: [String] = []
     /// Installed plugins per agent, and which agents have each catalog plugin (filled on demand).
     public private(set) var agentPlugins: [String: [InstalledPlugin]] = [:]
     public private(set) var catalogInstalled: [String: [String: Bool]] = [:]
@@ -72,6 +74,8 @@ public final class SummonModel {
 
     public func reload() {
         defaultAgent = DefaultAgentStore(paths: paths).load()
+        let locator = ToolLocator.live()
+        installedAgentIDs = AgentRegistry.all.filter { locator.find($0.command) != nil }.map(\.id)
         if let agent = defaultAgent {
             agentInstalled = ToolLocator.live().find(agent.command) != nil
         } else {
@@ -225,6 +229,17 @@ public final class SummonModel {
     /// nil or blank goes back to the CLI's own default model.
     public func setAgentModel(_ model: String?, for id: String) {
         Task { await summon(AgentSettingsCommand.model(model, for: id)) }
+    }
+
+    /// All Agents: the skills every agent follows unless it has its own list.
+    public func setDefaultSkill(_ name: String, on: Bool) {
+        let skills = agentSettings.defaultSkills(shipped: shippedSkills, turning: name, on: on)
+        Task { await summon(AgentSettingsCommand.defaultSkills(skills)) }
+    }
+
+    /// The agent follows All Agents' skills again.
+    public func useDefaultSkills(for id: String) {
+        Task { await summon(AgentSettingsCommand.skills(nil, for: id)) }
     }
 
     public func setAgentSkill(_ name: String, on: Bool, for id: String) {

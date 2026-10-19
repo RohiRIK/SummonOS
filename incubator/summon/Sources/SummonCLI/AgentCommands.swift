@@ -139,6 +139,24 @@ enum AgentCommands {
         let skills: [String]
     }
 
+    /// `summon agents defaults [--skills a,b | --all-skills]`: the All Agents skills every agent follows unless it
+    /// has its own list. Saves and relinks at once.
+    static func defaults(_ args: inout Arguments, _ context: Context) throws {
+        let store = AgentSettingsStore(paths: context.paths)
+        var settings = store.load()
+        let shipped = SkillLinker.skillNames(in: SkillCommands.source)
+        if args.flag("--all-skills") { settings.defaultSkills = nil }
+        if let list = args.option("--skills") {
+            let names = list.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            let unknown = names.filter { !shipped.contains($0) }
+            guard unknown.isEmpty else { throw CLIError("Unknown skill: \(unknown.joined(separator: ", "))\nShipped: \(shipped.joined(separator: ", "))") }
+            settings.defaultSkills = names.sorted()
+        }
+        try store.save(settings)
+        _ = try SkillLinker(home: context.paths.home).link(from: SkillCommands.source, settings: settings)
+        print("All agents: skills \(settings.defaultSkills(shipped: shipped).joined(separator: ", "))")
+    }
+
     /// `summon agents set <agent> [--model <m> | --default-model] [--skills a,b | --all-skills]`.
     static func set(_ args: inout Arguments, _ context: Context) throws {
         guard let name = args.next(), let agent = AgentRegistry.find(name) else {

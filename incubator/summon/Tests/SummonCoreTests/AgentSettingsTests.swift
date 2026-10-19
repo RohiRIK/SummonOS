@@ -38,3 +38,41 @@ struct AgentSettingsTests {
         #expect(settings.model(for: "claude") == nil)
     }
 }
+
+@Suite("All Agents defaults")
+struct AgentDefaultsTests {
+    let shipped = ["mac-app", "summon", "summon-art"]
+
+    @Test func agentsFollowTheDefaultsUntilCustomized() {
+        var settings = AgentSettings()
+        #expect(settings.skills(for: "codex", shipped: shipped) == shipped)
+        settings.defaultSkills = ["summon", "summon-art"]
+        #expect(settings.skills(for: "codex", shipped: shipped) == ["summon", "summon-art"])
+        #expect(!settings.isCustom("codex"))
+        settings.setSkills(["summon"], for: "codex")
+        #expect(settings.isCustom("codex"))
+        #expect(settings.skills(for: "codex", shipped: shipped) == ["summon"])
+        #expect(settings.skills(for: "claude", shipped: shipped) == ["summon", "summon-art"])
+        settings.setSkills(nil, for: "codex")
+        #expect(settings.skills(for: "codex", shipped: shipped) == ["summon", "summon-art"])
+    }
+
+    @Test func togglingBackToTheDefaultsFollowsThemAgain() {
+        var settings = AgentSettings()
+        settings.defaultSkills = ["summon"]
+        let custom = settings.skills(for: "pi", shipped: shipped, turning: "mac-app", on: true)
+        #expect(custom == ["mac-app", "summon"])
+        settings.setSkills(custom, for: "pi")
+        #expect(settings.skills(for: "pi", shipped: shipped, turning: "mac-app", on: false) == nil)
+        #expect(settings.defaultSkills(shipped: shipped, turning: "mac-app", on: true) == ["mac-app", "summon"])
+        #expect(AgentSettingsCommand.defaultSkills(nil) == ["agents", "defaults", "--all-skills"])
+        #expect(AgentSettingsCommand.defaultSkills(["summon"]) == ["agents", "defaults", "--skills=summon"])
+    }
+
+    @Test func oldFilesWithoutDefaultsStillDecode() throws {
+        let data = Data(#"{"agents":{"codex":{"model":"o3"}}}"#.utf8)
+        let settings = try JSONDecoder().decode(AgentSettings.self, from: data)
+        #expect(settings.defaultSkills == nil)
+        #expect(settings.model(for: "codex") == "o3")
+    }
+}

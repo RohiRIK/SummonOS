@@ -33,6 +33,12 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   publishing is a separate choice through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18).
 
 ## Recent History
+### 2026-10-19 — Agents settings, Hermes-style
+- Studied Hermes.app's Settings (Providers/Accounts, Model from the provider's list or Custom model…, Plugins with
+  Skills/Toolsets search and "N of M"). Summon's lean version: master-detail Agents tab (780×560): All Agents
+  (defaults) on top, then each agent with the same four sections (Account, Model, Skills, Plugins).
+- `AgentSettings.defaultSkills` (agents.json): an agent with no own list follows it; toggling back to the defaults
+  clears the agent's list. `summon agents defaults`. Terminal tab removed (its picker is on All Agents).
 ### 2026-10-19 — Agent plugins and a shared catalog
 - `AgentPlugins` (Core): list/install per agent from real output: `claude plugin list|install name@marketplace`,
   `agy plugin list|install <folder>`, `pi list|install npm:<pkg>`, OpenCode `plugin` array in `opencode.json`

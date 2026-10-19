@@ -7,7 +7,8 @@ import SwiftUI
 public struct SettingsView: View {
     @Bindable var model: SummonModel
 
-    static let sections = SettingsSection.allCases
+    /// Terminal lives on Agents › All Agents now (where agents open), so it has no tab of its own.
+    static let sections = SettingsSection.allCases.filter { $0 != .terminal }
 
     public init(model: SummonModel) {
         self.model = model
@@ -20,7 +21,6 @@ public struct SettingsView: View {
                     .tabItem { Label(section.title, systemImage: section.systemImage) }
             }
         }
-        .frame(width: 580)
         .task { await model.loadShippedSkills() }
     }
 }
@@ -33,9 +33,9 @@ struct SettingsSectionView: View {
     var body: some View {
         // Short tabs fit their rows; Agents (a row per skill) gets room and scrolls.
         if section == .agents {
-            content.frame(height: 520)
+            content.frame(width: 780, height: 560)
         } else {
-            content.fixedSize(horizontal: false, vertical: true)
+            content.frame(width: 580).fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -43,7 +43,7 @@ struct SettingsSectionView: View {
         switch section {
         case .general: GeneralSettings()
         case .agents: AgentsSettings(model: model)
-        case .terminal: TerminalSettings(model: model)
+        case .terminal: AllAgentsDetail(model: model)  // no tab of its own: Agents › All Agents
         case .notifications: NotificationSettings(model: model)
         case .appearance: AppearanceSettings(model: model)
         case .tasks: TasksSettings(model: model)
@@ -98,140 +98,368 @@ struct GeneralSettings: View {
 
 // MARK: Agents
 
+/// Agents, Hermes-style but lean: the agents on the left (status and Default at a glance), and the same four
+/// sections for every agent on the right: Account, Model, Skills, Plugins.
 struct AgentsSettings: View {
     @Bindable var model: SummonModel
-    /// The agent whose model and skills are shown; starts on the default agent.
-    @State private var editing: String = ""
-    @State private var modelDraft: String = ""
-    @State private var pluginDraft: String = ""
+    @State private var selected: String?
 
-    /// Agents with something to set: a model option or their own skill folder.
-    private var configurable: [Agent] {
-        AgentRegistry.all.filter { $0.modelFlag != nil || $0.skillFolder != nil }
-    }
-
-    private var editingAgent: Agent? {
-        configurable.first { $0.id == editing }
+    /// Installed agents first, then the rest; each id once.
+    private var agents: [Agent] {
+        let installed = Set(model.installedAgentIDs)
+        return AgentRegistry.all.filter { installed.contains($0.id) } + AgentRegistry.all.filter { !installed.contains($0.id) }
     }
 
     var body: some View {
+        HStack(spacing: 0) {
+            List(selection: $selected) {
+                Label("All Agents", systemImage: "square.stack.3d.up")
+                    .tag(Self.allTag)
+                Section("Installed") {
+                    ForEach(agents.filter { model.installedAgentIDs.contains($0.id) }, id: \.id) { agent in
+                        AgentListRow(agent: agent, model: model).tag(agent.id)
+                    }
+                }
+                Section("Not installed") {
+                    ForEach(agents.filter { !model.installedAgentIDs.contains($0.id) }, id: \.id) { agent in
+                        AgentListRow(agent: agent, model: model).tag(agent.id)
+                    }
+                }
+            }
+            .listStyle(.sidebar)
+            .frame(width: 190)
+
+            Divider()
+
+            if selected == Self.allTag {
+                AllAgentsDetail(model: model)
+            } else if let agent = agents.first(where: { $0.id == selected }) {
+                AgentDetail(agent: agent, model: model)
+                    .id(agent.id)
+            } else {
+                ContentUnavailableView("No Agent", systemImage: "sparkles")
+            }
+        }
+        .task {
+            // Fill every status dot, not only the open agent's.
+            for id in model.installedAgentIDs where model.agentStatus[id] == nil {
+                await model.checkAgent(id)
+            }
+            await model.loadCatalog()
+        }
+        .onAppear {
+            if selected == nil { selected = Self.allTag }
+        }
+    }
+}
+
+extension AgentsSettings {
+    static let allTag = "\u{0}all"
+}
+
+/// The defaults every agent starts from: which agent Ask Agent opens, where agents open, the skills they get,
+/// and the plugins Summon recommends for all of them. Each agent's own page can then differ.
+struct AllAgentsDetail: View {
+    @Bindable var model: SummonModel
+
+    var body: some View {
         Form {
-            Section {
-                Picker("Default agent", selection: defaultAgentBinding) {
-                    Text("None").tag("")
-                    ForEach(AgentRegistry.all, id: \.id) { agent in
+            Section("All Agents") {
+                Picker("Default agent", selection: Binding(get: { model.defaultAgent?.id ?? "" },
+                                                           set: { if !$0.isEmpty { model.setDefaultAgent($0) } })) {
+                    if model.defaultAgent == nil { Text("None").tag("") }
+                    ForEach(AgentRegistry.all.filter { model.installedAgentIDs.contains($0.id) }, id: \.id) { agent in
                         Text(agent.name).tag(agent.id)
                     }
                 }
-                if let agent = model.defaultAgent, !model.agentInstalled {
-                    LabeledContent("Install") {
-                        Text(agent.installHint)
-                            .font(.system(.body, design: .monospaced))
-                            .textSelection(.enabled)
-                    }
+                Picker("Open agents in", selection: Binding(get: { model.terminal }, set: { model.setTerminal($0) })) {
+                    ForEach(model.installedTerminals, id: \.self) { Text($0.name).tag($0) }
                 }
             }
 
+            let all = model.shippedSkills
+            let on = model.agentSettings.defaultSkills(shipped: all)
             Section {
-                Picker("Agent", selection: $editing) {
-                    ForEach(configurable, id: \.id) { agent in
-                        Text(agent.name).tag(agent.id)
+                ForEach(all, id: \.self) { skill in
+                    Toggle(isOn: Binding(get: { on.contains(skill) }, set: { model.setDefaultSkill(skill, on: $0) })) {
+                        Text(skill)
+                        if let description = model.skillDescriptions[skill] { Text(description).lineLimit(2) }
                     }
+                    .disabled(skill == "summon")
                 }
-                if let agent = editingAgent {
-                    LabeledContent("Account") { account(agent) }
-                }
-                if let agent = editingAgent, agent.modelFlag != nil {
-                    TextField("Model", text: $modelDraft, prompt: Text("Default"))
-                        .textInputSuggestions {
-                            ForEach(suggestions(agent), id: \.self) { name in
-                                Text(name).textInputCompletion(name)
-                            }
-                        }
-                        .onSubmit { model.setAgentModel(modelDraft, for: agent.id) }
+            } header: {
+                HStack {
+                    Text("Skills every agent gets")
+                    Spacer()
+                    Text("\(on.count) of \(all.count) on").foregroundStyle(.secondary)
                 }
             }
 
-            if let agent = editingAgent, agent.skillFolder != nil, !model.shippedSkills.isEmpty {
-                Section("Skills") {
-                    ForEach(model.shippedSkills, id: \.self) { skill in
-                        Toggle(isOn: skillBinding(skill, agent: agent.id)) {
-                            Text(skill)
-                            if let description = model.skillDescriptions[skill] {
-                                Text(description).lineLimit(2)
-                            }
+            Section("Shared plugins") {
+                ForEach(PluginCatalog.all) { plugin in
+                    let states = model.catalogInstalled[plugin.id] ?? [:]
+                    LabeledContent {
+                        if states.values.contains(false) {
+                            Button("Install in All") { model.installEverywhere(plugin.id) }
+                                .disabled(model.pluginWork != nil)
+                        } else if !states.isEmpty {
+                            Text("In every agent").foregroundStyle(.secondary)
                         }
-                        // The router is how "summon, <anything>" reaches the other skills: always on.
-                        .disabled(skill == "summon")
+                    } label: {
+                        Text(plugin.name)
+                        Text(plugin.summary + (states.isEmpty ? "" : " " + states.sorted { $0.key < $1.key }
+                            .map { (AgentRegistry.find($0.key)?.name ?? $0.key) + ($0.value ? "" : " (not yet)") }.joined(separator: ", ")))
                     }
                 }
-            }
-
-            if let agent = editingAgent {
-                plugins(agent)
-                sharedPlugins(agent)
+                if let work = model.pluginWork { Text(work).foregroundStyle(.secondary) }
             }
         }
         .formStyle(.grouped)
-        .task(id: editing) { await model.loadPlugins(editing) }
-        .task { await model.loadCatalog() }
-        .onAppear {
-            if editingAgent == nil {
-                let preferred = model.defaultAgent?.id
-                editing = configurable.first { $0.id == preferred }?.id ?? configurable.first?.id ?? ""
-            }
-            modelDraft = model.agentSettings.model(for: editing) ?? ""
-        }
-        .task(id: editing) { await model.checkAgent(editing) }
-        .onChange(of: editing) { _, id in
-            modelDraft = model.agentSettings.model(for: id) ?? ""
-        }
-        .onChange(of: model.agentSettings) { _, settings in
-            modelDraft = settings.model(for: editing) ?? ""
-        }
     }
+}
 
-    /// "Logged in · claude.ai", or "Not logged in" with Log In…; Check Again after logging in elsewhere.
-    @ViewBuilder private func account(_ agent: Agent) -> some View {
+/// Name, a status dot (green connected, orange not connected, grey unknown or not installed) and "Default".
+struct AgentListRow: View {
+    let agent: Agent
+    let model: SummonModel
+
+    var body: some View {
         HStack(spacing: 8) {
-            if model.checkingAgents.contains(agent.id) {
-                ProgressView().controlSize(.small)
-                Text("Checking…").foregroundStyle(.secondary)
-            } else if let login = model.agentStatus[agent.id]?.login {
-                switch login.loggedIn {
-                case true?:
-                    Text(["Logged in", login.detail].compactMap { $0 }.joined(separator: " · "))
-                        .foregroundStyle(.secondary)
-                case false?:
-                    Text(login.detail.map { "Not logged in · \($0)" } ?? "Not logged in").foregroundStyle(.orange)
-                    Button("Log In…") { model.logIn(agent.id) }
-                case nil:
-                    Text("Unknown").foregroundStyle(.secondary)
+            Circle()
+                .fill(color)
+                .frame(width: 7, height: 7)
+                .accessibilityLabel(status)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(agent.name)
+                if model.defaultAgent?.id == agent.id {
+                    Text("Default").font(.caption).foregroundStyle(.secondary)
                 }
-                Button {
-                    Task { await model.checkAgent(agent.id) }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
+            }
+        }
+        .help(status)
+    }
+
+    private var installed: Bool { model.installedAgentIDs.contains(agent.id) }
+
+    private var color: Color {
+        guard installed else { return .secondary.opacity(0.4) }
+        switch model.agentStatus[agent.id]?.login.loggedIn {
+        case true?: return .green
+        case false?: return .orange
+        case nil: return .secondary
+        }
+    }
+
+    private var status: String {
+        guard installed else { return "Not installed" }
+        switch model.agentStatus[agent.id]?.login.loggedIn {
+        case true?: return "Connected"
+        case false?: return "Not connected"
+        case nil: return "Not checked yet"
+        }
+    }
+}
+
+/// One agent's page. Every agent gets the same sections; what an agent cannot do says so in one line.
+struct AgentDetail: View {
+    let agent: Agent
+    @Bindable var model: SummonModel
+    @State private var custom = false
+    @State private var modelDraft = ""
+    @State private var skillQuery = ""
+    @State private var pluginDraft = ""
+
+    private var installed: Bool { model.installedAgentIDs.contains(agent.id) }
+    private var models: [String] { model.agentStatus[agent.id]?.models ?? [] }
+    private var currentModel: String { model.agentSettings.model(for: agent.id) ?? "" }
+
+    var body: some View {
+        Form {
+            account
+            if installed {
+                modelSection
+                skills
+                plugins
+            }
+        }
+        .formStyle(.grouped)
+        .task {
+            guard installed else { return }
+            await model.checkAgent(agent.id)
+            await model.loadPlugins(agent.id)
+        }
+        .onAppear { modelDraft = currentModel }
+    }
+
+    // MARK: Account
+
+    private var account: some View {
+        Section {
+            if installed {
+                LabeledContent("Account") {
+                    HStack(spacing: 8) {
+                        if model.checkingAgents.contains(agent.id) {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            switch model.agentStatus[agent.id]?.login.loggedIn {
+                            case true?:
+                                Text(["Connected", model.agentStatus[agent.id]?.login.detail].compactMap { $0 }.joined(separator: " · "))
+                                    .foregroundStyle(.secondary)
+                            case false?:
+                                Text("Not connected").foregroundStyle(.orange)
+                                Button("Log In…") { model.logIn(agent.id) }
+                            case nil:
+                                Text("Unknown").foregroundStyle(.secondary)
+                            }
+                            Button {
+                                Task { await model.checkAgent(agent.id) }
+                            } label: { Image(systemName: "arrow.clockwise") }
+                                .buttonStyle(.borderless)
+                                .help("Check again")
+                                .accessibilityLabel("Check again")
+                        }
+                    }
                 }
-                .buttonStyle(.borderless)
-                .help("Check again")
-                .accessibilityLabel("Check again")
+                LabeledContent("Default agent") {
+                    if model.defaultAgent?.id == agent.id {
+                        Text("Yes").foregroundStyle(.secondary)
+                    } else {
+                        Button("Make Default") { model.setDefaultAgent(agent.id) }
+                    }
+                }
+            } else {
+                LabeledContent("Install") {
+                    Text(agent.installHint)
+                        .font(.system(.body, design: .monospaced))
+                        .textSelection(.enabled)
+                }
+            }
+        } header: {
+            Text(agent.name)
+        }
+    }
+
+    // MARK: Model
+
+    @ViewBuilder private var modelSection: some View {
+        Section("Model") {
+            if agent.modelFlag == nil {
+                LabeledContent("Model", value: "Set in \(agent.name)'s own settings")
+            } else if !models.isEmpty, models.count <= 60, !custom {
+                Picker("Model", selection: pickerBinding) {
+                    Text("Agent default").tag("")
+                    Divider()
+                    ForEach(models, id: \.self) { Text($0).tag($0) }
+                    if !currentModel.isEmpty, !models.contains(currentModel) { Text(currentModel).tag(currentModel) }
+                    Divider()
+                    Text("Custom…").tag(Self.customTag)
+                }
+            } else {
+                TextField("Model", text: $modelDraft, prompt: Text(models.isEmpty ? "Agent default" : "Search \(models.count) models"))
+                    .textInputSuggestions {
+                        ForEach(suggestions, id: \.self) { Text($0).textInputCompletion($0) }
+                    }
+                    .onSubmit { model.setAgentModel(modelDraft, for: agent.id) }
+                if custom {
+                    Button("Choose from List") { custom = false }
+                }
             }
         }
     }
 
-    /// The agent's installed plugins (Codex: MCP servers) and Add, which runs the agent's own installer.
-    @ViewBuilder private func plugins(_ agent: Agent) -> some View {
-        Section(agent.id == "codex" ? "MCP servers" : "Plugins") {
-            let installed = model.agentPlugins[agent.id] ?? []
-            if installed.isEmpty {
-                Text(model.agentPlugins[agent.id] == nil ? "Loading…" : "None").foregroundStyle(.secondary)
+    static let customTag = "\u{0}custom"
+
+    private var pickerBinding: Binding<String> {
+        Binding(
+            get: { currentModel },
+            set: { value in
+                if value == Self.customTag {
+                    modelDraft = currentModel
+                    custom = true
+                } else {
+                    model.setAgentModel(value, for: agent.id)
+                }
             }
-            ForEach(installed) { plugin in
+        )
+    }
+
+    private var suggestions: [String] {
+        let query = modelDraft.trimmingCharacters(in: .whitespaces).lowercased()
+        return Array((query.isEmpty ? models : models.filter { $0.lowercased().contains(query) }).prefix(30))
+    }
+
+    // MARK: Skills
+
+    @ViewBuilder private var skills: some View {
+        let all = model.shippedSkills
+        let on = model.agentSettings.skills(for: agent.id, shipped: all)
+        Section {
+            if agent.skillFolder == nil {
+                Text("\(agent.name) has no skills folder; it gets the skill files in each prompt instead.")
+                    .foregroundStyle(.secondary)
+            } else {
+                if all.count > 6 {
+                    TextField("Search", text: $skillQuery, prompt: Text("Search skills"))
+                }
+                ForEach(all.filter { skillQuery.isEmpty || $0.localizedCaseInsensitiveContains(skillQuery) }, id: \.self) { skill in
+                    Toggle(isOn: Binding(get: { on.contains(skill) }, set: { model.setAgentSkill(skill, on: $0, for: agent.id) })) {
+                        Text(skill)
+                        if let description = model.skillDescriptions[skill] {
+                            Text(description).lineLimit(2)
+                        }
+                    }
+                    // The router is how "summon, <anything>" reaches the other skills: always on.
+                    .disabled(skill == "summon")
+                }
+            }
+        } header: {
+            HStack {
+                Text("Skills")
+                Spacer()
+                if agent.skillFolder != nil, !all.isEmpty {
+                    if model.agentSettings.isCustom(agent.id) {
+                        Text("Custom · \(on.count) of \(all.count)").foregroundStyle(.secondary)
+                        Button("Use All Agents") { model.useDefaultSkills(for: agent.id) }
+                            .buttonStyle(.link)
+                    } else {
+                        Text("Same as All Agents · \(on.count) of \(all.count)").foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: Plugins
+
+    @ViewBuilder private var plugins: some View {
+        let installedPlugins = model.agentPlugins[agent.id] ?? []
+        let recommended = PluginCatalog.all.filter { $0.builds[agent.id] != nil }
+        Section(agent.id == "codex" ? "MCP servers" : "Plugins") {
+            if model.agentPlugins[agent.id] == nil {
+                Text("Loading…").foregroundStyle(.secondary)
+            } else if installedPlugins.isEmpty {
+                Text("None yet").foregroundStyle(.secondary)
+            }
+            ForEach(installedPlugins) { plugin in
                 LabeledContent {
-                    Text(plugin.enabled == false ? "Off" : (plugin.version ?? "")).foregroundStyle(.secondary)
+                    HStack {
+                        Text(plugin.enabled == false ? "Off" : (plugin.version ?? "")).foregroundStyle(.secondary)
+                        if let catalog = recommended.first(where: { $0.isInstalled(for: agent.id, in: [plugin]) }) {
+                            Button("Fix…") { model.fixPlugin(catalog.id, agent: agent.id) }
+                                .help("Hand \(catalog.name) for \(agent.name) to your agent to diagnose and fix")
+                        }
+                    }
                 } label: {
                     Text(verbatim: plugin.name)
+                }
+            }
+            ForEach(recommended.filter { !$0.isInstalled(for: agent.id, in: installedPlugins) }) { catalog in
+                LabeledContent {
+                    Button("Install") { model.addPlugin(catalog.builds[agent.id] ?? "", to: agent.id) }
+                        .disabled(model.pluginWork != nil || model.agentPlugins[agent.id] == nil)
+                } label: {
+                    Text(catalog.name)
+                    Text("Recommended · \(catalog.summary)")
                 }
             }
             if AgentPlugins.canAdd(agent) {
@@ -241,42 +469,13 @@ struct AgentsSettings: View {
                     Button("Add", action: addPlugin)
                         .disabled(pluginDraft.trimmingCharacters(in: .whitespaces).isEmpty || model.pluginWork != nil)
                 }
+            } else if agent.id != "codex" {
+                Text("\(agent.name) has no plugins to manage here.").foregroundStyle(.secondary)
             }
             if let work = model.pluginWork {
                 Text(work).foregroundStyle(.secondary)
             }
         }
-    }
-
-    /// Summon's catalog: one plugin, the right build per agent.
-    @ViewBuilder private func sharedPlugins(_ agent: Agent) -> some View {
-        Section("Shared plugins") {
-            ForEach(PluginCatalog.all) { plugin in
-                let states = model.catalogInstalled[plugin.id] ?? [:]
-                LabeledContent {
-                    HStack {
-                        if states.values.contains(false) {
-                            Button("Install in All") { model.installEverywhere(plugin.id) }
-                                .disabled(model.pluginWork != nil)
-                        }
-                        if states[agent.id] == true {
-                            Button("Fix…") { model.fixPlugin(plugin.id, agent: agent.id) }
-                                .help("Hand \(plugin.name) for \(agent.name) to your agent to diagnose and fix")
-                        }
-                    }
-                } label: {
-                    Text(plugin.name)
-                    Text(Self.catalogLine(plugin, states))
-                }
-            }
-        }
-    }
-
-    static func catalogLine(_ plugin: CatalogPlugin, _ states: [String: Bool]) -> String {
-        let names = states.sorted { $0.key < $1.key }.map { id, on in
-            (AgentRegistry.find(id)?.name ?? id) + (on ? "" : " (not installed)")
-        }
-        return names.isEmpty ? plugin.summary : plugin.summary + " " + names.joined(separator: ", ")
     }
 
     static func pluginExample(_ agent: Agent) -> String {
@@ -290,57 +489,9 @@ struct AgentsSettings: View {
 
     private func addPlugin() {
         let spec = pluginDraft.trimmingCharacters(in: .whitespaces)
-        guard !spec.isEmpty, !editing.isEmpty else { return }
-        model.addPlugin(spec, to: editing)
+        guard !spec.isEmpty else { return }
+        model.addPlugin(spec, to: agent.id)
         pluginDraft = ""
-    }
-
-    /// The agent's real models, filtered by what is typed; at most 30 so the list stays short.
-    private func suggestions(_ agent: Agent) -> [String] {
-        let all = model.agentStatus[agent.id]?.models ?? []
-        let query = modelDraft.trimmingCharacters(in: .whitespaces).lowercased()
-        let matching = query.isEmpty ? all : all.filter { $0.lowercased().contains(query) }
-        return Array(matching.prefix(30))
-    }
-
-    private var defaultAgentBinding: Binding<String> {
-        Binding(
-            get: { model.defaultAgent?.id ?? "" },
-            set: { newValue in
-                if !newValue.isEmpty { model.setDefaultAgent(newValue) }
-            }
-        )
-    }
-
-    private func skillBinding(_ skill: String, agent id: String) -> Binding<Bool> {
-        Binding(
-            get: { model.agentSettings.skills(for: id, shipped: model.shippedSkills).contains(skill) },
-            set: { on in model.setAgentSkill(skill, on: on, for: id) }
-        )
-    }
-}
-
-// MARK: Terminal
-
-struct TerminalSettings: View {
-    @Bindable var model: SummonModel
-
-    var body: some View {
-        Form {
-            Picker("Open in", selection: terminalBinding) {
-                ForEach(model.installedTerminals, id: \.self) { terminal in
-                    Text(terminal.name).tag(terminal)
-                }
-            }
-        }
-        .formStyle(.grouped)
-    }
-
-    private var terminalBinding: Binding<TerminalApp> {
-        Binding(
-            get: { model.terminal },
-            set: { newValue in model.setTerminal(newValue) }
-        )
     }
 }
 
@@ -442,11 +593,6 @@ struct TasksSettings: View {
 
 #Preview("Agents") {
     SettingsSectionView(section: .agents, model: .preview())
-        .frame(width: 580)
-}
-
-#Preview("Terminal") {
-    SettingsSectionView(section: .terminal, model: .preview())
         .frame(width: 580)
 }
 
