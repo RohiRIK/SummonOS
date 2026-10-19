@@ -28,11 +28,17 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
 - Panel vs Settings window split from AGENTS.md applies to the Summon Menu app.
 - Projects live in `~/Summon/<name>` (created on install, app launch and agent launch; agents start there). The
   project list is private to the Mac: never `plugins.json`, never `tools/mp new/promote` (Rohi, 2026-10-18).
-- GitHub: only a private repo, only through `summon project repo` after the user clicks the native NSAlert (Cancel
-  is the default button; no flag skips it; no GUI session = no). CI is added with the repo, not before. Public
-  publishing is a separate choice through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18).
+- GitHub: only a private repo, ever. Every new app gets one: `summon project new` creates it right away under the
+  owner's standing approval (Settings › General, `~/.config/summon/defaults/repos` = always, the default); with `ask`,
+  the dialog approves each one (Cancel default). CI is added with the repo. Public publishing is a separate choice
+  through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-19 — Private repo for every new app
+- Owner: an agent made end-of-day with no repo; every Summon app should get a private one. `RepoPolicy`
+  (`defaults/repos`, missing = always) is the standing approval: `summon project new` runs `makeRepo` (shots → private
+  repo → CI → push) without the dialog; `ask` keeps the dialog. Settings › General toggle; `summon default repos`.
+  Skill/commands: agents must make sure the repo exists. Always `--private` (tested).
 ### 2026-10-19 — Project screenshots and the showcase
 - `summon project shots` (ShotCommands): menu bar template renders its own panel off-screen via NSHostingView +
   `cacheDisplay` (ImageRenderer draws AppKit buttons as ⛔; appearance must be set on the hosting view), light/dark;

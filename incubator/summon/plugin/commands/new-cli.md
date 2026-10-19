@@ -10,5 +10,5 @@ Agree a short kebab-case name with the user (it becomes the command), then start
 `main.swift` kept thin; work in that folder. Use the `mac-app` skill's rules (Swift 6, no third-party dependencies,
 tools by absolute path with argv arrays). Plain text for people, `--json` for agents once there is data worth
 parsing; exit codes 0 ok, 1 error, 2 usage. Done when `scripts/check.sh` passes; `scripts/install.sh` puts it in
-`~/.local/bin`. Never create a GitHub repo yourself: if the user wants one, run `summon project repo <name>` and they
-approve it in Summon's dialog.
+`~/.local/bin`. It also gets its private GitHub repo (screenshots, CI): if `summon project new` says there is no repo yet, fix the
+cause and run `summon project repo <name>`. Never create or publish a repo yourself.
