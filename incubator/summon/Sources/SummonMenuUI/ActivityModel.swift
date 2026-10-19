@@ -47,6 +47,8 @@ public final class ActivityModel {
     public var selection: ActivityEvent.ID? = nil
     /// Bumped to ask the always-alive menu bar label to open the window (for `summon://activity`).
     public private(set) var openRequest = 0
+    /// Bumped by `summon://settings`; the menu bar label opens the Settings window.
+    public private(set) var settingsRequest = 0
 
     /// False for previews: no disk reads, commands or activation-policy changes.
     @ObservationIgnored public internal(set) var live = true
@@ -100,6 +102,10 @@ public final class ActivityModel {
 
     public func requestOpen() {
         openRequest += 1
+    }
+
+    public func requestSettings() {
+        settingsRequest += 1
     }
 
     /// Reloads every source off the main actor. Cheap: small JSON files, no crash parsing.
@@ -263,15 +269,58 @@ public struct ActivityOpener: ViewModifier {
     public static let windowID = "activity"
     let activity: ActivityModel
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
 
     public init(activity: ActivityModel) {
         self.activity = activity
     }
 
     public func body(content: Content) -> some View {
-        content.onChange(of: activity.openRequest) {
-            NSApp.activate()
-            openWindow(id: Self.windowID)
+        content
+            .onChange(of: activity.openRequest) {
+                NSApp.activate()
+                openWindow(id: Self.windowID)
+            }
+            .onChange(of: activity.settingsRequest) {
+                NSApp.activate()
+                openSettings()
+            }
+    }
+}
+
+/// Hosts `ActivityOpener` in a 1×1 invisible window that lives for the whole session. The menu bar label is drawn
+/// as an image, so modifiers on it never run, and `openSettings` needs a live SwiftUI view (MacUX Windows.md).
+public struct OpenerHost: View {
+    let activity: ActivityModel
+
+    public init(activity: ActivityModel) {
+        self.activity = activity
+    }
+
+    public var body: some View {
+        Color.clear
+            .frame(width: 1, height: 1)
+            .background(InvisibleWindow())
+            .modifier(ActivityOpener(activity: activity))
+    }
+}
+
+/// Makes its window invisible, click-through, and out of ⌘` and the Window menu.
+struct InvisibleWindow: NSViewRepresentable {
+    final class Probe: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard let window else { return }
+            window.styleMask = [.borderless]
+            window.alphaValue = 0
+            window.ignoresMouseEvents = true
+            window.hasShadow = false
+            window.isExcludedFromWindowsMenu = true
+            window.collectionBehavior = [.transient, .ignoresCycle, .canJoinAllSpaces]
+            window.setFrame(NSRect(x: 0, y: 0, width: 1, height: 1), display: false)
         }
     }
+
+    func makeNSView(context: Context) -> Probe { Probe() }
+    func updateNSView(_ nsView: Probe, context: Context) {}
 }

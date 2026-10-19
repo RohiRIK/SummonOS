@@ -33,6 +33,13 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   publishing is a separate choice through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18).
 
 ## Recent History
+### 2026-10-19 — Settings as toolbar tabs; summon:// URLs fixed
+- Owner's choice: PR #34's sidebar Settings becomes toolbar tabs (macOS app-settings layout), 580×460: General,
+  Agents, Terminal, Notifications, Appearance. Tasks returns with item D (no empty tab).
+- `summon://activity` / `summon://settings` never worked: the MenuBarExtra label is drawn as an image, so the opener
+  modifier on it never ran. Openers now live in an invisible 1×1 `Window` presented at launch (`OpenerHost`).
+- A stale `~/Applications/Summon.app` (older install) received every `summon://` URL and started a second Summon;
+  run the installed copy (`scripts/install.sh`) so there is one app. Skill links now point at `~/Applications`.
 ### 2026-10-18 — Docs: original framing, features list
 - README no longer pitches Summon as an Omarchy port; the seven community palettes are credited as such.
 - Every command, menu entry, setting and skill is listed in the workspace's `docs/features.md`.

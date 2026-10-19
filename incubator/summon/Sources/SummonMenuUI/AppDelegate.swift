@@ -45,7 +45,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
     }
 
     /// `summon://menu/<id>` opens the launcher at that entry; `summon://agent` starts the agent;
-    /// `summon://activity` opens the Activity window.
+    /// `summon://activity` opens the Activity window; `summon://settings` opens Settings.
     public func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls where url.scheme == "summon" {
             switch url.host {
@@ -56,6 +56,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
                 model.askAgent()
             case "activity":
                 activity.requestOpen()
+            case "settings":
+                activity.requestSettings()
             default:
                 break
             }
