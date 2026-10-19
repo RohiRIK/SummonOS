@@ -76,7 +76,7 @@ PY
 ## 4. Generate (Nano Banana over agy, no API key)
 
 The generation recipe (agy prompt, waiting, and recovering the file from agy's scratch folder) is in
-`wallpapers.md` § 5 and is the same for icons. Generate into `~/Downloads/summon-art/<job>/`, never straight
+`wallpapers.md` § 5 and is the same for icons. Generate into `~/Summon/Art/<job>/` (Summon's one home), never straight
 into a theme or an app. If agy is missing or signed out (`You are not logged into Antigravity` in
 `~/.gemini/antigravity-cli/log/`), say so and ask the user to run `agy` once to sign in; do not ship a weak fallback
 silently. The user's own `Art` skill, when installed, has more workflows (diagrams, editorial images); this skill
