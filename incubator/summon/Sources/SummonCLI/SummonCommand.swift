@@ -62,6 +62,12 @@ struct SummonCommand {
             } else if args.items.first == "status" {
                 _ = args.next()
                 try AgentProbeCommands.status(&args, context)
+            } else if args.items.first == "plugins" {
+                _ = args.next()
+                try PluginCommands.list(&args, context)
+            } else if args.items.first == "plugin-add" {
+                _ = args.next()
+                try PluginCommands.add(&args, context)
             } else if args.items.first == "login" {
                 _ = args.next()
                 try await AgentProbeCommands.login(&args, context)
@@ -92,6 +98,8 @@ struct SummonCommand {
             try await MenuCommands.run(&args, context)
         case "icon":
             try IconCommands.run(&args, context)
+        case "plugins":
+            try await PluginCommands.run(&args, context)
         case "task", "tasks":
             try await TaskCommands.run(&args, context)
         case "project":

@@ -32,6 +32,10 @@ public final class SummonModel {
     /// What each agent's CLI reports (login, models), filled on demand; ids being checked right now.
     public private(set) var agentStatus: [String: AgentStatus] = [:]
     public private(set) var checkingAgents: Set<String> = []
+    /// Installed plugins per agent, and which agents have each catalog plugin (filled on demand).
+    public private(set) var agentPlugins: [String: [InstalledPlugin]] = [:]
+    public private(set) var catalogInstalled: [String: [String: Bool]] = [:]
+    public private(set) var pluginWork: String? = nil
     public private(set) var menu: MenuTree
     public private(set) var menuError: String? = nil
     /// Last action error, shown under the row that caused it.
@@ -248,6 +252,49 @@ public final class SummonModel {
         guard let output = try? await runner(summonPath, ["agents", "status", id, "--json"]),
               let status = try? JSONDecoder().decode(AgentStatus.self, from: Data(output.utf8)) else { return }
         agentStatus[id] = status
+    }
+
+    public func loadPlugins(_ id: String) async {
+        guard let summonPath,
+              let output = try? await runner(summonPath, ["agents", "plugins", id, "--json"]),
+              let plugins = try? JSONDecoder().decode([InstalledPlugin].self, from: Data(output.utf8)) else { return }
+        agentPlugins[id] = plugins
+    }
+
+    private struct CatalogRow: Decodable {
+        let plugin: CatalogPlugin
+        let agents: [String: Bool]
+    }
+
+    public func loadCatalog() async {
+        guard let summonPath,
+              let output = try? await runner(summonPath, ["plugins", "--json"]),
+              let rows = try? JSONDecoder().decode([CatalogRow].self, from: Data(output.utf8)) else { return }
+        catalogInstalled = Dictionary(rows.map { ($0.plugin.id, $0.agents) }, uniquingKeysWith: { a, _ in a })
+    }
+
+    /// The agent's own installer; the list refreshes afterwards. `pluginWork` shows progress in Settings.
+    public func addPlugin(_ spec: String, to id: String) {
+        Task {
+            pluginWork = "Adding \(spec)…"
+            await summon(["agents", "plugin-add", id, spec])
+            pluginWork = nil
+            await loadPlugins(id)
+            await loadCatalog()
+        }
+    }
+
+    public func installEverywhere(_ pluginID: String) {
+        Task {
+            pluginWork = "Installing in every agent…"
+            await summon(["plugins", "install", pluginID])
+            pluginWork = nil
+            await loadCatalog()
+        }
+    }
+
+    public func fixPlugin(_ pluginID: String, agent id: String) {
+        Task { await summon(["plugins", "fix", pluginID, id]) }
     }
 
     /// Opens the agent's own login in a terminal; Settings offers Check Again afterwards.
