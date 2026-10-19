@@ -64,7 +64,7 @@ sections:
 ### Menu bar app
 
 - **Panel:** Ask Agent, Open Summon Menu, Activity…, Recent Problems (only when there are some, one row
-  per program with a count and Diagnose…), then Settings… (⌘,) and Quit (⌘Q).
+  per program with a count and Diagnose…; a report leaves after 24 hours, once diagnosed, or with Clear), then Settings… (⌘,) and Quit (⌘Q).
 - **Activity window:** a plain, oldest-first log of settings changes, undos, agent sessions, themes and
   crashes and recurring tasks, opened at the newest line (also `summon://activity`). Select lines and ask the agent about them
   from the bar at the bottom. Right-click a line to Ask, Copy, Diagnose, Show in Finder, or Undo This

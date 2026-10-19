@@ -106,6 +106,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         case .crash: content.title = "\(report.program) crashed"
         case .hang: content.title = "\(report.program) stopped responding"
         case .panic: content.title = "Your Mac restarted after a problem"
+        case .memory: content.title = "Your Mac ran low on memory"
         case .other: content.title = "\(report.program) wrote a diagnostic report"
         }
         content.body = "Click Diagnose to hand it to your agent."
