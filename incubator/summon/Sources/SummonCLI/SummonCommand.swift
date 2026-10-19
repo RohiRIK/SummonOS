@@ -53,7 +53,16 @@ struct SummonCommand {
             switch args.next() {
             case "agent": try AgentCommands.defaultAgent(&args, context)
             case "terminal": try AgentCommands.defaultTerminal(&args, context)
-            default: throw CLIError("Usage: summon default agent [name] | summon default terminal [name]")
+            case "repos":
+                let store = RepoPolicyStore(paths: context.paths)
+                if let value = args.next() {
+                    guard let policy = RepoPolicy(rawValue: value) else { throw CLIError("Usage: summon default repos [always|ask]") }
+                    try store.save(policy)
+                }
+                print(store.load() == .always
+                    ? "always: every new app gets a private GitHub repo right away"
+                    : "ask: a new app gets a private repo after you approve it in Summon's dialog")
+            default: throw CLIError("Usage: summon default agent [name] | terminal [name] | repos [always|ask]")
             }
         case "agents":
             if args.items.first == "set" {

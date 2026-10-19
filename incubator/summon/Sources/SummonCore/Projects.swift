@@ -348,3 +348,28 @@ public struct PrivateRepoService: Sendable {
         return project
     }
 }
+
+/// Whether a new project gets its private GitHub repo right away (`always`, the owner's standing approval in Settings)
+/// or only after the approval dialog (`ask`). Repos are private either way; Summon never makes a public one.
+public enum RepoPolicy: String, Sendable, CaseIterable {
+    case always, ask
+}
+
+/// `~/.config/summon/defaults/repos`; missing means `always` (owner, 2026-10-19).
+public struct RepoPolicyStore: Sendable {
+    public let paths: SummonPaths
+
+    public init(paths: SummonPaths) {
+        self.paths = paths
+    }
+
+    var file: URL { paths.config.appendingPathComponent("defaults/repos") }
+
+    public func load() -> RepoPolicy {
+        TextFile.firstLine(file).flatMap(RepoPolicy.init(rawValue:)) ?? .always
+    }
+
+    public func save(_ policy: RepoPolicy) throws {
+        try TextFile.write(policy.rawValue + "\n", to: file)
+    }
+}

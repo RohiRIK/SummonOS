@@ -73,6 +73,10 @@ struct GeneralSettings: View {
                         .font(.subheadline)
                         .foregroundStyle(.red)
                 }
+                Toggle(isOn: Binding(get: { model.repoPolicy == .always }, set: { model.setRepoPolicy($0 ? .always : .ask) })) {
+                    Text("Create a private GitHub repo for every new app")
+                    Text("With screenshots and CI. Always private. Off: Summon asks each time.")
+                }
                 LabeledContent {
                     Button("Clean Now…") {
                         Task {
