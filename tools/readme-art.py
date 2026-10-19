@@ -38,13 +38,6 @@ def _stroke(color: str, width: float = 56) -> str:
     return f'fill="none" stroke="{color}" stroke-width="{width:g}" stroke-linecap="round" stroke-linejoin="round"'
 
 
-def glyph_workspace(c: str) -> str:
-    """A menu bar with a panel hanging from it: what every plugin here is."""
-    return (f'<g {_stroke(c)}><path d="M332 372H692"/>'
-            f'<path d="M412 452H612A40 40 0 0 1 652 492V612A40 40 0 0 1 612 652H412A40 40 0 0 1 372 612V492A40 40 0 0 1 412 452Z"/></g>'
-            f'<circle cx="512" cy="372" r="34" fill="{c}"/>')
-
-
 def glyph_macctl(c: str) -> str:
     """Two settings sliders."""
     return (f'<g {_stroke(c, 48)}><path d="M336 432H688"/><path d="M336 600H688"/></g>'
@@ -79,6 +72,7 @@ PROJECTS = [  # name, glyph, gradient color keys, two description lines
 
 # ---------------------------------------------------------------- shared pieces
 
+TAGLINE = "Powered by caffeine and questionable life choices."
 TIGHT = ' letter-spacing="-1.2"'
 SOFT = ' opacity=".8"'
 SOFTER = ' opacity=".72"'
@@ -109,7 +103,7 @@ def background(w: int, h: int, p: dict, dark: bool, rx: int) -> str:
 # ---------------------------------------------------------------- assets
 
 def wordmark(p: dict) -> str:
-    return wordmark_svg("macos-plugins", p, glyph_workspace(p["bright_foreground"]), height=120)
+    return wordmark_svg("SummonOS", p, glyph_summon(p["bright_foreground"]), height=120)
 
 
 def macctl_logo(p: dict) -> str:
@@ -131,7 +125,7 @@ def project_icon(index: int) -> str:
 
 def hero(p: dict, dark: bool) -> str:
     w, h = 1280, 400
-    out = [svg_open(w, h, "macos-plugins: small native Mac apps, built with agents, in Swift"), "  ", background(w, h, p, dark, 24)]
+    out = [svg_open(w, h, "SummonOS: native Mac apps, summoned by agents, in Swift"), "  ", background(w, h, p, dark, 24)]
     defs = [gradient_def("gm", p["accent"], p["accent2"])]
     defs += [gradient_def(f"g{i}", p[a], p[b]) for i, (_, _, (a, b), _) in enumerate(PROJECTS)]
     out.append(f'  <defs>{"".join(defs)}</defs>\n')
@@ -146,10 +140,11 @@ def hero(p: dict, dark: bool) -> str:
 
     # Left: mark, name, pitch.
     x = 64
-    out.append(f'  {ring_mark(x - 8, 64, 96, "gm", glyph_workspace(p["bright_foreground"]))}\n')
-    out.append(f'  {text_el(x, 222, fits("macos-plugins", 60, 700, 520), 60, p["bright_foreground"], 700, extra=TIGHT)}\n')
-    for i, line in enumerate(("Small native Mac apps, built with agents.", "Swift 6 and SwiftUI. Instant, offline, at home on a Mac.")):
+    out.append(f'  {ring_mark(x - 8, 64, 96, "gm", glyph_summon(p["bright_foreground"]))}\n')
+    out.append(f'  {text_el(x, 222, fits("SummonOS", 60, 700, 520), 60, p["bright_foreground"], 700, extra=TIGHT)}\n')
+    for i, line in enumerate(("Native Mac apps, summoned by agents.", "Swift 6 and SwiftUI. Instant, offline, at home on a Mac.")):
         out.append(f'  {text_el(x, 272 + i * 32, fits(line, 21, 400, 540), 21, p["foreground"], 400, extra=SOFTER if i else "")}\n')
+    out.append(f'  {text_el(x, 352, fits(TAGLINE, 15, 600, 540), 15, p["accent"], 600)}\n')
 
     # Right: a 2 x 2 grid of project tiles.
     tw, th, gap, x0, y0 = 300, 120, 16, 620, 72
@@ -168,7 +163,7 @@ def hero(p: dict, dark: bool) -> str:
 
 
 STEPS = [
-    ("Port", ("An Omarchy widget,", "or plan a new app")),
+    ("Plan", ("A new app idea, or a", "Linux widget to port")),
     ("Build", ("SwiftPM and SwiftUI,", "Core logic test-first")),
     ("Verify", ("Gate, previews, run", "the app, read the logs")),
     ("Publish", ("Dev repo PR, then a", "clean public snapshot")),
@@ -178,7 +173,7 @@ STEPS = [
 def lifecycle(p: dict, dark: bool) -> str:
     cw, ch, gap, pad = 200, 132, 48, 24
     w, h = pad * 2 + cw * 4 + gap * 3, ch + pad * 2
-    out = [svg_open(w, h, "Plugin lifecycle: port, build, verify, publish"), "  ", background(w, h, p, dark, 20)]
+    out = [svg_open(w, h, "How a SummonOS app is made: plan, build, verify, publish"), "  ", background(w, h, p, dark, 20)]
     out.append(f'  <defs>{gradient_def("gs", p["accent"], p["accent2"])}'
                f'<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">'
                f'<path d="M1 1L9 5L1 9" fill="none" stroke="{p["accent"]}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>\n')

@@ -1,6 +1,6 @@
 # Features
 
-Everything each project in this workspace can do today, in one place. "Planned" marks what is designed
+Everything each SummonOS project can do today, in one place. "Planned" marks what is designed
 but not built. Keep this page current: a PR that adds or removes a user-visible feature updates it
 ([`AGENTS.md`](../AGENTS.md#how-we-work), step 7).
 
@@ -223,6 +223,7 @@ What this repo gives you for building more apps ([`README.md`](../README.md), [`
 
 | Tool | Does |
 |---|---|
+| `install.sh` | One-line SummonOS install (Summon + macctl) from source; [`docs/install-ai.md`](install-ai.md) is the same for agents |
 | `tools/mp` | Plugin registry: `new`, `promote`, `clone`, `list`, `status`, `index`, `adopt` |
 | `tools/publish-public.sh` | Clean snapshot of a dev repo to its public repo; refuses on private values |
 | `tools/release.sh` | Zipped `.app` on the public repo's Releases |

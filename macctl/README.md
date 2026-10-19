@@ -6,7 +6,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/RohiRIK/macos-plugins/actions/workflows/swift.yml"><img alt="Swift (macOS) CI" src="https://github.com/RohiRIK/macos-plugins/actions/workflows/swift.yml/badge.svg"></a>
   <img alt="Swift 6 | macOS 15+" src="../docs/assets/pill-swift-macos.svg">
 </p>
 
