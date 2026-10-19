@@ -18,7 +18,7 @@ enum ThemeCommands {
             }
             let current = store.currentSlug()
             for theme in themes {
-                print("\(theme.slug == current ? "*" : " ") \(theme.slug.padding(toLength: 16, withPad: " ", startingAt: 0)) \(theme.name) (\(theme.appearance))")
+                print("\(theme.slug == current ? "*" : " ") \(theme.slug.padding(toLength: max(16, themes.map(\.slug.count).max() ?? 0), withPad: " ", startingAt: 0)) \(theme.name) (\(theme.appearance))")
             }
         case "check":
             // Why a theme does not show in `theme list`: broken files are skipped there, silently.
@@ -27,7 +27,11 @@ enum ThemeCommands {
             guard let data = FileManager.default.contents(atPath: file.path) else { throw CLIError("No \(file.path)") }
             do {
                 let theme = try Theme.decode(data)
-                print("\(theme.name): valid")
+                let problems = ThemeLint.problems(theme)
+                for problem in problems { print("\(problem.severity.rawValue): \(problem.message)") }
+                let errors = problems.filter { $0.severity == .error }.count
+                if errors > 0 { throw CLIError("\(theme.name): \(errors) problem\(errors == 1 ? "" : "s") to fix before summon theme set") }
+                print(problems.isEmpty ? "\(theme.name): valid, contrast and colors fine" : "\(theme.name): valid, \(problems.count) warning\(problems.count == 1 ? "" : "s")")
             } catch let error as Theme.ValidationError {
                 throw CLIError("\(file.path): \(error) — colors are #RRGGBB, 16 terminal colors, slug a-z 0-9 -")
             } catch {
