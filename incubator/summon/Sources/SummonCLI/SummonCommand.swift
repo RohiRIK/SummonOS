@@ -62,6 +62,9 @@ struct SummonCommand {
             } else if args.items.first == "status" {
                 _ = args.next()
                 try AgentProbeCommands.status(&args, context)
+            } else if args.items.first == "defaults" {
+                _ = args.next()
+                try AgentCommands.defaults(&args, context)
             } else if args.items.first == "plugins" {
                 _ = args.next()
                 try PluginCommands.list(&args, context)

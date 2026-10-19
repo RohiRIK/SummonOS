@@ -71,10 +71,10 @@ sections:
   Change / Session.
 - **Settings window** (⌘, or `summon://settings`), one toolbar tab per part:
   - General: Open at Login.
-  - Agents: the default agent, install links; per agent its account (logged in or not, Log In…), its model
-    (suggestions from the agent's real model list) and its skills, each with its description.
-    Then its plugins (Add runs the agent's own installer) and Shared plugins (OpenLTM: Install in All, Fix…).
-  - Terminal: which terminal agents open in.
+  - Agents: a list of agents (status dot, Default) with **All Agents** on top: the default agent, where agents
+    open (Ghostty, kitty or Terminal), the skills every agent gets, and shared plugins (OpenLTM: Install in All).
+    Each agent's page has the same sections: Account (Connected, or Log In…), Model (from that agent's real model
+    list, or Custom…), Skills (same as All Agents, or Custom), Plugins (installed, recommended, Add).
   - Notifications: crash and hang alerts, muted programs with Unmute.
   - Appearance: the theme.
   - Tasks: each recurring task with its schedule, agent and last result (view only).
