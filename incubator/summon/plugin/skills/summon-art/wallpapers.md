@@ -51,7 +51,7 @@ no frame, no people. High detail, clean, no artifacts.
 Generate every candidate into a preview folder first, never straight into the theme:
 
 ```bash
-OUT=~/Downloads/summon-art/wallpaper-<slug>; mkdir -p "$OUT"
+OUT=~/Summon/Art/wallpaper-<slug>; mkdir -p "$OUT"   # everything Summon makes lives in ~/Summon
 FILE="$OUT/1-<concept>.jpg"; START=$(mktemp)
 NANOBANANA_MODEL=gemini-3-pro-image-preview timeout 300 agy --add-dir "$OUT" -p \
   "Generate an image. <prompt> Aspect ratio 16:9. Save the result to the exact absolute path \"$FILE\" (overwrite if it exists). Reply with only the saved file path."
@@ -94,4 +94,4 @@ sips -z 2880 5120 "$OUT/<chosen>.jpg" --out "$THEME/<n>-<concept>.jpg"   # 5120Ã
 
 Add the file name to the theme's `wallpapers` list (first entry is the one `theme set` applies), then
 `summon theme set <slug>`. The wallpaper change goes through `macctl`, so it is in the checkpoint and undoable.
-Tell the user where the other candidates are (`~/Downloads/summon-art/wallpaper-<slug>/`) in case they change their mind.
+Tell the user where the other candidates are (`~/Summon/Art/wallpaper-<slug>/`) in case they change their mind.

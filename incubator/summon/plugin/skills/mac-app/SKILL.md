@@ -2,7 +2,7 @@
 name: mac-app
 description: >
   Build a new native Mac app the Summon way: a menu bar app, a full window app, a command-line tool, a
-  screensaver, or an app icon. Starts from Summon's template in ~/Summon/<name>; Swift 6 + SwiftUI, SwiftPM,
+  screensaver, or an app icon. Starts from Summon's template in ~/Summon/Apps/<name>; Swift 6 + SwiftUI, SwiftPM,
   follows the current Summon theme. Use when asked to make, build, or scaffold an app, menu bar widget, utility,
   CLI tool, screensaver, or icon. Triggers: new app, menu bar app, status bar item, widget, command-line tool,
   CLI, screensaver, .saver, app icon, icns, "make me an app".
@@ -37,9 +37,9 @@ If they are not installed, follow the summary below.
 Every app gets a separate **Settings window** (`Settings` scene, `.formStyle(.grouped)`), opened with ⌘,.
 Settings never go inside the menu bar panel; the panel footer has `Settings…` and `Quit` only.
 
-## Where new apps go: `~/Summon/<name>`
+## Where new apps go: `~/Summon/Apps/<name>`
 
-Every project starts from Summon's template for its kind and lives in its own folder under `~/Summon`
+Every project starts from Summon's template for its kind and lives in its own folder under `~/Summon/Apps`
 (Summon creates it on install and on every launch; agents start there). Agree a short kebab-case name with the
 user, then:
 
@@ -71,7 +71,7 @@ choice, made only with the macos-plugins workspace's `tools/publish-public.sh` (
 ## Layout (SwiftPM, no .xcodeproj)
 
 ```
-~/Summon/<name>/
+~/Summon/Apps/<name>/
 ├── Package.swift            swift-tools-version 6.0, platforms [.macOS(.v15)]
 ├── Sources/<App>/           @main only (main.swift for a CLI, the ScreenSaverView for a saver)
 ├── Sources/<App>UI/         views, @Observable model, #Previews (library product, so previews run)

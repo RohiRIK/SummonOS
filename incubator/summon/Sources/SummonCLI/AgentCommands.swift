@@ -50,14 +50,15 @@ enum AgentCommands {
 
         let fileManager = FileManager.default
         do {
-            try ProjectsFolder.ensure(context.paths)
+            try SummonHome.ensure(context.paths)
         } catch {
-            context.warn("summon: could not create \(context.paths.projects.path): \(error)")
+            context.warn("summon: could not set up \(context.paths.summonHome.path): \(error)")
         }
+        // From ~ or / (the app), agents start in ~/Summon, where everything they make belongs.
         let directory = AgentLauncher.workingDirectory(
             current: fileManager.currentDirectoryPath,
             home: context.paths.home.path,
-            projects: context.paths.projects.path
+            projects: context.paths.summonHome.path
         )
 
         var refs = ["agent": agent.id, "folder": directory]

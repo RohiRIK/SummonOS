@@ -22,6 +22,8 @@ done
 "$HOME/.local/bin/summon" menu init >/dev/null
 # Summon's skills into every agent's skill folder (Claude Code, Codex, OpenCode, Antigravity).
 "$HOME/.local/bin/summon" skills link
+# ~/Summon: one home for everything Summon and its agents make (Apps, Art, Tasks, a Themes link).
+"$HOME/.local/bin/summon" home
 echo "Installed. Open ~/Applications/Summon.app, then choose an agent: summon default agent claude"
 case ":$PATH:" in
   *":$HOME/.local/bin:"*) ;;

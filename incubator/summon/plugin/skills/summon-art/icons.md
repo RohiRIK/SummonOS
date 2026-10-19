@@ -23,5 +23,5 @@ subject in <accent name> <#hex>. No text, no letters, no watermark, no frame, no
 ```
 
 Generate three concepts with the recipe in `wallpapers.md` § 5 (aspect ratio 1:1 instead of 16:9) into
-`~/Downloads/summon-art/icon-<name>/`. Review at small size too: `sips -Z 32 <file> --out /tmp/icon-32.png`
+`~/Summon/Art/icon-<name>/`. Review at small size too: `sips -Z 32 <file> --out /tmp/icon-32.png`
 and look at it; an icon that only works at 1024 is not done.
