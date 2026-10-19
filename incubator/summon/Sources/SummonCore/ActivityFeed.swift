@@ -151,7 +151,9 @@ public enum ActivityFeed {
                 date: date,
                 category: .problem,
                 kind: report.kind.rawValue,
-                title: "\(report.program) \(pastTense(report.kind))",
+                title: report.kind == .memory
+                    ? "Memory ran low" + (report.process.map { ": \($0) used the most" } ?? "")
+                    : "\(report.program) \(pastTense(report.kind))",
                 detail: what.isEmpty ? nil : what,
                 refs: ["file": report.file]
             ))
@@ -217,6 +219,7 @@ public enum ActivityFeed {
         case .crash: return "crashed"
         case .hang: return "hung"
         case .panic: return "panicked"
+        case .memory: return "ran low on memory"
         case .other: return "reported a problem"
         }
     }

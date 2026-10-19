@@ -39,9 +39,19 @@ public struct PanelView: View {
             }
 
             // Problems only when present; history lives in the Activity window, theme in Settings.
-            if !model.recentCrashes.isEmpty {
+            if !model.panelProblems.isEmpty {
                 PanelDivider()
-                SectionHeader(title: "Recent Problems")
+                HStack {
+                    SectionHeader(title: "Recent Problems")
+                    Spacer()
+                    Button("Clear") { model.archiveProblems(model.panelProblems) }
+                        .buttonStyle(.plain)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.top, 4)
+                        .help("Archive these; they stay in Activity")
+                }
                 ForEach(latestPerProgram.prefix(3), id: \.report.id) { item in
                     CrashRow(report: item.report, count: item.count, diagnose: { model.diagnose(file: item.report.file) })
                 }
@@ -74,9 +84,10 @@ public struct PanelView: View {
 
     /// One row per program (newest report first), so a crash loop does not fill the panel.
     private var latestPerProgram: [(report: CrashReport, count: Int)] {
-        let counts = Dictionary(grouping: model.recentCrashes, by: \.program).mapValues(\.count)
+        let problems = model.panelProblems
+        let counts = Dictionary(grouping: problems, by: \.program).mapValues(\.count)
         var seen = Set<String>()
-        return model.recentCrashes
+        return problems
             .filter { seen.insert($0.program).inserted }
             .map { ($0, counts[$0.program] ?? 1) }
     }
@@ -184,12 +195,14 @@ struct CrashRow: View {
         case .crash: return "exclamationmark.triangle"
         case .hang: return "hourglass"
         case .panic: return "bolt.trianglebadge.exclamationmark"
+        case .memory: return "memorychip"
         case .other: return "doc.text"
         }
     }
 
     private var detail: String {
-        let parts: [String?] = [report.kind.rawValue.capitalized, report.signal ?? report.exceptionType, count > 1 ? "\(count) times" : nil]
+        let what = report.kind == .memory ? report.process.map { "\($0) used the most" } : report.kind.rawValue.capitalized
+        let parts: [String?] = [what, report.signal ?? report.exceptionType, count > 1 ? "\(count) times" : nil]
         return parts.compactMap { $0 }.joined(separator: " · ")
     }
 }

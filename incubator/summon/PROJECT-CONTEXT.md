@@ -33,6 +33,10 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   publishing is a separate choice through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18).
 
 ## Recent History
+### 2026-10-19 — Problems archive; low-memory events
+- `ProblemArchive` (Core, `~/.local/state/summon/problems-archived.json`): the panel shows reports ≤ 24 h old and
+  not archived; Diagnose archives that program's reports; Clear archives the rest. Activity is unchanged.
+- bug_type 298 is Jetsam (`CrashReport.Kind.memory`): "Low memory", `process` = `largestProcess`; 288 stays hang.
 ### 2026-10-19 — Agent account and models in Settings
 - `AgentProbe` (Core): per CLI the login check and model list, parsers from real output: claude `auth status` (JSON),
   codex `login status` (on stderr), opencode `auth list` (stored providers), agy `models` (also the login signal),
