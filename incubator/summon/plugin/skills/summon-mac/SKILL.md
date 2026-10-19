@@ -71,7 +71,7 @@ Read a command's help before running it (`summon <group> <cmd> --help` never exe
 Copy a theme folder to `~/.config/summon/themes/<slug>/`, edit `theme.json` (name, slug, appearance,
 colors, 16 terminal colors, font, wallpapers), check contrast: foreground on background ≥ 4.5:1 (aim for 7:1). `muted` and `selection` are for borders,
 inactive outlines and backgrounds, never body text, so they only need to be visible (about 1.5:1).
-Then `summon theme set <slug>`. Wallpapers: 5120×2880 JPEG next to `theme.json`.
+Then `summon theme check <slug>` until it prints "valid" (theme list skips a theme that fails), then `summon theme set <slug>`. Wallpapers: 5120×2880 JPEG next to `theme.json`.
 
 **Palette, wallpaper, icons, any image: use the `summon-art` skill** (`$(summon path)/skills/summon-art/SKILL.md`).
 Mood → three concepts → palette from the subject (contrast checked) → images generated with Nano Banana → reviewed

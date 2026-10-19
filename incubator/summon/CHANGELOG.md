@@ -47,6 +47,12 @@ version numbers yet; entries are grouped by day and point at the pull request.
 - Settings › Tasks is view only (schedule, agent, last result); tasks are made by describing them to the agent.
 
 ### Fixed
+- **Agent-made themes were silently skipped.** The art skill said "work in OKLCH" but not that `theme.json` must
+  hold `#RRGGBB`; agents wrote `oklch(…)` and `//` comments, and their palettes had an accent darker than the
+  background and sixteen shades of one blue. Theme files now accept `oklch(L C H)` (converted to hex for every app);
+  `summon theme check` also checks contrast and that the terminal's red is red, and the skill shows a complete file
+  and requires a clean check before `theme set`. Hearts Valley and Prance Coffee were rebuilt and now appear.
+- Summon Dawn's bright cyan was 2.3:1 on its background; now #0077A3 (4.6:1).
 - Low-memory (Jetsam, bug_type 298) reports showed as a "Hang" named after the file (hangs are bug_type 288). They
   now name the process macOS stopped and why ("knowledgeconstructiond · Stopped · over its own memory limit"), not
   the biggest bystander; routine kills (over its own cap, idle) are listed but not announced.
