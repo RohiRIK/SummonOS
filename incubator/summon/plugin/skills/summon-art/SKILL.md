@@ -48,30 +48,33 @@ Work in OKLCH (`oklch(L C H)`): perceptually even, so a lightness ladder looks e
 | `accent2` | analogous (H ± 30-40°) for calm, near-complement (H + 150-180°) for tension | same |
 | `cursor` | foreground or accent | same |
 
-`terminal` (16 colors, ANSI order): 0 = background lifted a step, 8 = muted; 1 red, 2 green, 3 yellow, 4 blue,
-5 magenta, 6 cyan, 7 foreground dimmed; 9-15 the brighter twins. Keep each hue recognisable (red stays red)
-but pull it toward the base hue a little so the set feels related. Every one of 1-7 and 9-15 ≥ 4.5:1 on background.
+`terminal` (16 colors, ANSI order): 0 = background lifted a step, 8 = muted; then the real colors, each tinted a
+little toward the base hue but still itself: 1/9 red (H ≈ 25°), 2/10 green (≈ 145°), 3/11 yellow (≈ 90°), 4/12 blue
+(≈ 255°), 5/13 magenta (≈ 330°), 6/14 cyan (≈ 200°), 7/15 foreground dimmed / foreground. Every one of 1-7 and 9-15
+≥ 4.5:1 on the background. **Sixteen shades of one hue is not a terminal palette.**
 
-Check contrast before installing (WCAG ratio; prints anything below its target):
+### The file
 
-```bash
-python3 - <<'PY' ~/.config/summon/themes/<slug>/theme.json
-import json, sys
-t = json.load(open(sys.argv[1])); c = t["colors"]
-def lum(h):
-    r, g, b = (int(h.lstrip("#")[i:i + 2], 16) / 255 for i in (0, 2, 4))
-    f = lambda v: v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
-    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
-def ratio(a, b):
-    x, y = sorted((lum(a), lum(b)), reverse=True); return (x + 0.05) / (y + 0.05)
-bg = c["background"]
-checks = [("foreground", c["foreground"], 7), ("accent", c["accent"], 3), ("border_active", c["border_active"], 3)]
-checks += [(f"terminal[{i}]", h, 4.5) for i, h in enumerate(t["terminal"]) if i not in (0, 8)]
-for name, h, need in checks:
-    r = ratio(h, bg)
-    print(("ok  " if r >= need else "LOW ") + f"{name} {h} {r:.1f}:1 (need {need})")
-PY
+Write `~/.config/summon/themes/<slug>/theme.json` as **plain JSON (no comments, no trailing commas)**, with every
+field. Colors may be `#RRGGBB` or `oklch(L C H)` (Summon converts OKLCH to hex for every app):
+
+```json
+{
+  "name": "Hearts Valley", "slug": "hearts-valley", "appearance": "dark", "font": "JetBrainsMono Nerd Font",
+  "colors": {
+    "background": "oklch(0.18 0.02 240)", "foreground": "oklch(0.90 0.02 240)",
+    "accent": "oklch(0.70 0.12 240)", "accent2": "oklch(0.72 0.12 10)",
+    "muted": "oklch(0.45 0.03 240)", "selection": "oklch(0.30 0.04 240)", "cursor": "oklch(0.90 0.02 240)",
+    "border_active": "oklch(0.70 0.12 240)", "border_inactive": "oklch(0.30 0.04 240)"
+  },
+  "terminal": ["oklch(0.24 0.02 240)", "oklch(0.70 0.14 25)", "…16 in all…"],
+  "wallpapers": ["1-place.jpg"]
+}
 ```
+
+Then **`summon theme check <slug>`**: it reads the file the way Summon will, and checks contrast and that red is red.
+Fix every `error:` line and as many `warning:` lines as the design allows, until it prints "valid". `summon theme
+list` silently skips a theme that does not pass, so never stop before this check is clean.
 
 ## 4. Generate (Nano Banana over agy, no API key)
 

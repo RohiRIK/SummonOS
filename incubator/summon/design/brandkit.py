@@ -30,7 +30,7 @@ SUMMON = {
         accent="#6D4AFF", accent2="#0098C7",
         red="#D63A63", green="#178A5B", yellow="#B07A00", blue="#2F62D6", magenta="#9B3FD6", cyan="#0098C7",
         bright_red="#E8577D", bright_green="#22A06E", bright_yellow="#C98E0C", bright_blue="#4A7BEA",
-        bright_magenta="#B05AE8", bright_cyan="#14B0DE",
+        bright_magenta="#B05AE8", bright_cyan="#0077A3",
     ),
 }
 

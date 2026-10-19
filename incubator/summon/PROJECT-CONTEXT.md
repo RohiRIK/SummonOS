@@ -33,6 +33,13 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   publishing is a separate choice through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18).
 
 ## Recent History
+### 2026-10-19 — Theme files: OKLCH accepted, palettes checked
+- `OKLCH` (Core): `oklch(L C H)` ⇄ hex (Ottosson; verified against an independent Python computation);
+  `Theme.decode` normalizes every color to `#RRGGBB`. `ThemeLint`: contrast (text 7/4.5, accent and borders 3,
+  terminal 4.5; errors below 4.5/2/2.5) and ANSI hue ranges (warnings). `summon theme check` prints both and fails on
+  errors. Shipped community palettes keep their upstream warnings; Summon Dawn's bright cyan fixed (#0077A3).
+- summon-art: full theme.json example, real terminal hues, `theme check` must pass. The two agent-made themes rebuilt
+  in OKLCH (originals kept as theme.json.summon-backup).
 ### 2026-10-19 — summon clean
 - `SummonCleaner` (Core): plan → Trash (`FileManager.trashItem`), owner's rules: logs newest 20 / ≤30 days, removed
   task folder after 7 days, art job untouched 30 days, Antigravity originals 14 days; Apps never touched; notes for
