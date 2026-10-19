@@ -101,6 +101,27 @@ struct SummonCommand {
             try await MenuCommands.run(&args, context)
         case "icon":
             try IconCommands.run(&args, context)
+        case "clean":
+            let apply = args.flag("--apply")
+            let quiet = args.flag("--quiet")
+            let json = args.flag("--json")
+            if args.flag("--if-due"), !SummonCleaner.isDue(context.paths) { return }
+            let plan = SummonCleaner.plan(context.paths, tasks: TaskStore(paths: context.paths).load())
+            if json { return try context.printJSON(plan) }
+            if !apply {
+                if plan.trash.isEmpty { print("Nothing to clean in ~/Summon.") }
+                for item in plan.trash { print("would trash \(item.path)  (\(item.reason))") }
+                for note in plan.notes { print("note: \(note)") }
+                if !plan.trash.isEmpty { print("Run summon clean --apply to move these to the Trash.") }
+                return
+            }
+            let count = SummonCleaner.apply(plan, paths: context.paths)
+            if count > 0 {
+                ActivityCommands.record(LoggedEvent(kind: EventKind.summonClean,
+                    title: "Cleaned \(count) item\(count == 1 ? "" : "s") from ~/Summon (in the Trash)",
+                    detail: plan.trash.prefix(5).map { ($0.path as NSString).lastPathComponent }.joined(separator: ", ")), context)
+            }
+            if !quiet { print("Moved \(count) item\(count == 1 ? "" : "s") to the Trash.") }
         case "home":
             let quiet = args.flag("--quiet")
             let moved = try SummonHome.migrate(context.paths)

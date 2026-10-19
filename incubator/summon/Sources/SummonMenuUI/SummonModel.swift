@@ -312,6 +312,16 @@ public final class SummonModel {
         Task { await summon(["plugins", "fix", pluginID, id]) }
     }
 
+    /// What `summon clean` would move to the Trash right now, for Settings › General.
+    public func cleanPreview() async -> SummonCleaner.Plan? {
+        guard let summonPath, let output = try? await runner(summonPath, ["clean", "--json"]) else { return nil }
+        return try? JSONDecoder().decode(SummonCleaner.Plan.self, from: Data(output.utf8))
+    }
+
+    public func cleanNow() {
+        Task { await summon(["clean", "--apply"]) }
+    }
+
     /// Opens the agent's own login in a terminal; Settings offers Check Again afterwards.
     public func logIn(_ id: String) {
         Task { await summon(["agents", "login", id]) }

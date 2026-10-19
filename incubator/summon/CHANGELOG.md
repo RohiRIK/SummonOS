@@ -6,6 +6,11 @@ version numbers yet; entries are grouped by day and point at the pull request.
 ## 2026-10-19
 
 ### Added
+- **Keeping ~/Summon tidy.** Once a day (and with Settings › General › Clean Now…, or `summon clean --apply`) old
+  Summon files go to the macOS Trash: task logs beyond the newest 20 or older than 30 days, a removed task's folder
+  after 7 days, art jobs untouched for 30 days, Antigravity originals after 14. Apps are never touched; unknown apps,
+  themes without a wallpaper and broken theme files are reported. `summon clean` alone previews.
+- `summon theme check <slug>` says why a theme does not appear in `theme list`.
 - **Plugins in Settings › Agents.** Each agent's installed plugins (Codex: its MCP servers) and Add, which runs the
   agent's own installer (OpenCode: added to `opencode.json`, backup kept). **Shared plugins**: Summon's catalog,
   starting with OpenLTM, installs the right build into every agent (Install in All) and hands a broken one to your
