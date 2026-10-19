@@ -15,7 +15,7 @@ and they launch instantly. Ask what the app should do if it is unclear and settl
 
 ## The full guides
 
-This skill is the entry point. The detailed rules live in the SummonOS workspace skills (`RohiRIK/macos-plugins`);
+This skill is the entry point. The detailed rules live in the SummonOS workspace skills (`RohiRIK/SummonOS`);
 use them when you are working inside that workspace (or have them installed):
 
 - `MacAppArchitecture`: pick the shape (menu, panel, window, NSPanel), layers, state, system tools, storage.

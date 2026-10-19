@@ -1,7 +1,7 @@
 #!/bin/bash
 # SummonOS installer: Summon (app + `summon` CLI + themes + skills) and macctl, built from source on this Mac.
 #
-#   curl -fsSL https://raw.githubusercontent.com/RohiRIK/macos-plugins/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/RohiRIK/SummonOS/main/install.sh | bash
 #   ./install.sh                     # from a checkout: installs that checkout
 #
 # Environment:
@@ -12,7 +12,7 @@
 # Needs macOS 15+, git, and Xcode or the Command Line Tools with Swift 6.
 set -euo pipefail
 
-REPO="https://github.com/RohiRIK/macos-plugins.git"
+REPO="https://github.com/RohiRIK/SummonOS.git"
 REF="${SUMMONOS_REF:-main}"
 BIN="$HOME/.local/bin"
 CACHE="$HOME/Library/Caches/macplugins"

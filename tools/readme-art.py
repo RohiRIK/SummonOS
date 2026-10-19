@@ -58,6 +58,12 @@ def glyph_calendar(c: str) -> str:
             f'<path d="M352 480H672"/><path d="M440 352V420"/><path d="M584 352V420"/></g>{dots}')
 
 
+def glyph_end_of_day(c: str) -> str:
+    """A sun setting on the horizon."""
+    return (f'<g {_stroke(c, 48)}><path d="M372 600A140 140 0 0 1 652 600"/><path d="M312 600H712"/>'
+            f'<path d="M412 680H612"/><path d="M512 380V420"/><path d="M372 438L398 464"/><path d="M652 438L626 464"/></g>')
+
+
 def glyph_summon(c: str) -> str:
     return prompt_glyph(c)
 
@@ -110,9 +116,14 @@ def macctl_logo(p: dict) -> str:
     return wordmark_svg("macctl", p, glyph_macctl(p["bright_foreground"]), height=120)
 
 
-def project_icon(index: int) -> str:
-    """A 128 px app-icon tile (dark, so it reads on light and dark pages) for the README projects table."""
-    name, glyph, (a, b), _ = PROJECTS[index]
+APPS = [  # apps shown only in the README's "Built with SummonOS" table: name, glyph, gradient color keys
+    ("end-of-day", glyph_end_of_day, ("yellow", "red")),
+]
+
+
+def project_icon(name: str, glyph, colors: tuple[str, str]) -> str:
+    """A 128 px app-icon tile (dark, so it reads on light and dark pages) for the README tables."""
+    a, b = colors
     p, s = DARK, 128
     return (svg_open(s, s, name) +
             f'  <defs>{gradient_def("gi", p[a], p[b])}<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">'
@@ -289,9 +300,11 @@ def outputs() -> dict[Path, str]:
         files[ASSETS / f"hero-{mode}.svg"] = hero(p, dark)
         files[ASSETS / f"lifecycle-{mode}.svg"] = lifecycle(p, dark)
     files[ASSETS / "pill-swift-macos.svg"] = pill()
-    for i, (name, *_) in enumerate(PROJECTS):
+    for name, glyph, colors, _ in PROJECTS:
         if name != "Summon":  # Summon has its own app icon in incubator/summon/design/brand/
-            files[ASSETS / f"icon-{name}.svg"] = project_icon(i)
+            files[ASSETS / f"icon-{name}.svg"] = project_icon(name, glyph, colors)
+    for name, glyph, colors in APPS:
+        files[ASSETS / f"icon-{name}.svg"] = project_icon(name, glyph, colors)
     for src in sorted(DEMO_SRC.glob("*.txt")):
         files[ASSETS / "demo" / f"macctl-{src.stem}.svg"] = terminal_card(src.read_text(), DARK, f"macctl {src.stem}")
     return files
