@@ -9,6 +9,7 @@ version numbers yet; entries are grouped by day and point at the pull request.
 - **Tasks by conversation.** `summon task new "<what you want>"` (or Agent › Schedule a Task…, or "summon, every
   morning…" in a chat) opens the agent, which asks what is unclear, writes the run prompt and adds the task.
 - Local CI: `tools/local-ci.sh <pr>` builds and tests every package on the Mac and posts the result on the commit.
+- `summon doctor` checks recurring tasks: each needs its LaunchAgent and an agent that can run unattended (from #40).
 - **Recurring agent tasks.** `summon task add "<prompt>" --at 09:00 [--weekdays]` or `--every 2h`, with
   `list`, `run` and `remove`, plus a Tasks tab in Settings. Each task is a LaunchAgent that runs the agent
   unattended after a checkpoint, logs every run, and reports in Activity and a notification. (#41)
@@ -20,6 +21,7 @@ version numbers yet; entries are grouped by day and point at the pull request.
 - Settings › Tasks is view only (schedule, agent, last result); tasks are made by describing them to the agent.
 
 ### Fixed
+- `summon project repo`: the private-repo approval dialog closed itself after ~2 s; it now stays open until answered. (#43)
 - `summon://activity` (and the new `summon://settings`) never opened anything: the opener sat on the menu
   bar icon, which macOS draws as an image. It now lives in an invisible window. (#35)
 

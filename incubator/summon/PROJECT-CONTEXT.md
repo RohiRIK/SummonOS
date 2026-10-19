@@ -33,6 +33,11 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   publishing is a separate choice through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18).
 
 ## Recent History
+### 2026-10-19 — Repo approval dialog stays open
+- `summon project repo`: the NSAlert closed itself after ~2 s and `summon` exited 0 with no answer (async main runs
+  main-actor work off the real main thread; a run loop stop ended it). The dialog now runs in `osascript`
+  (`display dialog`, text passed as argv, Cancel default). Checked on the Mac: dialog stays up, approve made a private
+  repo with CI and pushed it.
 ### 2026-10-19 — Tasks by conversation; Settings › Tasks view only; local CI
 - `summon task new [wish]` launches the default agent with `TaskSetup.prompt`: ask what is unclear, write a complete
   unattended run prompt, `summon task add`. summon-mac skill has a "Recurring tasks" section. Launcher: Agent ›
