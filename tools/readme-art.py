@@ -64,6 +64,12 @@ def glyph_end_of_day(c: str) -> str:
             f'<path d="M412 680H612"/><path d="M512 380V420"/><path d="M372 438L398 464"/><path d="M652 438L626 464"/></g>')
 
 
+def glyph_skills(c: str) -> str:
+    """An open book: the skills agents read."""
+    return (f'<g {_stroke(c, 44)}><path d="M512 404C460 372 400 360 340 364V636C400 632 460 644 512 676'
+            f'C564 644 624 632 684 636V364C624 360 564 372 512 404Z"/><path d="M512 404V676"/></g>')
+
+
 def glyph_summon(c: str) -> str:
     return prompt_glyph(c)
 
@@ -118,6 +124,7 @@ def macctl_logo(p: dict) -> str:
 
 APPS = [  # apps shown only in the README's "Built with SummonOS" table: name, glyph, gradient color keys
     ("end-of-day", glyph_end_of_day, ("yellow", "red")),
+    ("skills", glyph_skills, ("green", "accent")),
 ]
 
 

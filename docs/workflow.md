@@ -1,6 +1,13 @@
-# Plugin lifecycle
+---
+type: Playbook
+title: App lifecycle
+description: "How a SummonOS app goes from idea to public release, and which skill or script owns each step."
+tags: [workflow, release]
+---
 
-How a plugin goes from idea to a public release. Each step names the skill or script that owns the
+# App lifecycle
+
+How a workspace app goes from idea to a public release. Each step names the skill or script that owns the
 details; this page only shows the order. Rules: [`AGENTS.md`](../AGENTS.md).
 
 ## Which path?

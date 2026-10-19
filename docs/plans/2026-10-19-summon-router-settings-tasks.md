@@ -1,3 +1,12 @@
+---
+type: Plan
+title: "Summon: router skill, settings, recurring tasks"
+description: "Router skill, per-agent settings, Settings tabs and recurring tasks for Summon."
+tags: [summon]
+status: done
+created: 2026-10-19
+---
+
 # Plan: Summon — router skill, granular settings, recurring tasks (2026-10-18)
 
 Order confirmed by the owner: A, B, C, D, then changelog + README, each merged on clean CI. Quick task desk: skipped for now.
