@@ -26,6 +26,12 @@ version numbers yet; entries are grouped by day and point at the pull request.
 - `summon://settings` opens the Settings window. (#35)
 
 ### Changed
+- **`~/Summon` is the one home for everything Summon and its agents make**: `Apps/` (apps from the templates),
+  `Art/` (wallpaper and icon jobs, every candidate), `Tasks/` (recurring task results), and `Themes` (a link to
+  `~/.config/summon/themes`). A `.gitignore` keeps the generated parts out of git. `summon home` (also run at
+  install and on every launch) sets it up and moved older files in: art from `~/Downloads/summon-art` and
+  `~/Downloads/summon-wallpapers`, task logs from `~/.local/state/summon/tasks`, apps from `~/Summon/<name>`.
+  The art skill now generates into `~/Summon/Art/<job>/`.
 - **Settings › Agents redesigned** (after Hermes's settings, lean): the agents on the left with a status dot and
   Default, **All Agents** on top (default agent, where agents open, the skills every agent gets, shared plugins),
   and the same sections for every agent: Account, Model (picked from that agent's list, or Custom…), Skills

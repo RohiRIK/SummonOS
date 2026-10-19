@@ -22,8 +22,8 @@ public struct SummonPaths: Sendable, Equatable {
     public var defaultTerminalFile: URL { config.appendingPathComponent("defaults/terminal") }
     public var agentSettingsFile: URL { config.appendingPathComponent("agents.json") }
     public var tasksFile: URL { config.appendingPathComponent("tasks.json") }
-    /// One folder per recurring task: a log per run.
-    public var taskLogs: URL { state.appendingPathComponent("tasks", isDirectory: true) }
+    /// One folder per recurring task, a log per run: `~/Summon/Tasks/<id>/`.
+    public var taskLogs: URL { summonHome.appendingPathComponent("Tasks", isDirectory: true) }
     public var currentThemeFile: URL { config.appendingPathComponent("current-theme") }
     public var themes: URL { config.appendingPathComponent("themes", isDirectory: true) }
     public var generated: URL { config.appendingPathComponent("generated", isDirectory: true) }
@@ -46,8 +46,14 @@ public struct SummonPaths: Sendable, Equatable {
         home.appendingPathComponent("Library/Application Support/macctl/snapshots", isDirectory: true)
     }
 
-    /// `~/Summon`: every project Summon makes lives in `~/Summon/<name>`, and agents start here.
-    public var projects: URL { home.appendingPathComponent("Summon", isDirectory: true) }
+    /// `~/Summon`: the one home for everything Summon and its agents make; agents start here.
+    public var summonHome: URL { home.appendingPathComponent("Summon", isDirectory: true) }
+    /// Apps made from Summon's templates: `~/Summon/Apps/<name>`.
+    public var apps: URL { summonHome.appendingPathComponent("Apps", isDirectory: true) }
+    /// The folder new projects go in (the apps folder).
+    public var projects: URL { apps }
+    /// Art jobs (wallpapers, icons): every candidate in `~/Summon/Art/<job>/`.
+    public var art: URL { summonHome.appendingPathComponent("Art", isDirectory: true) }
 
     /// Where macOS writes crash, hang and panic reports for this user and for the whole machine.
     public var diagnosticReportDirs: [URL] {

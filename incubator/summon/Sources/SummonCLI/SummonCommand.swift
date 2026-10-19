@@ -101,6 +101,13 @@ struct SummonCommand {
             try await MenuCommands.run(&args, context)
         case "icon":
             try IconCommands.run(&args, context)
+        case "home":
+            let quiet = args.flag("--quiet")
+            let moved = try SummonHome.migrate(context.paths)
+            if !quiet {
+                print(context.paths.summonHome.path)
+                for path in moved { print("  moved in: \(path)") }
+            }
         case "plugins":
             try await PluginCommands.run(&args, context)
         case "task", "tasks":

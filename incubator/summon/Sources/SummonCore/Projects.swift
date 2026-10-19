@@ -209,7 +209,7 @@ public struct ProjectService: Sendable {
         self.gitPath = gitPath
     }
 
-    /// Copies `templates/<kind>` to `~/Summon/<name>`, makes it a git repo with a first commit, and registers it.
+    /// Copies `templates/<kind>` to `~/Summon/Apps/<name>`, makes it a git repo with a first commit, and registers it.
     /// Returns the project and any git problems (the project is usable without them).
     public func create(name: String, kind: ProjectKind, templates: URL, date: Date = Date()) async throws -> (Project, [String]) {
         guard ProjectName.isValid(name) else { throw ProjectError.invalidName(name) }
