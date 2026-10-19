@@ -66,16 +66,16 @@ sections:
 - **Panel:** Ask Agent, Open Summon Menu, Activity…, Recent Problems (only when there are some, one row
   per program with a count and Diagnose…), then Settings… (⌘,) and Quit (⌘Q).
 - **Activity window:** a plain, oldest-first log of settings changes, undos, agent sessions, themes and
-  crashes, opened at the newest line (also `summon://activity`). Select lines and ask the agent about them
+  crashes and recurring tasks, opened at the newest line (also `summon://activity`). Select lines and ask the agent about them
   from the bar at the bottom. Right-click a line to Ask, Copy, Diagnose, Show in Finder, or Undo This
   Change / Session.
-- **Settings window** with a sidebar:
+- **Settings window** (⌘, or `summon://settings`), one toolbar tab per part:
   - General: Open at Login.
   - Agents: the default agent, install links, and each agent's model and skills.
   - Terminal: which terminal agents open in.
   - Notifications: crash and hang alerts, muted programs with Unmute.
   - Appearance: the theme.
-  - Tasks: empty until recurring tasks ship (planned).
+  - Tasks: recurring tasks with Run Now and Delete, and a New Task form.
 
 ### Activity and status from the command line
 
@@ -129,10 +129,19 @@ Commands: `/summon:setup`, `/summon:fix`, `/summon:theme`, `/summon:icon`, `/sum
 
 Every `summon` command, with arguments and examples: `summon commands --json`.
 
+### Recurring agent tasks
+
+- `summon task add "<prompt>" --at 09:00 [--weekdays]` or `--every 2h`, optionally `--agent <id>` and
+  `--name`; `summon task list`, `summon task run <id>`, `summon task remove <id>`. Also in Settings › Tasks.
+- Each task is a LaunchAgent that runs the agent unattended (its print mode) in `~/Summon`, after a
+  checkpoint, for at most 30 minutes. Every run leaves a log in `~/.local/state/summon/tasks/<id>/`, a line
+  in Activity (failed runs in red) and a notification.
+
 ### Planned
 
-- Recurring agent tasks (`summon task add|list|remove|run`, run by launchd, managed in Settings › Tasks).
-- A changelog ([`tasks/todo.md`](../tasks/todo.md), item E).
+- A quick task desk: a small floating panel to hand the agent a request from anywhere (parked by the owner).
+
+Changes, newest first: [`incubator/summon/CHANGELOG.md`](../incubator/summon/CHANGELOG.md).
 
 ## macctl
 
