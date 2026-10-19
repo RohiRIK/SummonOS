@@ -59,6 +59,12 @@ struct SummonCommand {
             if args.items.first == "set" {
                 _ = args.next()
                 try AgentCommands.set(&args, context)
+            } else if args.items.first == "status" {
+                _ = args.next()
+                try AgentProbeCommands.status(&args, context)
+            } else if args.items.first == "login" {
+                _ = args.next()
+                try await AgentProbeCommands.login(&args, context)
             } else {
                 try AgentCommands.list(&args, context)
             }

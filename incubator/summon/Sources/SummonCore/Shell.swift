@@ -76,17 +76,19 @@ public enum Shell {
 }
 
 /// Collects pipe output from the readability handler's thread.
-final class OutputBuffer: @unchecked Sendable {
+public final class OutputBuffer: @unchecked Sendable {
     private let lock = NSLock()
     private var storage = Data()
 
-    func append(_ chunk: Data) {
+    public init() {}
+
+    public func append(_ chunk: Data) {
         lock.lock()
         storage.append(chunk)
         lock.unlock()
     }
 
-    var data: Data {
+    public var data: Data {
         lock.lock()
         defer { lock.unlock() }
         return storage
@@ -107,7 +109,9 @@ public struct ToolLocator: Sendable {
     public static func live(environment: [String: String] = ProcessInfo.processInfo.environment) -> ToolLocator {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         var dirs = (environment["PATH"] ?? "").split(separator: ":").map(String.init)
-        for extra in ["/opt/homebrew/bin", "/usr/local/bin", "\(home)/.local/bin", "\(home)/.bun/bin", "\(home)/.npm-global/bin", "/usr/bin", "/bin"]
+        // The user's own folders first, as in their shell: a tool installed with bun or a script can be newer than
+        // a Homebrew copy (two OpenCodes on one Mac: Homebrew 1.15 and bun 2.0).
+        for extra in ["\(home)/.local/bin", "\(home)/.bun/bin", "\(home)/.npm-global/bin", "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
         where !dirs.contains(extra) {
             dirs.append(extra)
         }

@@ -27,6 +27,11 @@ public final class SummonModel {
     public private(set) var agentSettings = AgentSettings()
     /// Skills Summon ships, from `summon skills`; empty until `loadShippedSkills()` runs.
     public private(set) var shippedSkills: [String] = []
+    /// Each shipped skill's description, for Settings.
+    public private(set) var skillDescriptions: [String: String] = [:]
+    /// What each agent's CLI reports (login, models), filled on demand; ids being checked right now.
+    public private(set) var agentStatus: [String: AgentStatus] = [:]
+    public private(set) var checkingAgents: Set<String> = []
     public private(set) var menu: MenuTree
     public private(set) var menuError: String? = nil
     /// Last action error, shown under the row that caused it.
@@ -211,6 +216,26 @@ public final class SummonModel {
         guard let summonPath else { return }
         guard let output = try? await runner(summonPath, ["skills", "list"]) else { return }
         shippedSkills = AgentSettingsCommand.skillNames(fromList: output)
+        if let json = try? await runner(summonPath, ["skills", "list", "--json"]),
+           let infos = try? JSONDecoder().decode([SkillInfo].self, from: Data(json.utf8)) {
+            skillDescriptions = Dictionary(infos.compactMap { info in info.description.map { (info.name, $0) } },
+                                           uniquingKeysWith: { first, _ in first })
+        }
+    }
+
+    /// Asks the agent's CLI whether it is logged in and which models it has (`summon agents status --json`).
+    public func checkAgent(_ id: String) async {
+        guard let summonPath, !checkingAgents.contains(id) else { return }
+        checkingAgents.insert(id)
+        defer { checkingAgents.remove(id) }
+        guard let output = try? await runner(summonPath, ["agents", "status", id, "--json"]),
+              let status = try? JSONDecoder().decode(AgentStatus.self, from: Data(output.utf8)) else { return }
+        agentStatus[id] = status
+    }
+
+    /// Opens the agent's own login in a terminal; Settings offers Check Again afterwards.
+    public func logIn(_ id: String) {
+        Task { await summon(["agents", "login", id]) }
     }
 
     // MARK: Launcher

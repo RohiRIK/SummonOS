@@ -33,6 +33,13 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   publishing is a separate choice through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18).
 
 ## Recent History
+### 2026-10-19 — Agent account and models in Settings
+- `AgentProbe` (Core): per CLI the login check and model list, parsers from real output: claude `auth status` (JSON),
+  codex `login status` (on stderr), opencode `auth list` (stored providers), agy `models` (also the login signal),
+  pi `--list-models` + `auth check --provider <model's provider | settings.json defaultProvider>`. Claude Code has no
+  list: aliases opus/sonnet/haiku. `summon agents status|login`, `skills list --json` (frontmatter descriptions).
+- Probes run the agent's full path with PATH = Summon's search path (no shell: the login shell lacks bun's PATH,
+  the interactive one prints noise). Search order now user folders before Homebrew (two OpenCodes on this Mac).
 ### 2026-10-19 — Agents start through the login shell
 - Ghostty/kitty run commands via `login … bash --noprofile --norc`: `#!/usr/bin/env node` agents (Pi, Codex,
   OpenCode from bun) failed (`env: node: No such file or directory`). `AgentLauncher.inLoginShell` wraps the argv

@@ -6,6 +6,10 @@ version numbers yet; entries are grouped by day and point at the pull request.
 ## 2026-10-19
 
 ### Added
+- **Settings › Agents knows each agent's account and models.** It asks the agent's own CLI: logged in or not (with
+  Log In…, which opens that agent's login in a terminal), and the real model list as suggestions in the Model field
+  (Antigravity 13, Pi ~470; Claude Code's aliases). Each skill shows its description. CLI: `summon agents status
+  <agent> [--json]`, `summon agents login <agent>`, `summon skills list --json`.
 - **Tasks by conversation.** `summon task new "<what you want>"` (or Agent › Schedule a Task…, or "summon, every
   morning…" in a chat) opens the agent, which asks what is unclear, writes the run prompt and adds the task.
 - Local CI: `tools/local-ci.sh <pr>` builds and tests every package on the Mac and posts the result on the commit.
@@ -21,6 +25,8 @@ version numbers yet; entries are grouped by day and point at the pull request.
 - Settings › Tasks is view only (schedule, agent, last result); tasks are made by describing them to the agent.
 
 ### Fixed
+- Summon found an old Homebrew OpenCode (1.15) before your bun one (2.0); your own folders now come first, as in
+  your shell.
 - Ask Agent with Pi (or any `#!/usr/bin/env node` agent) failed in Ghostty with `env: node: No such file or
   directory`: Ghostty starts commands with a bare PATH. Agents now run through your login shell
   (`zsh -lic 'exec "$@"' …`), so they get the PATH your terminal has; `~/.bun/bin` is searched too.
