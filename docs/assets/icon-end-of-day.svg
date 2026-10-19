@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="end-of-day">
+  <title>end-of-day</title>
+  <defs><linearGradient id="gi" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFD479"/><stop offset="1" stop-color="#FF6B8B"/></linearGradient><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1A1530"/><stop offset="1" stop-color="#08060F"/></linearGradient></defs>
+  <rect width="128" height="128" rx="29" fill="url(#bg)"/>
+  <rect x=".75" y=".75" width="126.5" height="126.5" rx="28.25" fill="none" stroke="#2B2347" stroke-width="1.5"/>
+  <g transform="translate(8 8) scale(0.109375)"><g fill="none" stroke="url(#gi)" stroke-linecap="round">
+    <circle cx="512" cy="512" r="396.3" stroke-width="26.6"/>
+    <circle cx="512" cy="512" r="347.6" stroke-width="9.2" opacity=".55"/>
+    <g stroke-width="12.3"><path d="M242.6 413.9A286.7 286.7 0 0 1 512.0 225.3" opacity=".8"/><path d="M731.6 327.7A286.7 286.7 0 0 1 760.3 655.4" opacity=".8"/><path d="M561.8 794.4A286.7 286.7 0 0 1 263.7 655.4" opacity=".8"/></g>
+  </g>
+  <g fill="url(#gi)"><path d="M512.0 51.2L563.2 102.4L512.0 153.6L460.8 102.4Z"/><path d="M866.7 274.4L899.5 307.2L866.7 340.0L834.0 307.2Z"/><path d="M866.7 684.0L899.5 716.8L866.7 749.6L834.0 716.8Z"/><path d="M512.0 888.8L544.8 921.6L512.0 954.4L479.2 921.6Z"/><path d="M157.3 684.0L190.0 716.8L157.3 749.6L124.5 716.8Z"/><path d="M157.3 274.4L190.0 307.2L157.3 340.0L124.5 307.2Z"/></g><g fill="none" stroke="#F6F3FF" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"><path d="M372 600A140 140 0 0 1 652 600"/><path d="M312 600H712"/><path d="M412 680H612"/><path d="M512 380V420"/><path d="M372 438L398 464"/><path d="M652 438L626 464"/></g></g>
+</svg>
