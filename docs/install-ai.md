@@ -21,7 +21,7 @@ git --version
 ## 2. Install
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/RohiRIK/macos-plugins/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/RohiRIK/SummonOS/main/install.sh | bash
 ```
 
 The script clones SummonOS into `~/.summonos`, builds `macctl` and Summon from source (a few minutes the first

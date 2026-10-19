@@ -1,8 +1,5 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.svg">
-    <img alt="SummonOS: native Mac apps, summoned by agents, in Swift" src="docs/assets/hero-light.svg" width="100%">
-  </picture>
+  <img alt="SummonOS: native Mac apps, summoned by agents, in Swift" src="docs/assets/hero-dark.svg" width="100%">
 </p>
 
 <p align="center">
@@ -18,13 +15,13 @@
 On a Mac with macOS 15+ and Xcode (or the Command Line Tools) with Swift 6:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/RohiRIK/macos-plugins/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/RohiRIK/SummonOS/main/install.sh | bash
 ```
 
 Or let your agent do it. Paste this into Claude Code, Codex or any coding agent on your Mac:
 
 ```text
-Install SummonOS by following https://raw.githubusercontent.com/RohiRIK/macos-plugins/main/docs/install-ai.md
+Install SummonOS by following https://raw.githubusercontent.com/RohiRIK/SummonOS/main/docs/install-ai.md
 ```
 
 The installer builds Summon and macctl from source, puts `Summon.app` in `~/Applications` and `summon` and
@@ -55,10 +52,29 @@ plugin lives in its own pair of repos (private `<name>-dev` + public `<name>`), 
 
 Every plugin, its repos and status: [`plugins.md`](plugins.md).
 
+## Built with SummonOS
+
+Real apps, each in its own repo, built by agents with these skills and Summon's templates.
+
+| | App | What it does |
+|---|---|---|
+| <img src="https://raw.githubusercontent.com/RohiRIK/mac-breathe/main/docs/screenshots/window.png" width="220" alt="Mac Breathe: a breathing orb in a calm full window"> | **[mac-breathe](https://github.com/RohiRIK/mac-breathe)** | A breathing guide: a soft orb grows and shrinks with your breath, from the menu bar or as a full-screen focus window. |
+| <img src="https://raw.githubusercontent.com/RohiRIK/mac-calendar/main/docs/screenshots/panel.png" width="220" alt="Mac Calendar: month grid in the menu bar panel"> | **[mac-calendar](https://github.com/RohiRIK/mac-calendar)** | Menu bar calendar with your events, reminders, natural-language Add Event and Hebrew dates. |
+| <img src="https://raw.githubusercontent.com/RohiRIK/mac-network/main/docs/previews/PanelView-0-Overview.png" width="220" alt="mac-network: Wi-Fi, latency and IP overview in the menu bar panel"> | **[mac-network](https://github.com/RohiRIK/mac-network)** | Wi-Fi, latency, throughput and IP settings from the menu bar. |
+| <img src="docs/assets/icon-end-of-day.svg" width="96" alt=""> | **[end-of-day](https://github.com/RohiRIK/end-of-day)** | Closes your work apps when the workday ends: a schedule, a 30-second countdown you can snooze, and a streak. Made with `summon project new`. |
+
+## Why
+
+I spent a while living in [Omarchy](https://omarchy.org) on Linux, where the whole desktop is one opinionated,
+keyboard-first experience you can reshape in minutes. SummonOS asks what that feels like on a Mac when the
+center of the experience is an agent: one you summon from anywhere, that gets your crashes, undoes what it
+did, and builds the small tools you need. It is an idea in progress, not a finished product. More on how it
+started: [rohi-lab.org/blog/omarchy](https://rohi-lab.org/blog/omarchy).
+
 ## Work on it
 
 ```sh
-git clone https://github.com/RohiRIK/macos-plugins summonos && cd summonos
+git clone https://github.com/RohiRIK/SummonOS && cd SummonOS
 ./install.sh          # builds and installs this checkout
 ```
 
@@ -67,10 +83,7 @@ new app goes from idea to release (and [which path](docs/workflow.md#which-path)
 
 ## How an app is made
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/lifecycle-dark.svg">
-  <img alt="How a SummonOS app is made: plan, build, verify, publish" src="docs/assets/lifecycle-light.svg" width="100%">
-</picture>
+<img alt="How a SummonOS app is made: plan, build, verify, publish" src="docs/assets/lifecycle-dark.svg" width="100%">
 
 Each step names the skill or script that owns it: [docs/workflow.md](docs/workflow.md).
 

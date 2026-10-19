@@ -7,7 +7,7 @@ skills linked into every agent CLI, one theme across macOS, terminal, tiling, bo
 checkpoint before every agent session. It started from research on Omarchy 4.0; it is designed as its own thing.
 
 ## Current State
-- Incubating at `incubator/summon/` in the SummonOS workspace (`RohiRIK/macos-plugins`). Target repos: `mac-summon-dev` / `mac-summon`.
+- Incubating at `incubator/summon/` in the SummonOS workspace (`RohiRIK/SummonOS`). Target repos: `mac-summon-dev` / `mac-summon`.
 - `plugin/`: Claude Code plugin (4 skills, 7 commands, `macctl` MCP). `themes/`: 9 theme.json + wallpapers.
   `config/`: Brewfile, AeroSpace, Ghostty, borders, zsh. `design/`: brand assets + `generate.py`.
 - Swift package: `SummonCore` (agents, launch plans, .ips crash parsing + watcher, menu tree, themes + compilers,

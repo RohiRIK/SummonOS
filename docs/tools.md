@@ -12,7 +12,7 @@ run from a checkout it installs that checkout. It checks macOS 15+ and Swift 6, 
 Agents follow [`docs/install-ai.md`](install-ai.md) instead, which wraps the same script with checks and a report.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/RohiRIK/macos-plugins/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/RohiRIK/SummonOS/main/install.sh | bash
 ```
 
 ## mp
