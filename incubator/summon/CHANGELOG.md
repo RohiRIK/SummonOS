@@ -6,6 +6,11 @@ version numbers yet; entries are grouped by day and point at the pull request.
 ## 2026-10-19
 
 ### Added
+- **Every new app gets a private GitHub repo.** `summon project new` creates it right away (screenshots, CI, first
+  push) under a standing approval: Settings › General › "Create a private GitHub repo for every new app" (on by
+  default; `summon default repos always|ask`). With it off, Summon's dialog asks each time. Repos are always private.
+  If gh is missing or not logged in, the app is still made and Summon says how to finish (`summon project repo`).
+  The mac-app skill and the `/summon:new-*` commands now tell agents to make sure the repo exists.
 - **Screenshots of every app, and a showcase.** `summon project shots <name>` builds the app and saves light and dark
   pictures to `docs/screenshots/`, adds a Screenshots section to its README and commits; `summon project repo` runs it
   before the first push. Menu bar apps from the template draw their own panel off-screen (`<App> --screenshot`), so it
@@ -52,6 +57,8 @@ version numbers yet; entries are grouped by day and point at the pull request.
 - Settings › Tasks is view only (schedule, agent, last result); tasks are made by describing them to the agent.
 
 ### Fixed
+- `summon project shots` hung on an app made before the template's `--screenshot` mode (it launched and never
+  exited); that call now stops after 20 seconds and falls back.
 - **Agent-made themes were silently skipped.** The art skill said "work in OKLCH" but not that `theme.json` must
   hold `#RRGGBB`; agents wrote `oklch(…)` and `//` comments, and their palettes had an accent darker than the
   background and sixteen shades of one blue. Theme files now accept `oklch(L C H)` (converted to hex for every app);

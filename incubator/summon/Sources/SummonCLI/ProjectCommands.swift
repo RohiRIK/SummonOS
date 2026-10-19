@@ -43,10 +43,21 @@ enum ProjectCommands {
         }
         ActivityCommands.record(LoggedEvent(kind: EventKind.projectNew, title: "New \(kind.title.lowercased()) \(name)",
                                             refs: ["folder": project.path, "kind": kind.rawValue]), context)
+        // Every new app gets its private repo right away when the owner's standing approval is on (Settings ›
+        // General; `summon default repos`). A missing gh or login never undoes the project: it says how to finish.
+        var made = project
+        if RepoPolicyStore(paths: context.paths).load() == .always {
+            do {
+                made = try await makeRepo(name, owner: nil, context, standingApproval: true)
+            } catch {
+                context.warn("summon: \(name) has no GitHub repo yet (\(error)). Finish with: summon project repo \(name)")
+            }
+        }
         if json {
-            try ActivityCommands.printJSON(project)
+            try ActivityCommands.printJSON(made)
         } else {
-            print(project.path)
+            print(made.path)
+            if let repo = made.repo { print(repo) }
         }
     }
 
@@ -90,6 +101,14 @@ enum ProjectCommands {
     static func repo(_ args: inout Arguments, _ context: Context) async throws {
         let owner = args.option("--owner")
         guard let name = args.next(), args.isEmpty else { throw CLIError("Usage: summon project repo <name> [--owner <login>]") }
+        let project = try await makeRepo(name, owner: owner, context,
+                                         standingApproval: RepoPolicyStore(paths: context.paths).load() == .always)
+        print(project.repo ?? "")
+    }
+
+    /// Screenshots, then the private repo (CI, first push). With the standing approval the dialog is skipped;
+    /// otherwise the user's click in Summon's dialog is the approval. Always `--private`.
+    static func makeRepo(_ name: String, owner: String?, _ context: Context, standingApproval: Bool) async throws -> Project {
         guard let gh = context.tools.find("gh") else {
             throw CLIError("GitHub CLI is not installed. Install it with: brew install gh, then gh auth login", code: .missingDependency)
         }
@@ -104,7 +123,7 @@ enum ProjectCommands {
         let project: Project
         do {
             project = try await service.create(name: name, owner: owner) { request in
-                await RepoApprovalDialog.ask(request, runner: context.runner)
+                standingApproval ? true : await RepoApprovalDialog.ask(request, runner: context.runner)
             }
         } catch let error as ProjectError {
             if case let .pushFailed(repo, _) = error {
@@ -115,7 +134,7 @@ enum ProjectCommands {
         }
         ActivityCommands.record(LoggedEvent(kind: EventKind.projectRepo, title: "Private repo for \(name)",
                                             refs: ["folder": project.path, "repo": project.repo ?? ""]), context)
-        print(project.repo ?? "")
+        return project
     }
 }
 

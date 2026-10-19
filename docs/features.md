@@ -112,6 +112,9 @@ sections:
   ([`templates/`](../incubator/summon/templates)).
 - **GitHub only when you say so:** `summon project repo <name>` creates a private repo with CI only after
   you click Create in a native dialog. Cancel is the default button, and no flag skips the dialog.
+- Every new app gets a **private GitHub repo** right away (screenshots, CI, first push), unless Settings › General
+  › "Create a private GitHub repo for every new app" is off (`summon default repos ask`): then Summon's dialog asks.
+  Never public.
 
 ### Claude Code plugin
 

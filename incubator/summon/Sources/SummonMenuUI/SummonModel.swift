@@ -32,6 +32,8 @@ public final class SummonModel {
     /// What each agent's CLI reports (login, models), filled on demand; ids being checked right now.
     public private(set) var agentStatus: [String: AgentStatus] = [:]
     public private(set) var checkingAgents: Set<String> = []
+    /// Every new app gets a private GitHub repo right away (`always`) or after the dialog (`ask`).
+    public private(set) var repoPolicy: RepoPolicy = .always
     /// Agents whose CLI is on this Mac, in registry order.
     public private(set) var installedAgentIDs: [String] = []
     /// Installed plugins per agent, and which agents have each catalog plugin (filled on demand).
@@ -74,6 +76,7 @@ public final class SummonModel {
 
     public func reload() {
         defaultAgent = DefaultAgentStore(paths: paths).load()
+        repoPolicy = RepoPolicyStore(paths: paths).load()
         let locator = ToolLocator.live()
         installedAgentIDs = AgentRegistry.all.filter { locator.find($0.command) != nil }.map(\.id)
         if let agent = defaultAgent {
@@ -316,6 +319,10 @@ public final class SummonModel {
     public func cleanPreview() async -> SummonCleaner.Plan? {
         guard let summonPath, let output = try? await runner(summonPath, ["clean", "--json"]) else { return nil }
         return try? JSONDecoder().decode(SummonCleaner.Plan.self, from: Data(output.utf8))
+    }
+
+    public func setRepoPolicy(_ policy: RepoPolicy) {
+        Task { await summon(["default", "repos", policy.rawValue]) }
     }
 
     public func cleanNow() {

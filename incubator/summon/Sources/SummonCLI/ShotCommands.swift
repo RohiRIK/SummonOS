@@ -26,7 +26,8 @@ enum ShotCommands {
             // works when the menu bar is full and the icon is hidden. Older apps and window apps: the live window.
             let binary = (app as NSString).appendingPathComponent("Contents/MacOS/\(exec)")
             let rendered = ["panel-light.png", "panel-dark.png"]
-            if project.kind == .menubar, (try? Shell.runSync(binary, ["--screenshot", shotsDir.path])) != nil,
+            // At most 20 s: an app made before the template had `--screenshot` just launches and never exits.
+            if project.kind == .menubar, run(binary, ["--screenshot", shotsDir.path], within: 20),
                rendered.allSatisfy({ FileManager.default.fileExists(atPath: shotsDir.appendingPathComponent($0).path) }) {
                 images += rendered.map { "docs/screenshots/\($0)" }
             } else {
@@ -54,6 +55,23 @@ enum ShotCommands {
             _ = try? Shell.runSync(git, ["-C", folder.path, "commit", "-q", "-m", "docs: screenshots"])
         }
         return images
+    }
+
+    /// Runs a program, stopping it after `seconds`; true when it exited 0 in time.
+    static func run(_ path: String, _ arguments: [String], within seconds: TimeInterval) -> Bool {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = arguments
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        do { try process.run() } catch { return false }
+        let deadline = Date().addingTimeInterval(seconds)
+        while process.isRunning, Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
+        guard !process.isRunning else {
+            process.terminate()
+            return false
+        }
+        return process.terminationStatus == 0
     }
 
     /// The template's `scripts/bundle.sh` prints the .app path last.
