@@ -1,3 +1,12 @@
+---
+type: Plan
+title: mac-calendar v0.2
+description: "Events, reminders, quick add, Hebrew dates, hotkey and week view for mac-calendar."
+tags: [mac-calendar]
+status: done
+created: 2026-09-30
+---
+
 # Plan: `mac-calendar` v0.2 — events, reminders, quick add, Hebrew dates, hotkey, week view
 
 Status: done (2026-09-30). Merged mac-calendar-dev PR #2, public snapshot published. Branch `feat/events` in `plugins/mac-calendar`.

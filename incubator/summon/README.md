@@ -34,7 +34,7 @@ you. Every session is checkpointed, so anything it does can be undone.
 ## Quick start
 
 ```bash
-cd incubator/summon && scripts/bundle.sh && scripts/install.sh   # app in ~/Applications, `summon` on PATH, skills linked
+./install.sh   # from the repo root (or the curl one-liner in the root README): Summon, macctl, skills linked
 summon default agent claude                                       # or codex, opencode, agy, pi, …
 summon doctor                                                     # what is set up, what is missing
 summon agent prompt "summon, give my Mac a calm dark theme"       # or ⌃⌥⌘A from anywhere

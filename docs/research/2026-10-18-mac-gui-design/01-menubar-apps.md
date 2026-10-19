@@ -1,3 +1,11 @@
+---
+type: Research
+title: Premium native menu bar apps
+description: "What makes a macOS menu bar app feel premium and native, from HIG, Bjango and four open-source apps."
+tags: [research, design, menubar]
+created: 2026-10-18
+---
+
 # What makes a macOS menu bar app feel premium and native (2024–2026)
 
 Scope: macOS 15 Sequoia and macOS 26 Tahoe. The sources are Apple's HIG, Bjango's menu bar extra guidance, developer posts, product docs, and the source code of four open-source apps (Stats, Ice, Itsycal, CodexBar), which were cloned and read for real constants. The source of every claim is marked:

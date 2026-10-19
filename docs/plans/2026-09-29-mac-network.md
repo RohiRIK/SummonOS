@@ -1,3 +1,12 @@
+---
+type: Plan
+title: "mac-network: port of rohi.network"
+description: Port of the rohi.network Linux bar widget to a native macOS menu bar app.
+tags: [mac-network, port]
+status: done
+created: 2026-09-29
+---
+
 # Plan: port rohi.network to macOS as `mac-network`
 
 Status: Phase 3 in review: https://github.com/RohiRIK/mac-network/pull/1 (55 tests, previews rendered). Manual checks pending.

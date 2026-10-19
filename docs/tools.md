@@ -1,3 +1,10 @@
+---
+type: Reference
+title: Workspace tools
+description: "What each script in tools/ does and how to run it: installer, mp, local CI, checks, publishing, previews, README art."
+tags: [tools, workflow]
+---
+
 # Tools
 
 Scripts in [`tools/`](../tools). Run them from the workspace root. Per-plugin scripts
@@ -50,8 +57,9 @@ is a reference to clone on demand), `path` (relative to the home).
 `tools/local-ci.sh [ref|pr-number] [--no-post]`: what `.github/workflows/swift.yml` does, run on this Mac. Checks out
 exactly that commit in a temporary worktree, builds and tests every `Package.swift` outside `.build/` and `plugins/`
 (build cache in `~/Library/Caches/macplugins/local-ci`, logs per package under `logs/<sha>/`), and posts the result
-as the commit status `local / swift (macOS)` (pending, then success or failure). Commit statuses are free; GitHub
-Actions runs need a paid plan the owner does not have. Merge a PR only when its head has the green status:
+as the commit status `local / swift (macOS)` (pending, then success or failure). Now that the repo is public,
+GitHub Actions runs `swift.yml` for free and is the gate; use this when Actions cannot run, or to test on your own
+Mac before pushing:
 
 ```bash
 tools/local-ci.sh 42 && gh pr merge 42 --merge --delete-branch
@@ -70,6 +78,22 @@ tools/check-workspace.sh
   at the top of the script).
 - Fails on a tracked file over 2 MB, except the Summon wallpaper and brand allowlist, which it prints.
 - Runs `tools/mp index --check` when `jq` is installed.
+- Runs `tools/okf-index.py --check`: every page in `docs/` has OKF frontmatter and every `index.md` is current.
+
+## okf-index.py
+
+Keeps `docs/` a conformant [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)
+(v0.2) bundle. Every page other than `index.md` and `log.md` starts with YAML frontmatter carrying `type`, `title`
+and `description` (plus `tags`; plans also `status` and `created`). The script checks that and writes one
+`index.md` per folder: subfolders first, then pages grouped by type, plans newest first.
+
+```bash
+python3 tools/okf-index.py           # regenerate docs/**/index.md
+python3 tools/okf-index.py --check   # exit 1 on missing frontmatter or a stale index
+```
+
+- A new folder under `docs/` needs a title and description in `DIRS` at the top of the script.
+- Never edit an `index.md` by hand. Notable changes get a dated line in `docs/log.md`.
 
 ## publish-public.sh
 

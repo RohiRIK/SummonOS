@@ -1,3 +1,11 @@
+---
+type: Research
+title: Activity feeds and agent UI
+description: "How the best apps show activity timelines, status and agent control, applied to Summon."
+tags: [research, design, summon]
+created: 2026-10-18
+---
+
 # 04 — Activity feeds, timelines, status and agent control: what the best apps do
 
 Research for **Summon**, a native macOS menu bar app that controls Claude Code on the Mac. It has an
