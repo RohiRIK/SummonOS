@@ -9,6 +9,11 @@ enum TaskCommands {
     @MainActor
     static func run(_ args: inout Arguments, _ context: Context) async throws {
         switch args.next() {
+        case "new":
+            // Describe it to the agent; the agent writes the run prompt and calls `task add`.
+            let inline = args.flag("--inline")
+            let description = args.items.joined(separator: " ")
+            try await AgentCommands.launch(prompt: TaskSetup.prompt(description: description), inline: inline, checkpoint: true, context)
         case "add": try add(&args, context)
         case nil, "list": try list(&args, context)
         case "remove": try remove(&args, context)
@@ -16,7 +21,7 @@ enum TaskCommands {
             guard let id = args.next() else { throw CLIError("Usage: summon task run <id>") }
             try await runTask(id, context)
         default:
-            throw CLIError("Usage: summon task add <prompt> (--at HH:MM [--weekdays] | --every <n>h) [--agent <id>] [--name <name>] | list [--json] | remove <id> | run <id>")
+            throw CLIError("Usage: summon task new [what you want] | summon task add <prompt> (--at HH:MM [--weekdays] | --every <n>h) [--agent <id>] [--name <name>] | list [--json] | remove <id> | run <id>")
         }
     }
 

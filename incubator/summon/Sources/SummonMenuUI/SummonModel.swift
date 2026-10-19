@@ -188,31 +188,6 @@ public final class SummonModel {
         Task { await summon(["default", "terminal", terminal.rawValue]) }
     }
 
-    /// Agents that can run a task unattended, installed here.
-    public var taskAgents: [Agent] {
-        AgentRegistry.all.filter { $0.headlessPrefix != nil && ToolLocator.live().find($0.command) != nil }
-    }
-
-    public func addTask(prompt: String, schedule: TaskSchedule, agent: String?) {
-        var arguments = ["task", "add", prompt]
-        switch schedule.kind {
-        case .daily: arguments += ["--at", String(format: "%02d:%02d", schedule.hour, schedule.minute)]
-        case .weekdays: arguments += ["--at", String(format: "%02d:%02d", schedule.hour, schedule.minute), "--weekdays"]
-        case .interval: arguments += ["--every", "\(schedule.everyHours)h"]
-        }
-        if let agent { arguments += ["--agent", agent] }
-        Task { await summon(arguments) }
-    }
-
-    public func removeTask(_ id: String) {
-        Task { await summon(["task", "remove", id]) }
-    }
-
-    /// Runs in the background; the result shows in Activity and as a notification.
-    public func runTaskNow(_ id: String) {
-        Task { await summon(["task", "run", id]) }
-    }
-
     public func setTheme(_ slug: String) {
         Task { await summon(["theme", "set", slug]) }
     }
