@@ -6,6 +6,11 @@ version numbers yet; entries are grouped by day and point at the pull request.
 ## 2026-10-19
 
 ### Added
+- **Screenshots of every app, and a showcase.** `summon project shots <name>` builds the app and saves light and dark
+  pictures to `docs/screenshots/`, adds a Screenshots section to its README and commits; `summon project repo` runs it
+  before the first push. Menu bar apps from the template draw their own panel off-screen (`<App> --screenshot`), so it
+  works even when the menu bar is full; window apps are captured live with ScreenCaptureKit. `summon showcase` writes
+  `~/Summon/Showcase/index.html`, a gallery of every app (light and dark).
 - **Keeping ~/Summon tidy.** Once a day (and with Settings › General › Clean Now…, or `summon clean --apply`) old
   Summon files go to the macOS Trash: task logs beyond the newest 20 or older than 30 days, a removed task's folder
   after 7 days, art jobs untouched for 30 days, Antigravity originals after 14. Apps are never touched; unknown apps,
