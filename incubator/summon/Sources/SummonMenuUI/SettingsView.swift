@@ -41,7 +41,7 @@ struct SettingsSectionView: View {
 
     @ViewBuilder private var content: some View {
         switch section {
-        case .general: GeneralSettings()
+        case .general: GeneralSettings(model: model)
         case .agents: AgentsSettings(model: model)
         case .terminal: AllAgentsDetail(model: model)  // no tab of its own: Agents › All Agents
         case .notifications: NotificationSettings(model: model)
@@ -57,6 +57,10 @@ struct GeneralSettings: View {
     @State private var openAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError: String?
 
+    @State private var cleanPlan: SummonCleaner.Plan?
+    @State private var confirmingClean = false
+    let model: SummonModel
+
     var body: some View {
         Form {
             Section {
@@ -69,6 +73,17 @@ struct GeneralSettings: View {
                         .font(.subheadline)
                         .foregroundStyle(.red)
                 }
+                LabeledContent {
+                    Button("Clean Now…") {
+                        Task {
+                            cleanPlan = await model.cleanPreview()
+                            confirmingClean = true
+                        }
+                    }
+                } label: {
+                    Text("Keep ~/Summon tidy")
+                    Text("Once a day, old task logs and art go to the Trash. Apps are never touched.")
+                }
             } footer: {
                 Text("Powered by caffeine and questionable choices.")
                     .font(.footnote)
@@ -78,6 +93,29 @@ struct GeneralSettings: View {
             }
         }
         .formStyle(.grouped)
+        .confirmationDialog(cleanTitle, isPresented: $confirmingClean) {
+            if let plan = cleanPlan, !plan.trash.isEmpty {
+                Button("Move to Trash") { model.cleanNow() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(cleanMessage)
+        }
+    }
+
+    private var cleanTitle: String {
+        guard let count = cleanPlan?.trash.count, count > 0 else { return "~/Summon is tidy" }
+        return "Move \(count) item\(count == 1 ? "" : "s") to the Trash?"
+    }
+
+    /// The first items and every note (things left as they are, for the user to look at).
+    private var cleanMessage: String {
+        guard let plan = cleanPlan else { return "Could not read ~/Summon." }
+        let items = plan.trash.prefix(6).map { "• \(($0.path as NSString).lastPathComponent): \($0.reason)" }
+        let more = plan.trash.count > 6 ? ["…and \(plan.trash.count - 6) more"] : []
+        let notes = plan.notes.map { "Note: \($0)" }
+        let lines = items + more + notes
+        return lines.isEmpty ? "Nothing to clean." : lines.joined(separator: "\n")
     }
 
     private func setOpenAtLogin(_ enabled: Bool) {
