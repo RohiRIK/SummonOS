@@ -1,7 +1,7 @@
 <p align="center"><img src="design/brand/banner.png" alt="Summon: a glowing summoning circle around a terminal prompt" width="800"></p>
 
 <p align="center">
-  <b>Status:</b> incubating in <code>macos-plugins</code>. The CLI and menu app build, pass their tests and
+  <b>Status:</b> incubating in the <a href="../../README.md">SummonOS</a> workspace. The CLI and menu app build, pass their tests and
   were installed and used on a Mac on 2026-10-18.
 </p>
 

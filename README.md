@@ -1,23 +1,46 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/hero-dark.svg">
-    <img alt="macos-plugins: small native Mac apps, built with agents, in Swift" src="docs/assets/hero-light.svg" width="100%">
+    <img alt="SummonOS: native Mac apps, summoned by agents, in Swift" src="docs/assets/hero-light.svg" width="100%">
   </picture>
 </p>
 
 <p align="center">
-  <a href="https://github.com/RohiRIK/macos-plugins/actions/workflows/swift.yml"><img alt="Swift (macOS) CI" src="https://github.com/RohiRIK/macos-plugins/actions/workflows/swift.yml/badge.svg"></a>
   <img alt="Swift 6 | macOS 15+" src="docs/assets/pill-swift-macos.svg">
 </p>
 
-# macos-plugins
+# SummonOS
 
-Private workspace for building small native macOS apps ("plugins"): menu bar extras, panels and
-utilities, written in Swift 6 and SwiftUI, plus the tools that let an agent run and build things on a Mac.
+*Powered by caffeine and questionable life choices.*
+
+## Install
+
+On a Mac with macOS 15+ and Xcode (or the Command Line Tools) with Swift 6:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/RohiRIK/macos-plugins/main/install.sh | bash
+```
+
+Or let your agent do it. Paste this into Claude Code, Codex or any coding agent on your Mac:
+
+```text
+Install SummonOS by following https://raw.githubusercontent.com/RohiRIK/macos-plugins/main/docs/install-ai.md
+```
+
+The installer builds Summon and macctl from source, puts `Summon.app` in `~/Applications` and `summon` and
+`macctl` in `~/.local/bin`, then runs `summon doctor`. Run it again to update.
+
+## What it is
+
+SummonOS turns a Mac into a place where agents build and run native apps. At its center is
+[Summon](incubator/summon/README.md), one coding agent you summon from anywhere on the Mac; around it are
+[macctl](macctl/README.md) for system settings and a growing set of small native apps ("plugins"): menu bar
+extras, panels and utilities, written in Swift 6 and SwiftUI.
 The bar is real native apps that launch instantly, work offline and look like they belong on the Mac.
 Everything each project can do today: [`docs/features.md`](docs/features.md).
 
-This repo holds the shared know-how, not the apps: agent skills, workspace tools, docs and plans. Each
+This repo is the SummonOS workspace. It holds Summon and macctl while they incubate, plus the shared
+know-how for the other apps: agent skills, workspace tools, docs and plans. Each
 plugin lives in its own pair of repos (private `<name>-dev` + public `<name>`), cloned into
 `plugins/<name>/`, which is gitignored here.
 
@@ -32,25 +55,21 @@ plugin lives in its own pair of repos (private `<name>-dev` + public `<name>`), 
 
 Every plugin, its repos and status: [`plugins.md`](plugins.md).
 
-## Start here
-
-On a Mac with Xcode selected (full setup below):
+## Work on it
 
 ```sh
-git clone https://github.com/RohiRIK/macos-plugins && cd macos-plugins
-(cd macctl && swift build -c release && cp .build/release/macctl ~/.local/bin/)   # the settings CLI
-(cd incubator/summon && scripts/bundle.sh && scripts/install.sh)                  # Summon: app, CLI, themes
-summon doctor                                                                     # checks the install
+git clone https://github.com/RohiRIK/macos-plugins summonos && cd summonos
+./install.sh          # builds and installs this checkout
 ```
 
 Then read [`AGENTS.md`](AGENTS.md) for the rules and [`docs/workflow.md`](docs/workflow.md) for how a
 new app goes from idea to release (and [which path](docs/workflow.md#which-path) to start it on).
 
-## How a plugin is made
+## How an app is made
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/lifecycle-dark.svg">
-  <img alt="Plugin lifecycle: port, build, verify, publish" src="docs/assets/lifecycle-light.svg" width="100%">
+  <img alt="How a SummonOS app is made: plan, build, verify, publish" src="docs/assets/lifecycle-light.svg" width="100%">
 </picture>
 
 Each step names the skill or script that owns it: [docs/workflow.md](docs/workflow.md).
@@ -59,6 +78,7 @@ Each step names the skill or script that owns it: [docs/workflow.md](docs/workfl
 
 | Path | What it is |
 |---|---|
+| [`install.sh`](install.sh) | The one-line installer (Summon + macctl); agents use [`docs/install-ai.md`](docs/install-ai.md) |
 | [`AGENTS.md`](AGENTS.md) | Rules for agents and people: stack, workflow, conventions, publishing. `CLAUDE.md` points to it. |
 | [`plugins.json`](plugins.json) | Plugin registry, the source of truth; [`plugins.md`](plugins.md) (index of every plugin, its repos and status) is generated from it |
 | [`examples/`](examples) | `menubar-starter`, the skeleton `tools/mp new` copies (Summon's own templates are in `incubator/summon/templates/`) |
@@ -87,17 +107,18 @@ dependencies unless a skill says so. Details: [`AGENTS.md`](AGENTS.md#stack).
 
 ## README art
 
-Every image in these READMEs is a committed file with a relative path; nothing is hosted elsewhere.
+Every image in these READMEs is a committed file with a relative path, so it renders on GitHub with nothing hosted elsewhere.
 
 ```sh
-python3 tools/readme-art.py           # write docs/assets/*.svg (logos, banner, diagram, pill, terminal cards)
+python3 tools/readme-art.py           # write docs/assets/*.svg (SummonOS hero and wordmark, diagram, icons, pill, terminal cards)
 python3 tools/readme-art.py --check   # exit 1 if a committed SVG is stale
 tools/record-demos.sh                 # on a Mac: re-record macctl's demo transcripts, cards and GIF
 ```
 
-Colors and the ring mark are shared with Summon through `incubator/summon/design/brandkit.py`.
+SummonOS uses Summon's ring mark and colors, shared through `incubator/summon/design/brandkit.py`;
+Summon's PNG icon, banner and wordmark are made by `incubator/summon/design/generate.py`.
 
 ## License
 
-Plugins are MIT. The vendored skills `swiftui-expert-skill` and `swift-concurrency-pro` are MIT and
+[MIT](LICENSE), as are the plugins. The vendored skills `swiftui-expert-skill` and `swift-concurrency-pro` are MIT and
 keep their own `LICENSE` files.

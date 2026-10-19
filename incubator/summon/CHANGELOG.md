@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Summon. Newest first. Summon is still incubating in `macos-plugins`, so there are no
+All notable changes to Summon. Newest first. Summon is still incubating in the SummonOS workspace, so there are no
 version numbers yet; entries are grouped by day and point at the pull request.
 
 ## 2026-10-19

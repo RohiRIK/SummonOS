@@ -15,7 +15,7 @@ and they launch instantly. Ask what the app should do if it is unclear and settl
 
 ## The full guides
 
-This skill is the entry point. The detailed rules live in the `RohiRIK/macos-plugins` workspace skills;
+This skill is the entry point. The detailed rules live in the SummonOS workspace skills (`RohiRIK/macos-plugins`);
 use them when you are working inside that workspace (or have them installed):
 
 - `MacAppArchitecture`: pick the shape (menu, panel, window, NSPanel), layers, state, system tools, storage.
@@ -68,7 +68,7 @@ Every template has `README.md`, `LICENSE` (MIT), `PROJECT-CONTEXT.md` (keep it c
 default; `summon default repos`); with it off, Summon asks in a dialog. Check its output: if it says the app has no
 repo yet (gh missing or not logged in), fix that and run `summon project repo <name>` before you call the app done.
 Never run `gh repo create` or push to a new remote yourself, and never make a repo public; publishing is the user's
-separate choice, made only with the macos-plugins workspace's `tools/publish-public.sh` (noreply identity).
+separate choice, made only with the SummonOS workspace's `tools/publish-public.sh` (noreply identity).
 
 ## Layout (SwiftPM, no .xcodeproj)
 
