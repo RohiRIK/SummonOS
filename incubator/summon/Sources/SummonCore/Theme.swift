@@ -61,9 +61,18 @@ public struct Theme: Sendable, Equatable, Codable, Identifiable {
     }
 
     public static func decode(_ data: Data) throws -> Theme {
-        let theme = try JSONDecoder().decode(Theme.self, from: data)
+        var theme = try JSONDecoder().decode(Theme.self, from: data)
+        theme.normalizeColors()
         try theme.validate()
         return theme
+    }
+
+    /// `oklch(L C H)` values (how the summon-art skill designs palettes) become `#RRGGBB`, which every target needs.
+    mutating func normalizeColors() {
+        func fix(_ value: inout String) { if let hex = OKLCH.hex(fromCSS: value) { value = hex } }
+        fix(&colors.background); fix(&colors.foreground); fix(&colors.accent); fix(&colors.accent2); fix(&colors.muted)
+        fix(&colors.selection); fix(&colors.cursor); fix(&colors.borderActive); fix(&colors.borderInactive)
+        for index in terminal.indices { fix(&terminal[index]) }
     }
 }
 
