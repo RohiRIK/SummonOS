@@ -78,7 +78,10 @@ enum AgentCommands {
             execReplacing(agentPath, argv)
         }
         let terminal = AgentLauncher.preferredTerminal(saved: DefaultTerminalStore(paths: context.paths).load(), installed: TerminalApp.installed)
-        let plan = AgentLauncher.terminalPlan(agentArgv: [agentPath] + argv.dropFirst(), directory: directory, terminal: terminal)
+        // Terminal.app's `do script` already runs the user's shell; Ghostty and kitty need it explicitly.
+        let command = [agentPath] + argv.dropFirst()
+        let agentArgv = terminal == .terminal ? command : AgentLauncher.inLoginShell(command, shell: ProcessInfo.processInfo.environment["SHELL"])
+        let plan = AgentLauncher.terminalPlan(agentArgv: agentArgv, directory: directory, terminal: terminal)
         _ = try await context.runner(plan.executable, plan.arguments)
     }
 

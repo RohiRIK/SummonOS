@@ -107,7 +107,7 @@ public struct ToolLocator: Sendable {
     public static func live(environment: [String: String] = ProcessInfo.processInfo.environment) -> ToolLocator {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         var dirs = (environment["PATH"] ?? "").split(separator: ":").map(String.init)
-        for extra in ["/opt/homebrew/bin", "/usr/local/bin", "\(home)/.local/bin", "\(home)/.npm-global/bin", "/usr/bin", "/bin"]
+        for extra in ["/opt/homebrew/bin", "/usr/local/bin", "\(home)/.local/bin", "\(home)/.bun/bin", "\(home)/.npm-global/bin", "/usr/bin", "/bin"]
         where !dirs.contains(extra) {
             dirs.append(extra)
         }
