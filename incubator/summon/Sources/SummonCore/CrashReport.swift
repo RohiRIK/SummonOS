@@ -42,8 +42,30 @@ public struct CrashReport: Sendable, Equatable, Codable, Identifiable {
     }
 
     /// The name used for display and for muting: the process name when known, else the app name.
-    /// Low-memory events are named for what happened; their `process` is the largest one, not the culprit.
-    public var program: String { kind == .memory ? appName : (process ?? appName) }
+    public var program: String { process ?? appName }
+
+    /// Jetsam's raw reason for the kill (`per-process-limit`, `vm-pageshortage`, …), nil otherwise.
+    public var memoryKillReason: String? = nil
+
+    /// A kill that is part of normal life on macOS: one process over its own memory cap, or stopped while idle.
+    /// Not worth a notification; still listed.
+    public var isRoutine: Bool {
+        ["per-process-limit", "idle-exit", "inactive"].contains(memoryKillReason ?? "")
+    }
+
+    /// Jetsam reasons in plain words.
+    public static func memoryReason(_ raw: String) -> String {
+        switch raw {
+        case "per-process-limit": return "over its own memory limit"
+        case "idle-exit", "inactive": return "stopped while idle to free memory"
+        case "highwater": return "over its memory high-water mark"
+        case "vm-pageshortage", "vm-compressor-space-shortage", "vm-compressor-thrashing", "vm-thrashing", "fc-thrashing",
+             "zone-map-exhaustion":
+            return "the Mac ran low on memory"
+        case "disk-space-shortage": return "the disk was nearly full"
+        default: return raw
+        }
+    }
 
     public enum ParseError: Error, Equatable, Sendable {
         case emptyFile
@@ -94,9 +116,14 @@ public struct CrashReport: Sendable, Equatable, Codable, Identifiable {
             }
             report.topFrames = crashedThreadFrames(body, limit: 8)
             if report.kind == .memory {
-                // A Jetsam report names no app; the process using the most memory is the useful fact.
+                // The subject is the process macOS killed (the one with a `reason`); `largestProcess` is only the
+                // biggest bystander. Most kills are one process over its own cap, not the Mac running out.
                 report.appName = "Low memory"
-                report.process = string(body["largestProcess"])
+                let killed = (body["processes"] as? [[String: Any]] ?? []).first { $0["reason"] != nil }
+                report.process = killed.flatMap { string($0["name"]) }
+                report.pid = killed.flatMap { int($0["pid"]) }
+                report.exceptionType = killed.flatMap { string($0["reason"]) }.map(memoryReason)
+                report.memoryKillReason = killed.flatMap { string($0["reason"]) }
             }
         }
         if report.kind == .memory { report.appName = "Low memory" }
@@ -226,7 +253,9 @@ public enum DiagnosePrompt {
         case .crash: what = "A program crashed"
         case .hang: what = "A program hung"
         case .panic: what = "The Mac had a kernel panic"
-        case .memory: what = "macOS ran low on memory and killed processes"
+        case .memory:
+            what = report.process == nil ? "macOS ran low on memory and killed processes"
+                : "macOS stopped \(report.program) (\(report.exceptionType ?? "memory"))"
         case .other: what = "macOS wrote a diagnostic report"
         }
         lines.append("\(what) on this Mac and I want to know why.")
