@@ -149,8 +149,9 @@ def ring_mark(x: float, y: float, size: float, gid: str, glyph_svg: str) -> str:
 
     `glyph_svg` is the center glyph drawn on the 1024 grid; `gid` must be defined in the outer <defs>.
     """
-    return (f'<svg x="{x:g}" y="{y:g}" width="{size:g}" height="{size:g}" viewBox="0 0 1024 1024">'
-            f'{ring_body(gid)}{glyph_svg}</svg>')
+    # A transformed <g>, not a nested <svg>: GitHub's mobile app shows a broken image for nested <svg>.
+    return (f'<g transform="translate({x:g} {y:g}) scale({size / 1024:.6g})">'
+            f'{ring_body(gid)}{glyph_svg}</g>')
 
 
 # ---------------------------------------------------------------- text metrics and wordmarks
