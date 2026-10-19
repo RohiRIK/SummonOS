@@ -100,13 +100,14 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
     }
 
     private func notify(_ report: CrashReport) {
-        guard canNotify else { return }
+        // A process over its own memory cap, or stopped while idle, is normal macOS life: listed, not announced.
+        guard canNotify, !report.isRoutine else { return }
         let content = UNMutableNotificationContent()
         switch report.kind {
         case .crash: content.title = "\(report.program) crashed"
         case .hang: content.title = "\(report.program) stopped responding"
         case .panic: content.title = "Your Mac restarted after a problem"
-        case .memory: content.title = "Your Mac ran low on memory"
+        case .memory: content.title = report.process == nil ? "Your Mac ran low on memory" : "macOS stopped \(report.program)"
         case .other: content.title = "\(report.program) wrote a diagnostic report"
         }
         content.body = "Click Diagnose to hand it to your agent."

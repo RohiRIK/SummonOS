@@ -42,7 +42,10 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
 ### 2026-10-19 — Problems archive; low-memory events
 - `ProblemArchive` (Core, `~/.local/state/summon/problems-archived.json`): the panel shows reports ≤ 24 h old and
   not archived; Diagnose archives that program's reports; Clear archives the rest. Activity is unchanged.
-- bug_type 298 is Jetsam (`CrashReport.Kind.memory`): "Low memory", `process` = `largestProcess`; 288 stays hang.
+- bug_type 298 is Jetsam (`CrashReport.Kind.memory`); 288 stays hang. The subject is the process with a `reason`
+  (killed), not `largestProcess`: `process`/`pid` from it, `exceptionType` = plain reason (`memoryReason`).
+  `isRoutine` (per-process-limit, idle-exit) → no notification. Learned from the agent's diagnosis of a real report:
+  knowledgeconstructiond over its own cap, while the Mac had 44% free.
 ### 2026-10-19 — Agent account and models in Settings
 - `AgentProbe` (Core): per CLI the login check and model list, parsers from real output: claude `auth status` (JSON),
   codex `login status` (on stderr), opencode `auth list` (stored providers), agy `models` (also the login signal),
