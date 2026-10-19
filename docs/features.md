@@ -71,7 +71,8 @@ sections:
   Change / Session.
 - **Settings window** (⌘, or `summon://settings`), one toolbar tab per part:
   - General: Open at Login.
-  - Agents: the default agent, install links, and each agent's model and skills.
+  - Agents: the default agent, install links; per agent its account (logged in or not, Log In…), its model
+    (suggestions from the agent's real model list) and its skills, each with its description.
   - Terminal: which terminal agents open in.
   - Notifications: crash and hang alerts, muted programs with Unmute.
   - Appearance: the theme.

@@ -137,8 +137,16 @@ struct AgentsSettings: View {
                         Text(agent.name).tag(agent.id)
                     }
                 }
+                if let agent = editingAgent {
+                    LabeledContent("Account") { account(agent) }
+                }
                 if let agent = editingAgent, agent.modelFlag != nil {
                     TextField("Model", text: $modelDraft, prompt: Text("Default"))
+                        .textInputSuggestions {
+                            ForEach(suggestions(agent), id: \.self) { name in
+                                Text(name).textInputCompletion(name)
+                            }
+                        }
                         .onSubmit { model.setAgentModel(modelDraft, for: agent.id) }
                 }
             }
@@ -146,9 +154,14 @@ struct AgentsSettings: View {
             if let agent = editingAgent, agent.skillFolder != nil, !model.shippedSkills.isEmpty {
                 Section("Skills") {
                     ForEach(model.shippedSkills, id: \.self) { skill in
-                        Toggle(skill, isOn: skillBinding(skill, agent: agent.id))
-                            // The router is how "summon, <anything>" reaches the other skills: always on.
-                            .disabled(skill == "summon")
+                        Toggle(isOn: skillBinding(skill, agent: agent.id)) {
+                            Text(skill)
+                            if let description = model.skillDescriptions[skill] {
+                                Text(description).lineLimit(2)
+                            }
+                        }
+                        // The router is how "summon, <anything>" reaches the other skills: always on.
+                        .disabled(skill == "summon")
                     }
                 }
             }
@@ -161,12 +174,50 @@ struct AgentsSettings: View {
             }
             modelDraft = model.agentSettings.model(for: editing) ?? ""
         }
+        .task(id: editing) { await model.checkAgent(editing) }
         .onChange(of: editing) { _, id in
             modelDraft = model.agentSettings.model(for: id) ?? ""
         }
         .onChange(of: model.agentSettings) { _, settings in
             modelDraft = settings.model(for: editing) ?? ""
         }
+    }
+
+    /// "Logged in · claude.ai", or "Not logged in" with Log In…; Check Again after logging in elsewhere.
+    @ViewBuilder private func account(_ agent: Agent) -> some View {
+        HStack(spacing: 8) {
+            if model.checkingAgents.contains(agent.id) {
+                ProgressView().controlSize(.small)
+                Text("Checking…").foregroundStyle(.secondary)
+            } else if let login = model.agentStatus[agent.id]?.login {
+                switch login.loggedIn {
+                case true?:
+                    Text(["Logged in", login.detail].compactMap { $0 }.joined(separator: " · "))
+                        .foregroundStyle(.secondary)
+                case false?:
+                    Text(login.detail.map { "Not logged in · \($0)" } ?? "Not logged in").foregroundStyle(.orange)
+                    Button("Log In…") { model.logIn(agent.id) }
+                case nil:
+                    Text("Unknown").foregroundStyle(.secondary)
+                }
+                Button {
+                    Task { await model.checkAgent(agent.id) }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .help("Check again")
+                .accessibilityLabel("Check again")
+            }
+        }
+    }
+
+    /// The agent's real models, filtered by what is typed; at most 30 so the list stays short.
+    private func suggestions(_ agent: Agent) -> [String] {
+        let all = model.agentStatus[agent.id]?.models ?? []
+        let query = modelDraft.trimmingCharacters(in: .whitespaces).lowercased()
+        let matching = query.isEmpty ? all : all.filter { $0.lowercased().contains(query) }
+        return Array(matching.prefix(30))
     }
 
     private var defaultAgentBinding: Binding<String> {
