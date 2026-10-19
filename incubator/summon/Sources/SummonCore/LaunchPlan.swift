@@ -122,6 +122,14 @@ public enum AgentLauncher {
         return LaunchPlan(executable: "/usr/bin/osascript", arguments: arguments)
     }
 
+    /// Runs `argv` through the user's login + interactive shell so the agent sees the PATH a terminal has
+    /// (`~/.local/bin`, `~/.bun/bin`, nvm…). Ghostty and kitty start commands with a bare environment, which broke
+    /// `#!/usr/bin/env node` agents. argv stays argv: the script is fixed and the items arrive as `$@`.
+    public static func inLoginShell(_ argv: [String], shell: String?) -> [String] {
+        let shell = (shell?.isEmpty == false ? shell : nil) ?? "/bin/zsh"
+        return [shell, "-lic", "exec \"$@\"", "summon-agent"] + argv
+    }
+
     /// The saved choice when it is still installed, else the first installed of Ghostty, kitty, Terminal.
     public static func preferredTerminal(saved: TerminalApp?, installed: Set<TerminalApp>) -> TerminalApp {
         if let saved, installed.contains(saved) { return saved }

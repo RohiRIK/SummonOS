@@ -63,6 +63,19 @@ struct AgentTests {
         #expect(script.contains("new window with configuration"))
     }
 
+    @Test func agentsRunThroughTheLoginShellSoTheirInterpreterIsOnPath() {
+        // Ghostty runs commands with a bare PATH (`bash --noprofile --norc`): a `#!/usr/bin/env node` agent like Pi
+        // failed with "env: node: No such file or directory".
+        let wrapped = AgentLauncher.inLoginShell(["/u/a/.bun/bin/pi", "--", "it's $HOME"], shell: "/bin/zsh")
+        #expect(wrapped == ["/bin/zsh", "-lic", "exec \"$@\"", "summon-agent", "/u/a/.bun/bin/pi", "--", "it's $HOME"])
+        #expect(AgentLauncher.inLoginShell(["/x"], shell: nil).first == "/bin/zsh")
+    }
+
+    @Test func bunInstalledAgentsAreFound() {
+        let locator = ToolLocator.live(environment: ["PATH": "/usr/bin"])
+        #expect(locator.searchPath.contains(FileManager.default.homeDirectoryForCurrentUser.path + "/.bun/bin"))
+    }
+
     @Test func kittyPlanHandsOffToTheRunningInstance() {
         let plan = AgentLauncher.terminalPlan(agentArgv: ["/bin/claude", "--", "it's"], directory: "/tmp/x", terminal: .kitty)
         #expect(plan.executable == "/usr/bin/open")
