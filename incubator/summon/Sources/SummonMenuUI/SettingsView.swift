@@ -103,6 +103,7 @@ struct AgentsSettings: View {
     /// The agent whose model and skills are shown; starts on the default agent.
     @State private var editing: String = ""
     @State private var modelDraft: String = ""
+    @State private var pluginDraft: String = ""
 
     /// Agents with something to set: a model option or their own skill folder.
     private var configurable: [Agent] {
@@ -165,8 +166,15 @@ struct AgentsSettings: View {
                     }
                 }
             }
+
+            if let agent = editingAgent {
+                plugins(agent)
+                sharedPlugins(agent)
+            }
         }
         .formStyle(.grouped)
+        .task(id: editing) { await model.loadPlugins(editing) }
+        .task { await model.loadCatalog() }
         .onAppear {
             if editingAgent == nil {
                 let preferred = model.defaultAgent?.id
@@ -210,6 +218,81 @@ struct AgentsSettings: View {
                 .accessibilityLabel("Check again")
             }
         }
+    }
+
+    /// The agent's installed plugins (Codex: MCP servers) and Add, which runs the agent's own installer.
+    @ViewBuilder private func plugins(_ agent: Agent) -> some View {
+        Section(agent.id == "codex" ? "MCP servers" : "Plugins") {
+            let installed = model.agentPlugins[agent.id] ?? []
+            if installed.isEmpty {
+                Text(model.agentPlugins[agent.id] == nil ? "Loading…" : "None").foregroundStyle(.secondary)
+            }
+            ForEach(installed) { plugin in
+                LabeledContent {
+                    Text(plugin.enabled == false ? "Off" : (plugin.version ?? "")).foregroundStyle(.secondary)
+                } label: {
+                    Text(verbatim: plugin.name)
+                }
+            }
+            if AgentPlugins.canAdd(agent) {
+                HStack {
+                    TextField("Add plugin", text: $pluginDraft, prompt: Text(Self.pluginExample(agent)))
+                        .onSubmit(addPlugin)
+                    Button("Add", action: addPlugin)
+                        .disabled(pluginDraft.trimmingCharacters(in: .whitespaces).isEmpty || model.pluginWork != nil)
+                }
+            }
+            if let work = model.pluginWork {
+                Text(work).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    /// Summon's catalog: one plugin, the right build per agent.
+    @ViewBuilder private func sharedPlugins(_ agent: Agent) -> some View {
+        Section("Shared plugins") {
+            ForEach(PluginCatalog.all) { plugin in
+                let states = model.catalogInstalled[plugin.id] ?? [:]
+                LabeledContent {
+                    HStack {
+                        if states.values.contains(false) {
+                            Button("Install in All") { model.installEverywhere(plugin.id) }
+                                .disabled(model.pluginWork != nil)
+                        }
+                        if states[agent.id] == true {
+                            Button("Fix…") { model.fixPlugin(plugin.id, agent: agent.id) }
+                                .help("Hand \(plugin.name) for \(agent.name) to your agent to diagnose and fix")
+                        }
+                    }
+                } label: {
+                    Text(plugin.name)
+                    Text(Self.catalogLine(plugin, states))
+                }
+            }
+        }
+    }
+
+    static func catalogLine(_ plugin: CatalogPlugin, _ states: [String: Bool]) -> String {
+        let names = states.sorted { $0.key < $1.key }.map { id, on in
+            (AgentRegistry.find(id)?.name ?? id) + (on ? "" : " (not installed)")
+        }
+        return names.isEmpty ? plugin.summary : plugin.summary + " " + names.joined(separator: ", ")
+    }
+
+    static func pluginExample(_ agent: Agent) -> String {
+        switch agent.id {
+        case "claude": return "name@marketplace"
+        case "pi": return "npm:package"
+        case "agy": return "/path/to/plugin"
+        default: return "package"
+        }
+    }
+
+    private func addPlugin() {
+        let spec = pluginDraft.trimmingCharacters(in: .whitespaces)
+        guard !spec.isEmpty, !editing.isEmpty else { return }
+        model.addPlugin(spec, to: editing)
+        pluginDraft = ""
     }
 
     /// The agent's real models, filtered by what is typed; at most 30 so the list stays short.

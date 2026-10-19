@@ -73,6 +73,7 @@ sections:
   - General: Open at Login.
   - Agents: the default agent, install links; per agent its account (logged in or not, Log In…), its model
     (suggestions from the agent's real model list) and its skills, each with its description.
+    Then its plugins (Add runs the agent's own installer) and Shared plugins (OpenLTM: Install in All, Fix…).
   - Terminal: which terminal agents open in.
   - Notifications: crash and hang alerts, muted programs with Unmute.
   - Appearance: the theme.
