@@ -33,6 +33,13 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   publishing is a separate choice through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18).
 
 ## Recent History
+### 2026-10-19 — Recurring agent tasks
+- `summon task add "<prompt>" (--at HH:MM [--weekdays] | --every <n>h) [--agent] [--name]`, `list`, `remove`, `run`.
+  `tasks.json`; one LaunchAgent per task (`local.macplugins.summon.task.<id>`, user's PATH captured at add) calling
+  `summon task run <id>`: checkpoint, the agent's verified headless form (claude -p, codex exec, opencode run, agy -p,
+  pi -p) in `~/Summon`, 30 min cap, log per run, `task.done` / `task.failed` event, notification.
+- Settings › Tasks: list with Run Now / Delete, and a New Task form. Verified with Claude: direct run and a
+  launchd `kickstart` both produced the answer, the event and the log; remove unloads and deletes the plist.
 ### 2026-10-19 — Settings as toolbar tabs; summon:// URLs fixed
 - Owner's choice: PR #34's sidebar Settings becomes toolbar tabs (macOS app-settings layout), 580×460: General,
   Agents, Terminal, Notifications, Appearance. Tasks returns with item D (no empty tab).

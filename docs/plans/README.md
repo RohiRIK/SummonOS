@@ -12,3 +12,4 @@ disagrees with a project's README or `PROJECT-CONTEXT.md`, those win. The active
 | [2026-10-16-macctl](2026-10-16-macctl.md) | macctl | Milestone 1 built and merged; the Omarchy comparison in it is background only |
 | [2026-10-17-summon](2026-10-17-summon.md) | Summon | Built. Partly superseded: projects live in `~/Summon`, not `~/Work`, and Summon is no longer an Omarchy port (2026-10-18) |
 | [2026-10-18-macctl-mac-test](2026-10-18-macctl-mac-test.md) | macctl, Summon | Results of the first run on a real Mac |
+- [2026-10-19 Summon: router skill, per-agent settings, Settings tabs, recurring tasks](2026-10-19-summon-router-settings-tasks.md)
