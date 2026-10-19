@@ -149,6 +149,7 @@ public struct Doctor: Sendable {
             projectsFolder(),
             projectRegistry(),
             skillLinks(),
+            tasks(),
             claudePlugin(),
         ])
         checks.append(contentsOf: app())
@@ -408,6 +409,29 @@ public struct Doctor: Sendable {
     // MARK: Agents
 
     /// Each installed agent should have a link to the current install for every skill chosen for it.
+    /// Every recurring task needs its LaunchAgent and an agent that can run unattended (from PR #40's check).
+    func tasks() -> DoctorCheck {
+        let file = tilde(paths.tasksFile.path)
+        guard let data = try? Data(contentsOf: paths.tasksFile) else { return DoctorCheck("tasks", .pass, "No tasks") }
+        guard let tasks = try? JSONDecoder().decode([RecurringTask].self, from: data) else {
+            return DoctorCheck("tasks", .fail, "\(file) cannot be read, so no task runs",
+                               fix: "Fix the JSON in \(file), or move it away to start an empty list")
+        }
+        guard !tasks.isEmpty else { return DoctorCheck("tasks", .pass, "No tasks") }
+        let unscheduled = tasks.filter { !FileManager.default.fileExists(atPath: TaskPlist.file($0.id, home: paths.home).path) }
+        if !unscheduled.isEmpty {
+            return DoctorCheck("tasks", .warn, "No LaunchAgent for \(Self.list(unscheduled.map(\.id))), so it never runs on its own",
+                               fix: "summon task remove \(unscheduled[0].id), then add it again (summon task new)")
+        }
+        let fallback = DefaultAgentStore(paths: paths).load()
+        let stuck = tasks.filter { ($0.agent.flatMap(AgentRegistry.find) ?? fallback)?.headlessPrefix == nil }
+        if !stuck.isEmpty {
+            return DoctorCheck("tasks", .warn, "\(Self.list(stuck.map(\.id))) would fail: no agent that can run it unattended",
+                               fix: "summon default agent claude (or codex, opencode, agy, pi)")
+        }
+        return DoctorCheck("tasks", .pass, tasks.count == 1 ? "1 task scheduled" : "\(tasks.count) tasks scheduled")
+    }
+
     func skillLinks() -> DoctorCheck {
         let fm = FileManager.default
         let shipped = SkillLinker.skillNames(in: skills)
