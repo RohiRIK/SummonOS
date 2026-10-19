@@ -239,4 +239,26 @@ struct DoctorTests {
     @Test func doctorIsInTheCatalog() {
         #expect(CommandCatalog.find("doctor")?.risk == "read")
     }
+
+    @Test func tasksNeedTheirLaunchAgentAndAnAgentThatRunsHeadless() async throws {
+        let home = try healthyHome()
+        let paths = SummonPaths(home: home)
+        let doctor = try makeDoctor(home: home, tools: ["summon", "claude", "macctl", "git"])
+        #expect(await doctor.run().check("tasks")?.detail == "No tasks")
+
+        let task = RecurringTask(id: "brew", name: "Brew", prompt: "p", agent: nil, schedule: TaskSchedule(kind: .daily))
+        try TaskStore(paths: paths).save([task])
+        #expect(await doctor.run().check("tasks")?.status == .warn)
+
+        try writeFile("<plist/>", to: TaskPlist.file("brew", home: home))
+        let ok = await doctor.run().check("tasks")
+        #expect(ok?.status == .pass)
+        #expect(ok?.detail == "1 task scheduled")
+
+        try TaskStore(paths: paths).save([RecurringTask(id: "brew", name: "Brew", prompt: "p", agent: "grok", schedule: TaskSchedule(kind: .daily))])
+        #expect(await doctor.run().check("tasks")?.detail.contains("no agent that can run it unattended") == true)
+
+        try writeFile("{ broken", to: paths.tasksFile)
+        #expect(await doctor.run().check("tasks")?.status == .fail)
+    }
 }

@@ -1,4 +1,4 @@
-import AppKit
+import CoreGraphics
 import Foundation
 import SummonCore
 
@@ -94,7 +94,7 @@ enum ProjectCommands {
         let project: Project
         do {
             project = try await service.create(name: name, owner: owner) { request in
-                await MainActor.run { RepoApprovalDialog.ask(request) }
+                await RepoApprovalDialog.ask(request, runner: context.runner)
             }
         } catch let error as ProjectError {
             if case let .pushFailed(repo, _) = error {
@@ -109,36 +109,45 @@ enum ProjectCommands {
     }
 }
 
-/// The native approval for a private repo. It runs in the `summon` process itself, so there is nothing for an
-/// agent to pass or pre-answer: someone has to click the button.
+/// The native approval for a private repo: a macOS dialog someone has to click. No flag or argument
+/// answers it, and Return and Escape both cancel.
+///
+/// It runs in `osascript`, not as an NSAlert in this process: the CLI's async main runs main-actor work off
+/// the real main thread, and an NSAlert there was closed by a run loop stop after about two seconds, which
+/// ended `summon` with exit 0 and no answer.
 enum RepoApprovalDialog {
-    @MainActor
-    static func ask(_ request: RepoRequest) -> Bool {
+    static let approveButton = "Create Private Repo"
+
+    static func ask(_ request: RepoRequest, runner: Runner) async -> Bool {
         // No login window session (ssh, a launchd job): there is nobody to ask, so the answer is no.
         guard CGSessionCopyCurrentDictionary() != nil else { return false }
-        let app = NSApplication.shared
-        app.setActivationPolicy(.accessory)
-        app.activate()
-
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = "Create a private GitHub repo for \(request.project)?"
-        alert.informativeText = """
+        let message = """
         Summon will create the private repository \(request.fullName) on GitHub from \
         \((request.directory as NSString).abbreviatingWithTildeInPath), add CI that runs scripts/check.sh, and push it \
         as your GitHub account. Nothing is made public.
         """
+        let output = try? await runner("/usr/bin/osascript", arguments(
+            title: "Create a private GitHub repo for \(request.project)?", message: message, icon: iconPath()))
+        return output?.contains("button returned:\(approveButton)") ?? false
+    }
+
+    /// Text goes in as argv, never spliced into the script, so a project name cannot change what runs.
+    static func arguments(title: String, message: String, icon: String?) -> [String] {
+        let iconClause = icon == nil ? "with icon caution" : "with icon (POSIX file (item 3 of argv))"
+        return [
+            "-e", "on run argv",
+            "-e", "activate",
+            "-e", "display dialog (item 2 of argv) with title (item 1 of argv) buttons {\"Cancel\", \"\(approveButton)\"} "
+                + "default button \"Cancel\" cancel button \"Cancel\" \(iconClause)",
+            "-e", "end run",
+            title, message,
+        ] + (icon.map { [$0] } ?? [])
+    }
+
+    private static func iconPath() -> String? {
         let icon = URL(fileURLWithPath: PathCommand.installPath())
             .deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Resources/AppIcon.icns")
-        if let image = NSImage(contentsOf: icon) {
-            alert.icon = image
-        }
-        // Cancel is first, so Return and Escape both cancel; only a click on the second button approves.
-        alert.addButton(withTitle: "Cancel")
-        let create = alert.addButton(withTitle: "Create Private Repo")
-        create.keyEquivalent = ""
-        alert.window.level = .floating
-        return alert.runModal() == .alertSecondButtonReturn
+            .appendingPathComponent("Resources/AppIcon.icns").path
+        return FileManager.default.fileExists(atPath: icon) ? icon : nil
     }
 }
