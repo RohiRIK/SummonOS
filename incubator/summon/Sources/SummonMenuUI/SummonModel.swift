@@ -171,8 +171,25 @@ public final class SummonModel {
         }
     }
 
+    /// Problems the panel still shows: not archived, not older than a day (Activity keeps them all).
+    /// `problemsVersion` makes the panel recompute after an archive.
+    public var panelProblems: [CrashReport] {
+        _ = problemsVersion
+        return ProblemArchive(paths: paths).visible(recentCrashes)
+    }
+    private var problemsVersion = 0
+
+    /// Diagnosing hands the report to the agent, so that program's reports leave the panel.
     public func diagnose(file: String) {
+        if let program = recentCrashes.first(where: { $0.file == file })?.program {
+            archiveProblems(recentCrashes.filter { $0.program == program })
+        }
         Task { await summon(["crash", "diagnose", file]) }
+    }
+
+    public func archiveProblems(_ reports: [CrashReport]) {
+        try? ProblemArchive(paths: paths).archive(reports.map(\.file))
+        problemsVersion += 1
     }
 
     public func mute(program: String) {

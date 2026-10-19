@@ -6,6 +6,8 @@ version numbers yet; entries are grouped by day and point at the pull request.
 ## 2026-10-19
 
 ### Added
+- **Recent Problems archive themselves.** The panel shows a report for 24 hours; Diagnose… archives that app's
+  reports; Clear archives the rest. Activity keeps the full history.
 - **Settings › Agents knows each agent's account and models.** It asks the agent's own CLI: logged in or not (with
   Log In…, which opens that agent's login in a terminal), and the real model list as suggestions in the Model field
   (Antigravity 13, Pi ~470; Claude Code's aliases). Each skill shows its description. CLI: `summon agents status
@@ -25,6 +27,8 @@ version numbers yet; entries are grouped by day and point at the pull request.
 - Settings › Tasks is view only (schedule, agent, last result); tasks are made by describing them to the agent.
 
 ### Fixed
+- Low-memory (Jetsam, bug_type 298) reports showed as a "Hang" named after the file; they now read "Low memory ·
+  <app> used the most" (hangs are bug_type 288).
 - Summon found an old Homebrew OpenCode (1.15) before your bun one (2.0); your own folders now come first, as in
   your shell.
 - Ask Agent with Pi (or any `#!/usr/bin/env node` agent) failed in Ghostty with `env: node: No such file or

@@ -3,7 +3,8 @@ import Foundation
 /// A macOS `.ips` diagnostic report: one JSON header line, then (for crashes) a JSON body.
 public struct CrashReport: Sendable, Equatable, Codable, Identifiable {
     public enum Kind: String, Sendable, Codable {
-        case crash, hang, panic, other
+        /// `memory`: a Jetsam event (bug_type 298): macOS killed processes because memory ran low.
+        case crash, hang, panic, memory, other
     }
 
     public var id: String { file }
@@ -41,7 +42,8 @@ public struct CrashReport: Sendable, Equatable, Codable, Identifiable {
     }
 
     /// The name used for display and for muting: the process name when known, else the app name.
-    public var program: String { process ?? appName }
+    /// Low-memory events are named for what happened; their `process` is the largest one, not the culprit.
+    public var program: String { kind == .memory ? appName : (process ?? appName) }
 
     public enum ParseError: Error, Equatable, Sendable {
         case emptyFile
@@ -91,14 +93,21 @@ public struct CrashReport: Sendable, Equatable, Codable, Identifiable {
                 report.signal = string(exception["signal"])
             }
             report.topFrames = crashedThreadFrames(body, limit: 8)
+            if report.kind == .memory {
+                // A Jetsam report names no app; the process using the most memory is the useful fact.
+                report.appName = "Low memory"
+                report.process = string(body["largestProcess"])
+            }
         }
+        if report.kind == .memory { report.appName = "Low memory" }
         return report
     }
 
     static func kind(for bugType: String) -> Kind {
         switch bugType {
         case "309": return .crash
-        case "298", "288": return .hang
+        case "288": return .hang
+        case "298": return .memory
         case "210": return .panic
         default: return .other
         }
@@ -217,6 +226,7 @@ public enum DiagnosePrompt {
         case .crash: what = "A program crashed"
         case .hang: what = "A program hung"
         case .panic: what = "The Mac had a kernel panic"
+        case .memory: what = "macOS ran low on memory and killed processes"
         case .other: what = "macOS wrote a diagnostic report"
         }
         lines.append("\(what) on this Mac and I want to know why.")
