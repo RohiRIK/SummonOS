@@ -13,7 +13,7 @@ Starter is a screensaver made with Summon. Write its one job and who it is for h
 - Swift 6 + SwiftUI (AppKit only where SwiftUI has no API), SwiftPM, macOS 15+, no third-party dependencies.
 - Core logic is test-first (swift-testing); views and `main` stay thin.
 - `legacyScreenSaver` outlives the saver: stop timers in `stopAnimation()` and on `com.apple.screensaver.willstop`. Never block `animateOneFrame()`.
-- Never create a public repo. Publishing is a separate choice, made only through the macos-plugins workspace's
+- Never create a public repo. Publishing is a separate choice, made only through the SummonOS workspace's
   `tools/publish-public.sh` (noreply identity, drops this file).
 
 ## Recent History
