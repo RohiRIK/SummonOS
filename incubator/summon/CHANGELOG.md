@@ -57,6 +57,9 @@ version numbers yet; entries are grouped by day and point at the pull request.
 
 ## 2026-10-17 and earlier
 
+- Where it started: **mac-assistant** (2026-10-03), a diagnostics assistant with a policy broker and typed tools.
+  Archived at the tag `archive/mac-assistant`.
+
 - The `summon` CLI and the Summon Menu app (#13), the Activity event log, timeline and window (#22, #23),
   Claude Code plugin session hooks (#24), themes, wallpapers, the logo and desktop configs (#12), and theme
   wallpapers through `macctl` so undo restores them (#18).
