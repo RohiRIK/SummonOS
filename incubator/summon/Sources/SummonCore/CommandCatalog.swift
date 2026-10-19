@@ -22,6 +22,8 @@ public enum CommandCatalog {
         CommandInfo(route: "agents set", summary: "Choose an agent's model and which Summon skills it gets (saved in ~/.config/summon/agents.json, relinked at once)",
                     args: "<agent> [--model <m> | --default-model] [--skills a,b | --all-skills]",
                     examples: ["summon agents set claude --model opus", "summon agents set codex --skills summon,summon-mac"], risk: "user"),
+        CommandInfo(route: "task new", summary: "Describe a recurring task to the default agent; it asks what is unclear, writes the run prompt and adds it",
+                    args: "[what you want] [--inline]", examples: ["summon task new \"every weekday at 9, check brew updates\""], risk: "user"),
         CommandInfo(route: "task add", summary: "Schedule a prompt for an agent: every day or weekday at a time, or every N hours (launchd; checkpoint first; result in Activity)",
                     args: "<prompt> (--at HH:MM [--weekdays] | --every <n>h) [--agent <id>] [--name <name>]",
                     examples: ["summon task add \"Check brew updates and summarize\" --at 09:00 --weekdays --agent claude"], risk: "user"),

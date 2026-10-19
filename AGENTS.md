@@ -66,7 +66,9 @@ installed unmodified with their LICENSE files. Do not edit them; put our rules i
    screen, action, and setting is reachable. Test-first for Core logic. Branch, never `main`.
 5. **Verify:** `MacAppBuild/Verify.md`: gate, previews, run the app, logs, manual checklist.
 6. **PR:** `gh pr create`, then `scripts/pr-report.sh` (report + previews as a comment). No GitHub Actions in plugin
-   repos; this workspace repo runs `.github/workflows/swift.yml` (build + test every Swift package on macOS).
+   repos. In this workspace repo the gate is **local CI**: `tools/local-ci.sh <pr>` builds and tests every Swift
+   package on this Mac and posts a `local / swift (macOS)` commit status; merge only when it is green. The owner does
+   not pay for GitHub Actions, so `.github/workflows/swift.yml` fails to start (billing) and is not the gate.
 7. **Update memory:** the plugin's `PROJECT-CONTEXT.md`; `plugins.json` + `tools/mp index` if status changed;
    `docs/features.md` when a user-visible feature is added or removed.
 

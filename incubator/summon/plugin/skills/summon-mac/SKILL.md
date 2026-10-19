@@ -76,6 +76,21 @@ Then `summon theme set <slug>`. Wallpapers: 5120×2880 JPEG next to `theme.json`
 Mood → three concepts → palette from the subject (contrast checked) → images generated with Nano Banana → reviewed
 → the user picks → installed. Never ship a plain gradient or a default palette when the user asked for something nice.
 
+## Recurring tasks
+
+The user describes what they want ("every weekday at 9, check brew updates and tell me what is outdated");
+you turn it into a task. It will run **unattended**: no chat, nobody to answer questions, in `~/Summon`, after a
+checkpoint, for at most 30 minutes.
+
+1. Ask only what you cannot infer: when (map "mornings" to a time, "work days" to `--weekdays`), which agent
+   (default if unsaid; `summon agents` lists them), and what the user wants to see afterwards.
+2. Write the run prompt as a complete brief: what to check or do, where, what never to touch (nothing destructive
+   without the user), and end with "Finish with a short summary of what you found or changed." That summary is
+   what the user reads in Activity.
+3. `summon task add "<run prompt>" --at HH:MM [--weekdays] | --every <n>h [--agent <id>] --name "<short name>"`
+4. Show `summon task list`, offer `summon task run <id>` to try it now, and say how to stop it:
+   `summon task remove <id>`. Logs: `~/.local/state/summon/tasks/<id>/`.
+
 ## Keybindings (default)
 
 | Keys | Does |

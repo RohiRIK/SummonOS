@@ -31,8 +31,8 @@ struct SettingsSectionView: View {
     @Bindable var model: SummonModel
 
     var body: some View {
-        // Short tabs fit their rows; Agents (a row per skill) and Tasks get room and scroll.
-        if section == .agents || section == .tasks {
+        // Short tabs fit their rows; Agents (a row per skill) gets room and scrolls.
+        if section == .agents {
             content.frame(height: 520)
         } else {
             content.fixedSize(horizontal: false, vertical: true)
@@ -266,14 +266,10 @@ struct AppearanceSettings: View {
 
 // MARK: Tasks
 
-/// Recurring agent tasks (`summon task`): what runs when, Run Now, Delete, and a short form to add one.
+/// Recurring agent tasks, view only: what runs, when, with which agent, and how the last run went.
+/// Tasks are made by describing them to the agent (`summon task new`, or "summon, every morning…").
 struct TasksSettings: View {
     let model: SummonModel
-    @State private var prompt = ""
-    @State private var kind: TaskSchedule.Kind = .daily
-    @State private var time = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: Date()) ?? Date()
-    @State private var hours = 2
-    @State private var agent = ""
 
     var body: some View {
         Form {
@@ -283,52 +279,19 @@ struct TasksSettings: View {
                 }
                 ForEach(model.tasks) { task in
                     LabeledContent {
-                        HStack {
-                            Button("Run Now") { model.runTaskNow(task.id) }
-                            Button("Delete", role: .destructive) { model.removeTask(task.id) }
+                        if let result = model.taskResults[task.id] {
+                            Text(result == "failed" ? "Last run failed" : "Last run done")
+                                .foregroundStyle(result == "failed" ? .red : .secondary)
                         }
                     } label: {
                         Text(verbatim: task.name)
-                        Text(verbatim: detail(task))
+                        Text(verbatim: "\(task.schedule.summary) · \(task.agent.flatMap { AgentRegistry.find($0)?.name } ?? "Default agent")")
                     }
+                    .help(task.prompt)
                 }
-            }
-            Section("New Task") {
-                TextField("Prompt", text: $prompt, prompt: Text("Check brew updates and summarize"))
-                Picker("Runs", selection: $kind) {
-                    Text("Every day").tag(TaskSchedule.Kind.daily)
-                    Text("Weekdays").tag(TaskSchedule.Kind.weekdays)
-                    Text("Every few hours").tag(TaskSchedule.Kind.interval)
-                }
-                if kind == .interval {
-                    Stepper("Every \(hours) hours", value: $hours, in: 1...24)
-                } else {
-                    DatePicker("At", selection: $time, displayedComponents: .hourAndMinute)
-                }
-                Picker("Agent", selection: $agent) {
-                    Text("Default agent").tag("")
-                    ForEach(model.taskAgents, id: \.id) { agent in
-                        Text(agent.name).tag(agent.id)
-                    }
-                }
-                Button("Add Task", action: add)
-                    .disabled(prompt.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
         .formStyle(.grouped)
-    }
-
-    private func detail(_ task: RecurringTask) -> String {
-        let agent = task.agent.flatMap { AgentRegistry.find($0)?.name } ?? "default agent"
-        let last = model.taskResults[task.id].map { " · last run \($0)" } ?? ""
-        return "\(task.schedule.summary) · \(agent)\(last)"
-    }
-
-    private func add() {
-        let parts = Calendar.current.dateComponents([.hour, .minute], from: time)
-        let schedule = TaskSchedule(kind: kind, hour: parts.hour ?? 9, minute: parts.minute ?? 0, everyHours: hours)
-        model.addTask(prompt: prompt, schedule: schedule, agent: agent.isEmpty ? nil : agent)
-        prompt = ""
     }
 }
 

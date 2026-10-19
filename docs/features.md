@@ -75,7 +75,7 @@ sections:
   - Terminal: which terminal agents open in.
   - Notifications: crash and hang alerts, muted programs with Unmute.
   - Appearance: the theme.
-  - Tasks: recurring tasks with Run Now and Delete, and a New Task form.
+  - Tasks: each recurring task with its schedule, agent and last result (view only).
 
 ### Activity and status from the command line
 
@@ -131,8 +131,12 @@ Every `summon` command, with arguments and examples: `summon commands --json`.
 
 ### Recurring agent tasks
 
-- `summon task add "<prompt>" --at 09:00 [--weekdays]` or `--every 2h`, optionally `--agent <id>` and
-  `--name`; `summon task list`, `summon task run <id>`, `summon task remove <id>`. Also in Settings › Tasks.
+- Describe it, the agent sets it up: `summon task new "every weekday at 9, check brew updates"` (or Summon Menu ›
+  Agent › Schedule a Task…, or "summon, every morning…" in any agent chat). The agent asks what is unclear, writes
+  a complete run prompt (it runs unattended), and adds the task.
+- Directly: `summon task add "<prompt>" --at 09:00 [--weekdays]` or `--every 2h`, optionally `--agent <id>` and
+  `--name`; `summon task list`, `summon task run <id>`, `summon task remove <id>`.
+- Settings › Tasks shows each task (schedule, agent, last result), view only.
 - Each task is a LaunchAgent that runs the agent unattended (its print mode) in `~/Summon`, after a
   checkpoint, for at most 30 minutes. Every run leaves a log in `~/.local/state/summon/tasks/<id>/`, a line
   in Activity (failed runs in red) and a notification.

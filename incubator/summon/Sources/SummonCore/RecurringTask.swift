@@ -144,3 +144,24 @@ public enum TaskPlist {
         return try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
     }
 }
+
+/// `summon task new`: the user describes what they want; the agent asks what is unclear, writes the run prompt and
+/// creates the task. The run prompt is what matters: it runs later with nobody to ask.
+public enum TaskSetup {
+    public static func prompt(description: String?) -> String {
+        let wish = description?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let opening = wish.isEmpty
+            ? "I want a recurring task on this Mac. Ask me what should run and when."
+            : "I want a recurring task on this Mac: \(wish)"
+        return opening + """
+
+
+            Set it up with the summon-mac skill's "Recurring tasks" section:
+            1. Ask only what you cannot infer (when, which agent, what to report).
+            2. Write the run prompt: it runs unattended later, with no chat and nobody to ask, so make it complete
+               (what to check or do, where, what to leave alone, and a short summary of the result at the end).
+            3. Create it: summon task add "<run prompt>" --at HH:MM [--weekdays] | --every <n>h [--agent <id>] --name "<short name>"
+            4. Show me summon task list, and how to try it now: summon task run <id>
+            """
+    }
+}

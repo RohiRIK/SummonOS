@@ -9,6 +9,7 @@ public enum DefaultMenu {
       "items": [
         { "id": "agent", "label": "Agent", "icon": "sparkles", "aliases": ["ai", "ask"] },
         { "id": "agent.ask", "label": "Ask Agent", "icon": "sparkles", "action": "summon agent", "aliases": ["claude", "codex"] },
+        { "id": "agent.task", "label": "Schedule a Task…", "icon": "clock.arrow.circlepath", "aliases": ["schedule", "recurring", "every", "cron"], "action": "summon task new" },
         { "id": "agent.diagnose", "label": "Diagnose Last Crash", "icon": "stethoscope", "action": "summon crash diagnose --latest", "aliases": ["crash", "fix"] },
         { "id": "agent.debug", "label": "Save Debug Bundle", "icon": "doc.text.magnifyingglass", "action": "summon debug --save", "aliases": ["logs", "debug"] },
         { "id": "agent.undo", "label": "Undo Last Agent Session", "icon": "arrow.uturn.backward", "action": "summon undo-session", "aliases": ["revert", "rollback"] },
