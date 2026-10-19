@@ -33,6 +33,13 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   publishing is a separate choice through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18).
 
 ## Recent History
+### 2026-10-19 — Project screenshots and the showcase
+- `summon project shots` (ShotCommands): menu bar template renders its own panel off-screen via NSHostingView +
+  `cacheDisplay` (ImageRenderer draws AppKit buttons as ⛔; appearance must be set on the hosting view), light/dark;
+  window apps live via ScreenCaptureKit (`SCScreenshotManager`, desktop-independent window) with screencapture -l
+  fallback. Live capture of a menu bar panel fails when the menu bar is full: the status item sits off every display
+  (x = -2395 here) and so does its panel. `summon project repo` runs shots before the first push.
+- `ProjectShowcase` (Core): README section between `<!-- summon:screenshots -->` markers, `~/Summon/Showcase/index.html`.
 ### 2026-10-19 — Theme files: OKLCH accepted, palettes checked
 - `OKLCH` (Core): `oklch(L C H)` ⇄ hex (Ottosson; verified against an independent Python computation);
   `Theme.decode` normalizes every color to `#RRGGBB`. `ThemeLint`: contrast (text 7/4.5, accent and borders 3,

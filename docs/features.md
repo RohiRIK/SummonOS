@@ -141,6 +141,13 @@ Every `summon` command, with arguments and examples: `summon commands --json`.
   30 days and Antigravity originals after 14 days go to the Trash; apps are never touched; unfinished or broken
   themes are reported. `summon clean` previews.
 
+### Screenshots and the showcase
+
+- `summon project shots <name>`: light and dark pictures in the app's `docs/screenshots/`, a Screenshots section in its
+  README, committed; also run by `summon project repo` before the first push. Menu bar apps draw their own panel
+  (`--screenshot`); window apps are captured live. CLI tools get their `--help` in the README.
+- `summon showcase`: `~/Summon/Showcase/index.html`, every app with its pictures, kind and summary.
+
 ### Recurring agent tasks
 
 - Describe it, the agent sets it up: `summon task new "every weekday at 9, check brew updates"` (or Summon Menu ›

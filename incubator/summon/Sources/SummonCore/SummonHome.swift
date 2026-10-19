@@ -14,6 +14,7 @@ public enum SummonHome {
         # Summon's own folders: generated, never committed. Each app in Apps/ is its own repo with its own .gitignore.
         Art/
         Tasks/
+        Showcase/
         Themes
         .DS_Store
         .build/
