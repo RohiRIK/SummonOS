@@ -181,6 +181,10 @@ struct CrashRow: View {
                 .controlSize(.small)
                 .help("Hand this report to your default agent")
         }
+        // The whole row diagnoses, not only the button: the row is the problem.
+        .contentShape(Rectangle())
+        .onTapGesture(perform: diagnose)
+        .accessibilityAddTraits(.isButton)
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
         .background(
@@ -201,7 +205,7 @@ struct CrashRow: View {
     }
 
     private var detail: String {
-        let what = report.kind == .memory ? report.process.map { "\($0) used the most" } : report.kind.rawValue.capitalized
+        let what = report.kind == .memory ? (report.process == nil ? "Ran low" : "Stopped") : report.kind.rawValue.capitalized
         let parts: [String?] = [what, report.signal ?? report.exceptionType, count > 1 ? "\(count) times" : nil]
         return parts.compactMap { $0 }.joined(separator: " · ")
     }

@@ -4,16 +4,27 @@ import Testing
 
 @Suite("Recent problems: memory events and automatic archiving")
 struct ProblemArchiveTests {
-    @Test func jetsamIsLowMemoryNamedAfterTheLargestProcess() throws {
+    @Test func jetsamNamesTheKilledProcessAndWhy() throws {
         let text = """
             {"bug_type":"298","timestamp":"2026-10-19 10:44:52.00 +0300","os_version":"macOS 26.6.2 (25G83)"}
-            {"largestProcess":"Finder","processes":[{"name":"Finder","rpages":61837}]}
+            {"largestProcess":"Finder","processes":[{"name":"Finder","rpages":61837},
+              {"name":"knowledgeconstructiond","pid":16781,"reason":"per-process-limit","rpages":1086}]}
             """
         let report = try CrashReport.parse(text, file: "/r/JetsamEvent-2026-10-19-104452.ips")
         #expect(report.kind == .memory)
-        #expect(report.program == "Low memory")
-        #expect(report.process == "Finder")
+        // The report's largest process (Finder) is a bystander; the killed one is the subject.
+        #expect(report.program == "knowledgeconstructiond")
+        #expect(report.pid == 16781)
+        #expect(report.exceptionType == "over its own memory limit")
+        #expect(report.isRoutine)
+        #expect(CrashReport.memoryReason("vm-pageshortage") == "the Mac ran low on memory")
         #expect(try CrashReport.parse(#"{"bug_type":"288","name":"Safari"}"#, file: "/r/x.ips").kind == .hang)
+    }
+
+    @Test func jetsamWithoutAKillIsLowMemory() throws {
+        let report = try CrashReport.parse(#"{"bug_type":"298"}"# + "\n" + #"{"largestProcess":"Finder","processes":[]}"#, file: "/r/j.ips")
+        #expect(report.program == "Low memory")
+        #expect(!report.isRoutine)
     }
 
     func report(_ file: String, program: String, hoursAgo: Double, now: Date) -> CrashReport {
