@@ -86,6 +86,8 @@ struct SummonCommand {
             try await MenuCommands.run(&args, context)
         case "icon":
             try IconCommands.run(&args, context)
+        case "task", "tasks":
+            try await TaskCommands.run(&args, context)
         case "project":
             try await ProjectCommands.run(&args, context)
         case "path":

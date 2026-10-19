@@ -14,6 +14,7 @@ public enum ActivityLog {
     public static let askLimit = 50
 
     public static func level(_ event: ActivityEvent) -> Level {
+        if event.kind == EventKind.taskFailed { return .error }
         guard event.category == .problem else { return .info }
         return event.kind == "hang" ? .warn : .error
     }

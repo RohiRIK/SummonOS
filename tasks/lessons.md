@@ -20,3 +20,9 @@ Rules learned from corrections. One line each, newest last.
 ## 2026-10-18 — Summon GUI: user wants less, not more
 - Menu bar panel shows only actions + problems when present. Lists of themes, recent activity, or repeated crash rows are
   "too much data". Collapse repeats (one row per program + count). Settings: one control per row, no explanatory text.
+
+## 2026-10-19 — Merged a PR whose CI had failed
+- I chained `gh pr checks --watch …; gh pr merge` with `;`, so the merge ran even though `discover` failed (GitHub
+  Actions billing: "job was not started because recent account payments have failed"). The owner's rule is merge only
+  on clean CI. Rule: merge only after `gh pr checks <n>` exits 0 (`gh pr checks <n> && gh pr merge <n> …`), never with
+  `;`. When CI cannot run, stop and tell the owner; do not substitute the local gate silently.
