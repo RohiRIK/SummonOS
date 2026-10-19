@@ -21,6 +21,9 @@ version numbers yet; entries are grouped by day and point at the pull request.
 - Settings › Tasks is view only (schedule, agent, last result); tasks are made by describing them to the agent.
 
 ### Fixed
+- Ask Agent with Pi (or any `#!/usr/bin/env node` agent) failed in Ghostty with `env: node: No such file or
+  directory`: Ghostty starts commands with a bare PATH. Agents now run through your login shell
+  (`zsh -lic 'exec "$@"' …`), so they get the PATH your terminal has; `~/.bun/bin` is searched too.
 - `summon project repo`: the private-repo approval dialog closed itself after ~2 s; it now stays open until answered. (#43)
 - `summon://activity` (and the new `summon://settings`) never opened anything: the opener sat on the menu
   bar icon, which macOS draws as an image. It now lives in an invisible window. (#35)

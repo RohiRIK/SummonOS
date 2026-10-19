@@ -33,6 +33,11 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   publishing is a separate choice through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18).
 
 ## Recent History
+### 2026-10-19 — Agents start through the login shell
+- Ghostty/kitty run commands via `login … bash --noprofile --norc`: `#!/usr/bin/env node` agents (Pi, Codex,
+  OpenCode from bun) failed (`env: node: No such file or directory`). `AgentLauncher.inLoginShell` wraps the argv
+  as `$SHELL -lic 'exec "$@"' summon-agent <agent> …` (argv stays argv); Terminal.app already uses the shell.
+  `ToolLocator` also searches `~/.bun/bin`. Verified from `env -i`: Pi starts and stays up in Ghostty.
 ### 2026-10-19 — Repo approval dialog stays open
 - `summon project repo`: the NSAlert closed itself after ~2 s and `summon` exited 0 with no answer (async main runs
   main-actor work off the real main thread; a run loop stop ended it). The dialog now runs in `osascript`
