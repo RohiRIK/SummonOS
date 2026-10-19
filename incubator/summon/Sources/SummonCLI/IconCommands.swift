@@ -41,7 +41,15 @@ enum SkillCommands {
     static func run(_ args: inout Arguments, _ context: Context) throws {
         switch args.next() {
         case nil, "list":
-            SkillLinker.skillFiles(in: source).forEach { print($0) }
+            if args.flag("--json") {
+                let infos = SkillLinker.skillNames(in: source).map { name in
+                    SkillInfo(name: name, description: (try? String(contentsOf: source.appendingPathComponent("\(name)/SKILL.md"), encoding: .utf8))
+                        .flatMap(SkillInfo.description(fromSkillFile:)))
+                }
+                try context.printJSON(infos)
+            } else {
+                SkillLinker.skillFiles(in: source).forEach { print($0) }
+            }
         case "link":
             let quiet = args.flag("--quiet")
             let settings = AgentSettingsStore(paths: context.paths).load()
