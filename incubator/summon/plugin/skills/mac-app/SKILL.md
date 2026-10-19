@@ -63,10 +63,12 @@ the workspace's `mp new` / `mp promote` for it.
 Every template has `README.md`, `LICENSE` (MIT), `PROJECT-CONTEXT.md` (keep it current after each change) and
 `scripts/check.sh` (the gate). No CI until the project has a repo.
 
-**GitHub.** Never run `gh repo create` or push to a new remote yourself. When the user wants a repo, run
-`summon project repo <name>`: Summon shows a native dialog, and only the user's click creates a **private** repo
-(with CI that runs `scripts/check.sh`). Summon never makes a public repo; publishing later is the user's separate
-choice, made only with the macos-plugins workspace's `tools/publish-public.sh` (noreply identity).
+**GitHub: every app gets a private repo.** `summon project new` creates it right away (screenshots, CI that runs
+`scripts/check.sh`, first push) when Settings › General › "Create a private GitHub repo for every new app" is on (the
+default; `summon default repos`); with it off, Summon asks in a dialog. Check its output: if it says the app has no
+repo yet (gh missing or not logged in), fix that and run `summon project repo <name>` before you call the app done.
+Never run `gh repo create` or push to a new remote yourself, and never make a repo public; publishing is the user's
+separate choice, made only with the macos-plugins workspace's `tools/publish-public.sh` (noreply identity).
 
 ## Layout (SwiftPM, no .xcodeproj)
 

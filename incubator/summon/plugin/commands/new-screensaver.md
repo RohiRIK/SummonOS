@@ -11,5 +11,6 @@ a tested Core for the animation and `scripts/bundle.sh` that assembles the `.sav
 `mac-app` skill, screensaver section: theme colors from `~/.config/summon/current/theme.json`, timers stopped in
 `stopAnimation()`, a small configure sheet if it has options. `scripts/install.sh` copies it to
 `~/Library/Screen Savers/`; have the user select it in System Settings › Screen Saver (macctl has no screen saver
-setting yet). Check both the preview pane and the real saver (Hot Corner) before calling it done. Never create a
-GitHub repo yourself: if the user wants one, run `summon project repo <name>` and they approve it in Summon's dialog.
+setting yet). Check both the preview pane and the real saver (Hot Corner) before calling it done. It also gets its
+private GitHub repo (screenshots, CI): if `summon project new` says there is no repo yet, fix the cause and run
+`summon project repo <name>`. Never create or publish a repo yourself.
