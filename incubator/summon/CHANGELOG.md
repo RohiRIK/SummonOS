@@ -6,6 +6,10 @@ version numbers yet; entries are grouped by day and point at the pull request.
 ## 2026-10-19
 
 ### Added
+- **Plugins in Settings › Agents.** Each agent's installed plugins (Codex: its MCP servers) and Add, which runs the
+  agent's own installer (OpenCode: added to `opencode.json`, backup kept). **Shared plugins**: Summon's catalog,
+  starting with OpenLTM, installs the right build into every agent (Install in All) and hands a broken one to your
+  agent (Fix…). CLI: `summon agents plugins|plugin-add`, `summon plugins [install|fix]`.
 - **Recent Problems archive themselves.** The panel shows a report for 24 hours; Diagnose… archives that app's
   reports; Clear archives the rest. Activity keeps the full history.
 - **Settings › Agents knows each agent's account and models.** It asks the agent's own CLI: logged in or not (with
