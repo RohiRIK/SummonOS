@@ -1,6 +1,6 @@
-# AGENTS.md — macOS plugins workspace
+# AGENTS.md — SummonOS workspace
 
-Workspace for building small native macOS apps ("plugins"): menu bar extras, panels, utilities, and the
+SummonOS: Summon (the agent you summon anywhere on the Mac), `macctl`, and small native macOS apps ("plugins"): menu bar extras, panels, utilities, and the
 tools around them (`macctl`, Summon). The bar: real native apps that launch instantly, work offline, and look
 like they belong on the Mac, written in Swift/SwiftUI. What every project does today: `docs/features.md`.
 
@@ -10,7 +10,7 @@ idea only when it fits, and credit it in `THIRD_PARTY_NOTICES.md` when code or a
 ## Layout
 
 ```
-.                            this workspace: the private repo `macos-plugins` (skills, tools, docs, plans)
+.                            the SummonOS workspace: private repo `RohiRIK/macos-plugins` (skills, tools, docs, plans)
 ├── AGENTS.md                this file; CLAUDE.md points here
 ├── plugins.json             plugin registry (source of truth): repos, status, kind, bundle id, path
 ├── plugins.md               index of every plugin, generated from plugins.json by `tools/mp index`
@@ -103,7 +103,7 @@ Write the lesson in the same turn it is learned:
   match in `tools/private-patterns.txt` (gitignored: email, home subnet, MAC, private hostnames), and commits with the
   GitHub noreply identity. Never flip a dev repo public: its history holds the author email.
 - Test fixtures use documentation values only (`192.0.2.x`, `00:00:5e:00:53:xx`), never real network data.
-- This workspace is the private repo `macos-plugins` (skills, tools, docs); `plugins/` is gitignored.
+- This workspace (SummonOS) is the private repo `RohiRIK/macos-plugins` (skills, tools, docs); `plugins/` is gitignored.
 
 ## Panel vs Settings window (user preference)
 

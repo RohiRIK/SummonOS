@@ -4,6 +4,17 @@ Scripts in [`tools/`](../tools). Run them from the workspace root. Per-plugin sc
 (`scripts/test.sh`, `bundle.sh`, `check.sh`, `pr-report.sh`) live in each plugin repo and are
 described in `MacAppBuild/Scaffold.md`.
 
+## install.sh (repo root)
+
+The SummonOS installer. Piped from curl it clones into `~/.summonos` (`SUMMONOS_HOME`, branch `SUMMONOS_REF`);
+run from a checkout it installs that checkout. It checks macOS 15+ and Swift 6, builds `macctl` into
+`~/.local/bin`, runs Summon's `scripts/bundle.sh` and `scripts/install.sh`, then `summon doctor`.
+Agents follow [`docs/install-ai.md`](install-ai.md) instead, which wraps the same script with checks and a report.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/RohiRIK/macos-plugins/main/install.sh | bash
+```
+
 ## mp
 
 Manages the plugin home: the registry `plugins.json` (source of truth), the generated `plugins.md`, and
@@ -112,7 +123,7 @@ Text results print to stdout. Image results are saved as PNGs in `--out` (defaul
 
 ## readme-art.py
 
-Renders the README art in `docs/assets/` as plain SVG: workspace wordmark, macctl logo, hero banner,
+Renders the README art in `docs/assets/` as plain SVG: SummonOS wordmark and hero banner (with the tagline), macctl logo,
 lifecycle diagram (each light and dark), project icons, the "Swift 6 / macOS 15+" pill, and terminal
 cards from `macctl/docs/demo/*.txt`.
 
