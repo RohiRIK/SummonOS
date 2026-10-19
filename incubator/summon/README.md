@@ -11,7 +11,38 @@
 commands, is handed problems automatically (crashes, hangs), and can set up, theme, fix and build things for
 you. Every session is checkpointed, so anything it does can be undone.
 
-Every feature, command by command: [`docs/features.md`](../../docs/features.md#summon).
+## What it does
+
+- **Summon anything.** Tell any agent "summon, build a web app" or "summon, make my Dock smaller": the `summon`
+  skill routes it to the right skill, whether that's Mac settings, themes and art, a new app, crashes, logs, or
+  the agent's own skills.
+- **Your agents, your way.** Claude Code, Codex, OpenCode, Antigravity, Pi and more, each with its own model and
+  its own set of skills, opened in Ghostty, kitty or Terminal with permission prompts bypassed.
+- **Nothing is permanent.** Every agent session and task starts with a checkpoint (macOS settings plus your
+  `~/.config`), and `summon checkpoint undo` puts it back.
+- **The Mac calls the agent.** A crash or hang turns into a notification with Diagnose, which hands the
+  report to your agent.
+- **Work while you're away.** Recurring tasks ("weekdays at 9: check brew updates and summarize") run
+  unattended through launchd and report back in Activity.
+- **Looks made on purpose.** New themes, wallpapers and icons come from a mood, three concepts and a palette
+  with a contrast check, not a default gradient.
+
+| Settings › Agents | Settings › Tasks |
+|:---:|:---:|
+| <img src="docs/screenshots/settings-agents.png" width="380" alt="Agents tab: default agent, per-agent model and skill toggles"> | <img src="docs/screenshots/settings-tasks.png" width="380" alt="Tasks tab: recurring tasks and a New Task form"> |
+
+## Quick start
+
+```bash
+cd incubator/summon && scripts/bundle.sh && scripts/install.sh   # app in ~/Applications, `summon` on PATH, skills linked
+summon default agent claude                                       # or codex, opencode, agy, pi, …
+summon doctor                                                     # what is set up, what is missing
+summon agent prompt "summon, give my Mac a calm dark theme"       # or ⌃⌥⌘A from anywhere
+summon task add "Check brew updates and summarize" --at 09:00 --weekdays
+```
+
+Every feature, command by command: [`docs/features.md`](../../docs/features.md#summon). What changed:
+[`CHANGELOG.md`](CHANGELOG.md).
 Moves to its own repos, `mac-summon-dev` / `mac-summon`, with the owner's OK.
 Plan: [`docs/plans/2026-10-17-summon.md`](../../docs/plans/2026-10-17-summon.md).
 
