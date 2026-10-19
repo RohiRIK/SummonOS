@@ -10,15 +10,36 @@ public struct AgentSettings: Sendable, Equatable, Codable {
     }
 
     public var agents: [String: Entry] = [:]
+    /// All Agents: the skills an agent gets unless its own page customizes them; nil means every shipped skill.
+    public var defaultSkills: [String]? = nil
 
     public init() {}
+
+    enum CodingKeys: String, CodingKey { case agents, defaultSkills }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        agents = try container.decodeIfPresent([String: Entry].self, forKey: .agents) ?? [:]
+        defaultSkills = try container.decodeIfPresent([String].self, forKey: .defaultSkills)
+    }
+
+    /// The All Agents skills.
+    public func defaultSkills(shipped: [String]) -> [String] {
+        guard let defaultSkills else { return shipped }
+        return shipped.filter(defaultSkills.contains)
+    }
+
+    /// The agent has its own skill list instead of following All Agents.
+    public func isCustom(_ id: String) -> Bool {
+        agents[id]?.skills != nil
+    }
 
     public func model(for id: String) -> String? {
         agents[id]?.model
     }
 
     public func skills(for id: String, shipped: [String]) -> [String] {
-        guard let chosen = agents[id]?.skills else { return shipped }
+        guard let chosen = agents[id]?.skills else { return defaultSkills(shipped: shipped) }
         return shipped.filter(chosen.contains)
     }
 
@@ -27,7 +48,7 @@ public struct AgentSettings: Sendable, Equatable, Codable {
         agents[id, default: Entry()].model = (trimmed?.isEmpty ?? true) ? nil : trimmed
     }
 
-    /// nil puts the agent back on every shipped skill.
+    /// nil puts the agent back on the All Agents skills.
     public mutating func setSkills(_ skills: [String]?, for id: String) {
         agents[id, default: Entry()].skills = skills?.sorted()
     }
@@ -56,10 +77,18 @@ public struct AgentSettingsStore: Sendable {
 }
 
 extension AgentSettings {
-    /// The agent's skill list after turning `name` on or off; nil when every shipped skill ends up on,
-    /// so the agent keeps getting new skills as they ship.
+    /// The agent's skill list after turning `name` on or off; nil when it ends up equal to All Agents, so the agent
+    /// follows the defaults again (and keeps getting what they get).
     public func skills(for id: String, shipped: [String], turning name: String, on: Bool) -> [String]? {
         var chosen = Set(skills(for: id, shipped: shipped))
+        if on { chosen.insert(name) } else { chosen.remove(name) }
+        let result = shipped.filter(chosen.contains)
+        return result == defaultSkills(shipped: shipped) ? nil : result
+    }
+
+    /// The All Agents list after turning `name` on or off; nil when every shipped skill is on (new ones included).
+    public func defaultSkills(shipped: [String], turning name: String, on: Bool) -> [String]? {
+        var chosen = Set(defaultSkills(shipped: shipped))
         if on { chosen.insert(name) } else { chosen.remove(name) }
         let result = shipped.filter(chosen.contains)
         return result == shipped ? nil : result
@@ -76,7 +105,13 @@ public enum AgentSettingsCommand {
             : ["agents", "set", id, "--model=" + trimmed]
     }
 
-    /// nil puts the agent back on every shipped skill; an empty list gives it none.
+    /// `summon agents defaults`: nil means every shipped skill.
+    public static func defaultSkills(_ skills: [String]?) -> [String] {
+        guard let skills else { return ["agents", "defaults", "--all-skills"] }
+        return ["agents", "defaults", "--skills=" + skills.joined(separator: ",")]
+    }
+
+    /// nil puts the agent back on the All Agents skills; an empty list gives it none.
     public static func skills(_ skills: [String]?, for id: String) -> [String] {
         guard let skills else { return ["agents", "set", id, "--all-skills"] }
         return ["agents", "set", id, "--skills=" + skills.joined(separator: ",")]

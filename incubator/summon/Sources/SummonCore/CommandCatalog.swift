@@ -30,6 +30,8 @@ public enum CommandCatalog {
         CommandInfo(route: "task list", summary: "Recurring tasks with their schedule and last result", args: "[--json]", examples: ["summon task list"], risk: "read"),
         CommandInfo(route: "task remove", summary: "Stop and delete a recurring task", args: "<id>", examples: ["summon task remove brew-check"], risk: "user"),
         CommandInfo(route: "task run", summary: "Run a recurring task now, unattended (what launchd calls)", args: "<id>", examples: ["summon task run brew-check"], risk: "user"),
+        CommandInfo(route: "agents defaults", summary: "The All Agents skills every agent follows unless it has its own list (summon agents set <agent> --all-skills follows them again)",
+                    args: "[--skills a,b | --all-skills]", examples: ["summon agents defaults --skills summon,summon-mac,summon-art"], risk: "user"),
         CommandInfo(route: "agents status", summary: "Ask an agent's CLI whether it is logged in and which models it offers",
                     args: "<agent> [--json]", examples: ["summon agents status pi --json"], risk: "read"),
         CommandInfo(route: "agents login", summary: "Open the agent's own login in a terminal window", args: "<agent>",
