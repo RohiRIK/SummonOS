@@ -114,6 +114,14 @@ Colors: `background`, `foreground`, `accent`, `accent2`, `muted`, `selection`.
   (apps in `/Applications` may need admin and lose it on update; `summon` re-applies after updates).
 - Summon's own mark and generator are in `design/` of the Summon repo; reuse its look for a family feel.
 
+## Screenshots
+
+`summon project shots <name>` builds the app and puts light and dark pictures in `docs/screenshots/` plus a
+Screenshots section in the README, and commits them; `summon project repo` runs it before the first push. Menu bar
+apps from the template draw their own panel (`<App> --screenshot <folder>`): keep `Screenshots.swift` working when
+you change the panel (show real-looking data in it). `summon showcase` collects every app into
+`~/Summon/Showcase/index.html`.
+
 ## Verify before calling it done
 
 `scripts/check.sh` passes, the app launches from the bundle, every screen and setting is reachable,

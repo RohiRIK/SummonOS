@@ -1,0 +1,50 @@
+import AppKit
+import SwiftUI
+
+/// `Starter --screenshot <folder>`: draws the panel in light and dark into PNGs and exits, so `summon project shots`
+/// gets clean pictures without opening the menu bar (which may be full) or asking for Screen Recording.
+public enum Screenshots {
+    @MainActor
+    public static func runIfAsked() {
+        let arguments = CommandLine.arguments
+        guard let flag = arguments.firstIndex(of: "--screenshot"), flag + 1 < arguments.count else { return }
+        let folder = URL(fileURLWithPath: arguments[flag + 1], isDirectory: true)
+        do {
+            try write(to: folder)
+            exit(0)
+        } catch {
+            FileHandle.standardError.write(Data("screenshot: \(error)\n".utf8))
+            exit(1)
+        }
+    }
+
+    @MainActor
+    public static func write(to folder: URL) throws {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        for (name, appearance) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
+            // An off-screen window draws real AppKit controls (ImageRenderer shows them as placeholders), with no
+            // Screen Recording permission and no visible display needed.
+            let framed = PanelView(model: StarterModel())
+                .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.separator))
+                .padding(20)
+            let host = NSHostingView(rootView: framed)
+            host.appearance = NSAppearance(named: appearance)
+            host.frame.size = host.fittingSize
+            let window = NSWindow(contentRect: CGRect(origin: CGPoint(x: -10_000, y: -10_000), size: host.frame.size),
+                                  styleMask: [.borderless], backing: .buffered, defer: false)
+            window.appearance = NSAppearance(named: appearance)
+            window.backgroundColor = .clear
+            window.isOpaque = false
+            window.contentView = host
+            host.layoutSubtreeIfNeeded()
+            host.display()
+            guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { throw CocoaError(.fileWriteUnknown) }
+            NSAppearance(named: appearance)?.performAsCurrentDrawingAppearance {
+                host.cacheDisplay(in: host.bounds, to: bitmap)
+            }
+            guard let png = bitmap.representation(using: .png, properties: [:]) else { throw CocoaError(.fileWriteUnknown) }
+            try png.write(to: folder.appendingPathComponent("panel-\(name).png"))
+        }
+    }
+}

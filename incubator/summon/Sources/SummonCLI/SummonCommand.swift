@@ -101,6 +101,8 @@ struct SummonCommand {
             try await MenuCommands.run(&args, context)
         case "icon":
             try IconCommands.run(&args, context)
+        case "showcase":
+            print(try ShotCommands.showcase(context, open: !args.flag("--no-open")).path)
         case "clean":
             let apply = args.flag("--apply")
             let quiet = args.flag("--quiet")

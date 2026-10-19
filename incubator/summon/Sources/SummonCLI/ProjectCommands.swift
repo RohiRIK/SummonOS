@@ -13,6 +13,10 @@ enum ProjectCommands {
         case "path": try path(&args, context)
         case "forget": try forget(&args, context)
         case "repo": try await repo(&args, context)
+        case "shots":
+            guard let name = args.next() else { throw CLIError("Usage: summon project shots <name>") }
+            let images = try await ShotCommands.shots(name, context)
+            print(images.isEmpty ? "README updated" : images.joined(separator: "\n"))
         default:
             throw CLIError("Usage: summon project new <name> --kind \(kinds) | list [--json] | path <name> | forget <name> | repo <name> [--owner <login>]")
         }
@@ -91,6 +95,12 @@ enum ProjectCommands {
         }
         guard let git = context.git else { throw CLIError("git is not installed.", code: .missingDependency) }
         let service = PrivateRepoService(paths: context.paths, runner: context.runner, ghPath: gh, gitPath: git)
+        // Screenshots first, so the repo opens with pictures of the app (a failed capture never blocks the repo).
+        do {
+            _ = try await ShotCommands.shots(name, context)
+        } catch {
+            context.warn("screenshots skipped: \(error)")
+        }
         let project: Project
         do {
             project = try await service.create(name: name, owner: owner) { request in
