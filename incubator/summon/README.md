@@ -108,6 +108,13 @@ point `FONT_BOLD` / `FONT_MONO` at any bold sans. Palettes and the SVG mark live
 after changing them, also run `python3 tools/readme-art.py` from the repo root so the workspace README art
 follows.
 
+## Where it started
+
+Summon began as **mac-assistant** (2026-10-03): a native assistant that diagnoses the Mac from read-only evidence,
+proposes a fix and checks it, with every action behind one policy broker and a preview before anything goes to a
+cloud model. Its Phase 0/1 skeleton, roadmap and design notes are archived at the git tag `archive/mac-assistant`
+(`git show archive/mac-assistant`).
+
 ## License
 
 MIT. Credits for the community palettes and adapted skill structure: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
