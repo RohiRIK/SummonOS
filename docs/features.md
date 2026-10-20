@@ -59,7 +59,7 @@ Code: [`incubator/summon/`](../incubator/summon). Overview: [its README](../incu
 
 ### Summon panel and Summon Menu (⌃⌥Space)
 
-The menu bar panel opens under the Summon icon from a left click, ⌃⌥Space, `summon panel` or
+The menu bar panel (⌃⌥Space) with the Summon Menu opens under the Summon icon from a left click, ⌃⌥Space, `summon panel` or
 `open -g summon://panel` (`summon panel --close` closes it). It takes typing without taking focus from the app
 you're in, and Esc returns you there. Right-click the icon for Settings… and Quit.
 

@@ -16,6 +16,9 @@ public struct PanelView: View {
     @State private var level: String?
     @State private var selection = 0
     @State private var contentHeight: CGFloat = 0
+    /// E5: the `PanelState.session` whose first Activity refresh has finished. Until it matches, the agent line
+    /// doesn't show the previous open's "running" state.
+    @State private var refreshedSession = 0
     @FocusState private var searchFocused: Bool
 
     public init(model: SummonModel, activity: ActivityModel, panel: PanelState, actions: PanelActions) {
@@ -70,9 +73,15 @@ public struct PanelView: View {
         }
         // E1/E5: refresh at once on open, then every 1 s while open; cancelled on close.
         .task(id: panel.isOpen) {
-            guard panel.isOpen, activity.live else { return }
+            guard panel.isOpen else { return }
+            let session = panel.session
+            guard activity.live else {
+                refreshedSession = session
+                return
+            }
             while !Task.isCancelled {
                 await activity.refresh()
+                if refreshedSession != session { refreshedSession = session }
                 try? await Task.sleep(for: .seconds(1))
             }
         }
@@ -241,12 +250,14 @@ public struct PanelView: View {
         .padding(.vertical, 6)
     }
 
+    /// E5: until this open's first refresh lands, only the agent's name shows (no stale "running" from last time).
     /// E1: a running agent shows elapsed mm:ss, ticking every second in place while the panel is open.
     @ViewBuilder private var agentLine: some View {
         if let agent = model.defaultAgent {
             if !model.agentInstalled {
                 Text("\(agent.name) is not installed")
-            } else if let since = activity.status?.agent.since, activity.status?.agent.running == true {
+            } else if refreshedSession == panel.session,
+                      let since = activity.status?.agent.since, activity.status?.agent.running == true {
                 TimelineView(.periodic(from: since, by: 1)) { context in
                     Text("\(agent.name) · running \(PanelClock.elapsed(from: since, to: context.date))")
                         .monospacedDigit()
@@ -260,6 +271,38 @@ public struct PanelView: View {
     }
 }
 
+/// The one row chrome the panel uses (Max's review: no near-duplicate rows): fixed padding and height, a rounded
+/// highlight when `isSelected` (keyboard selection in the menu tree) or, if `hoverHighlights`, under the pointer.
+struct PanelRow<Content: View>: View {
+    var isSelected = false
+    var hoverHighlights = true
+    let action: () -> Void
+    @ViewBuilder let content: () -> Content
+    @State private var hovering = false
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8, content: content)
+                .padding(.horizontal, 8)
+                .frame(minHeight: 24)
+                .contentShape(Rectangle())
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(highlighted ? AnyShapeStyle(HierarchicalShapeStyle.quaternary) : AnyShapeStyle(Color.clear))
+                )
+        }
+        .buttonStyle(.plain)
+        .opacity(isEnabled ? 1 : 0.45)
+        .onHover { hovering = $0 }
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var highlighted: Bool {
+        isSelected || (hoverHighlights && hovering && isEnabled)
+    }
+}
+
 /// One Summon Menu entry in the panel: icon, label, breadcrumb when searching, check mark, submenu chevron.
 struct MenuTreeRow: View {
     let item: MenuItem
@@ -270,35 +313,24 @@ struct MenuTreeRow: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: item.icon ?? "circle")
-                    .frame(width: 16)
-                    .foregroundStyle(.secondary)
-                Text(item.label)
-                if let breadcrumb, !breadcrumb.isEmpty {
-                    Text(breadcrumb).foregroundStyle(.tertiary).lineLimit(1)
-                }
-                Spacer()
-                if isChecked {
-                    Image(systemName: "checkmark").foregroundStyle(.tint)
-                }
-                if hasChildren {
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                }
+        PanelRow(isSelected: isSelected, hoverHighlights: false, action: action) {
+            Image(systemName: item.icon ?? "circle")
+                .frame(width: 16)
+                .foregroundStyle(.secondary)
+            Text(item.label)
+            if let breadcrumb, !breadcrumb.isEmpty {
+                Text(breadcrumb).foregroundStyle(.tertiary).lineLimit(1)
             }
-            .padding(.horizontal, 8)
-            .frame(minHeight: 24)
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isSelected ? AnyShapeStyle(HierarchicalShapeStyle.quaternary) : AnyShapeStyle(Color.clear))
-            )
+            Spacer()
+            if isChecked {
+                Image(systemName: "checkmark").foregroundStyle(.tint)
+            }
+            if hasChildren {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -308,34 +340,20 @@ struct MenuRow: View {
     let systemImage: String?
     let shortcut: String?
     let action: () -> Void
-    @State private var hovering = false
-    @Environment(\.isEnabled) private var isEnabled
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                if let systemImage {
-                    Image(systemName: systemImage)
-                        .frame(width: 16)
-                        .foregroundStyle(.secondary)
-                }
-                Text(title)
-                Spacer()
-                if let shortcut {
-                    Text(shortcut).foregroundStyle(.tertiary)
-                }
+        PanelRow(action: action) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .frame(width: 16)
+                    .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 8)
-            .frame(minHeight: 24)
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(hovering && isEnabled ? AnyShapeStyle(HierarchicalShapeStyle.quaternary) : AnyShapeStyle(Color.clear))
-            )
+            Text(title)
+            Spacer()
+            if let shortcut {
+                Text(shortcut).foregroundStyle(.tertiary)
+            }
         }
-        .buttonStyle(.plain)
-        .opacity(isEnabled ? 1 : 0.45)
-        .onHover { hovering = $0 }
     }
 }
 

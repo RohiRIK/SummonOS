@@ -11,8 +11,8 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
 - `plugin/`: Claude Code plugin (4 skills, 7 commands, `macctl` MCP). `themes/`: 9 theme.json + wallpapers.
   `config/`: Brewfile, AeroSpace, Ghostty, borders, zsh. `design/`: brand assets + `generate.py`.
 - Swift package: `SummonCore` (agents, launch plans, .ips crash parsing + watcher, menu tree, themes + compilers,
-  checkpoints, debug bundle, hooks, command catalog), `summon` CLI, `SummonMenuUI` + `SummonMenu` app (menu bar panel,
-  ⌃⌥⌘A agent, crash notifications, Activity window, Settings).
+  checkpoints, debug bundle, hooks, command catalog), `summon` CLI, `SummonMenuUI` + `SummonMenu` app (menu bar panel
+  (⌃⌥Space) with the Summon Menu, ⌃⌥⌘A agent, crash notifications, Activity window, Settings).
   Since PR #61 (draft): the menu bar panel is an `NSStatusItem` + nonactivating `StatusPanel` (`PanelController`), with
   the Summon Menu (former launcher) inside it. It opens with ⌃⌥Space, `summon panel [--close]`, `open -g summon://panel`
   and `summon://menu/<id>`; there's no launcher window. Spec and proof hooks: `docs/menubar-panel.md`.
