@@ -4,6 +4,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+CACHE="$HOME/Library/Caches/macplugins/app-starter/build"
+
 mkdir -p build
 REPORT="build/check-report.md"
 status=0
@@ -20,8 +22,8 @@ step() {
 }
 
 echo "# app-starter check $(date -u +%Y-%m-%dT%H:%MZ)" >"$REPORT"
-step build swift build --build-tests
-step tests swift test --skip-build
+step build swift build --scratch-path "$CACHE" --build-tests
+step tests swift test --scratch-path "$CACHE" --skip-build
 step plist plutil -lint Resources/Info.plist
 step bundle scripts/bundle.sh
 cat "$REPORT"

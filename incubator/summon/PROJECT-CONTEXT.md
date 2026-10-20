@@ -21,7 +21,9 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
 
 ## Constraints
 - Original design: Omarchy and other projects are research, not a spec to port (Rohi, 2026-10-18).
-- Agents run with permission prompts bypassed (YOLO: `--dangerously-skip-permissions` etc.) behind a checkpoint + one-step undo (Rohi, 2026-10-17; bypass 2026-10-18).
+- Existing configured installs retain unattended execution; new installs use harness controls until unattended
+  is selected (approved hardening, 2026-10-20). Checkpoints cover supported settings/captured config only,
+  and do not sandbox agents.
 - Third-party tools via Homebrew are allowed (AeroSpace, Ghostty, JankyBorders) (Rohi, 2026-10-17).
 - Shape: Claude Code plugin + native Summon Menu app (Rohi, 2026-10-17). Name chosen by Rohi: Summon.
 - Settings go through `macctl`; no passwordless sudo (Touch ID for sudo instead).
@@ -34,6 +36,26 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-20 — Design skills and public preview preparation
+- Six workspace design skills retested: modern LiquidGlass and optional Aqua, Classic, Linen, NeXT, Yosemite styles.
+  CI validates routes/references and Swift 6 examples against macOS 15.
+- Preserved UI work: Activity filters/detail rows, crash action panel, top-pinned menu resize, and modern Settings.
+  Provider icons are attributed to a pinned MIT CodexBar revision in THIRD_PARTY_NOTICES.md.
+- Owner authorized publishing all reviewed workspace changes and making SummonOS public. Generated apps keep
+  their private-repository policy; this workspace visibility decision does not change it.
+### 2026-10-20 — Approved production hardening
+- Security: theme text/wallpaper validation, owned skill links, fail-closed publishing, private state/logs,
+  best-effort diagnostic redaction. `docs/security-model.md` states actual authority/recovery limits.
+- `ProcessExecutor`: process groups, bounded output/logs, timeout escalation/cancellation, no inherited unrelated
+  descriptors. Tasks serialize scheduling/runs, freeze new agent/mode/cwd, preserve corrupt state, stop on
+  capture failure, return nonzero on failure. Legacy tasks retain prior unattended/default-agent semantics.
+- `ExecutionPolicyStore`: new installs use harness controls; existing configured installs retain unattended
+  unless explicitly changed. CLI `default execution`, Settings General picker. Migration preserves choices.
+- Checkpoint failures persist without stale HEAD; pending macctl journals cannot become capture markers.
+  Activity distinguishes failed/pending settings operations. Crash batches retain same-time boundaries.
+- Installer stages app/macctl with rollback + ownership receipt; uninstall preserves user data. Release builds
+  exact public SHA with provenance and optional signing/notary pipeline. Template caches stay outside sources.
+- Verification/outstanding runtime, clean-Mac and signing gates: `docs/plans/2026-10-20-production-readiness.md`.
 ### 2026-10-19 — Private repo for every new app
 - Owner: an agent made end-of-day with no repo; every Summon app should get a private one. `RepoPolicy`
   (`defaults/repos`, missing = always) is the standing approval: `summon project new` runs `makeRepo` (shots → private

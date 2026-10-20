@@ -332,6 +332,13 @@ struct GeneralSettings: View {
             }
 
             Section("Automation & Storage") {
+                Picker("Agent execution", selection: Binding(get: { model.executionMode }, set: { model.setExecutionMode($0) })) {
+                    ForEach(AgentExecutionMode.allCases, id: \.self) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .help("Agent controls uses the agent's own permission behavior. Unattended bypasses supported harness approvals and sandboxing. Checkpoints cover only supported settings and captured config files.")
+
                 Toggle(isOn: Binding(get: { model.repoPolicy == .always }, set: { model.setRepoPolicy($0 ? .always : .ask) })) {
                     Text("Create a private GitHub repo for every new app")
                     Text("With screenshots and CI. Always private. Off: Summon asks each time.")

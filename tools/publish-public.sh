@@ -10,15 +10,13 @@
 # - Commits with the GitHub noreply identity, so no personal email reaches the public history.
 set -euo pipefail
 
-readonly ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-readonly PLUGIN="$(cd "$1" && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PLUGIN="$(cd "${1:?plugin directory required}" && pwd)"
 readonly BRANCH="${2:-main}"
 readonly MESSAGE="${3:?commit message required}"
-readonly NAME="$(basename "$PLUGIN")"
+NAME="$(basename "$PLUGIN")"
 readonly PATTERNS="$ROOT/tools/private-patterns.txt"
-readonly USER_LOGIN="$(gh api user -q .login)"
-readonly NOREPLY="$(gh api user -q .id)+${USER_LOGIN}@users.noreply.github.com"
-readonly WORK="$(mktemp -d)"
+WORK="$(mktemp -d)"
 trap '/bin/rm -rf "$WORK"' EXIT
 
 [[ -f "$PATTERNS" ]] || { echo "Missing $PATTERNS (one regex per line)." >&2; exit 1; }
@@ -26,10 +24,11 @@ trap '/bin/rm -rf "$WORK"' EXIT
 git -C "$PLUGIN" archive "$BRANCH" | tar -x -C "$WORK"
 /bin/rm -f "$WORK/PROJECT-CONTEXT.md"
 
-if grep -rniEf "$PATTERNS" "$WORK" --exclude='*.png' --exclude='*.icns'; then
-  echo "Refusing to publish: private data above. Scrub it on $BRANCH first." >&2
-  exit 1
-fi
+bash "$ROOT/tools/private-scan.sh" "$PATTERNS" "$WORK"
+
+# Do not contact GitHub until the complete export has passed the privacy gate.
+USER_LOGIN="$(gh api user -q .login)"
+NOREPLY="$(gh api user -q .id)+${USER_LOGIN}@users.noreply.github.com"
 
 git clone -q "https://github.com/${USER_LOGIN}/${NAME}.git" "$WORK/.public"
 rsync -a --delete --exclude .git --exclude .public "$WORK/" "$WORK/.public/"

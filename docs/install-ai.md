@@ -33,7 +33,9 @@ curl -fsSL https://raw.githubusercontent.com/RohiRIK/SummonOS/main/install.sh | 
 
 The script clones SummonOS into `~/.summonos`, builds `macctl` and Summon from source (a few minutes the first
 time), installs `Summon.app` into `~/Applications`, links `summon` and `macctl` into `~/.local/bin`, and
-links Summon's skills into every agent's skill folder. It is safe to run again.
+links Summon's skills into each agent's skill folder while preserving foreign links. Both executables
+are staged before replacement, with rollback on initialization failure. Configuration added during a
+failed upgrade is retained. A nonzero health check means setup still needs attention.
 
 If the user already has a checkout, run `./install.sh` from its root instead.
 
@@ -47,6 +49,9 @@ If the user already has a checkout, run `./install.sh` from its root instead.
    summon default agent <your-name>
    ```
 3. Open the menu app: `open ~/Applications/Summon.app`.
+4. Keep `summon default execution normal` for a new installation unless the user selects unattended
+   execution. Existing configured installs retain their prior mode. Explain the authority and scoped
+   recovery in [the security model](security-model.md); do not infer approval to bypass controls.
 
 ## 4. Verify and report
 

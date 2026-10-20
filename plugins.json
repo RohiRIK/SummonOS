@@ -90,6 +90,66 @@
       "summary": "An agent you summon from anywhere on the Mac: crash and log handoff, checkpoints with undo, themes, app templates",
       "where": "`incubator/summon/`, plan `docs/plans/2026-10-17-summon.md`",
       "statusNote": "CLI and menu app built, tested and installed on a Mac (2026-10-18)"
+    },
+    {
+      "name": "demo-aqua",
+      "kind": "app",
+      "status": "scratch",
+      "devRepo": null,
+      "publicRepo": null,
+      "bundleId": "local.macplugins.demo-aqua",
+      "portedFrom": null,
+      "version": "0.1.0",
+      "example": false,
+      "path": "scratch/demo-aqua"
+    },
+    {
+      "name": "demo-classic",
+      "kind": "app",
+      "status": "scratch",
+      "devRepo": null,
+      "publicRepo": null,
+      "bundleId": "local.macplugins.demo-classic",
+      "portedFrom": null,
+      "version": "0.1.0",
+      "example": false,
+      "path": "scratch/demo-classic"
+    },
+    {
+      "name": "demo-linen",
+      "kind": "app",
+      "status": "scratch",
+      "devRepo": null,
+      "publicRepo": null,
+      "bundleId": "local.macplugins.demo-linen",
+      "portedFrom": null,
+      "version": "0.1.0",
+      "example": false,
+      "path": "scratch/demo-linen"
+    },
+    {
+      "name": "demo-yosemite",
+      "kind": "app",
+      "status": "scratch",
+      "devRepo": null,
+      "publicRepo": null,
+      "bundleId": "local.macplugins.demo-yosemite",
+      "portedFrom": null,
+      "version": "0.1.0",
+      "example": false,
+      "path": "scratch/demo-yosemite"
+    },
+    {
+      "name": "demo-next",
+      "kind": "app",
+      "status": "scratch",
+      "devRepo": null,
+      "publicRepo": null,
+      "bundleId": "local.macplugins.demo-next",
+      "portedFrom": null,
+      "version": "0.1.0",
+      "example": false,
+      "path": "scratch/demo-next"
     }
   ]
 }

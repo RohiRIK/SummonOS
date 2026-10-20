@@ -69,6 +69,9 @@ public struct RecurringTask: Sendable, Equatable, Codable, Identifiable {
     /// nil runs the default agent at run time.
     public var agent: String?
     public var schedule: TaskSchedule
+    /// Fixed at creation for new tasks; absent in legacy tasks.
+    public var execution: AgentExecutionMode? = nil
+    public var directory: String? = nil
 
     public init(id: String, name: String, prompt: String, agent: String?, schedule: TaskSchedule) {
         self.id = id
@@ -88,12 +91,38 @@ public struct TaskStore: Sendable {
     }
 
     public func load() -> [RecurringTask] {
-        guard let data = try? Data(contentsOf: paths.tasksFile),
-              let tasks = try? JSONDecoder().decode([RecurringTask].self, from: data) else { return [] }
+        (try? loadValidated()) ?? []
+    }
+
+    /// Use for execution/mutations: a damaged file must never become an empty task list.
+    public func loadValidated() throws -> [RecurringTask] {
+        let tasks = try StateFile.load([RecurringTask].self, at: paths.tasksFile, default: [])
+        guard Set(tasks.map(\.id)).count == tasks.count,
+              tasks.allSatisfy({ Self.isSafeID($0.id) && (0...23).contains($0.schedule.hour)
+                  && (0...59).contains($0.schedule.minute) && (1...24).contains($0.schedule.everyHours) }) else {
+            throw StateFileError.invalid(paths.tasksFile, "invalid task id or schedule")
+        }
         return tasks
     }
 
+    public static func isSafeID(_ id: String) -> Bool {
+        !id.isEmpty && id.count <= 120 && id.allSatisfy { "abcdefghijklmnopqrstuvwxyz0123456789-".contains($0) }
+    }
+
+    public func update(_ transform: ([RecurringTask]) throws -> [RecurringTask]) throws {
+        let lease = try FileLease.acquireSync(paths.state.appendingPathComponent("locks/tasks.lock"))
+        defer { lease.hold() }
+        try write(transform(loadValidated()))
+    }
+
     public func save(_ tasks: [RecurringTask]) throws {
+        try update { _ in tasks }
+    }
+
+    private func write(_ tasks: [RecurringTask]) throws {
+        guard tasks.allSatisfy({ Self.isSafeID($0.id) }), Set(tasks.map(\.id)).count == tasks.count else {
+            throw StateFileError.invalid(paths.tasksFile, "invalid or duplicate task id")
+        }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try TextFile.write(String(decoding: try encoder.encode(tasks), as: UTF8.self) + "\n", to: paths.tasksFile)
@@ -103,7 +132,7 @@ public struct TaskStore: Sendable {
     public func newID(for name: String) -> String {
         let allowed = Set("abcdefghijklmnopqrstuvwxyz0123456789")
         let words = name.lowercased().split { !allowed.contains($0) }
-        let base = words.isEmpty ? "task" : words.joined(separator: "-")
+        let base = words.isEmpty ? "task" : String(words.joined(separator: "-").prefix(100))
         let taken = Set(load().map(\.id))
         guard taken.contains(base) else { return base }
         var number = 2

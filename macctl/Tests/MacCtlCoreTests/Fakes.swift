@@ -64,6 +64,13 @@ final class InMemorySnapshotStore: SnapshotStore {
         state.withLock { $0.append(snapshot) }
     }
 
+    func update(_ snapshot: Snapshot) throws {
+        state.withLock { snapshots in
+            snapshots.removeAll { $0.id == snapshot.id }
+            snapshots.append(snapshot)
+        }
+    }
+
     func list() throws -> [Snapshot] {
         state.withLock { snapshots in
             snapshots.sorted { a, b in a.createdAt != b.createdAt ? a.createdAt > b.createdAt : a.id > b.id }

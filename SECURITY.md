@@ -14,8 +14,9 @@ This is a small personal project, so there is no bug bounty, but we are glad to 
 
 ## Supported versions
 
-Only the latest `main` is supported. SummonOS has no releases yet; fixes land on `main`, and you update by
-running `install.sh` again.
+SummonOS is experimental and has no supported production release yet. Report problems against the current
+development checkout, including its commit. Fixes land on `main`; stable release/update qualification is pending.
+The [security and recovery model](docs/security-model.md) describes the actual boundaries.
 
 ## What is in scope
 
@@ -25,10 +26,13 @@ running `install.sh` again.
 - Summon: checkpoints and undo that fail silently, crash or log handoff that leaks data to the wrong place,
   the `summon://` URL scheme, the hotkey launcher, or the native dialog that guards creating a GitHub repo.
 - Secrets or personal data committed to this repository.
+- Themes that introduce executable terminal configuration, overwritten foreign skill links, corrupt state
+  silently replaced by defaults, and publishing checks that proceed after a scan failure.
 
 ## Out of scope
 
-- What an agent does once you run it in auto mode on your own request. Summon checkpoints each session so you
-  can undo it; it does not sandbox the agent. Report it if the checkpoint or undo itself is broken.
+- What an agent does within unattended authority you explicitly selected. Summon does not sandbox the agent;
+  checkpoint recovery covers supported settings and successfully captured config files, not arbitrary actions.
+  Report broken capture/undo and any way untrusted theme, diagnostic, or configuration data crosses its boundary.
 - Vulnerabilities in third-party agents (Claude Code, Codex and others) or tools installed through Homebrew;
   please report those to their maintainers.

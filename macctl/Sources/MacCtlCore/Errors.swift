@@ -11,6 +11,9 @@ public enum MacCtlError: Error, Sendable, Equatable, CustomStringConvertible {
     case snapshotNotFound(String)
     case noSnapshots
     case invalidProfile(String)
+    case snapshotExists(String)
+    case transactionBusy
+    case mutationFailed(snapshotID: String, appliedSettings: [String], reason: String)
 
     public var exitCode: Int32 {
         switch self {
@@ -33,6 +36,9 @@ public enum MacCtlError: Error, Sendable, Equatable, CustomStringConvertible {
         case .snapshotNotFound: "snapshot_not_found"
         case .noSnapshots: "no_snapshots"
         case .invalidProfile: "invalid_profile"
+        case .snapshotExists: "snapshot_exists"
+        case .transactionBusy: "transaction_busy"
+        case .mutationFailed: "mutation_failed"
         }
     }
 
@@ -47,6 +53,10 @@ public enum MacCtlError: Error, Sendable, Equatable, CustomStringConvertible {
         case .snapshotNotFound(let id): "No snapshot \(id). Run `macctl snapshot list`."
         case .noSnapshots: "No snapshots to undo."
         case .invalidProfile(let reason): "Invalid profile: \(reason)"
+        case .snapshotExists(let id): "Snapshot \(id) already exists; the original backup was preserved."
+        case .transactionBusy: "Another macctl mutation is still running; retry when it finishes."
+        case .mutationFailed(let id, let applied, let reason):
+            "Change failed: \(reason). Completed settings: \(applied.isEmpty ? "none" : applied.joined(separator: ", ")). Backup \(id) preserved; recover with: macctl undo \(id)"
         }
     }
 }

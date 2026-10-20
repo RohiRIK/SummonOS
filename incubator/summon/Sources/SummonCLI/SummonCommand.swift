@@ -53,6 +53,13 @@ struct SummonCommand {
             switch args.next() {
             case "agent": try AgentCommands.defaultAgent(&args, context)
             case "terminal": try AgentCommands.defaultTerminal(&args, context)
+            case "execution":
+                let store = ExecutionPolicyStore(paths: context.paths)
+                if let value = args.next() {
+                    guard let mode = AgentExecutionMode(rawValue: value), args.isEmpty else { throw CLIError("Usage: summon default execution [normal|unattended]") }
+                    try store.save(mode)
+                }
+                print(try store.load().rawValue)
             case "repos":
                 let store = RepoPolicyStore(paths: context.paths)
                 if let value = args.next() {
@@ -62,7 +69,7 @@ struct SummonCommand {
                 print(store.load() == .always
                     ? "always: every new app gets a private GitHub repo right away"
                     : "ask: a new app gets a private repo after you approve it in Summon's dialog")
-            default: throw CLIError("Usage: summon default agent [name] | terminal [name] | repos [always|ask]")
+            default: throw CLIError("Usage: summon default agent [name] | terminal [name] | execution [normal|unattended] | repos [always|ask]")
             }
         case "agents":
             if args.items.first == "set" {
@@ -117,7 +124,7 @@ struct SummonCommand {
             let quiet = args.flag("--quiet")
             let json = args.flag("--json")
             if args.flag("--if-due"), !SummonCleaner.isDue(context.paths) { return }
-            let plan = SummonCleaner.plan(context.paths, tasks: TaskStore(paths: context.paths).load())
+            let plan = SummonCleaner.plan(context.paths, tasks: try TaskStore(paths: context.paths).loadValidated())
             if json { return try context.printJSON(plan) }
             if !apply {
                 if plan.trash.isEmpty { print("Nothing to clean in ~/Summon.") }

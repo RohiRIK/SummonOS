@@ -32,15 +32,21 @@ Code: [`incubator/summon/`](../incubator/summon). Overview: [its README](../incu
 - **Per-agent settings:** a model and the set of Summon skills for each agent
   (`summon agents set`, saved in `~/.config/summon/agents.json`).
 - **Skills in every agent:** `summon skills link` links Summon's skills into each agent's own skills
-  folder and keeps any folder of yours. Install and every app launch run it.
+  folder and preserves foreign folders and symlinks. Install and every app launch run it.
 - **Starts in `~/Summon`:** an agent launched from `~` or `/` starts in the projects folder.
 
 ### Safety: checkpoints and undo
 
+- **Execution policy:** Settings › General › Agent execution or `summon default execution normal|unattended`.
+  New installs use the agent's own controls; existing configured installations retain unattended execution.
+  The [security model](security-model.md) explains the authority and recovery boundaries.
+
 - **A checkpoint before every agent session:** a `macctl` snapshot marker plus a git commit of
-  `~/.config` (`summon checkpoint create`).
-- **Undo:** `summon undo-session` (or `summon checkpoint undo [id]`) restores `~/.config` and every macOS
-  setting changed since. `--dry-run` shows the plan first. `summon checkpoint list` lists them.
+  `~/.config` when it is already a repository (`summon checkpoint create`). Capture failures remain visible;
+  scheduled work stops before launching its agent if capture reports a failure.
+- **Undo:** `summon undo-session` (or `summon checkpoint undo [id]`) restores successfully captured config files
+  and supported macctl settings changed since. New files and external actions are excluded. `--dry-run` shows
+  the plan first. `summon checkpoint list` includes capture problems.
 
 ### The Mac calls the agent
 
@@ -49,7 +55,7 @@ Code: [`incubator/summon/`](../incubator/summon). Overview: [its README](../incu
 - **Crash commands:** `summon crash list`, `crash show <file.ips>` (parsed facts), `crash diagnose
   --latest`, `crash mute <program>` (and `off`), with muted programs managed in Settings.
 - **Debug bundle:** `summon debug [--print] [--save] [--since 1h]` collects the macOS version, hardware,
-  recent errors, reports and packages.
+  recent errors, reports and packages, with best-effort redaction and private saved files. Review before sharing.
 
 ### Summon Menu (⌃⌥Space)
 
@@ -164,11 +170,13 @@ Every `summon` command, with arguments and examples: `summon commands --json`.
   Agent › Schedule a Task…, or "summon, every morning…" in any agent chat). The agent asks what is unclear, writes
   a complete run prompt (it runs unattended), and adds the task.
 - Directly: `summon task add "<prompt>" --at 09:00 [--weekdays]` or `--every 2h`, optionally `--agent <id>` and
-  `--name`; `summon task list`, `summon task run <id>`, `summon task remove <id>`.
+  `--name`, `--execution normal|unattended` and `--directory <path>`; `summon task list`, `summon task run <id>`,
+  `summon task remove <id>`. New tasks retain the selected agent, execution mode and directory.
 - Settings › Tasks shows each task (schedule, agent, last result), view only.
-- Each task is a LaunchAgent that runs the agent unattended (its print mode) in `~/Summon`, after a
-  checkpoint, for at most 30 minutes. Every run leaves a log in `~/.local/state/summon/tasks/<id>/`, a line
-  in Activity (failed runs in red) and a notification.
+- Each task is a LaunchAgent that runs the agent's print mode in the saved directory (default `~/Summon`),
+  after a checkpoint, with a 30-minute deadline. Overlapping runs are refused; failures return nonzero and
+  appear in Activity. Bounded private logs live in `~/Summon/Tasks/<id>/`. Deadline/cancellation clean up the
+  invocation's process group; deliberately detached processes and completed external effects are excluded.
 
 ### Planned
 
@@ -185,7 +193,9 @@ Code: [`macctl/`](../macctl). Overview: [its README](../macctl/README.md).
 - **Change safely:** `set <id> <value>` and `apply <profile.json> [--only <domain>]`, with `--dry-run`, and
   `diff <profile>` to preview. `admin` and `destructive` settings need `--yes`.
 - **Snapshots and undo:** every write saves the old values first. `snapshot list`, `snapshot show <id>`,
-  and `undo [<id>]`, which also deletes keys that were unset before.
+  and `undo [<id>]`, which also deletes keys that were unset before. Transactions serialize across cooperating
+  processes; pending/completed/failed journals keep failed undo retryable and identify partially applied settings.
+  Wallpaper recovery retains distinct per-display images; legacy scalar snapshots remain readable.
 - **Built for agents:** `--json` (automatic in a pipe) prints one object per run with stable error codes
   and exit codes. `doctor` checks permissions without triggering a prompt and links to the right System
   Settings pane.
@@ -255,7 +265,8 @@ What this repo gives you for building more apps ([`README.md`](../README.md), [`
 | `tools/publish-public.sh` | Clean snapshot of a dev repo to its public repo; refuses on private values |
 | `tools/release.sh` | Zipped `.app` on the public repo's Releases |
 | `tools/render-previews.sh`, `tools/xcode-mcp.ts` | SwiftUI previews to PNG through the Xcode MCP bridge |
-| `tools/check-workspace.sh` | Hygiene gate: package locations, file sizes, `plugins.md` up to date |
+| `tools/check-workspace.sh` | Hygiene gate: package locations, file sizes, registry/docs indexes, design skills |
+| `tools/check-skills.py` | Validates six design skills and optionally typechecks their Swift examples targeting macOS 15 |
 | `tools/install-skills.sh` | Links the workspace skills into `~/.claude/skills` |
 | `tools/readme-art.py`, `tools/record-demos.sh` | README art and recorded terminal demos |
 
@@ -263,6 +274,8 @@ What this repo gives you for building more apps ([`README.md`](../README.md), [`
 |---|---|
 | `MacAppArchitecture` | App shape, layers, state, concurrency, backend calls, storage, system tools |
 | `MacUX` | Views, panels, windows, menu bar items, activity feeds, HIG, polish review |
+| `LiquidGlass` | Modern native macOS views, with macOS 26 glass and macOS 15 material fallback |
+| `MacAqua`, `MacClassic`, `MacLinen`, `MacNeXT`, `MacYosemite` | Explicitly requested historical styles, implemented with working native controls |
 | `MacAppBuild` | Scaffold, build, previews, verify, release |
 | `MacSetup` | Configure a Mac with `macctl` |
 | `PortLinuxWidget` | Port a Linux widget or script to a native Mac app |
@@ -270,3 +283,4 @@ What this repo gives you for building more apps ([`README.md`](../README.md), [`
 
 CI ([`.github/workflows/swift.yml`](../.github/workflows/swift.yml)) builds and tests every Swift package
 on macOS on every push, including Summon's templates and `examples/menubar-starter`.
+It also validates design skill structure, typechecks their Swift examples, and runs tooling regressions.

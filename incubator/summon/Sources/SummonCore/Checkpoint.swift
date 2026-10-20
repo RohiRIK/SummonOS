@@ -14,6 +14,8 @@ public struct Checkpoint: Sendable, Equatable, Codable, Identifiable {
     /// Newest macctl snapshot id when the checkpoint was taken, `"none"` when macctl had none yet,
     /// nil when macctl was not available. Undo reverts every macctl snapshot newer than this.
     public var macctlSnapshot: String?
+    /// Capture failures, persisted for unattended runs; absent in older records.
+    public var problems: [String]? = nil
 
     public init(id: String, label: String, createdAt: Date, configCommit: String?, macctlSnapshot: String?) {
         self.id = id
@@ -65,36 +67,49 @@ public struct CheckpointService: Sendable {
         return steps
     }
 
-    /// Best effort: a failing step is reported but never blocks the agent from starting.
+    /// Capture failures are returned and persisted; failed Git capture never records an older HEAD.
     public func create(label: String, now: Date = Date()) async -> (Checkpoint, [String]) {
+        var checkpoint = Checkpoint(id: Checkpoint.makeID(now), label: label, createdAt: now, configCommit: nil, macctlSnapshot: nil)
         var problems: [String] = []
-        var snapshot: String?
-        for step in createSteps(label: label) {
-            do {
-                let output = try await runner(step.executable, step.arguments)
-                if step.executable == macctlPath {
-                    let snapshots = try Self.snapshots(fromListJSON: output)
-                    snapshot = snapshots.first?.id ?? Self.noSnapshots
-                }
-            } catch {
-                problems.append(String(describing: error))
-            }
-        }
-        var commit: String?
-        if let gitPath, configIsRepo {
-            if let head = try? await runner(gitPath, ["-C", paths.userConfig.path, "rev-parse", "HEAD"]) {
-                commit = head.trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-        }
-        let checkpoint = Checkpoint(id: Checkpoint.makeID(now), label: label, createdAt: now, configCommit: commit, macctlSnapshot: snapshot)
         do {
-            var all = list()
+            let lease = try await acquireMutationLease()
+            defer { lease.hold() }
+            var all = try listValidated()
+            let base = checkpoint.id
+            var suffix = 2
+            while all.contains(where: { $0.id == checkpoint.id }) { checkpoint.id = "\(base)-\(suffix)"; suffix += 1 }
+            if let macctlPath {
+                do {
+                    let output = try await runner(macctlPath, ["snapshot", "list", "--json"])
+                    let snapshots = try Self.snapshots(fromListJSON: output)
+                    guard snapshots.first?.status != "pending" else {
+                        throw StateFileError.invalid(storeFile, "macctl has an in-flight or interrupted mutation; inspect its recovery journal before capture")
+                    }
+                    checkpoint.macctlSnapshot = snapshots.first?.id ?? Self.noSnapshots
+                } catch { problems.append("macctl capture failed: \(error)") }
+            }
+            if let gitPath, configIsRepo {
+                do {
+                    _ = try await runner(gitPath, ["-C", paths.userConfig.path, "add", "-A"])
+                    _ = try await runner(gitPath, ["-C", paths.userConfig.path, "commit", "-q", "--allow-empty", "-m", "summon checkpoint: \(label)"])
+                    let head = try await runner(gitPath, ["-C", paths.userConfig.path, "rev-parse", "HEAD"])
+                    let commit = head.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !commit.isEmpty else { throw StateFileError.invalid(storeFile, "Git returned an empty commit") }
+                    checkpoint.configCommit = commit
+                } catch { problems.append("config capture failed: \(error)") }
+            }
+            checkpoint.problems = problems.isEmpty ? nil : problems
             all.append(checkpoint)
             try save(Array(all.suffix(100)))
         } catch {
             problems.append("could not record checkpoint: \(error)")
+            checkpoint.problems = problems
         }
         return (checkpoint, problems)
+    }
+
+    public func acquireMutationLease() async throws -> FileLease {
+        try await FileLease.acquire(paths.state.appendingPathComponent("locks/checkpoints.lock"))
     }
 
     /// Marker for "macctl had no snapshots yet", so undo reverts all of them.
@@ -103,6 +118,7 @@ public struct CheckpointService: Sendable {
     public struct SnapshotSummary: Sendable, Equatable, Decodable {
         public var id: String
         public var createdAt: Date
+        public var status: String?
     }
 
     /// Parses `macctl snapshot list --json`: `{"ok": true, "result": [{"id", "createdAt", ...}]}`, newest first.
@@ -139,11 +155,12 @@ public struct CheckpointService: Sendable {
     }
 
     /// Oldest first.
-    public func list() -> [Checkpoint] {
-        guard let data = try? Data(contentsOf: storeFile) else { return [] }
+    public func list() -> [Checkpoint] { (try? listValidated()) ?? [] }
+
+    public func listValidated() throws -> [Checkpoint] {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return (try? decoder.decode([Checkpoint].self, from: data)) ?? []
+        return try StateFile.load([Checkpoint].self, at: storeFile, default: [], decoder: decoder)
     }
 
     public func find(_ id: String?) -> Checkpoint? {

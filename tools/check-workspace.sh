@@ -4,6 +4,7 @@
 #   2. No tracked file over 2 MB, except the explicit allowlist below.
 #   3. plugins.md is current with plugins.json (tools/mp index --check), when jq is installed.
 #   4. docs/ is a conformant OKF bundle with current index.md files (tools/okf-index.py --check).
+#   5. First-party design skills have valid metadata, routing, and local references.
 # Exit 0 when clean, 1 when any check fails.
 set -euo pipefail
 
@@ -70,6 +71,7 @@ fi
 # 4. Docs bundle.
 if command -v python3 >/dev/null 2>&1; then
   python3 "$root/tools/okf-index.py" --check || fail=1
+  python3 "$root/tools/check-skills.py" || fail=1
 else
   echo "note: python3 is not installed; skipped the docs bundle check"
 fi

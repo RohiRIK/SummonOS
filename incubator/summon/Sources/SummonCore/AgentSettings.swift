@@ -62,14 +62,19 @@ public struct AgentSettingsStore: Sendable {
         self.paths = paths
     }
 
-    /// A missing or unreadable file means defaults; the user's file is never overwritten on a read.
+    /// Display fallback only. Execution and mutations use loadValidated to preserve corrupt state.
     public func load() -> AgentSettings {
-        guard let data = try? Data(contentsOf: paths.agentSettingsFile),
-              let settings = try? JSONDecoder().decode(AgentSettings.self, from: data) else { return AgentSettings() }
-        return settings
+        (try? loadValidated()) ?? AgentSettings()
+    }
+
+    public func loadValidated() throws -> AgentSettings {
+        try StateFile.load(AgentSettings.self, at: paths.agentSettingsFile, default: AgentSettings())
     }
 
     public func save(_ settings: AgentSettings) throws {
+        let lease = try FileLease.acquireSync(paths.state.appendingPathComponent("locks/agents.lock"))
+        defer { lease.hold() }
+        _ = try loadValidated()
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         try TextFile.write(String(decoding: try encoder.encode(settings), as: UTF8.self) + "\n", to: paths.agentSettingsFile)
