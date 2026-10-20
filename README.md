@@ -66,14 +66,6 @@ Real apps, each in its own repo, built by agents with the SummonOS skills and Su
 
 I spent a while living in [Omarchy](https://omarchy.org) on Linux, where the whole desktop is one opinionated,
 keyboard-first experience you can reshape in minutes. SummonOS asks what that feels like on a Mac when the
-center of the experience is an agent: one you summon from anywhere, that gets your crashes, undoes what it
-did, and builds the small tools you need. It is an idea in progress, not a finished product. More on how it
-started: [rohi-lab.org/blog/omarchy](https://rohi-lab.org/blog/omarchy).
-
-## Why
-
-I spent a while living in [Omarchy](https://omarchy.org) on Linux, where the whole desktop is one opinionated,
-keyboard-first experience you can reshape in minutes. SummonOS asks what that feels like on a Mac when the
 center of the experience is an agent, and what happens to "apps" when making a small one takes minutes.
 More on how it started: [rohi-lab.org/blog/omarchy](https://rohi-lab.org/blog/omarchy).
 
