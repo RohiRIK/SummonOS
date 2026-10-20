@@ -6,7 +6,7 @@ Finished and long plans, one per file. A plan records what was decided at the ti
 
 # Plans
 
-* [Design skills and public preview](2026-10-20-skills-public-preview.md) - Verification of six design skills, privacy review, and the authorized SummonOS source publication. (2026-10-20, locally-verified-awaiting-public-ci)
+* [Design skills and public preview](2026-10-20-skills-public-preview.md) - Verification of six design skills, privacy review, and the authorized SummonOS source publication. (2026-10-20, verified-public-preview)
 * [SummonOS production readiness](2026-10-20-production-readiness.md) - Evidence-based audit, original product direction, release blockers, and staged acceptance criteria for a native macOS agent layer. (2026-10-20, implemented-awaiting-release-qualification)
 * [Summon: router skill, settings, recurring tasks](2026-10-19-summon-router-settings-tasks.md) - Router skill, per-agent settings, Settings tabs and recurring tasks for Summon. (2026-10-19, done)
 * [Summon: one agent you summon anywhere](2026-10-17-summon.md) - The original Summon plan: summonable agent, crash handoff, checkpoints, themes and app templates. (2026-10-17, built, partly superseded)
