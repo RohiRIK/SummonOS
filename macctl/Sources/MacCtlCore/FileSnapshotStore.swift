@@ -138,7 +138,7 @@ public struct FileSnapshotStore: SnapshotStore, SnapshotStoreDiagnostics {
     }
 
     /// Ids become file names: letters, digits, `-` and `_` only (no `/`, no `..`).
-    private static func isSafeID(_ id: String) -> Bool {
+    static func isSafeID(_ id: String) -> Bool {
         !id.isEmpty && id.unicodeScalars.allSatisfy { scalar in
             (scalar.isASCII && CharacterSet.alphanumerics.contains(scalar)) || scalar == "-" || scalar == "_"
         }

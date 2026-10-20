@@ -208,7 +208,11 @@ Command-line usage errors (a missing argument) exit with 64 and print usage to s
   inherited) is fsynced before the write, then read back. A failed write rolls the batch back at once. A crash
   leaves the session unfinished: further writes refuse with `recovery_pending` until `macctl recover` rolls it
   back (idempotent). Undo of a session adds revert lines to its own journal (no redo). A key changed by hand after
-  macctl wrote it is flagged and left alone (`partial_restore`) unless `--force`.
+  macctl wrote it is flagged and left alone (`partial_restore`) unless `--force`. `--force` is for an explicit
+  user decision only: Summon never passes it, and an agent must not add it without the user confirming that the
+  flagged keys may be overwritten.
+- **Safe ids.** Every session id (`undo <id>`, `recover --abandon <id>`) must be letters, digits, `-` or `_`;
+  anything else (for example `../x`) is `snapshot_not_found` before a path is built.
 - **CFPreferences, not `defaults`.** `.defaults` settings read and write through CFPreferences on the exact
   `(domain, current user, host)` triple, keeping CF types; managed keys are refused (`managed_setting`).
 - **Display-aware wallpapers.** New snapshots retain display UUIDs and paths; reconnect missing displays

@@ -38,6 +38,9 @@ Checkpoints do not cover arbitrary documents, app installation, Homebrew changes
 wallpapers, credentials, remote repositories, messages, cloud data, or other external effects. A macctl
 setting changed by hand or by another application after macctl wrote it is **not** overwritten on undo: it is
 flagged, left as it is, and reported (`partial_restore`); only an explicit `macctl undo <id> --force` overwrites it.
+`--force` (on `undo` or `recover`) is never a default and needs an explicit user action: Summon, its menu and
+its agent commands never pass it (they run `macctl undo <id> --json` only), and agents must not add it without the
+user confirming that the hand-edited keys should be overwritten.
 Concurrent sessions share the same configuration/settings history; undo is not isolated to one agent.
 
 Capture failures are persisted and reported. Interactive work can continue with a warning; scheduled

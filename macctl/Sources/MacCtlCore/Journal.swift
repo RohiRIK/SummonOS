@@ -194,7 +194,13 @@ public struct FileJournalStore: JournalStore {
 
     public init(directory: URL) { self.directory = directory }
 
-    func url(_ id: String) -> URL { directory.appendingPathComponent("\(id).jsonl") }
+    /// Every id becomes a file name, so every entry point goes through here: the snapshot id rule
+    /// (letters, digits, `-`, `_`) is enforced, and an id such as `../x` is `snapshot_not_found`
+    /// before any path is built (Sam #62 MEDIUM).
+    func url(_ id: String, suffix: String = ".jsonl") throws -> URL {
+        guard FileSnapshotStore.isSafeID(id) else { throw MacCtlError.snapshotNotFound(id) }
+        return directory.appendingPathComponent("\(id)\(suffix)")
+    }
 
     private func ensureDirectory() throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
@@ -203,8 +209,9 @@ public struct FileJournalStore: JournalStore {
     }
 
     public func create(_ id: String) throws -> any JournalSink {
+        let path = try url(id).path
         try ensureDirectory()
-        let descriptor = open(url(id).path, O_WRONLY | O_CREAT | O_EXCL | O_APPEND | O_NOFOLLOW | O_CLOEXEC, S_IRUSR | S_IWUSR)
+        let descriptor = open(path, O_WRONLY | O_CREAT | O_EXCL | O_APPEND | O_NOFOLLOW | O_CLOEXEC, S_IRUSR | S_IWUSR)
         guard descriptor >= 0 else {
             if errno == EEXIST { throw MacCtlError.snapshotExists(id) }
             throw Durable.posixError()
@@ -219,7 +226,7 @@ public struct FileJournalStore: JournalStore {
     public func openForAppend(_ id: String) throws -> (any JournalSink)? {
         guard let data = try contents(id) else { return nil }
         let keep = try JournalCodec.intactLength(data, id: id)
-        let descriptor = open(url(id).path, O_WRONLY | O_APPEND | O_NOFOLLOW | O_CLOEXEC)
+        let descriptor = open(try url(id).path, O_WRONLY | O_APPEND | O_NOFOLLOW | O_CLOEXEC)
         guard descriptor >= 0 else { throw Durable.posixError() }
         let sink = FileJournalSink(descriptor: descriptor)
         if keep < data.count {
@@ -230,7 +237,7 @@ public struct FileJournalStore: JournalStore {
     }
 
     public func contents(_ id: String) throws -> Data? {
-        let path = url(id).path
+        let path = try url(id).path
         var info = stat()
         guard lstat(path, &info) == 0 else {
             if errno == ENOENT { return nil }
@@ -239,7 +246,7 @@ public struct FileJournalStore: JournalStore {
         guard info.st_mode & S_IFMT == S_IFREG else {
             throw MacCtlError.journalCorrupt(snapshotID: id, line: 0)
         }
-        return try Data(contentsOf: url(id))
+        return try Data(contentsOf: URL(fileURLWithPath: path))
     }
 
     public func ids() throws -> [String] {
@@ -248,18 +255,19 @@ public struct FileJournalStore: JournalStore {
     }
 
     public func remove(_ id: String) throws {
-        if unlink(url(id).path) != 0 && errno != ENOENT { throw Durable.posixError() }
+        if unlink(try url(id).path) != 0 && errno != ENOENT { throw Durable.posixError() }
     }
 
     public func quarantine(_ id: String) throws {
-        let target = directory.appendingPathComponent("\(id).jsonl.corrupt")
-        guard link(url(id).path, target.path) == 0 else { throw Durable.posixError() }
+        let target = try url(id, suffix: ".jsonl.corrupt")
+        guard link(try url(id).path, target.path) == 0 else { throw Durable.posixError() }
         try remove(id)
         try Durable.syncDirectory(directory)
     }
 
     public func isQuarantined(_ id: String) -> Bool {
-        FileManager.default.fileExists(atPath: directory.appendingPathComponent("\(id).jsonl.corrupt").path)
+        guard let target = try? url(id, suffix: ".jsonl.corrupt") else { return false }
+        return FileManager.default.fileExists(atPath: target.path)
     }
 
     public func hmacKey() throws -> Data {
@@ -268,19 +276,24 @@ public struct FileJournalStore: JournalStore {
         if let key = try? Data(contentsOf: file), key.count == 32 { return key }
         var generator = SystemRandomNumberGenerator()
         let key = Data((0..<32).map { _ in UInt8.random(in: 0...255, using: &generator) })
-        do {
-            try Durable.writeExclusive(file, key)
-            try Durable.syncDirectory(directory)
-            return key
-        } catch {
-            // Another writer won the race (under the lock this is a leftover); use what is there.
+        // Never create `.key` empty: write a durable 0600 temp, then publish it with link(2), so a
+        // kill -9 leaves either no key or a whole one (Sam #62 LOW a).
+        let temporary = directory.appendingPathComponent(".key-\(UUID().uuidString).tmp")
+        defer { unlink(temporary.path) }
+        try Durable.writeExclusive(temporary, key)
+        if link(temporary.path, file.path) != 0 {
+            guard errno == EEXIST else { throw Durable.posixError() }
             if let existing = try? Data(contentsOf: file), existing.count == 32 { return existing }
-            throw error
+            // A short key (left by an older build killed mid-create) was never usable: every
+            // caller refused it, so no hash was ever made with it. Replace it atomically.
+            guard rename(temporary.path, file.path) == 0 else { throw Durable.posixError() }
         }
+        try Durable.syncDirectory(directory)
+        return key
     }
 
     public func removeTemporaries() {
-        Durable.removeTemporaries(in: directory, prefixes: [".journal-"])
+        Durable.removeTemporaries(in: directory, prefixes: [".journal-", ".key-"])
     }
 }
 

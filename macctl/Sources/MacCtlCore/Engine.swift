@@ -136,6 +136,7 @@ public struct Engine: MacCtlService {
         try prepareMutation()
         let id: String
         if let snapshotID {
+            guard FileSnapshotStore.isSafeID(snapshotID) else { throw MacCtlError.snapshotNotFound(snapshotID) }
             id = snapshotID
         } else {
             let all = try snapshots()
@@ -163,6 +164,7 @@ public struct Engine: MacCtlService {
         Failpoint.hit("R0")
         removeTemporaries()
         if let abandon {
+            guard FileSnapshotStore.isSafeID(abandon) else { throw MacCtlError.snapshotNotFound(abandon) }
             do {
                 _ = try loadSession(abandon)
                 throw MacCtlError.invalidProfile("journal \(abandon) is readable; run `macctl recover` without --abandon")
@@ -750,7 +752,9 @@ extension Engine {
                 report.notes.append("Skipped \(intent.settingID ?? "?") in \(session.id): not in this catalog.")
                 continue
             }
-            let j = intent.index ?? 0
+            // A journal line without an index (hand-edited or another format) still recovers; it
+            // just has no RIj/RVj point (Sam #62 LOW b).
+            let j = intent.index.flatMap { $0 >= 1 ? $0 : nil }
             let current = try await backend.storedValue(setting)
             let seen = try RecordedValue.record(current, sensitive: setting.sensitive, key: key)
             let flag = { (reason: String) in
@@ -764,9 +768,13 @@ extension Engine {
             if try prior.isCurrent(current, key: key), try await wallpapersAt(intent.wallpapers, setting) {
                 // A failed change still at prior was never written: nothing to revert, no line.
                 if outcomes[intent.seq] == .failed, reverts[intent.seq] == nil { continue }
+                // A crash at RVj (restored, `reverted` not yet written) finishes with the very line an
+                // uninterrupted walk writes, so a rerun is byte-identical apart from ts/seq (ADR L133).
+                let resumed: Bool
+                if case .open = reverts[intent.seq] { resumed = true } else { resumed = false }
                 try writer.append(.reverted) { record in
                     record.ref = intent.seq
-                    record.reason = "already at prior"
+                    if !resumed { record.reason = "already at prior" }
                 }
                 continue
             }
@@ -800,7 +808,7 @@ extension Engine {
                     record.forced = handEdited ? true : nil
                 }
             }
-            Failpoint.hit("RI\(j)")
+            if let j { Failpoint.hit("RI\(j)") }
             if let wallpapers = intent.wallpapers, !wallpapers.isEmpty, prior.state == .explicit {
                 try await backend.restoreWallpapers(wallpapers, for: setting)
             } else if prior.restoresByDeleting {
@@ -808,7 +816,7 @@ extension Engine {
             } else if let value = prior.value {
                 try await backend.writeExact(value, for: setting)
             }
-            Failpoint.hit("RV\(j)")
+            if let j { Failpoint.hit("RV\(j)") }
             try writer.append(.reverted) { $0.ref = intent.seq }
             report.reverted.append(setting)
             report.changes.append(Change(id: setting.id, from: current.map(\.value),
@@ -836,8 +844,10 @@ extension Engine {
         guard let ids = try? journals.ids() else { return }
         var ended: [(Date, String)] = []
         for id in ids {
+            // A session that undid a pre-journal snapshot is that snapshot's only "undone" record:
+            // pruning it would put the legacy snapshot back in effect for `macctl undo` (Sam #62 LOW c).
             guard let session = try? loadSession(id), !session.unresolved, session.allTerminal,
-                  session.flaggedSettings.isEmpty else { continue }
+                  session.flaggedSettings.isEmpty, session.start?.undoes == nil else { continue }
             ended.append((session.createdAt, id))
         }
         ended.sort { $0.0 > $1.0 }
