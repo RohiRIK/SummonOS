@@ -15,6 +15,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
     static let diagnoseAction = "summon.crash.diagnose"
     static let muteAction = "summon.crash.mute"
 
+    /// `summon://` URLs that arrived before the panel existed; replayed at the end of applicationDidFinishLaunching.
+    private var pendingURLs: [URL] = []
+
     public override init() {
         super.init()
     }
@@ -50,6 +53,13 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         try? AppHealthStore(paths: model.paths).save(health)
         setUpNotifications(health: health)
         crashAlert.onWillPresent = { [weak panel] in panel?.yieldToCrashAlert() }
+        // A `summon://` URL that launched Summon can arrive before this method ran (Sam's review); replay it now,
+        // after the status item has had a pass to get its place in the menu bar so the panel opens under it.
+        let queued = pendingURLs
+        pendingURLs = []
+        if !queued.isEmpty {
+            DispatchQueue.main.async { [weak self] in self?.application(NSApp, open: queued) }
+        }
         model.onNewCrash = { [weak self] report in
             self?.notify(report)
             self?.crashAlert.present(report)
@@ -68,6 +78,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
     /// `summon://menu/<id>` opens the panel at that Summon Menu entry; `summon://agent` starts the agent;
     /// `summon://activity` opens the Activity window; `summon://settings` opens Settings.
     public func application(_ application: NSApplication, open urls: [URL]) {
+        // Cold launch: AppKit can deliver the URL before applicationDidFinishLaunching made the panel. Queue it.
+        guard panel != nil else {
+            pendingURLs += urls
+            return
+        }
         for url in urls where url.scheme == "summon" {
             if let route = PanelRoute.parse(host: url.host, pathComponents: url.pathComponents) {
                 if route == .open { panel?.open() } else { panel?.close() }

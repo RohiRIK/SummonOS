@@ -58,6 +58,17 @@ Behavior follows the interaction spec v1.5 (IDs A1–G3, 47 checklist lines). Th
 | URL | `open -g summon://panel`, `open -g summon://panel/close`, `summon://menu/<id>` (opens at that entry) |
 | CLI | `summon panel`, `summon panel --close`, `summon menu summon <id>` (all use `open -g`) |
 
+**Stray typing (`PanelOpenGuard`).** A hotkey or URL/CLI open can land while the user is typing in another app:
+
+- URL and CLI opens make the panel key but don't focus the search field. Click to type, or press Esc.
+- Return (and → on a submenu row) is ignored for 300 ms after any non-click open (hotkey, URL, CLI), so a keystroke
+  meant for another app can't run an entry's shell action. Clicking a row always works.
+- Click and ⌃⌥Space opens focus the search field (A1).
+
+**Cold launch.** A `summon://` URL that launches Summon can arrive before `applicationDidFinishLaunching` made the
+panel. `AppDelegate` queues it and replays it once the panel exists, so `open -g 'summon://menu/<id>'` on a quit
+Summon opens the panel at that entry.
+
 The right-click (or ⌃-click) menu has exactly **Settings… ⌘,** and **Quit Summon ⌘Q**. If the panel is open, it
 closes first.
 
@@ -88,15 +99,16 @@ All of these use `Logger`/`OSSignposter` with subsystem `local.macplugins.summon
 level. To watch them: `log stream --predicate 'subsystem == "local.macplugins.summon" AND category == "panel"'`.
 
 - **B1:**
-  - A `PanelOpen` `os_signpost` interval covers click handling up to ordered-front.
+  - A `PanelOpen` `os_signpost` interval runs from the status item's mouse-down to just after `makeKeyAndOrderFront` (ends "no open" if that press closed the panel or showed the menu).
   - A local `leftMouseDown` monitor, which only sees Summon's own events and never closes anything, records the
     status item's mouse-down.
   - The log line `B1 panel ordered front N ms after mouse-down (within|OVER the 200 ms budget)` measures from that
     mouse-down (`PanelTiming`, budget 200 ms warm).
 - **D rules:** every close logs `panel closed (<reason>); active monitors: before N, after 0`. `before` is what that
   open installed (7 normally) and `after` must be 0. D12 logs the reason `crashAlert`.
-- **A1/A2/G1 focus:** the search field is focused one run-loop turn after `makeKeyAndOrderFront`
-  (`PanelState.focusRequest`), because focus set before the window is key is dropped.
+- **A1/A2/G1 focus:** for click and hotkey opens, the search field is focused one run-loop turn after
+  `makeKeyAndOrderFront` (`PanelState.focusRequest`), because focus set before the window is key is dropped. URL/CLI
+  opens don't request focus.
 
 ## Deployment floor
 

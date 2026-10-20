@@ -53,7 +53,8 @@ public struct PanelView: View {
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.white.opacity(0.12)))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Summon")
-        // A1/E5: every open (and `summon://menu/<id>`) starts clean at its level, with the search field focused.
+        // A1/E5: every open (and `summon://menu/<id>`) starts clean at its level. Focus comes only from
+        // `focusRequest`, which URL/CLI opens don't bump.
         .onAppear(perform: reset)
         .onChange(of: model.launcherSession) { _, _ in reset() }
         // A1/A2/G1: focus once the panel is key (the controller bumps this after makeKeyAndOrderFront).
@@ -155,13 +156,13 @@ public struct PanelView: View {
                 .textFieldStyle(.plain)
                 .focused($searchFocused)
                 .accessibilityLabel("Search Summon")
-                .onSubmit(activateSelection)
+                .onSubmit(activateFromKeyboard)
                 .onKeyPress(.escape) { actions.escape(); return .handled }
                 .onKeyPress(.downArrow) { move(1); return .handled }
                 .onKeyPress(.upArrow) { move(-1); return .handled }
                 .onKeyPress(.rightArrow) {
                     guard query.isEmpty else { return .ignored }
-                    activateSelection()
+                    activateFromKeyboard()
                     return .handled
                 }
                 .onKeyPress(.leftArrow) {
@@ -187,7 +188,6 @@ public struct PanelView: View {
         query = ""
         level = model.launcherStartLevel
         selection = 0
-        searchFocused = true
     }
 
     private func move(_ delta: Int) {
@@ -198,6 +198,13 @@ public struct PanelView: View {
     private func back() {
         level = level.flatMap { model.menu.item($0)?.parentID }
         selection = 0
+    }
+
+    /// Return / → : ignored for ~300 ms after a hotkey or URL/CLI open (`PanelOpenGuard`), so a keystroke meant for
+    /// another app can't run an entry. Clicks go straight to `activateSelection`.
+    private func activateFromKeyboard() {
+        guard actions.acceptsReturn() else { return }
+        activateSelection()
     }
 
     private func activateSelection() {

@@ -30,7 +30,7 @@ enum PanelTrace {
 public final class PanelState {
     /// True from `open()` until `close(_:)`. Drives the live refresh loop (E1) so it never runs while hidden.
     public internal(set) var isOpen = false
-    /// Bumped on every open; the view resets its field and focus on change (A1, E5).
+    /// Bumped on every open. The view shows a running agent only once this open's first refresh is done (E5).
     public internal(set) var session = 0
     /// Height cap for the visible frame of the screen the panel is on (E4).
     public internal(set) var maxHeight: CGFloat = 600
@@ -61,15 +61,18 @@ public struct PanelActions {
     public var quit: () -> Void
     /// E3/E4: the content's displayed height changed; the controller sets the panel frame once, top edge pinned.
     public var resize: (CGFloat) -> Void
+    /// False for ~300 ms after a hotkey or URL/CLI open, so a stray Return can't run an entry (`PanelOpenGuard`).
+    public var acceptsReturn: () -> Bool
 
     public init(finish: @escaping () -> Void, escape: @escaping () -> Void,
                 openSettings: @escaping () -> Void, quit: @escaping () -> Void,
-                resize: @escaping (CGFloat) -> Void = { _ in }) {
+                resize: @escaping (CGFloat) -> Void = { _ in }, acceptsReturn: @escaping () -> Bool = { true }) {
         self.finish = finish
         self.escape = escape
         self.openSettings = openSettings
         self.quit = quit
         self.resize = resize
+        self.acceptsReturn = acceptsReturn
     }
 
     static var preview: PanelActions { PanelActions(finish: {}, escape: {}, openSettings: {}, quit: {}) }
@@ -132,6 +135,10 @@ public final class PanelController: NSObject {
     private var pendingEntry: String?
     private var mouseDownMonitor: Any?
     private var lastMouseDown: TimeInterval?
+    private var openInterval: OSSignpostIntervalState?
+    private var pendingSource: PanelOpenSource?
+    private var openSource: PanelOpenSource?
+    private var openedAt: TimeInterval?
 
     /// Live observers right now; 0 whenever the panel is closed (D rules). Logged on every close.
     public var activeObserverCount: Int { observers.count }
@@ -156,7 +163,12 @@ public final class PanelController: NSObject {
             escape: { [weak self] in self?.handle(.escapePressed) },
             openSettings: { [weak self] in self?.handle(.settingsChosen) },
             quit: { [weak self] in self?.handle(.quitChosen) },
-            resize: { [weak self] height in self?.contentHeightChanged(height) }
+            resize: { [weak self] height in self?.contentHeightChanged(height) },
+            acceptsReturn: { [weak self] in
+                guard let self else { return true }
+                return PanelOpenGuard.acceptsReturn(source: self.openSource, openedAt: self.openedAt,
+                                                    now: ProcessInfo.processInfo.systemUptime)
+            }
         )
         let host = NSHostingController(rootView: content(state, actions))
         // We size the window ourselves (`contentHeightChanged`), so the hosting controller must not: its own resize
@@ -174,24 +186,45 @@ public final class PanelController: NSObject {
             // Left opens the panel, right (or ⌃-click) shows the menu (B1, B3).
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
-        // B1: remember when the status item was pressed, so the open can be measured from mouse-down. A local
-        // monitor sees only Summon's own events; it lives for the app's lifetime and never closes anything.
+        // B1: the "PanelOpen" signpost interval starts at the status item's mouse-down (this local monitor, which
+        // sees only Summon's own events, lives for the app's lifetime and never closes anything) and ends right
+        // after makeKeyAndOrderFront in show().
         mouseDownMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
             MainActor.assumeIsolated {
                 if let self, let window = self.statusItem.button?.window, event.window === window {
-                    self.lastMouseDown = event.timestamp
+                    self.mouseDownReceived(at: event.timestamp)
                 }
             }
             return event
         }
     }
 
+    private func mouseDownReceived(at timestamp: TimeInterval) {
+        endOpenInterval(opened: false) // a previous press that never opened
+        lastMouseDown = timestamp
+        guard !isOpen else { return }
+        openInterval = PanelTrace.signposter.beginInterval("PanelOpen", id: PanelTrace.signposter.makeSignpostID())
+    }
+
+    private func endOpenInterval(opened: Bool) {
+        guard let interval = openInterval else { return }
+        openInterval = nil
+        if opened {
+            PanelTrace.signposter.endInterval("PanelOpen", interval, "ordered front")
+        } else {
+            PanelTrace.signposter.endInterval("PanelOpen", interval, "no open")
+        }
+    }
+
     // MARK: Public entry points (C5–C7)
 
-    public func toggle() { handle(isOpen ? .closeFromCode : .openFromCode) }
+    public func toggle() { isOpen ? close() : open() }
 
     /// Idempotent (C6): opening an open panel does nothing.
-    public func open() { handle(.openFromCode) }
+    public func open() {
+        pendingSource = .code
+        handle(.openFromCode)
+    }
 
     /// `summon://menu/<id>`: open the panel at that Summon Menu entry, or move an open panel there.
     public func open(at entry: String?) {
@@ -200,6 +233,7 @@ public final class PanelController: NSObject {
             prepare(entry)
             pendingEntry = nil
         } else {
+            pendingSource = .code
             handle(.openFromCode)
         }
     }
@@ -219,6 +253,7 @@ public final class PanelController: NSObject {
     /// The panel hotkey's press (C1–C3). A held key opens once.
     public func hotKeyPressed() {
         guard hotKeyFilter.press(at: ProcessInfo.processInfo.systemUptime) else { return }
+        pendingSource = .hotKey
         handle(.hotKey)
     }
 
@@ -258,13 +293,15 @@ public final class PanelController: NSObject {
         let event = NSApp.currentEvent
         let right = event?.type == .rightMouseUp
             || (event?.type == .leftMouseUp && event?.modifierFlags.contains(.control) == true)
-        guard !right else { return handle(.statusItemRightClick) }
-        // B1 proof: the "PanelOpen" signpost interval covers click handling to ordered front, and the log line gives
-        // the time from the status item's mouse-down (recorded by the local monitor) to ordered front.
-        let interval = PanelTrace.signposter.beginInterval("PanelOpen", id: PanelTrace.signposter.makeSignpostID())
+        guard !right else {
+            endOpenInterval(opened: false)
+            return handle(.statusItemRightClick)
+        }
+        // B1 proof: the "PanelOpen" interval began at mouse-down and ends in show(); the log line gives the same span.
         let wasOpen = isOpen
+        pendingSource = .click
         handle(.statusItemLeftClick)
-        PanelTrace.signposter.endInterval("PanelOpen", interval)
+        endOpenInterval(opened: false) // closed by this click: nothing to measure
         let down = lastMouseDown ?? event?.timestamp
         lastMouseDown = nil
         if !wasOpen, isOpen,
@@ -283,19 +320,26 @@ public final class PanelController: NSObject {
         session = PanelSession(previousAppPID: previousApp?.processIdentifier, ownPID: own)
         prepare(pendingEntry)
         pendingEntry = nil
+        let source = pendingSource ?? .code
+        pendingSource = nil
+        openSource = source
+        openedAt = ProcessInfo.processInfo.systemUptime
         state.session += 1
         state.isOpen = true
         place()
         // The panel is nonactivating: this makes it key without activating Summon (A1, A5, A6).
         panel.makeKeyAndOrderFront(nil)
+        endOpenInterval(opened: source == .click) // B1: mouse-down → ordered front
         statusItem.button?.highlight(true)
         installObservers()
         // After the current event (the status button's mouse-up tracking can reset its highlight) and once the
-        // panel is key: re-assert the highlight (B1) and ask the view to focus the search field (A1, A2, G1).
+        // panel is key: re-assert the highlight (B1) and focus the search field (A1, A2, G1). URL/CLI opens don't
+        // focus it, so typing meant for another app doesn't land in the search (Sam's review).
+        let focus = PanelOpenGuard.focusesSearch(source)
         DispatchQueue.main.async { [weak self] in
             guard let self, self.isOpen else { return }
             self.statusItem.button?.highlight(true)
-            self.state.focusRequest += 1
+            if focus { self.state.focusRequest += 1 }
         }
     }
 

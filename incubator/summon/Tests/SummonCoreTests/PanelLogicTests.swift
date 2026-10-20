@@ -267,3 +267,26 @@ struct PanelTimingTests {
         #expect(!PanelTiming.withinBudget(200.1))
     }
 }
+
+@Suite("Menu bar panel: stray-typing guard for hotkey and URL/CLI opens")
+struct PanelOpenGuardTests {
+    @Test func onlyURLAndCLIOpensSkipSearchFocus() {
+        #expect(PanelOpenGuard.focusesSearch(.click))
+        #expect(PanelOpenGuard.focusesSearch(.hotKey))
+        #expect(!PanelOpenGuard.focusesSearch(.code))
+    }
+
+    @Test(arguments: [PanelOpenSource.hotKey, .code])
+    func returnIsIgnoredBrieflyAfterANonClickOpen(source: PanelOpenSource) {
+        #expect(!PanelOpenGuard.acceptsReturn(source: source, openedAt: 10, now: 10.0))
+        #expect(!PanelOpenGuard.acceptsReturn(source: source, openedAt: 10, now: 10.29))
+        #expect(PanelOpenGuard.acceptsReturn(source: source, openedAt: 10, now: 10.3))
+        #expect(PanelOpenGuard.acceptsReturn(source: source, openedAt: 10, now: 12))
+    }
+
+    @Test func clickOpensAcceptReturnAtOnce() {
+        #expect(PanelOpenGuard.acceptsReturn(source: .click, openedAt: 10, now: 10))
+        #expect(PanelOpenGuard.acceptsReturn(source: nil, openedAt: nil, now: 10))
+        #expect(PanelOpenGuard.acceptsReturn(source: .code, openedAt: nil, now: 10))
+    }
+}

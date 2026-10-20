@@ -184,6 +184,34 @@ public struct HotKeyRepeatFilter: Sendable {
     }
 }
 
+/// How the panel was opened. A click is deliberate; a hotkey or a URL/CLI open can land while the user is typing
+/// somewhere else (Sam's review of #61).
+public enum PanelOpenSource: String, Sendable, CaseIterable {
+    case click
+    case hotKey
+    /// `summon panel`, `summon://panel`, `summon://menu/<id>`, `PanelController.open()`.
+    case code
+}
+
+/// Guards against stray typing after a non-click open: URL/CLI opens don't focus the search field, and Return is
+/// ignored for `returnGrace` seconds after any non-click open, so a keystroke meant for another app can't run a
+/// menu entry's shell action.
+public enum PanelOpenGuard {
+    public static let returnGrace: TimeInterval = 0.3
+
+    /// Whether this open focuses the search field (A1 for click and hotkey; not for URL/CLI opens).
+    public static func focusesSearch(_ source: PanelOpenSource) -> Bool {
+        source != .code
+    }
+
+    /// Whether Return may run the selected entry `now`, for a panel opened from `source` at `openedAt`.
+    public static func acceptsReturn(source: PanelOpenSource?, openedAt: TimeInterval?, now: TimeInterval) -> Bool {
+        guard let source, source != .click else { return true }
+        guard let openedAt else { return true }
+        return now - openedAt >= returnGrace
+    }
+}
+
 /// B1 proof: milliseconds from the status item's mouse-down to the panel ordered front, and whether that meets the
 /// spec's warm budget (≤ 200 ms).
 public enum PanelTiming {
