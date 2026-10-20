@@ -94,7 +94,7 @@ level. To watch them: `log stream --predicate 'subsystem == "local.macplugins.su
   - The log line `B1 panel ordered front N ms after mouse-down (within|OVER the 200 ms budget)` measures from that
     mouse-down (`PanelTiming`, budget 200 ms warm).
 - **D rules:** every close logs `panel closed (<reason>); active monitors: before N, after 0`. `before` is what that
-  open installed (6 normally) and `after` must be 0. D12 logs the reason `crashAlert`.
+  open installed (7 normally) and `after` must be 0. D12 logs the reason `crashAlert`.
 - **A1/A2/G1 focus:** the search field is focused one run-loop turn after `makeKeyAndOrderFront`
   (`PanelState.focusRequest`), because focus set before the window is key is dropped.
 
