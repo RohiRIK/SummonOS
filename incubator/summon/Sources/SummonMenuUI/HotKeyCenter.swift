@@ -7,6 +7,7 @@ public final class HotKeyCenter {
     public static let shared = HotKeyCenter()
 
     private var handlers: [UInt32: () -> Void] = [:]
+    private var releaseHandlers: [UInt32: () -> Void] = [:]
     private var refs: [UInt32: EventHotKeyRef] = [:]
     private var installed = false
 
@@ -17,7 +18,8 @@ public final class HotKeyCenter {
 
     /// Registers (or replaces) hotkey `id`. Returns false when another app already owns the combination.
     @discardableResult
-    public func register(id: UInt32, keyCode: UInt32, modifiers: UInt32, handler: @escaping () -> Void) -> Bool {
+    public func register(id: UInt32, keyCode: UInt32, modifiers: UInt32, onRelease: (() -> Void)? = nil,
+                         handler: @escaping () -> Void) -> Bool {
         installHandlerIfNeeded()
         unregister(id: id)
         var ref: EventHotKeyRef?
@@ -26,6 +28,7 @@ public final class HotKeyCenter {
         guard status == noErr, let ref else { return false }
         refs[id] = ref
         handlers[id] = handler
+        releaseHandlers[id] = onRelease
         return true
     }
 
@@ -34,16 +37,25 @@ public final class HotKeyCenter {
             UnregisterEventHotKey(ref)
         }
         handlers[id] = nil
+        releaseHandlers[id] = nil
     }
 
-    fileprivate func fire(_ id: UInt32) {
-        handlers[id]?()
+    fileprivate func fire(_ id: UInt32, released: Bool) {
+        if released {
+            releaseHandlers[id]?()
+        } else {
+            handlers[id]?()
+        }
     }
 
     private func installHandlerIfNeeded() {
         guard !installed else { return }
         installed = true
-        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        // Releases too, so a held key can be told apart from a second press (panel spec C3).
+        var specs = [
+            EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed)),
+            EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased)),
+        ]
         // A C callback cannot capture context; it reaches the shared center, on the main thread where Carbon calls it.
         InstallEventHandler(GetApplicationEventTarget(), { _, event, _ -> OSStatus in
             var hotKeyID = EventHotKeyID()
@@ -58,21 +70,22 @@ public final class HotKeyCenter {
             )
             if status == noErr {
                 let id = hotKeyID.id
+                let released = GetEventKind(event) == UInt32(kEventHotKeyReleased)
                 MainActor.assumeIsolated {
-                    HotKeyCenter.shared.fire(id)
+                    HotKeyCenter.shared.fire(id, released: released)
                 }
             }
             return OSStatus(noErr)
-        }, 1, &spec, nil, nil)
+        }, specs.count, &specs, nil, nil)
     }
 }
 
-/// The two Summon hotkeys. Fixed for now; Settings shows them.
+/// The two Summon hotkeys. Fixed for now; Settings shows them and whether they registered.
 public enum SummonHotKey {
     public static let menuID: UInt32 = 1
     public static let agentID: UInt32 = 2
 
-    /// ⌃⌥Space opens the Summon Menu (Omarchy's Super+Space). Option alone is not allowed:
+    /// ⌃⌥Space toggles the menu bar panel, which holds the Summon Menu (Omarchy's Super+Space; panel spec v1.3 C1). Option alone is not allowed:
     /// macOS 15 rejects hot keys whose only modifiers are Option or Option+Shift.
     public static let menuKey = UInt32(kVK_Space)
     public static let menuModifiers = UInt32(controlKey | optionKey)

@@ -5,6 +5,19 @@ version numbers yet; entries are grouped by day and point at the pull request.
 
 ## 2026-10-20
 
+### Menu bar panel (draft)
+- `MenuBarExtra` is replaced by an `NSStatusItem` + nonactivating `StatusPanel`, owned by one `PanelController`.
+  The panel takes typing without activating Summon.
+- The launcher is merged into the panel: its search field and menu tree are now at the top, the launcher window is
+  gone, and ⌃⌥Space and `summon://menu/<id>` open the panel.
+- Left click opens it. Right click shows Settings…/Quit Summon, which the footer also keeps.
+- It opens from `summon panel [--close]` and `open -g summon://panel[/close]`.
+- It refreshes every second while open, and the agent row shows elapsed mm:ss.
+- It closes only on spec section D triggers. Every close logs the active monitor count, and the B1 open is an
+  `os_signpost` interval.
+- The crash alert also uses `.statusBar`. Settings marks shortcuts another app owns.
+- `PanelFixture=tall` is a debug fixture. See `docs/menubar-panel.md`. `WindowTopPinner` and `LauncherView` are gone.
+
 ### Security and recovery
 - Validate theme text and wallpaper containment; preserve foreign skill links and record owned links.
 - Persist checkpoint capture failures without advertising a stale Git commit; scheduled work stops on capture failure.

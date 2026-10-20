@@ -5,14 +5,9 @@ import SwiftUI
 struct SummonMenuApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
+    // The menu bar item is an NSStatusItem + nonactivating panel owned by `AppDelegate.panel` (PanelController),
+    // not MenuBarExtra: it takes typing without activating Summon and we own dismissal (docs/menubar-panel.md).
     var body: some Scene {
-        MenuBarExtra {
-            PanelView(model: delegate.model, activity: delegate.activity, openLauncher: { delegate.launcher.show(startAt: nil) })
-        } label: {
-            MenuBarLabel()
-        }
-        .menuBarExtraStyle(.window)
-
         Window("Summon Activity", id: ActivityOpener.windowID) {
             ActivityView(model: delegate.activity)
         }
