@@ -4,7 +4,7 @@ import SwiftUI
 
 /// The menu bar panel: the Summon Menu (search field + menu tree, formerly the launcher window) above the app's job
 /// (ask the agent, Activity), with the Settings…/Quit footer (AGENTS.md). Hosted once by `PanelController` in a
-/// nonactivating `StatusPanel`; it stays one SwiftUI view and keeps updating while open (spec v1.3, E1–E5).
+/// nonactivating `StatusPanel`; it stays one SwiftUI view and keeps updating while open (spec v1.5, E1–E5).
 /// Every row that does something calls `actions.finish` so the panel closes (D3).
 public struct PanelView: View {
     let model: SummonModel
@@ -34,7 +34,11 @@ public struct PanelView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 content
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                        contentHeight = height
+                        // E3/E4: the controller sets the panel frame once, top edge pinned.
+                        actions.resize(max(1, min(height, panel.maxHeight)))
+                    }
             }
             .scrollBounceBehavior(.basedOnSize)
             .onChange(of: selection) { _, newValue in
@@ -52,6 +56,8 @@ public struct PanelView: View {
         // A1/E5: every open (and `summon://menu/<id>`) starts clean at its level, with the search field focused.
         .onAppear(perform: reset)
         .onChange(of: model.launcherSession) { _, _ in reset() }
+        // A1/A2/G1: focus once the panel is key (the controller bumps this after makeKeyAndOrderFront).
+        .onChange(of: panel.focusRequest) { _, _ in searchFocused = true }
         .onChange(of: query) { _, _ in selection = 0 }
         // Re-check `when`/`checked` guards whenever the level changes or the panel opens again.
         .task(id: GuardKey(level: level, session: model.launcherSession)) {

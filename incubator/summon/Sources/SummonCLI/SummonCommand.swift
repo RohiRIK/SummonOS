@@ -116,9 +116,7 @@ struct SummonCommand {
         case "menu":
             try await MenuCommands.run(&args, context)
         case "panel":
-            // `open -g` keeps the frontmost app frontmost (panel spec A1, C5).
-            let route: PanelRoute = args.flag("--close") ? .close : .open
-            _ = try await context.runner("/usr/bin/open", ["-g", route.url])
+            try await PanelCommand.run(&args, context)
         case "icon":
             try IconCommands.run(&args, context)
         case "showcase":

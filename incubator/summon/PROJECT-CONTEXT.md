@@ -12,7 +12,11 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   `config/`: Brewfile, AeroSpace, Ghostty, borders, zsh. `design/`: brand assets + `generate.py`.
 - Swift package: `SummonCore` (agents, launch plans, .ips crash parsing + watcher, menu tree, themes + compilers,
   checkpoints, debug bundle, hooks, command catalog), `summon` CLI, `SummonMenuUI` + `SummonMenu` app (menu bar panel,
-  ⌃⌥Space launcher, ⌃⌥⌘A agent, crash notifications, Activity window, Settings). Builds on CI; installed and used on Rohi's Mac 2026-10-18.
+  ⌃⌥⌘A agent, crash notifications, Activity window, Settings).
+  Since PR #61 (draft): the menu bar panel is an `NSStatusItem` + nonactivating `StatusPanel` (`PanelController`), with
+  the Summon Menu (former launcher) inside it. It opens with ⌃⌥Space, `summon panel [--close]`, `open -g summon://panel`
+  and `summon://menu/<id>`; there's no launcher window. Spec and proof hooks: `docs/menubar-panel.md`.
+  Debug build for the E4 fixture: `scripts/bundle.sh --debug`. Builds on CI; installed and used on Rohi's Mac 2026-10-18.
 - Projects: `templates/{menubar,app,cli,screensaver}` (each a buildable package with README, MIT LICENSE,
   PROJECT-CONTEXT.md, `scripts/check.sh`; CI builds them). `summon project new` copies one to `~/Summon/<name>` and
   records it in the private `~/.config/summon/projects.json`; `summon project repo` makes a private repo after a

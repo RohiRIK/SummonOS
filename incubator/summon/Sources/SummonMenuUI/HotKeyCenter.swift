@@ -85,7 +85,7 @@ public enum SummonHotKey {
     public static let menuID: UInt32 = 1
     public static let agentID: UInt32 = 2
 
-    /// ⌃⌥Space toggles the menu bar panel, which holds the Summon Menu (Omarchy's Super+Space; panel spec v1.3 C1). Option alone is not allowed:
+    /// ⌃⌥Space toggles the menu bar panel, which holds the Summon Menu (Omarchy's Super+Space; panel spec v1.5 C1). Option alone is not allowed:
     /// macOS 15 rejects hot keys whose only modifiers are Option or Option+Shift.
     public static let menuKey = UInt32(kVK_Space)
     public static let menuModifiers = UInt32(controlKey | optionKey)

@@ -36,6 +36,9 @@ public final class PanelState {
     public internal(set) var maxHeight: CGFloat = 600
     /// E4 fixture rows (`PanelFixture`), 0 normally.
     public internal(set) var fixtureRows = 0
+    /// Bumped once the panel is actually key, so the view focuses its search field then (A1, A2, G1); focus set
+    /// before the window is key is dropped.
+    public internal(set) var focusRequest = 0
 
     public init() {}
 
@@ -56,13 +59,17 @@ public struct PanelActions {
     public var openSettings: () -> Void
     /// D6/B6: close, then quit.
     public var quit: () -> Void
+    /// E3/E4: the content's displayed height changed; the controller sets the panel frame once, top edge pinned.
+    public var resize: (CGFloat) -> Void
 
     public init(finish: @escaping () -> Void, escape: @escaping () -> Void,
-                openSettings: @escaping () -> Void, quit: @escaping () -> Void) {
+                openSettings: @escaping () -> Void, quit: @escaping () -> Void,
+                resize: @escaping (CGFloat) -> Void = { _ in }) {
         self.finish = finish
         self.escape = escape
         self.openSettings = openSettings
         self.quit = quit
+        self.resize = resize
     }
 
     static var preview: PanelActions { PanelActions(finish: {}, escape: {}, openSettings: {}, quit: {}) }
@@ -120,7 +127,7 @@ public final class PanelController: NSObject {
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
     private var anchorTop: CGFloat?
     private var visibleFrame: CGRect = .zero
-    private var adjusting = false
+    private var lastContentHeight: CGFloat?
     private var hotKeyFilter = HotKeyRepeatFilter()
     private var pendingEntry: String?
     private var mouseDownMonitor: Any?
@@ -148,11 +155,13 @@ public final class PanelController: NSObject {
             finish: { [weak self] in self?.handle(.actionFinished) },
             escape: { [weak self] in self?.handle(.escapePressed) },
             openSettings: { [weak self] in self?.handle(.settingsChosen) },
-            quit: { [weak self] in self?.handle(.quitChosen) }
+            quit: { [weak self] in self?.handle(.quitChosen) },
+            resize: { [weak self] height in self?.contentHeightChanged(height) }
         )
         let host = NSHostingController(rootView: content(state, actions))
-        // The window follows SwiftUI's ideal size; `panelDidResize` keeps the top edge fixed (E3).
-        host.sizingOptions = [.preferredContentSize]
+        // We size the window ourselves (`contentHeightChanged`), so the hosting controller must not: its own resize
+        // keeps the bottom-left origin and would move the top edge for a frame before we put it back (E3).
+        host.sizingOptions = []
         panel.contentViewController = host
         panel.onEscape = { [weak self] in self?.handle(.escapePressed) }
 
@@ -175,9 +184,6 @@ public final class PanelController: NSObject {
             }
             return event
         }
-        // Resizes happen while open (E3); this observer lives as long as the panel, it is not a dismissal monitor.
-        NotificationCenter.default.addObserver(self, selector: #selector(panelDidResize(_:)),
-                                               name: NSWindow.didResizeNotification, object: panel)
     }
 
     // MARK: Public entry points (C5–C7)
@@ -284,6 +290,13 @@ public final class PanelController: NSObject {
         panel.makeKeyAndOrderFront(nil)
         statusItem.button?.highlight(true)
         installObservers()
+        // After the current event (the status button's mouse-up tracking can reset its highlight) and once the
+        // panel is key: re-assert the highlight (B1) and ask the view to focus the search field (A1, A2, G1).
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.isOpen else { return }
+            self.statusItem.button?.highlight(true)
+            self.state.focusRequest += 1
+        }
     }
 
     private func place() {
@@ -300,29 +313,32 @@ public final class PanelController: NSObject {
             let rect = window.convertToScreen(button.convert(button.bounds, to: nil))
             anchor = PanelGeometry.anchor(rect, from: buttonScreen.frame, to: target.frame)
         }
-        panel.contentViewController?.view.layoutSubtreeIfNeeded()
-        let fitting = panel.contentViewController?.view.fittingSize ?? panel.frame.size
-        let size = CGSize(width: PanelConfig.width, height: max(fitting.height, 1))
+        var height = lastContentHeight
+        if height == nil {
+            panel.contentViewController?.view.layoutSubtreeIfNeeded()
+            height = panel.contentViewController?.view.fittingSize.height
+        }
+        let size = CGSize(width: PanelConfig.width, height: max(height ?? panel.frame.height, 1))
         let frame = PanelGeometry.frame(size: size, anchor: anchor, visible: visibleFrame)
-        adjusting = true
         panel.setFrame(frame, display: true)
-        adjusting = false
         anchorTop = frame.maxY
     }
 
-    @objc private func panelDidResize(_ note: Notification) {
-        guard !adjusting, isOpen, let top = anchorTop else { return }
-        let fixed = PanelGeometry.reanchored(panel.frame, top: top, visible: visibleFrame)
-        guard fixed != panel.frame else { return }
-        adjusting = true
-        panel.setFrame(fixed, display: true, animate: false)
-        adjusting = false
+    /// E3/E4: one `setFrame` with the final frame, top edge pinned and clamped, so the top never jumps.
+    private func contentHeightChanged(_ height: CGFloat) {
+        lastContentHeight = height
+        guard isOpen, let top = anchorTop else { return }
+        let target = CGRect(x: panel.frame.minX, y: panel.frame.minY, width: panel.frame.width, height: height)
+        let frame = PanelGeometry.reanchored(target, top: top, visible: visibleFrame)
+        guard frame != panel.frame else { return }
+        panel.setFrame(frame, display: true, animate: false)
     }
 
     // MARK: Close
 
     private func hide(_ reason: PanelCloseReason) {
         guard isOpen else { return }
+        let before = observers.count
         removeObservers()
         statusItem.button?.highlight(false)
         panel.orderOut(nil)
@@ -335,8 +351,8 @@ public final class PanelController: NSObject {
         session = nil
         previousApp = nil
         anchorTop = nil
-        // D rules proof: expect 0 on every close.
-        PanelTrace.log.notice("panel closed (\(reason.rawValue, privacy: .public)); active monitors: \(self.observers.count, privacy: .public)")
+        // D rules proof: how many monitors this open installed, and that none are left (expect "after 0").
+        PanelTrace.log.notice("panel closed (\(reason.rawValue, privacy: .public)); active monitors: before \(before, privacy: .public), after \(self.observers.count, privacy: .public)")
     }
 
     // MARK: Right-click menu (B3–B6)

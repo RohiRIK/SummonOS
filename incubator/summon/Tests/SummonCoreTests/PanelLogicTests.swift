@@ -5,7 +5,7 @@ import CoreGraphics
 import Testing
 @testable import SummonCore
 
-@Suite("Menu bar panel: dismissal, focus, hotkey repeat, geometry (spec v1.1 A–F)")
+@Suite("Menu bar panel: dismissal, focus, hotkey repeat, geometry (spec v1.5 A–F)")
 struct PanelLogicTests {
     let textEdit: Int32 = 501
     let summon: Int32 = 900

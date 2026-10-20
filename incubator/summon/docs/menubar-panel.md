@@ -19,7 +19,9 @@ Behavior follows the interaction spec v1.5 (IDs A1–G3, 47 checklist lines). Th
   - `canBecomeKey = true`, `canBecomeMain = false`, `hidesOnDeactivate = false`.
   - Collection behavior: `[.canJoinAllSpaces, .fullScreenAuxiliary, .transient, .ignoresCycle]`.
 - **Level** is `PanelConfig.level` (`.statusBar`) for every Summon panel, the crash alert included.
-- **Content** is one SwiftUI view (`PanelView`) in an `NSHostingController` with `sizingOptions = [.preferredContentSize]`.
+- **Content** is one SwiftUI view (`PanelView`) in an `NSHostingController` with `sizingOptions = []`. The view
+  reports its displayed height, and `PanelController` sets the window frame itself in a single `setFrame` with the
+  top edge pinned. The hosting controller's own resize would keep the bottom-left origin and move the top for a frame.
   From top to bottom:
   - header with the agent line;
   - search field and menu tree (the former launcher);
@@ -91,7 +93,10 @@ level. To watch them: `log stream --predicate 'subsystem == "local.macplugins.su
     status item's mouse-down.
   - The log line `B1 panel ordered front N ms after mouse-down (within|OVER the 200 ms budget)` measures from that
     mouse-down (`PanelTiming`, budget 200 ms warm).
-- **D rules:** every close logs `panel closed (<reason>); active monitors: N`. Expect 0. D12 logs the reason `crashAlert`.
+- **D rules:** every close logs `panel closed (<reason>); active monitors: before N, after 0`. `before` is what that
+  open installed (6 normally) and `after` must be 0. D12 logs the reason `crashAlert`.
+- **A1/A2/G1 focus:** the search field is focused one run-loop turn after `makeKeyAndOrderFront`
+  (`PanelState.focusRequest`), because focus set before the window is key is dropped.
 
 ## Deployment floor
 
@@ -109,6 +114,7 @@ level. To watch them: `log stream --predicate 'subsystem == "local.macplugins.su
 
 ## Test fixture (E4, debug builds only)
 
-- **On:** `defaults write local.macplugins.summon PanelFixture tall`, then relaunch a **debug** build. The panel gets 80
+- **On:** build and install a debug app (`scripts/bundle.sh --debug && scripts/install.sh`), then
+  `defaults write local.macplugins.summon PanelFixture tall` and relaunch. The panel gets 80
   placeholder rows, so the height cap and inner scroll are visible. Release builds ignore the key (`#if DEBUG`).
 - **Off:** `defaults delete local.macplugins.summon PanelFixture`.

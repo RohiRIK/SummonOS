@@ -17,7 +17,7 @@ version numbers yet; entries are grouped by day and point at the pull request.
   Every close logs the active monitor count, and the B1 open is an `os_signpost` interval plus a log line measured
   from mouse-down (≤ 200 ms warm). Both use the `local.macplugins.summon` / `panel` Logger.
 - The crash alert also uses `.statusBar`. Settings marks shortcuts another app owns.
-- `PanelFixture=tall` is a debug-only fixture. See `docs/menubar-panel.md`. `WindowTopPinner` and `LauncherView` are gone.
+- `PanelFixture=tall` is a debug-only fixture; build one with `scripts/bundle.sh --debug`. See `docs/menubar-panel.md`. `WindowTopPinner` and `LauncherView` are gone.
 
 ### Security and recovery
 - Validate theme text and wallpaper containment; preserve foreign skill links and record owned links.
