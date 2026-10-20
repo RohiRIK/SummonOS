@@ -22,6 +22,8 @@ struct JournalTests {
                 backend: .defaults(domain: domain, key: "SummonOSTestInherited", type: .int)),
         Setting(id: "t.s", summary: "sensitive path", type: .string,
                 backend: .defaults(domain: domain, key: "S", type: .string), sensitive: true),
+        Setting(id: "t.d", summary: "bool over a dict", type: .bool,
+                backend: .defaults(domain: domain, key: "D", type: .bool)),
     ]
 
     struct Rig {
@@ -104,6 +106,48 @@ struct JournalTests {
         _ = try await r.engine.undo(snapshotID: nil)
         #expect(r.value("A") == Self.typed(.int, .int(1)))
         #expect(r.value("B") == Self.typed(.float, .double(64)))
+    }
+
+    /// Priors of the four container/opaque plist types (ADR D3.7: data, date, array, dict), one under
+    /// each setting, with nested values so a lossy encoding would show.
+    static let richPriors: [String: TypedValue] = [
+        "A": typed(.data, .data(Data([0x00, 0xff, 0x0a, 0x7f, 0x80]))),
+        "B": typed(.date, .date(Date(timeIntervalSince1970: 1_792_400_000.25))),
+        "C": typed(.array, .array([.int(1), .double(2.5), .string("x"), .bool(true), .data(Data([1, 2])),
+                                   .date(Date(timeIntervalSince1970: 0)), .array([.int(-3)])])),
+        "D": typed(.dict, .dictionary(["n": .int(7), "f": .double(0.5), "s": .string("é"), "b": .bool(false),
+                                       "nested": .dictionary(["a": .array([.string("y")])])])),
+    ]
+    static let richApply: [String: Value] = ["t.a": .bool(true), "t.b": .int(40), "t.c": .string("new"), "t.d": .bool(true)]
+
+    @Test func dataDateArrayDictPriorsRoundTripThroughUndo() async throws {
+        let r = Self.rig()
+        for (key, value) in Self.richPriors { r.prefs.seed(key, value, appID: Self.domain) }
+        let id = try await r.apply(Self.richApply)
+        #expect(r.value("A") == Self.typed(.bool, .bool(true)))
+        #expect(r.value("D") == Self.typed(.bool, .bool(true)))
+        _ = try await r.engine.undo(snapshotID: id)
+        for (key, value) in Self.richPriors { #expect(r.value(key) == value, "key \(key)") }
+        // The journal's prior encoding (base64 binary plist) is lossless for each type.
+        for value in Self.richPriors.values {
+            #expect(try JSONDecoder().decode(TypedValue.self, from: JSONEncoder().encode(value)) == value)
+        }
+    }
+
+    @Test func dataDateArrayDictPriorsRoundTripThroughRecover() async throws {
+        let r = Self.rig()
+        for (key, value) in Self.richPriors { r.prefs.seed(key, value, appID: Self.domain) }
+        let id = try await r.apply(Self.richApply)
+        // Killed before session_end: every value written, the session left open.
+        let data = try #require(r.journal.raw(id))
+        let lines = data.split(separator: 0x0a)
+        #expect(try JournalCodec.parse(data, id: id).records.last?.op == .sessionEnd)
+        r.journal.setRaw(id, Data(lines.dropLast().joined(separator: [0x0a])) + Data([0x0a]))
+        await expectMacCtlError("recovery_pending") { try await r.apply(["t.c": .string("again")]) }
+        let result = try await r.engine.recover()
+        #expect(result.changes == 4)
+        for (key, value) in Self.richPriors { #expect(r.value(key) == value, "key \(key)") }
+        #expect(try await r.engine.recover().changes == 0)
     }
 
     // MARK: D3.2 / D3.8 crash states, built as the journal a SIGKILL leaves
