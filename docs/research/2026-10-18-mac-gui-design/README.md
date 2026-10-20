@@ -1,3 +1,11 @@
+---
+type: Research
+title: "macOS GUI design research: overview"
+description: "Why the four GUI research reports exist, what each covers, and what fed into the MacUX skill."
+tags: [research, design, macux]
+created: 2026-10-18
+---
+
 # macOS GUI design research (2026-10-18)
 
 Four parallel research passes, run after the first Summon Activity window was judged "looks like shit"

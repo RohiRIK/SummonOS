@@ -1,3 +1,12 @@
+---
+type: Report
+title: macctl and Summon on a real Mac
+description: Results of the first run of macctl and Summon on macOS 26.6.2.
+tags: [macctl, summon, testing]
+status: done
+created: 2026-10-18
+---
+
 # macctl and Summon on a real Mac: results (2026-10-18)
 
 Plan: `plans/2026-10-18-readme-plugin-home-mac-test.md`, section 3. Mac: macOS 26.6.2 (25G83), Swift 6.4,

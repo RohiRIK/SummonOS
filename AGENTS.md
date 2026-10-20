@@ -12,12 +12,16 @@ idea only when it fits, and credit it in `THIRD_PARTY_NOTICES.md` when code or a
 ```
 .                            the SummonOS workspace: public repo `RohiRIK/SummonOS` (skills, tools, docs, plans)
 ├── AGENTS.md                this file; CLAUDE.md points here
+├── README.md, CONTRIBUTING.md, SECURITY.md, LICENSE   the public face; keep them current
+├── install.sh               one-line installer (Summon + macctl); docs/install-ai.md is the agent version
 ├── plugins.json             plugin registry (source of truth): repos, status, kind, bundle id, path
 ├── plugins.md               index of every plugin, generated from plugins.json by `tools/mp index`
-├── docs/features.md         every feature of every project, in one place
-├── docs/research/           research notes behind the skills
-├── docs/plans/              finished and long plans, one file each: YYYY-MM-DD-<name>.md (index: README.md)
-├── tools/                   workspace scripts: mp, check-workspace.sh, publish-public.sh, release.sh, previews
+├── docs/                    an OKF bundle (Open Knowledge Format v0.2): frontmatter on every page, generated index.md
+│   ├── features.md          every feature of every project, in one place
+│   ├── log.md               docs update log, newest first
+│   ├── research/            research notes behind the skills
+│   └── plans/               finished and long plans, one file each: YYYY-MM-DD-<name>.md
+├── tools/                   workspace scripts: mp, check-workspace.sh, okf-index.py, readme-art.py, publish, release
 ├── examples/                menubar-starter/ (CI-built skeleton that `tools/mp new` copies)
 ├── .claude/skills/          shared skills, used by every plugin (see below)
 ├── plugins/<name>/          one folder per plugin, each its own git repo (gitignored here)
@@ -65,12 +69,14 @@ installed unmodified with their LICENSE files. Do not edit them; put our rules i
 4. **Build end to end:** no stubs, TODOs, or mock data standing in for required behavior; every new
    screen, action, and setting is reachable. Test-first for Core logic. Branch, never `main`.
 5. **Verify:** `MacAppBuild/Verify.md`: gate, previews, run the app, logs, manual checklist.
-6. **PR:** `gh pr create`, then `scripts/pr-report.sh` (report + previews as a comment). No GitHub Actions in plugin
-   repos. In this workspace repo the gate is **local CI**: `tools/local-ci.sh <pr>` builds and tests every Swift
-   package on this Mac and posts a `local / swift (macOS)` commit status; merge only when it is green. The owner does
-   not pay for GitHub Actions, so `.github/workflows/swift.yml` fails to start (billing) and is not the gate.
+6. **PR:** `gh pr create`, then `scripts/pr-report.sh` (report + previews as a comment). No GitHub Actions in private
+   plugin repos (the owner does not pay for Actions). This workspace repo is public, so Actions are free here: the
+   gate is the `Swift (macOS)` check from `.github/workflows/swift.yml` plus `tools/check-workspace.sh`; merge only
+   when they are green. `tools/local-ci.sh <pr>` runs the same build on a Mac and posts `local / swift (macOS)`.
 7. **Update memory:** the plugin's `PROJECT-CONTEXT.md`; `plugins.json` + `tools/mp index` if status changed;
-   `docs/features.md` when a user-visible feature is added or removed.
+   `docs/features.md` when a user-visible feature is added or removed; a line in `docs/log.md` for a notable docs
+   change. New or edited docs pages carry OKF frontmatter (`type`, `title`, `description`, `tags`; plans also
+   `status`, `created`); run `python3 tools/okf-index.py` to regenerate the indexes, never edit `index.md` by hand.
 
 ## Project memory (per plugin)
 

@@ -1,3 +1,10 @@
+---
+type: Playbook
+title: Install SummonOS (for an AI agent)
+description: "Step-by-step install, check and report instructions a coding agent follows to install SummonOS on a Mac."
+tags: [install, agents]
+---
+
 # Install SummonOS (instructions for an AI agent)
 
 You are a coding agent (Claude Code, Codex, OpenCode, Cursor, or similar) running on the user's Mac, and the
