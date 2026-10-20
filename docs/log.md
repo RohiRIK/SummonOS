@@ -1,6 +1,7 @@
 # Docs update log
 
 ## 2026-10-20
+* **Update**: SummonOS made public under the owner’s approval; live GitHub CI verified after correcting non-relocatable Swift build caching.
 * **Creation**: [Design skills and public preview](plans/2026-10-20-skills-public-preview.md): controlled skill tests, rendered samples, privacy review, and publication verification.
 * **Update**: six design skills retested and repaired; CI now checks routing/references and typechecks Swift examples targeting macOS 15. Provider icon provenance is pinned in Summon’s third-party notices.
 * **Creation**: [Security and recovery model](security-model.md): execution authority, exact checkpoint coverage, private diagnostics, tasks, and release boundaries.

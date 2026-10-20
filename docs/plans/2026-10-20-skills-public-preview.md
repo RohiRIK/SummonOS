@@ -3,7 +3,7 @@ type: Plan
 title: Design skills and public preview
 description: Verification of six design skills, privacy review, and the authorized SummonOS source publication.
 tags: [skills, testing, ci, release]
-status: locally-verified-awaiting-public-ci
+status: verified-public-preview
 created: 2026-10-20
 ---
 
@@ -66,8 +66,8 @@ a pinned MIT CodexBar revision; source and full license are recorded in Summon's
 The public workflow checks workspace/docs/skill structure and isolated tooling regressions on Linux,
 typechecks skill examples on macOS, and builds/tests all seven Swift packages on macOS. Action versions
 are pinned and token permissions are read-only. Local fixture tests do not use real signing credentials
-or publish binaries. Repository visibility, public installer access, PR checks, and final merge results
-are recorded below after live verification.
+or publish binaries. Repository visibility, public installer access, and live CI results are recorded below.
+Promotion to the default branch requires every check on the final PR head to pass.
 
 
 ### Hosted-runner cache correction
@@ -78,4 +78,9 @@ only dependency source repositories/checkouts/artifacts under a new key namespac
 outputs for each checkout/toolchain. The failure was observed on GitHub, not inferred from local tests.
 
 - Repository visibility is PUBLIC; anonymous repository, installer, and agent install-guide requests return HTTP 200.
-- Review: [PR #60](https://github.com/RohiRIK/SummonOS/pull/60). Final live checks are pending.
+- Review: [PR #60](https://github.com/RohiRIK/SummonOS/pull/60).
+- [Corrected live CI run](https://github.com/RohiRIK/SummonOS/actions/runs/39422680890) passed all ten jobs
+  at commit `02a6951`: seven package build/test jobs, design-skill typechecks, workspace/tooling checks, and discovery.
+- Documentation and build-skill lessons are included in the final PR head; CI is rerun for that head before merge.
+- Remaining production qualification is unchanged: disposable-account installation/permissions, real agents,
+  live glass/accessibility, multi-monitor recovery, real signing/notarization, and supported OS/CPU coverage.
