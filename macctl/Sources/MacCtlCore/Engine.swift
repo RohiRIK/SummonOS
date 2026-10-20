@@ -787,6 +787,12 @@ extension Engine {
             } else {
                 let isFailedChange = outcomes[intent.seq] == .failed
                 let matchesNew = try (intent.new ?? .missing).matches(current, key: key)
+                // Open decision (Pat → Max): a failed change whose read-back is a third value (neither
+                // prior nor new) is not ours to overwrite: revert_flagged, before-state not matched.
+                if isFailedChange && !matchesNew && !force {
+                    try flag("before-state not matched: read-back returned a third value")
+                    continue
+                }
                 let handEdited = !isFailedChange && !matchesNew
                 if handEdited && !force {
                     try flag("changed by hand after apply")

@@ -233,6 +233,7 @@ public final class MemoryPreferencesStore: LayeredPreferences, @unchecked Sendab
     private var values: [String: [PreferenceHost: [String: TypedValue]]] = [:]
     private var managed: [String: TypedValue] = [:]
     private var failing: Set<String> = []
+    private var substitutes: [String: TypedValue] = [:]
     public private(set) var writes = 0
     public private(set) var syncs = 0
 
@@ -252,6 +253,11 @@ public final class MemoryPreferencesStore: LayeredPreferences, @unchecked Sendab
         }
     }
 
+    /// The next write to this key lands as `value` instead (a third value on read-back).
+    public func landWrites(_ key: String, as value: TypedValue, appID: String) {
+        lock.withLock { substitutes["\(appID)/\(key)"] = value }
+    }
+
     public func isForced(_ key: String, appID: String) throws -> Bool {
         lock.withLock { managed["\(appID)/\(key)"] != nil }
     }
@@ -269,7 +275,7 @@ public final class MemoryPreferencesStore: LayeredPreferences, @unchecked Sendab
             if failing.contains("\(appID)/\(key)") {
                 throw MacCtlError.commandFailed(command: "CFPreferencesSetValue \(appID) \(key)", exitCode: 1, stderr: "injected failure")
             }
-            values[appID, default: [:]][host, default: [:]][key] = value
+            values[appID, default: [:]][host, default: [:]][key] = substitutes.removeValue(forKey: "\(appID)/\(key)") ?? value
             writes += 1
         }
     }

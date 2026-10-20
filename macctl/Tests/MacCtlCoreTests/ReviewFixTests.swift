@@ -90,4 +90,22 @@ struct ReviewFixTests {
         #expect(result.sessions.first?.reverted == ["t.b"])
         #expect(r.value("B") == JournalTests.typed(.int, .int(50)))
     }
+
+    /// Open decision: a read-back that returns a third value is revert_flagged by the rollback,
+    /// never overwritten; the other changes roll back to prior.
+    @Test func thirdValueOnReadBackIsFlaggedNotOverwritten() async throws {
+        let r = JournalTests.rig()
+        r.prefs.seed("B", JournalTests.typed(.int, .int(50)), appID: JournalTests.domain)
+        r.prefs.landWrites("C", as: JournalTests.typed(.string, .string("third")), appID: JournalTests.domain)
+        await expectMacCtlError("mutation_failed") {
+            _ = try await r.engine.apply(Profile(name: "t", settings: ["t.b": .int(40), "t.c": .string("new")]),
+                                         dryRun: false, confirmed: true)
+        }
+        #expect(r.value("B") == JournalTests.typed(.int, .int(50)))
+        #expect(r.value("C") == JournalTests.typed(.string, .string("third")))
+        let id = try #require(r.journal.ids().first)
+        let ops = try r.lines(id).map(\.op)
+        #expect(ops.contains(.revertFlagged))
+        #expect(try r.lines(id).last?.outcome == "rolled_back")
+    }
 }
