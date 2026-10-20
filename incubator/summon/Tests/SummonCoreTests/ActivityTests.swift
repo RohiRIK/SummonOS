@@ -83,6 +83,75 @@ struct ActivityTests {
         #expect(byID["20261020-120000"] == "pending")
     }
 
+    /// R-b through the path the panel refreshes every second (ActivityModel.refresh →
+    /// ActivitySources.load → StatusProbe): every header says `pending`, the journal decides.
+    /// Only the session whose journal ends mid-way (last line `applied`) warns.
+    @Test func activityStatusComesFromTheJournalNotTheHeader() throws {
+        let home = try makeTempHome()
+        let paths = SummonPaths(home: home)
+        let journal = paths.macctlSnapshots.deletingLastPathComponent().appendingPathComponent("journal")
+        let journals: [String: String] = [
+            "20261020-090000": """
+            {"v":1,"seq":1,"op":"session_start"}
+            {"v":1,"seq":2,"op":"intent"}
+            {"v":1,"seq":3,"op":"applied","ref":2}
+
+            """,
+            "20261020-091000": """
+            {"v":1,"seq":1,"op":"session_start"}
+            {"v":1,"seq":2,"op":"intent"}
+            {"v":1,"seq":3,"op":"applied","ref":2}
+            {"v":1,"seq":4,"op":"session_end","outcome":"completed"}
+
+            """,
+            "20261020-092000": """
+            {"v":1,"seq":1,"op":"session_start"}
+            {"v":1,"seq":2,"op":"intent"}
+            {"v":1,"seq":3,"op":"applied","ref":2}
+            {"v":1,"seq":4,"op":"session_end","outcome":"completed"}
+            {"v":1,"seq":5,"op":"revert_intent","ref":2}
+            {"v":1,"seq":6,"op":"reverted","ref":2}
+            {"v":1,"seq":7,"op":"session_end","outcome":"undone"}
+
+            """,
+            "20261020-093000": """
+            {"v":1,"seq":1,"op":"session_start"}
+            {"v":1,"seq":2,"op":"intent"}
+            {"v":1,"seq":3,"op":"failed","ref":2}
+            {"v":1,"seq":4,"op":"session_end","outcome":"rolled_back"}
+
+            """,
+            "20261020-094000": """
+            {"v":1,"seq":1,"op":"session_start"}
+            {"v":1,"seq":2,"op":"intent"}
+            {"v":1,"seq":3,"op":"reverted","ref":2}
+            {"v":1,"seq":4,"op":"session_end","outcome":"recovered"}
+
+            """,
+        ]
+        for (id, text) in journals {
+            try writeFile("""
+            {"changes":[{"id":"dock.autohide","to":true}],"createdAt":"2026-10-20T07:00:00Z","id":"\(id)","status":"pending"}
+            """, to: paths.macctlSnapshots.appendingPathComponent("\(id).json"))
+            try writeFile(text, to: journal.appendingPathComponent("\(id).jsonl"))
+        }
+        let snapshots = ActivitySources.load(paths: paths, crashLimit: 0).snapshots
+        let byID = Dictionary(uniqueKeysWithValues: snapshots.map { ($0.id, $0.status) })
+        #expect(byID["20261020-090000"] == "pending")      // applied, no session_end: unfinished
+        #expect(byID["20261020-091000"] == "completed")
+        #expect(byID["20261020-092000"] == "undone")       // reverted by undo
+        #expect(byID["20261020-093000"] == "rolled_back")
+        #expect(byID["20261020-094000"] == "recovered")
+
+        let status = StatusProbe.build(
+            agent: nil, agentInstalled: false, log: [], macctlInstalled: true, macctlProblems: [],
+            snapshots: snapshots, checkpoints: [], configIsRepo: true, crashes: []
+        )
+        let macctlWarnings = status.warnings.filter { $0.hasPrefix("macctl ") }
+        #expect(macctlWarnings.count == 1)
+        #expect(macctlWarnings.first?.contains("20261020-090000") == true)
+    }
+
     @Test func feedMergesSourcesNewestFirstByDate() throws {
         let change = MacctlSnapshot(id: "20261018-100000", createdAt: t0.addingTimeInterval(60),
                                     changes: [SettingChange(id: "dock.autohide", from: "false", to: "true")])
