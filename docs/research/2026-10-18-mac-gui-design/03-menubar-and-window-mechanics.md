@@ -1,3 +1,11 @@
+---
+type: Research
+title: Menu bar and window mechanics
+description: Swift 6 and SwiftUI mechanics for polished menu bar apps and companion windows on macOS 15 and 26.
+tags: [research, swiftui, menubar]
+created: 2026-10-18
+---
+
 # 03 — Mechanics: polished menu bar apps and companion windows (Swift 6 / SwiftUI, macOS 15 and 26)
 
 Research date: 2026-10-18. Target: minimum macOS 15, Liquid Glass behind `if #available(macOS 26, *)`.

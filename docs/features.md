@@ -1,3 +1,10 @@
+---
+type: Reference
+title: Features
+description: "Every user-visible feature of Summon, macctl, the SummonOS apps and the workspace tools, in one list."
+tags: [features, summon, macctl]
+---
+
 # Features
 
 Everything each SummonOS project can do today, in one place. "Planned" marks what is designed
@@ -6,7 +13,7 @@ but not built. Keep this page current: a PR that adds or removes a user-visible 
 
 - [Summon](#summon): one coding agent you summon from anywhere on the Mac
 - [macctl](#macctl): read, set, diff, apply and undo macOS settings
-- [mac-network](#mac-network) and [mac-calendar](#mac-calendar): shipped menu bar apps
+- [mac-network](#mac-network), [mac-calendar](#mac-calendar), [mac-breathe](#mac-breathe) and [end-of-day](#end-of-day): apps built with SummonOS
 - [The workspace](#the-workspace): tools, skills and templates for building more apps
 
 ## Summon
@@ -217,12 +224,32 @@ Menu bar calendar ([public repo](https://github.com/RohiRIK/mac-calendar)).
 - Hebrew dates and holidays.
 - Hotkey ⌥⌘P. Settings: calendars, reminders, Hebrew, shortcut, Open at Login.
 
+## mac-breathe
+
+Breathing guide in the menu bar and a full window ([public repo](https://github.com/RohiRIK/mac-breathe),
+downloads on its Releases page).
+
+- A breathing orb that grows on the in-breath and shrinks on the out-breath; menu bar panel or full-screen focus window.
+- 18 techniques grouped by goal (calm, sleep, focus, balance, energy) plus a custom rhythm; a timer per technique.
+- Sounds per breath, a start and end bell, optional background; trackpad taps and spoken cues.
+- Streak, reminders with quiet hours; `Space` starts and stops, ⌥⌘B from any app.
+
+## end-of-day
+
+Closes your work apps when the workday ends ([repo](https://github.com/RohiRIK/end-of-day)); a Summon project made
+with `summon project new`.
+
+- Daily schedule with workday presets and wake catch-up; a 30-second countdown with Close Now, Snooze and Cancel.
+- A catalog of 35+ work apps with a shutdown priority each; soft (countdown) or hard (force quit) mode.
+- Streak, 7-day chart and run history; follows the current Summon theme live.
+
 ## The workspace
 
 What this repo gives you for building more apps ([`README.md`](../README.md), [`docs/tools.md`](tools.md)).
 
 | Tool | Does |
 |---|---|
+| `tools/okf-index.py` | Checks `docs/` is an Open Knowledge Format bundle and writes its `index.md` files |
 | `install.sh` | One-line SummonOS install (Summon + macctl) from source; [`docs/install-ai.md`](install-ai.md) is the same for agents |
 | `tools/mp` | Plugin registry: `new`, `promote`, `clone`, `list`, `status`, `index`, `adopt` |
 | `tools/publish-public.sh` | Clean snapshot of a dev repo to its public repo; refuses on private values |

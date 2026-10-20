@@ -1,3 +1,12 @@
+---
+type: Plan
+title: "mac-calendar: menu bar calendar"
+description: "First plan for mac-calendar, a menu bar month view."
+tags: [mac-calendar]
+status: done
+created: 2026-09-29
+---
+
 # Plan: `mac-calendar` — menu bar calendar (new plugin)
 
 Status: PR https://github.com/RohiRIK/mac-calendar-dev/pull/1 (2026-09-29). Previews + manual checks pending. Branch `feat/calendar-panel` in `plugins/mac-calendar`.

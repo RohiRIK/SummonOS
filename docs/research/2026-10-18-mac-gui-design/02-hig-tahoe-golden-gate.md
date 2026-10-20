@@ -1,3 +1,11 @@
+---
+type: Research
+title: "macOS design language: Tahoe, Liquid Glass, Golden Gate"
+description: "Apple's 2025-2026 macOS design language and what changed for menu bar apps and windows."
+tags: [research, design, hig]
+created: 2026-10-18
+---
+
 # Apple's macOS design language, 2025–2026: Tahoe (26), Liquid Glass, and macOS 27 "Golden Gate"
 
 Research date: 2026-10-18. Sources: the HIG pages' Markdown (`developer.apple.com/design/human-interface-guidelines/<page>.md`), WWDC25 and WWDC26 session transcripts, Apple developer documentation JSON (for API availability), and press coverage of WWDC26.

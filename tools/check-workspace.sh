@@ -3,6 +3,7 @@
 #   1. No Package.swift outside the allowed roots (plugins live in their own repos).
 #   2. No tracked file over 2 MB, except the explicit allowlist below.
 #   3. plugins.md is current with plugins.json (tools/mp index --check), when jq is installed.
+#   4. docs/ is a conformant OKF bundle with current index.md files (tools/okf-index.py --check).
 # Exit 0 when clean, 1 when any check fails.
 set -euo pipefail
 
@@ -64,6 +65,13 @@ if command -v jq >/dev/null 2>&1; then
   MACPLUGINS_HOME="$root" "$root/tools/mp" index --check || fail=1
 else
   echo "note: jq is not installed; skipped the plugins.md check"
+fi
+
+# 4. Docs bundle.
+if command -v python3 >/dev/null 2>&1; then
+  python3 "$root/tools/okf-index.py" --check || fail=1
+else
+  echo "note: python3 is not installed; skipped the docs bundle check"
 fi
 
 if [ "$fail" -ne 0 ]; then

@@ -33,6 +33,19 @@
       "statusNote": "public snapshot 2026-09-30"
     },
     {
+      "name": "mac-breathe",
+      "kind": "menubar",
+      "status": "shipped",
+      "devRepo": "RohiRIK/mac-breathe-dev",
+      "publicRepo": "RohiRIK/mac-breathe",
+      "bundleId": "local.macplugins.mac-breathe",
+      "portedFrom": null,
+      "version": null,
+      "example": false,
+      "path": "plugins/mac-breathe",
+      "statusNote": "public, downloads on GitHub Releases"
+    },
+    {
       "name": "macctl",
       "kind": "cli",
       "status": "incubating",

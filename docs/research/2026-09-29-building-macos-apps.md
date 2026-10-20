@@ -1,3 +1,11 @@
+---
+type: Research
+title: Building native macOS apps with agents
+description: "What makes agent-built Mac apps good, and how it became the workspace skills."
+tags: [research, skills]
+created: 2026-09-29
+---
+
 # Research: building native macOS apps with agents (2026-09-29)
 
 Goal: find what makes agent-built Mac apps good (UI, design, functionality, backend calls, verification)
