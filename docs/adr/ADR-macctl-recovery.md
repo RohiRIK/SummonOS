@@ -1,3 +1,10 @@
+---
+type: Reference
+title: "ADR: macctl recovery"
+description: Prior state, per-change journal, hand-edit policy and failpoints for macctl undo and recover.
+tags: [macctl, recovery, adr]
+---
+
 # ADR: macctl recovery — prior state, per-change journal, hand-edit policy
 
 > Copied into the repo for PR-1 from the shared design document (2026-10-20 21:39 IDT revision); private box paths are redacted. Repo paths are relative to `macctl/` unless noted.
