@@ -84,3 +84,12 @@ outputs for each checkout/toolchain. The failure was observed on GitHub, not inf
 - Documentation and build-skill lessons are included in the final PR head; CI is rerun for that head before merge.
 - Remaining production qualification is unchanged: disposable-account installation/permissions, real agents,
   live glass/accessibility, multi-monitor recovery, real signing/notarization, and supported OS/CPU coverage.
+
+
+### Concurrent README integration
+
+All ten checks on documentation head `72a9771` passed in
+[run 39423213770](https://github.com/RohiRIK/SummonOS/actions/runs/39423213770).
+Meanwhile, main advanced to `d27ee14`, removing a duplicate Why section. The integration preserves
+that shorter section verbatim, keeps the security/skill updates elsewhere, and reruns CI on the
+combined tree. No application or skill example code changed during this conflict resolution.
