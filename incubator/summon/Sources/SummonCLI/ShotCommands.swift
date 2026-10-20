@@ -36,8 +36,12 @@ enum ShotCommands {
                 images.append("docs/screenshots/\(file.lastPathComponent)")
             }
         case .cli:
-            _ = try Shell.runSync("/usr/bin/swift", ["build", "-c", "release", "--package-path", folder.path])
-            let bin = try Shell.runSync("/usr/bin/swift", ["build", "-c", "release", "--package-path", folder.path, "--show-bin-path"])
+            var buildOptions = ProcessOptions()
+            buildOptions.timeout = 1800
+            let cache = context.paths.home.appendingPathComponent("Library/Caches/macplugins/\(project.name)/build").path
+            let build = ["build", "-c", "release", "--package-path", folder.path, "--scratch-path", cache]
+            _ = try Shell.runSync("/usr/bin/swift", build, options: buildOptions)
+            let bin = try Shell.runSync("/usr/bin/swift", build + ["--show-bin-path"], options: buildOptions)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             let candidates = [project.name, ProjectName.pascal(project.name)].map { (bin as NSString).appendingPathComponent($0) }
             guard let tool = candidates.first(where: FileManager.default.isExecutableFile) else { throw CLIError("No built tool in \(bin)") }
@@ -59,26 +63,20 @@ enum ShotCommands {
 
     /// Runs a program, stopping it after `seconds`; true when it exited 0 in time.
     static func run(_ path: String, _ arguments: [String], within seconds: TimeInterval) -> Bool {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: path)
-        process.arguments = arguments
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        do { try process.run() } catch { return false }
-        let deadline = Date().addingTimeInterval(seconds)
-        while process.isRunning, Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
-        guard !process.isRunning else {
-            process.terminate()
-            return false
-        }
-        return process.terminationStatus == 0
+        var options = ProcessOptions()
+        options.timeout = seconds
+        options.terminateDescendantsOnExit = true
+        return (try? ProcessExecutor.runSync(path, arguments, options: options).status) == 0
     }
 
     /// The template's `scripts/bundle.sh` prints the .app path last.
     static func bundle(_ folder: URL, _ context: Context) throws -> String {
         let script = folder.appendingPathComponent("scripts/bundle.sh").path
         guard FileManager.default.isExecutableFile(atPath: script) else { throw CLIError("No scripts/bundle.sh in \(folder.path)") }
-        let output = try Shell.runSync("/bin/bash", ["-c", "cd \"$1\" && scripts/bundle.sh", "bundle", folder.path])
+        var options = ProcessOptions()
+        options.timeout = 1800
+        options.directory = folder
+        let output = try Shell.runSync("/bin/bash", [script], options: options)
         guard let last = output.split(separator: "\n").last.map(String.init) else { throw CLIError("bundle.sh printed nothing") }
         return last.hasPrefix("/") ? last : folder.appendingPathComponent(last).path
     }

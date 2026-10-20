@@ -16,6 +16,19 @@ public struct SystemBackend: SettingBackend {
 
     // MARK: SettingBackend
 
+    public func wallpapers(for setting: Setting) async throws -> [DisplayWallpaper]? {
+        guard case .wallpaper = setting.backend else { return nil }
+        return try await wallpaper.wallpapers()
+    }
+
+    public func restoreWallpapers(_ wallpapers: [DisplayWallpaper], for setting: Setting) async throws {
+        guard case .wallpaper = setting.backend else {
+            throw MacCtlError.unsupported(id: setting.id, reason: "not a wallpaper setting")
+        }
+        for saved in wallpapers { try validate(.string(saved.path), for: setting) }
+        try await wallpaper.restoreWallpapers(wallpapers)
+    }
+
     public func read(_ setting: Setting) async throws -> Value? {
         switch setting.backend {
         case .defaults(let domain, let key, let type):

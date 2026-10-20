@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 /// One line of Summon's own activity log. macctl changes, checkpoints and crashes already have their own
@@ -72,15 +73,14 @@ public struct EventLog: Sendable {
 
     public func append(_ event: LoggedEvent) throws {
         let line = try Self.encoder().encode(event) + Data("\n".utf8)
-        let manager = FileManager.default
-        if !manager.fileExists(atPath: file.path) {
-            try manager.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try line.write(to: file, options: .atomic)
-            return
-        }
-        let handle = try FileHandle(forWritingTo: file)
+        guard line.count <= 65_536 else { throw StateFileError.invalid(file, "event exceeds 64 KiB") }
+        let lease = try FileLease.acquireSync(file.appendingPathExtension("lock"))
+        defer { lease.hold() }
+        let fd = open(file.path, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC | O_NOFOLLOW, 0o600)
+        guard fd >= 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+        let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
         defer { try? handle.close() }
-        try handle.seekToEnd()
+        guard fchmod(fd, 0o600) == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
         try handle.write(contentsOf: line)
         try trimIfNeeded()
     }
@@ -99,7 +99,16 @@ public struct EventLog: Sendable {
         let size = (try? FileManager.default.attributesOfItem(atPath: file.path)[.size] as? Int) ?? 0
         guard size > maxBytes, let text = TextFile.read(file) else { return }
         let lines = text.split(separator: "\n", omittingEmptySubsequences: true)
-        try TextFile.write(lines.suffix(keep).joined(separator: "\n") + "\n", to: file)
+        var retained: [Substring] = []
+        var bytes = 0
+        for line in lines.suffix(max(0, keep)).reversed() {
+            let count = line.utf8.count + 1
+            guard bytes + count <= maxBytes else { break }
+            retained.append(line)
+            bytes += count
+        }
+        let result = retained.reversed().joined(separator: "\n")
+        try TextFile.write(result.isEmpty ? "" : result + "\n", to: file)
     }
 }
 

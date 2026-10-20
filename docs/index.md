@@ -16,6 +16,7 @@ Everything written down about SummonOS: features, how to install and build, tool
 # Reference
 
 * [Features](features.md) - Every user-visible feature of Summon, macctl, the SummonOS apps and the workspace tools, in one list.
+* [Security and recovery model](security-model.md) - Agent authority, checkpoint scope, task isolation, local diagnostics, and release trust boundaries.
 * [Workspace tools](tools.md) - What each script in tools/ does and how to run it: installer, mp, local CI, checks, publishing, previews, README art.
 
 # Guides

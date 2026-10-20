@@ -13,11 +13,12 @@
 
 SummonOS is an experiment in what a Mac feels like when an agent is part of the system, not a guest in a
 browser tab. You summon one coding agent from anywhere. The Mac hands it crashes and hangs. It takes a
-checkpoint before it touches anything, so one step undoes whatever it did. It changes system settings
+checkpoint before each session, with recovery for supported settings and successfully captured config files. It changes system settings
 through a CLI that snapshots every change, and when you need a small tool, it builds a real native app in
 Swift that launches instantly and works offline.
 
 It is an idea in progress, not a finished product. Parts of it work today; plenty does not.
+Read the [security and recovery model](docs/security-model.md) before enabling unattended agents.
 
 ## Install
 
@@ -47,7 +48,7 @@ summon agent prompt "summon, give my Mac a calm dark theme"
 |---|---|---|
 | <img src="incubator/summon/design/brand/app-icon-128.png" width="56" alt=""> | **[Summon](incubator/summon/README.md)** | One coding agent you summon from anywhere (⌃⌥⌘A, or the Summon menu on ⌃⌥Space). Crashes and hangs are handed to it, every session starts with a checkpoint you can undo, recurring tasks run while you are away, and it builds apps, themes, wallpapers and icons from templates. |
 | <img src="docs/assets/icon-macctl.svg" width="56" alt=""> | **[macctl](macctl/README.md)** | The CLI agents use to read, set, diff, apply and undo macOS settings (Dock, Finder, keyboard, appearance, wallpaper), with a snapshot before every change. |
-| <img src="docs/assets/icon-skills.svg" width="56" alt=""> | **[Agent skills](.claude/skills)** | How agents here plan, design, build and verify native Mac apps: `MacAppArchitecture`, `MacUX`, `MacAppBuild`, `PortLinuxWidget` ([which one when](AGENTS.md#skills-which-one-when)). |
+| <img src="docs/assets/icon-skills.svg" width="56" alt=""> | **[Agent skills](.claude/skills)** | How agents here plan, design, build and verify native Mac apps: `MacAppArchitecture`, `MacUX`, `LiquidGlass`, five historical design styles, `MacAppBuild`, `PortLinuxWidget` ([which one when](AGENTS.md#skills-which-one-when)). |
 
 Every feature, command by command: [`docs/features.md`](docs/features.md).
 

@@ -22,6 +22,8 @@ struct ErrorEnvelope: Encodable {
     struct Body: Encodable {
         let code: String
         let message: String
+        var recoverySnapshot: String? = nil
+        var appliedSettings: [String]? = nil
     }
 
     let ok: Bool
@@ -54,7 +56,13 @@ enum Output {
                 if !rendered.isEmpty { print(rendered) }
             }
         } catch let error as MacCtlError {
-            report(command: command, code: error.code, message: error.description, json: json)
+            if case .mutationFailed(let id, let applied, _) = error, json {
+                try printJSON(ErrorEnvelope(ok: false, command: command,
+                                            error: .init(code: error.code, message: error.description,
+                                                         recoverySnapshot: id, appliedSettings: applied)))
+            } else {
+                report(command: command, code: error.code, message: error.description, json: json)
+            }
             throw ExitCode(error.exitCode)
         } catch let exit as ExitCode {
             throw exit

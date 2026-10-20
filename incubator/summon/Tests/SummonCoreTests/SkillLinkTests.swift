@@ -37,7 +37,7 @@ struct SkillLinkTests {
         let linker = SkillLinker(home: home)
         let stale = home.appendingPathComponent(".claude/skills/summon")
         try fm.createDirectory(at: stale.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try fm.createSymbolicLink(atPath: stale.path, withDestinationPath: "/old/Summon.app/skills/summon")
+        try fm.createSymbolicLink(atPath: stale.path, withDestinationPath: "/Applications/Summon.app/Contents/share/summon/skills/summon")
         _ = try linker.link(from: source, settings: AgentSettings())
         let again = try linker.link(from: source, settings: AgentSettings())
         #expect(again.linked.count == 2 * SkillLinker.agentFolders.count)
@@ -83,5 +83,56 @@ struct SkillLinkTests {
         let (_, source) = try makeSource()
         let lines = SkillLinker.skillFiles(in: source)
         #expect(lines == [source.appendingPathComponent("mac-app/SKILL.md").path, source.appendingPathComponent("summon/SKILL.md").path])
+    }
+
+    @Test func foreignSymlinksSurviveLinkingAndDeselection() throws {
+        for target in ["../../personal/summon", "../../share/summon/skills/summon", "/missing/personal/summon", "/foreign/plugin/skills/summon", "/foreign/share/summon/skills/summon"] {
+            let (home, source) = try makeSource()
+            try fm.createDirectory(at: home.appendingPathComponent("personal/summon"), withIntermediateDirectories: true)
+            let own = home.appendingPathComponent(".codex/skills/summon")
+            try fm.createDirectory(at: own.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try fm.createSymbolicLink(atPath: own.path, withDestinationPath: target)
+            let retired = home.appendingPathComponent(".agents/skills/summon")
+            try fm.createDirectory(at: retired.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try fm.createSymbolicLink(atPath: retired.path, withDestinationPath: target)
+            let linker = SkillLinker(home: home)
+            let result = try linker.link(from: source, settings: AgentSettings())
+            #expect(result.kept.contains(own.path))
+            #expect(try fm.destinationOfSymbolicLink(atPath: own.path) == target)
+            #expect(try fm.destinationOfSymbolicLink(atPath: retired.path) == target)
+            var settings = AgentSettings()
+            settings.setSkills([], for: "codex")
+            _ = try linker.link(from: source, settings: settings)
+            #expect(try fm.destinationOfSymbolicLink(atPath: own.path) == target)
+        }
+    }
+
+    @Test func recordedLinksFollowMovedSourcesButUserReplacementsSurvive() throws {
+        let (home, source) = try makeSource()
+        let linker = SkillLinker(home: home)
+        _ = try linker.link(from: source, settings: AgentSettings())
+        let own = home.appendingPathComponent(".codex/skills/summon")
+        try fm.removeItem(at: own)
+        try fm.createSymbolicLink(atPath: own.path, withDestinationPath: "../../personal/summon")
+        let moved = home.appendingPathComponent("updated/skills")
+        try fm.createDirectory(at: moved.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try fm.moveItem(at: source, to: moved)
+        _ = try linker.link(from: moved, settings: AgentSettings())
+        #expect(try fm.destinationOfSymbolicLink(atPath: own.path) == "../../personal/summon")
+        let managed = home.appendingPathComponent(".claude/skills/summon")
+        #expect(try fm.destinationOfSymbolicLink(atPath: managed.path) == moved.appendingPathComponent("summon").path)
+    }
+
+    @Test func corruptOwnershipDoesNotChangeExistingLinks() throws {
+        let (home, source) = try makeSource()
+        let linker = SkillLinker(home: home)
+        _ = try linker.link(from: source, settings: AgentSettings())
+        try Data("{broken".utf8).write(to: linker.ownershipFile)
+        let link = home.appendingPathComponent(".codex/skills/summon")
+        var settings = AgentSettings()
+        settings.setSkills([], for: "codex")
+        #expect(throws: DecodingError.self) { try linker.link(from: source, settings: settings) }
+        #expect(try fm.destinationOfSymbolicLink(atPath: link.path) == source.appendingPathComponent("summon").path)
+        #expect(try String(contentsOf: linker.ownershipFile, encoding: .utf8) == "{broken")
     }
 }

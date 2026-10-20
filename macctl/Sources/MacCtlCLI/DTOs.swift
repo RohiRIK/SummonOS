@@ -170,11 +170,19 @@ struct SnapshotSummary: Encodable {
     let createdAt: Date
     let changeCount: Int
     let settings: [String]
+    let status: Snapshot.Status?
+    let undoes: String?
+    let appliedSettings: [String]?
+    let failure: String?
 
     init(_ snapshot: Snapshot) {
         id = snapshot.id
         createdAt = snapshot.createdAt
         changeCount = snapshot.changes.count
         settings = snapshot.changes.map(\.id)
+        status = snapshot.status
+        undoes = snapshot.undoes
+        appliedSettings = snapshot.appliedSettings
+        failure = snapshot.failure
     }
 }

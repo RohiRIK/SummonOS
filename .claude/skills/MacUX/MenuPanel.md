@@ -101,15 +101,9 @@ The panel is for the app's job; the app's own settings get a real window. Refine
 network features stay in panel tabs; permissions, login item, and theme live in Settings.
 
 - Panel footer: only `Settings…` (⌘,) and `Quit` (⌘Q). No toggles in the footer.
-- `Settings { SettingsView(model:) }` with a `TabView` (General · Permissions · Appearance), each pane
-  built from `SettingsGroup` / `SettingsRow`. Open from the panel with `dismiss()`,
+- `Settings { SettingsView(model:) }`: Modern macOS apps use `NavigationSplitView` sidebar navigation (see `LiquidGlass` skill for modern standard; legacy simple apps can use grouped `Form` or `TabView`). Open from the panel with `dismiss()`,
   `NSApp.activate()`, `openSettings()`, or it opens behind other apps.
-- **Settings window size (user, 2026-09-30: 440–460 pt "so tiny"): 580 pt wide**, so row descriptions fit
-  on one line. One grouped `Form` with many sections: `.frame(minWidth: 580, minHeight: 640)`, no
-  `.fixedSize`. The Form scrolls; a content-sized Form grows past the screen as sections are added. The
-  Settings window opens at its *minimum* size (ideal sizes are ignored), so the minimum is the default.
-  Short `TabView` panes: `.frame(width: 580)` + `.fixedSize(horizontal: false, vertical: true)` is fine.
-  Reference: `plugins/mac-calendar/Sources/MacCalendarUI/SettingsView.swift`.
+- **Settings window size (user, 2026-09-30: 440–460 pt "so tiny"): 760–820 pt wide for sidebar navigation (minHeight 520)**, so sidebar and grouped forms breathe. Reference: `incubator/summon/Sources/SummonMenuUI/SettingsView.swift`.
 - Onboarding: `Window(id:)` with `.defaultLaunchBehavior(onboarded ? .suppressed : .presented)`
   (macOS 15+) and `@AppStorage("onboarded")`; app icon tile, one-sentence why, permission rows, Continue.
   Reopen from Settings › General. `NSApp.activate()` in `onAppear`.

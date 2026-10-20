@@ -2,8 +2,8 @@ import Foundation
 
 /// The one implementation of `MacCtlService`: validates, plans, snapshots, writes, restarts, undoes.
 ///
-/// Every operation validates all of its input (ids, values, permissions, confirmation) before the
-/// first write, so a failure never leaves a half-applied profile behind.
+/// Every operation validates input before its first write. Runtime failures preserve a recovery
+/// journal and report completed writes; operations are serialized across the snapshot store.
 public struct Engine: MacCtlService {
     public let registry: Registry
     private let backend: any SettingBackend
@@ -61,6 +61,8 @@ public struct Engine: MacCtlService {
     }
 
     public func apply(_ profile: Profile, dryRun: Bool, confirmed: Bool) async throws -> ApplyResult {
+        let transaction = dryRun ? nil : try await snapshotStore.acquireTransaction()
+        defer { transaction?.release() }
         let targets = try resolve(profile)
         try await requirePermissions(targets.map(\.setting))
         let planned = try await plan(targets)
@@ -72,7 +74,9 @@ public struct Engine: MacCtlService {
 
         let changes = planned.map(\.change)
         let lost = planned.compactMap { item -> String? in
-            guard let from = item.change.from, let reason = unrestorable(from, for: item.setting) else { return nil }
+            let values = item.change.wallpaperBefore?.map { Value.string($0.path) }
+                ?? item.change.from.map { [$0] } ?? []
+            guard let reason = values.compactMap({ unrestorable($0, for: item.setting) }).first else { return nil }
             return "Undo cannot restore the current \(item.setting.id) (\(reason))."
         }
         let notes = lost + Self.notes(for: planned.map(\.setting))
@@ -81,7 +85,7 @@ public struct Engine: MacCtlService {
         }
 
         let snapshot = try saveSnapshot(changes)
-        try await write(planned.map { (setting: $0.setting, value: Optional($0.change.to)) })
+        try await write(planned.map { WriteStep(setting: $0.setting, value: $0.change.to) }, snapshot: snapshot)
         return ApplyResult(snapshotID: snapshot.id, changes: changes, dryRun: false, notes: notes)
     }
 
@@ -96,12 +100,14 @@ public struct Engine: MacCtlService {
     /// Without an id, picks the newest change that is not an undo and was not undone yet, so repeated
     /// `undo` steps further back instead of toggling.
     public func undo(snapshotID: String?) async throws -> ApplyResult {
+        let transaction = try await snapshotStore.acquireTransaction()
+        defer { transaction.release() }
         let snapshot: Snapshot
         if let snapshotID {
             snapshot = try snapshotStore.load(id: snapshotID)
         } else {
             let all = try snapshotStore.list()
-            let undone = Set(all.compactMap(\.undoes))
+            let undone = Set(all.filter(\.completed).compactMap(\.undoes))
             guard let newest = all.first(where: { $0.undoes == nil && !undone.contains($0.id) }) else {
                 throw MacCtlError.noSnapshots
             }
@@ -110,28 +116,39 @@ public struct Engine: MacCtlService {
 
         // Resolve every id before touching anything. A snapshot lists each id once; if not, the
         // earliest entry holds the original value, so it wins.
-        var entries: [(setting: Setting, restore: Value?)] = []
+        var entries: [(setting: Setting, restore: Value?, wallpapers: [DisplayWallpaper]?)] = []
         var seen: Set<String> = []
         for change in snapshot.changes where seen.insert(change.id).inserted {
             let setting = try registry.setting(change.id)
-            entries.append((setting: setting, restore: change.from))
+            entries.append((setting: setting, restore: change.from, wallpapers: change.wallpaperBefore))
         }
         entries.reverse()
         try await requirePermissions(entries.map { $0.setting })
 
-        var steps: [(setting: Setting, value: Value?)] = []
+        var steps: [WriteStep] = []
         var undoChanges: [Change] = []
         for entry in entries {
             let current = try await backend.read(entry.setting)
-            if let restore = entry.restore {
+            if let saved = entry.wallpapers {
+                let currentDisplays = try await backend.wallpapers(for: entry.setting)
+                if currentDisplays == saved { continue }
+                guard let restoredValue = entry.restore ?? saved.first.map({ Value.string($0.path) }) else {
+                    throw MacCtlError.invalidProfile("snapshot has no saved wallpaper value for \(entry.setting.id)")
+                }
+                steps.append(WriteStep(setting: entry.setting, value: entry.restore, wallpapers: saved))
+                undoChanges.append(Change(id: entry.setting.id, from: current,
+                                          to: restoredValue,
+                                          wallpaperBefore: currentDisplays, wallpaperAfter: saved))
+            } else if let restore = entry.restore {
                 let value = entry.setting.type.normalize(restore)
                 if let current, current.sameValue(as: value) { continue }
-                steps.append((setting: entry.setting, value: Optional(value)))
-                undoChanges.append(Change(id: entry.setting.id, from: current, to: value))
+                steps.append(WriteStep(setting: entry.setting, value: value))
+                undoChanges.append(Change(id: entry.setting.id, from: current, to: value,
+                                          wallpaperBefore: try await backend.wallpapers(for: entry.setting)))
             } else {
                 // Was unset: delete the key. Nothing to do when it is already unset.
                 guard let current else { continue }
-                steps.append((setting: entry.setting, value: Value?.none))
+                steps.append(WriteStep(setting: entry.setting, value: nil))
                 undoChanges.append(
                     Change(id: entry.setting.id, from: current, to: entry.setting.systemDefault ?? current))
             }
@@ -141,19 +158,17 @@ public struct Engine: MacCtlService {
         // a note, so it neither blocks the rest of the undo nor every later `undo`.
         var skipped: [String] = []
         for (index, step) in steps.enumerated().reversed() {
-            guard let value = step.value, let reason = unrestorable(value, for: step.setting) else { continue }
+            let values = step.wallpapers?.map { Value.string($0.path) } ?? step.value.map { [$0] } ?? []
+            guard let reason = values.compactMap({ unrestorable($0, for: step.setting) }).first else { continue }
             steps.remove(at: index)
             undoChanges.remove(at: index)
             skipped.insert("Could not restore \(step.setting.id): \(reason). Left as is.", at: 0)
         }
 
         let notes = skipped + Self.notes(for: steps.map { $0.setting })
-        guard !steps.isEmpty || !skipped.isEmpty else {
-            return ApplyResult(snapshotID: nil, changes: [], dryRun: false, notes: notes)
-        }
-        // Saved even when everything was skipped, so the snapshot counts as undone.
+        // Record a completed no-op too: an already-restored snapshot must not block older history.
         let undoSnapshot = try saveSnapshot(undoChanges, undoes: snapshot.id)
-        try await write(steps)
+        try await write(steps, snapshot: undoSnapshot)
         return ApplyResult(snapshotID: undoSnapshot.id, changes: undoChanges, dryRun: false, notes: notes)
     }
 
@@ -206,6 +221,12 @@ public struct Engine: MacCtlService {
         let change: Change
     }
 
+    private struct WriteStep {
+        let setting: Setting
+        let value: Value?
+        var wallpapers: [DisplayWallpaper]? = nil
+    }
+
     /// Looks up and validates every profile entry (sorted by id) before anything is read or written.
     private func resolve(_ profile: Profile) throws -> [Target] {
         var targets: [Target] = []
@@ -223,9 +244,12 @@ public struct Engine: MacCtlService {
         var planned: [Planned] = []
         for target in targets {
             let stored = try await backend.read(target.setting)
+            let wallpapers = try await backend.wallpapers(for: target.setting)
             let effective = stored ?? target.setting.systemDefault.map(target.setting.type.normalize)
-            if let effective, effective.sameValue(as: target.value) { continue }
-            planned.append(Planned(setting: target.setting, change: Change(id: target.setting.id, from: stored, to: target.value)))
+            let allDisplaysMatch = wallpapers?.allSatisfy { Value.string($0.path).sameValue(as: target.value) } ?? true
+            if let effective, effective.sameValue(as: target.value), allDisplaysMatch { continue }
+            planned.append(Planned(setting: target.setting, change: Change(id: target.setting.id, from: stored,
+                                                                         to: target.value, wallpaperBefore: wallpapers)))
         }
         return planned
     }
@@ -251,29 +275,42 @@ public struct Engine: MacCtlService {
         let existing = try Set(snapshotStore.list().map(\.id))
         let snapshot = Snapshot(
             id: FileSnapshotStore.makeID(date: date, existing: existing), createdAt: date, changes: changes,
-            undoes: undoes)
+            undoes: undoes, status: .pending)
         try snapshotStore.save(snapshot)
         return snapshot
     }
 
     /// Writes (value) or resets (nil) each setting in order, then runs the restarts of the settings
     /// written, once each. If a write fails, the restarts for what was already written still run.
-    private func write(_ steps: [(setting: Setting, value: Value?)]) async throws {
+    private func write(_ steps: [WriteStep], snapshot: Snapshot) async throws {
         var written: [Setting] = []
+        var restartsStarted = false
         do {
             for step in steps {
-                if let value = step.value {
+                try Task.checkCancellation()
+                if let wallpapers = step.wallpapers {
+                    try await backend.restoreWallpapers(wallpapers, for: step.setting)
+                } else if let value = step.value {
                     try await backend.write(value, for: step.setting)
                 } else {
                     try await backend.reset(step.setting)
                 }
                 written.append(step.setting)
+                try snapshotStore.update(snapshot.recording(.pending, applied: written.map(\.id)))
             }
+            restartsStarted = true
+            try await runRestarts(for: written)
+            try snapshotStore.update(snapshot.recording(.completed, applied: written.map(\.id)))
         } catch {
-            try? await runRestarts(for: written)
-            throw error
+            if !restartsStarted { try? await runRestarts(for: written) }
+            var reason = String(describing: error)
+            do {
+                try snapshotStore.update(snapshot.recording(.failed, applied: written.map(\.id), failure: reason))
+            } catch {
+                reason += "; outcome could not be saved: \(error)"
+            }
+            throw MacCtlError.mutationFailed(snapshotID: snapshot.id, appliedSettings: written.map(\.id), reason: reason)
         }
-        try await runRestarts(for: written)
     }
 
     /// `.logout` cannot be performed for the user; it becomes a note instead.

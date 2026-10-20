@@ -34,6 +34,7 @@ enum AgentCommands {
         guard let agent = DefaultAgentStore(paths: context.paths).load() else {
             throw CLIError("No default agent yet. Choose one with: summon default agent <name>\nKnown: " + AgentRegistry.all.map(\.id).joined(separator: ", "))
         }
+        let execution = try ExecutionPolicyStore(paths: context.paths).migrate()
         guard let agentPath = context.tools.find(agent.command) else {
             throw CLIError("\(agent.name) is not installed. Install it with: \(agent.installHint)", code: .missingDependency)
         }
@@ -63,6 +64,7 @@ enum AgentCommands {
 
         var refs = ["agent": agent.id, "folder": directory]
         refs["checkpoint"] = checkpointID
+        refs["execution"] = execution.rawValue
         ActivityCommands.record(LoggedEvent(
             kind: EventKind.agentLaunch,
             title: "Started \(agent.name)",
@@ -71,9 +73,9 @@ enum AgentCommands {
         ), context)
 
         // argv[0] stays the command name; the absolute path is what actually runs, so a GUI PATH cannot miss it.
-        let settings = AgentSettingsStore(paths: context.paths).load()
+        let settings = try AgentSettingsStore(paths: context.paths).loadValidated()
         let argv = agent.argv(prompt: prompt.map { $0 + SkillCommands.promptFooter(agent: agent.id, settings: settings) },
-                              model: settings.model(for: agent.id))
+                              model: settings.model(for: agent.id), execution: execution)
         if inline {
             _ = fileManager.changeCurrentDirectoryPath(directory)
             execReplacing(agentPath, argv)
@@ -105,6 +107,7 @@ enum AgentCommands {
         guard let agent = AgentRegistry.find(name) else {
             throw CLIError("Unknown agent: \(name)\nKnown: " + AgentRegistry.all.map(\.id).joined(separator: ", "))
         }
+        try ExecutionPolicyStore(paths: context.paths).migrate()
         try store.save(agent)
         if context.tools.find(agent.command) == nil {
             print("Default agent is now \(agent.name). It is not installed yet; install it with: \(agent.installHint)")
@@ -144,7 +147,7 @@ enum AgentCommands {
     /// has its own list. Saves and relinks at once.
     static func defaults(_ args: inout Arguments, _ context: Context) throws {
         let store = AgentSettingsStore(paths: context.paths)
-        var settings = store.load()
+        var settings = try store.loadValidated()
         let shipped = SkillLinker.skillNames(in: SkillCommands.source)
         if args.flag("--all-skills") { settings.defaultSkills = nil }
         if let list = args.option("--skills") {
@@ -164,7 +167,7 @@ enum AgentCommands {
             throw CLIError("Usage: summon agents set <agent> [--model <model> | --default-model] [--skills a,b | --all-skills]")
         }
         let store = AgentSettingsStore(paths: context.paths)
-        var settings = store.load()
+        var settings = try store.loadValidated()
         let shipped = SkillLinker.skillNames(in: SkillCommands.source)
         if args.flag("--default-model") { settings.setModel(nil, for: agent.id) }
         if let model = args.option("--model") {
@@ -187,7 +190,7 @@ enum AgentCommands {
     static func list(_ args: inout Arguments, _ context: Context) throws {
         let json = args.flag("--json")
         let current = DefaultAgentStore(paths: context.paths).load()?.id
-        let settings = AgentSettingsStore(paths: context.paths).load()
+        let settings = try AgentSettingsStore(paths: context.paths).loadValidated()
         let shipped = SkillLinker.skillNames(in: SkillCommands.source)
         let rows = AgentRegistry.all.map { agent -> AgentRow in
             let path = context.tools.find(agent.command)
@@ -226,7 +229,7 @@ enum AgentCommands {
             let snapshot = checkpoint.macctlSnapshot ?? "none"
             print("Checkpoint \(checkpoint.id) \"\(checkpoint.label)\": config commit \(commit), macctl marker \(snapshot)")
         case "list":
-            let all = service.list()
+            let all = try service.listValidated()
             if args.flag("--json") {
                 let encoder = JSONEncoder()
                 encoder.dateEncodingStrategy = .iso8601
@@ -256,7 +259,10 @@ enum AgentCommands {
     static func undo(_ args: inout Arguments, _ service: CheckpointService, _ context: Context) async throws {
         let dryRun = args.flag("--dry-run")
         let id = args.next()
-        guard let checkpoint = service.find(id) else {
+        let lease = try await service.acquireMutationLease()
+        defer { lease.hold() }
+        let checkpoints = try service.listValidated()
+        guard let checkpoint = id.flatMap({ wanted in checkpoints.last { $0.id == wanted } }) ?? (id == nil ? checkpoints.last : nil) else {
             if let id { throw CLIError("No checkpoint \(id). See: summon checkpoint list") }
             throw CLIError("No checkpoint yet. One is taken every time `summon agent` starts.")
         }

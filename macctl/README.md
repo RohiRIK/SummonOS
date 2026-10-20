@@ -36,8 +36,8 @@ Requires macOS 15 or later.
 ## Install
 
 ```sh
-swift build -c release
-cp .build/release/macctl /usr/local/bin/   # or anywhere on your PATH
+swift build -c release --scratch-path ~/Library/Caches/macplugins/macctl/build
+# The workspace's ../install.sh installs both macctl and Summon into your user account.
 ```
 
 ## Quick tour
@@ -170,7 +170,7 @@ Failure (the exit code matches the error):
 
 Error codes: `unknown_setting`, `invalid_value`, `command_failed`, `permission_missing`,
 `needs_confirmation`, `unsupported`, `snapshot_not_found`, `no_snapshots`, `invalid_profile`,
-`internal_error`.
+`internal_error`, `mutation_failed`, `snapshot_exists`, `transaction_busy`.
 
 ### Exit codes
 
@@ -185,6 +185,15 @@ Error codes: `unknown_setting`, `invalid_value`, `command_failed`, `permission_m
 Command-line usage errors (a missing argument) exit with 64 and print usage to stderr.
 
 ### Safety
+
+- **Recoverable transactions.** Cooperating CLI processes serialize planning/snapshot/write operations.
+  Snapshots record `status` (`pending`, `completed`, `failed`), `appliedSettings`, and `failure` when relevant.
+  A failed undo remains retryable; a failed mutation returns `mutation_failed` with `recoverySnapshot` and
+  `appliedSettings` in its error object. Partial writes are not automatically compensated.
+- **Display-aware wallpapers.** New snapshots retain display UUIDs and paths; reconnect missing displays
+  before restoration. Older scalar snapshots remain readable. A deleted wallpaper file cannot be recreated.
+- Use the upgraded executable for recovery: older binaries ignore journal outcomes. External preference
+  changes are outside macctl's process lock. See the [security model](../docs/security-model.md).
 
 - **Snapshots.** Before writing anything, `set`, `apply` and `undo` save the old values to
   `~/Library/Application Support/macctl/snapshots/`. `macctl undo` restores the newest one;

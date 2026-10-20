@@ -44,18 +44,21 @@ public struct DebugBundle: Sendable {
     /// Runs every section; a failing one is recorded in place rather than aborting the bundle.
     public func collect(logWindow: String = "1h", now: Date = Date(), maxLinesPerSection: Int = 400) async -> String {
         let formatter = ISO8601DateFormatter()
-        var text = "Summon debug bundle\nDate: \(formatter.string(from: now))\n"
+        var text = "Summon debug bundle\nDate: \(formatter.string(from: now))\nRedaction is best effort. Review before sharing.\n"
         for section in sections(logWindow: logWindow) {
             text += "\n=========================================\n\(section.title)\n=========================================\n"
             do {
                 let output = try await runner(section.plan.executable, section.plan.arguments)
-                text += Self.truncate(output, maxLines: maxLinesPerSection)
+                text += Self.truncate(DebugRedactor.redact(output, home: paths.home.path), maxLines: maxLinesPerSection)
             } catch {
-                text += "(failed: \(error))\n"
+                text += DebugRedactor.redact("(failed: \(error))\n", home: paths.home.path)
             }
         }
         return text
     }
+
+    /// Exported bundles use an atomic, owner-only file rather than ambient umask permissions.
+    public static func save(_ text: String, to file: URL) throws { try TextFile.write(text, to: file) }
 
     /// Keeps the last `maxLines` lines, which for logs are the most recent.
     public static func truncate(_ text: String, maxLines: Int) -> String {

@@ -53,6 +53,9 @@ public struct MacctlSnapshot: Sendable, Equatable, Decodable {
     public var changes: [SettingChange]
     /// Set when this snapshot records an undo: the snapshot it reverted.
     public var undoes: String?
+    public var status: String? = nil
+    public var appliedSettings: [String]? = nil
+    public var failure: String? = nil
 
     public init(id: String, createdAt: Date, changes: [SettingChange], undoes: String? = nil) {
         self.id = id
@@ -61,7 +64,7 @@ public struct MacctlSnapshot: Sendable, Equatable, Decodable {
         self.undoes = undoes
     }
 
-    private enum CodingKeys: String, CodingKey { case id, createdAt, changes, undoes }
+    private enum CodingKeys: String, CodingKey { case id, createdAt, changes, undoes, status, appliedSettings, failure }
     private enum ChangeKeys: String, CodingKey { case id, from, to }
 
     public init(from decoder: Decoder) throws {
@@ -69,6 +72,9 @@ public struct MacctlSnapshot: Sendable, Equatable, Decodable {
         id = try container.decode(String.self, forKey: .id)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         undoes = try container.decodeIfPresent(String.self, forKey: .undoes)
+        status = try container.decodeIfPresent(String.self, forKey: .status)
+        appliedSettings = try container.decodeIfPresent([String].self, forKey: .appliedSettings)
+        failure = try container.decodeIfPresent(String.self, forKey: .failure)
         var list = try container.nestedUnkeyedContainer(forKey: .changes)
         var changes: [SettingChange] = []
         while !list.isAtEnd {
@@ -183,6 +189,14 @@ public enum ActivityFeed {
 
     static func event(from snapshot: MacctlSnapshot) -> ActivityEvent {
         var refs = ["snapshot": snapshot.id]
+        if let status = snapshot.status, status != "completed" {
+            refs["status"] = status
+            let action = snapshot.undoes == nil ? "Settings change" : "Settings undo"
+            return ActivityEvent(id: "macctl:\(snapshot.id)", date: snapshot.createdAt, category: .problem,
+                                 kind: "setting.\(status)", title: "\(action) \(status)",
+                                 detail: snapshot.failure ?? "Recovery journal \(snapshot.id); completed steps: \((snapshot.appliedSettings ?? []).joined(separator: ", "))",
+                                 changes: [], refs: refs)
+        }
         let title: String
         if let undone = snapshot.undoes {
             refs["undoes"] = undone
@@ -211,6 +225,7 @@ public enum ActivityFeed {
         var parts: [String] = []
         parts.append(checkpoint.macctlSnapshot == nil ? "no macctl" : "settings marked")
         parts.append(checkpoint.configCommit == nil ? "~/.config not saved" : "~/.config saved")
+        parts.append(contentsOf: checkpoint.problems ?? [])
         return parts.joined(separator: " · ")
     }
 
