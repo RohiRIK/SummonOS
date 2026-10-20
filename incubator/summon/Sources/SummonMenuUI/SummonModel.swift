@@ -34,6 +34,7 @@ public final class SummonModel {
     public private(set) var checkingAgents: Set<String> = []
     /// Every new app gets a private GitHub repo right away (`always`) or after the dialog (`ask`).
     public private(set) var repoPolicy: RepoPolicy = .always
+    public private(set) var executionMode: AgentExecutionMode = .normal
     /// Agents whose CLI is on this Mac, in registry order.
     public private(set) var installedAgentIDs: [String] = []
     /// Installed plugins per agent, and which agents have each catalog plugin (filled on demand).
@@ -60,6 +61,7 @@ public final class SummonModel {
     /// Set by the app delegate to post a notification for each new report.
     @ObservationIgnored public var onNewCrash: ((CrashReport) -> Void)? = nil
     @ObservationIgnored private var recentKey: [String] = []
+    @ObservationIgnored private var scanningCrashes = false
     @ObservationIgnored private var watchTask: Task<Void, Never>? = nil
 
     static let crashCaptureKey = "crashCaptureEnabled"
@@ -77,6 +79,8 @@ public final class SummonModel {
     public func reload() {
         defaultAgent = DefaultAgentStore(paths: paths).load()
         repoPolicy = RepoPolicyStore(paths: paths).load()
+        do { executionMode = try ExecutionPolicyStore(paths: paths).load() }
+        catch { lastError = String(describing: error) }
         let locator = ToolLocator.live()
         installedAgentIDs = AgentRegistry.all.filter { locator.find($0.command) != nil }.map(\.id)
         if let agent = defaultAgent {
@@ -87,7 +91,8 @@ public final class SummonModel {
         let themeStore = ThemeStore(paths: paths)
         themes = themeStore.all()
         currentThemeSlug = themeStore.currentSlug()
-        tasks = TaskStore(paths: paths).load()
+        do { tasks = try TaskStore(paths: paths).loadValidated() }
+        catch { lastError = String(describing: error) }
         let events = EventLog(paths: paths).read()
         taskResults = Dictionary(events.compactMap { event in
             event.refs["task"].map { ($0, event.kind == EventKind.taskFailed ? "failed" : "done") }
@@ -96,7 +101,8 @@ public final class SummonModel {
         installedTerminals = TerminalApp.allCases.filter { installed.contains($0) }
         terminal = AgentLauncher.preferredTerminal(saved: DefaultTerminalStore(paths: paths).load(), installed: installed)
         mutedPrograms = CrashWatcher(paths: paths).muted().sorted()
-        agentSettings = AgentSettingsStore(paths: paths).load()
+        do { agentSettings = try AgentSettingsStore(paths: paths).loadValidated() }
+        catch { lastError = String(describing: error) }
         loadMenu()
     }
 
@@ -125,27 +131,30 @@ public final class SummonModel {
     }
 
     func scanCrashes() async {
+        guard !scanningCrashes else { return }
+        scanningCrashes = true
+        defer { scanningCrashes = false }
         let watcher = CrashWatcher(paths: paths)
-        let since = watcher.marker()
-        let scanStart = Date()
-        let previousKey = recentKey
-        let result = await Task.detached { () -> ([CrashReport]?, [CrashReport], [String]) in
-            // Reports can be megabytes each: re-parse the recent list only when the files or mutes changed.
-            let key = watcher.reportFiles(since: nil).prefix(30).map(\.path) + watcher.muted().sorted()
-            let recent = key == previousKey ? nil : watcher.reports(since: nil, limit: 10)
-            // The first scan only sets the marker: old reports never notify.
-            let fresh = since == nil ? [] : watcher.reports(since: since, limit: 5)
-            return (recent, fresh, key)
-        }.value
-        if let recent = result.0 {
-            recentCrashes = recent
-        }
-        recentKey = result.2
-        try? watcher.saveMarker(scanStart)
-        if crashCaptureEnabled {
-            for report in result.1 {
-                onNewCrash?(report)
-            }
+        do {
+            var hasMore: Bool
+            repeat {
+                let previousKey = recentKey
+                let result = try await Task.detached { () -> ([CrashReport]?, CrashWatcher.Batch, [String]) in
+                    // Reports can be megabytes each: re-parse only when metadata or mutes change.
+                    let key = watcher.reportCacheKey()
+                    let recent = key == previousKey ? nil : watcher.reports(since: nil, limit: 10)
+                    return (recent, try watcher.scanNewReports(limit: 5), key)
+                }.value
+                if let recent = result.0 { recentCrashes = recent }
+                recentKey = result.2
+                if crashCaptureEnabled {
+                    for report in result.1.reports { onNewCrash?(report) }
+                }
+                hasMore = result.1.hasMore
+                if hasMore { await Task.yield() }
+            } while hasMore && !Task.isCancelled
+        } catch {
+            lastError = "Could not scan diagnostic reports: \(error)"
         }
     }
 
@@ -319,6 +328,10 @@ public final class SummonModel {
     public func cleanPreview() async -> SummonCleaner.Plan? {
         guard let summonPath, let output = try? await runner(summonPath, ["clean", "--json"]) else { return nil }
         return try? JSONDecoder().decode(SummonCleaner.Plan.self, from: Data(output.utf8))
+    }
+
+    public func setExecutionMode(_ mode: AgentExecutionMode) {
+        Task { await summon(["default", "execution", mode.rawValue]) }
     }
 
     public func setRepoPolicy(_ policy: RepoPolicy) {

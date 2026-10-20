@@ -52,7 +52,7 @@ enum SkillCommands {
             }
         case "link":
             let quiet = args.flag("--quiet")
-            let settings = AgentSettingsStore(paths: context.paths).load()
+            let settings = try AgentSettingsStore(paths: context.paths).loadValidated()
             let result = try SkillLinker(home: context.paths.home).link(from: source, settings: settings)
             for path in result.kept {
                 context.warn("Leaving your own \(path) in place")

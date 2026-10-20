@@ -43,7 +43,7 @@ public enum ActivityLog {
     }
 
     /// File paths shrink to their last two parts (`catppuccin/1-portal.jpg`); other values stay as they are.
-    static func short(_ value: String) -> String {
+    public static func short(_ value: String) -> String {
         let text = clean(value)
         guard text.hasPrefix("/") || text.hasPrefix("~/") else { return text }
         let parts = text.split(separator: "/")

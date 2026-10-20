@@ -4,6 +4,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+CACHE="$HOME/Library/Caches/macplugins/cli-starter/build"
+
 mkdir -p build
 REPORT="build/check-report.md"
 status=0
@@ -20,9 +22,9 @@ step() {
 }
 
 echo "# cli-starter check $(date -u +%Y-%m-%dT%H:%MZ)" >"$REPORT"
-step build swift build --build-tests
-step tests swift test --skip-build
-step release swift build -c release
-step help swift run -c release --skip-build cli-starter --help
+step build swift build --scratch-path "$CACHE" --build-tests
+step tests swift test --scratch-path "$CACHE" --skip-build
+step release swift build --scratch-path "$CACHE" -c release
+step help swift run --scratch-path "$CACHE" -c release --skip-build cli-starter --help
 cat "$REPORT"
 exit $status

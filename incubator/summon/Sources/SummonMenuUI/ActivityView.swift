@@ -18,7 +18,19 @@ public struct ActivityView: View {
     public var body: some View {
         log
             .searchable(text: $model.query, placement: .toolbar, prompt: "Search")
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Picker("Filter", selection: $model.filter) {
+                        ForEach(ActivityModel.Filter.allCases) { filter in
+                            Text(filter.rawValue).tag(filter)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 380)
+                }
+            }
             .safeAreaInset(edge: .bottom, spacing: 0) { askBar }
+            .containerBackground(.thinMaterial, for: .window)
             .frame(minWidth: 640, minHeight: 420)
             .confirmationDialog(pendingUndo?.title ?? "", isPresented: undoBinding, presenting: pendingUndo) { undo in
                 Button("Undo", role: .destructive) { undo.run(model) }
@@ -73,6 +85,7 @@ public struct ActivityView: View {
                 }
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
             .defaultScrollAnchor(.bottom)
             .contextMenu(forSelectionType: ActivityEvent.ID.self) { ids in
                 menu(for: ids)
@@ -162,7 +175,7 @@ public struct ActivityView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
         }
-        .background(.bar)
+        .background(.ultraThinMaterial)
     }
 
     private var canRun: Bool {
@@ -223,24 +236,99 @@ public struct ActivityView: View {
     }
 }
 
-/// `14:13  swift-frontend crashed`: time, then one plain sentence. Only problems get colour.
+/// Structured two-line activity row with native SF Symbol indicators (NO EMOJIS), clear time column, and contextual diffs.
 struct LogLine: View {
     let event: ActivityEvent
 
-    var body: some View {
-        let level = ActivityLog.level(event)
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(event.date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits)))
-                .foregroundStyle(.tertiary)
-                .monospacedDigit()
-                .fixedSize()
-            Text(verbatim: ActivityLog.summary(event))
-                .foregroundStyle(level == .error ? AnyShapeStyle(.red) : level == .warn ? AnyShapeStyle(.orange) : AnyShapeStyle(.primary))
-                .lineLimit(1)
-                .truncationMode(.tail)
-            Spacer(minLength: 0)
+    private var iconName: String {
+        switch event.category {
+        case .problem:
+            return event.kind == "hang" ? "hourglass.badge.exclamationmark" : "exclamationmark.triangle.fill"
+        case .agent:
+            return "sparkles"
+        case .settings:
+            return event.kind.contains("undo") ? "arrow.uturn.backward.circle.fill" : "slider.horizontal.3"
+        case .checkpoint:
+            return "clock.arrow.circlepath"
+        case .theme:
+            return "paintbrush.pointed.fill"
         }
-        .font(.system(size: 12, design: .monospaced))
+    }
+
+    private var iconColor: Color {
+        switch event.category {
+        case .problem:
+            return event.kind == "hang" ? .orange : .red
+        case .agent:
+            return .accentColor
+        case .settings:
+            return event.kind.contains("undo") ? .green : .cyan
+        case .checkpoint:
+            return .indigo
+        case .theme:
+            return .purple
+        }
+    }
+
+    private var detailText: String? {
+        if !event.changes.isEmpty {
+            return event.changes.map { change in
+                let from = ActivityLog.short(change.from ?? "unset")
+                let to = ActivityLog.short(change.to)
+                return "\(change.id): \(from) → \(to)"
+            }.joined(separator: ", ")
+        }
+        if let detail = event.detail?.trimmingCharacters(in: .whitespacesAndNewlines), !detail.isEmpty {
+            return detail.components(separatedBy: .newlines).first
+        }
+        return nil
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            // Timestamp column
+            Text(event.date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits)))
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(.tertiary)
+                .frame(width: 38, alignment: .leading)
+                .padding(.top, 2)
+
+            // Native Apple SF Symbol icon
+            Image(systemName: iconName)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(iconColor)
+                .frame(width: 20, height: 20)
+                .background(Circle().fill(iconColor.opacity(0.12)))
+                .padding(.top, 1)
+
+            // Title + Detail
+            VStack(alignment: .leading, spacing: 2) {
+                Text(verbatim: ActivityLog.clean(event.title))
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(event.category == .problem ? (event.kind == "hang" ? .orange : .red) : .primary)
+                    .lineLimit(1)
+
+                if let detail = detailText {
+                    Text(verbatim: detail)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            // Category tag
+            Text(event.category.rawValue.capitalized)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.primary.opacity(0.04), in: Capsule())
+                .padding(.top, 2)
+        }
+        .padding(.vertical, 3)
+        .contentShape(Rectangle())
         .help(ActivityLog.line(event))
     }
 }

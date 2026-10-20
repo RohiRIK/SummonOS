@@ -12,10 +12,16 @@ public protocol SettingBackend: Sendable {
     /// Checks a value against the live system before any write (for example that a file exists).
     /// The engine calls it for every value of a batch before the first write. Default: accepts all.
     func validate(_ value: Value, for setting: Setting) throws
+    func wallpapers(for setting: Setting) async throws -> [DisplayWallpaper]?
+    func restoreWallpapers(_ wallpapers: [DisplayWallpaper], for setting: Setting) async throws
 }
 
 extension SettingBackend {
     public func validate(_ value: Value, for setting: Setting) throws {}
+    public func wallpapers(for setting: Setting) async throws -> [DisplayWallpaper]? { nil }
+    public func restoreWallpapers(_ wallpapers: [DisplayWallpaper], for setting: Setting) async throws {
+        throw MacCtlError.unsupported(id: setting.id, reason: "per-display restoration is unavailable")
+    }
 }
 
 /// Runs side effects (killall Dock, ...) once each, after a batch of writes.
@@ -32,10 +38,22 @@ public protocol PermissionProbe: Sendable {
 
 /// Persists snapshots (default: `~/Library/Application Support/macctl/snapshots/<id>.json`).
 public protocol SnapshotStore: Sendable {
+    /// Creates a backup. Filesystem implementations must refuse to replace an existing id.
     func save(_ snapshot: Snapshot) throws
     /// Newest first.
     func list() throws -> [Snapshot]
     func load(id: String) throws -> Snapshot
+    /// Updates an existing journal's outcome without allocating a new backup.
+    func update(_ snapshot: Snapshot) throws
+    /// Held across planning, durable backup, mutation and outcome recording.
+    func acquireTransaction() async throws -> TransactionLease
+}
+
+extension SnapshotStore {
+    public func update(_ snapshot: Snapshot) throws { try save(snapshot) }
+    public func acquireTransaction() async throws -> TransactionLease {
+        try await InProcessTransactionLock.shared.acquire()
+    }
 }
 
 /// Result of an apply. `changes` empty means the machine already matched.

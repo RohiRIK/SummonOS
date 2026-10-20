@@ -50,21 +50,21 @@ else
   fi
 fi
 
-mkdir -p "$BIN"
-
 # 3. macctl: the settings CLI agents use to change the Mac (with snapshots and undo).
 say "Building macctl"
 swift build --package-path "$ROOT/macctl" -c release --scratch-path "$CACHE/macctl/build" --product macctl
-cp "$(swift build --package-path "$ROOT/macctl" -c release --scratch-path "$CACHE/macctl/build" --show-bin-path)/macctl" "$BIN/macctl"
+MACCTL_SOURCE="$(swift build --package-path "$ROOT/macctl" -c release --scratch-path "$CACHE/macctl/build" --show-bin-path)/macctl"
 
 # 4. Summon: the menu app, the `summon` CLI, themes, skills and ~/Summon.
 say "Building Summon"
 "$ROOT/incubator/summon/scripts/bundle.sh" >/dev/null
-"$ROOT/incubator/summon/scripts/install.sh"
+SUMMONOS_MACCTL_SOURCE="$MACCTL_SOURCE" "$ROOT/incubator/summon/scripts/install.sh"
 
 # 5. Check the install.
 say "Checking the install"
-"$BIN/summon" doctor || true
+if ! "$BIN/summon" doctor; then
+  die "Files were installed, but summon doctor found failed checks. Review the output and run summon doctor again after resolving them."
+fi
 
 cat <<EOF
 

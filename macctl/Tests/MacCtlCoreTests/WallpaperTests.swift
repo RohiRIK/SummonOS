@@ -21,6 +21,19 @@ actor FakeWallpaper: WallpaperControlling {
     }
 }
 
+private actor MultiDisplayWallpaper: WallpaperControlling {
+    private(set) var displays: [DisplayWallpaper]
+    init(_ displays: [DisplayWallpaper]) { self.displays = displays }
+    func currentWallpaper() async throws -> String? { displays.first?.path }
+    func wallpapers() async throws -> [DisplayWallpaper]? { displays }
+    func setWallpaper(_ path: String) async throws {
+        displays = displays.map { DisplayWallpaper(displayID: $0.displayID, path: path) }
+    }
+    func restoreWallpapers(_ saved: [DisplayWallpaper]) async throws {
+        displays = displays.map { screen in saved.first { $0.displayID == screen.displayID } ?? screen }
+    }
+}
+
 @Suite("Wallpaper")
 struct WallpaperTests {
     static var setting: Setting {
@@ -164,5 +177,60 @@ struct WallpaperTests {
     @Test func relativePathIsRejected() async throws {
         let rig = Self.makeRig(current: nil)
         await expectMacCtlError("invalid_value") { try rig.engine.parse("wall.jpg", for: "desktop.wallpaper") }
+    }
+
+    @Test func undoRestoresEachDisplaysOriginalImageAndCanBeRedone() async throws {
+        let left = try Self.makeImage("left.jpg")
+        let right = try Self.makeImage("right.jpg")
+        let next = try Self.makeImage("next.jpg")
+        let original = [DisplayWallpaper(displayID: "left-display", path: left),
+                        DisplayWallpaper(displayID: "right-display", path: right)]
+        let wallpaper = MultiDisplayWallpaper(original)
+        let store = InMemorySnapshotStore()
+        let service = Engine(registry: Registry([Self.setting]),
+                             backend: SystemBackend(runner: RecordingRunner().runner, wallpaper: wallpaper),
+                             restarter: FakeRestarter(), probe: FakeProbe(), snapshots: store,
+                             osVersion: { "26.0" })
+        let applied = try await service.apply(Profile(name: "wallpaper", settings: ["desktop.wallpaper": .string(next)]),
+                                              dryRun: false, confirmed: false)
+        #expect(applied.changes.first?.wallpaperBefore == original)
+        let undone = try await service.undo(snapshotID: nil)
+        #expect(await wallpaper.displays == original)
+        let undoID: String = try #require(undone.snapshotID)
+        _ = try await service.undo(snapshotID: undoID)
+        #expect(await wallpaper.displays.allSatisfy { $0.path == next })
+    }
+
+    @Test func matchingPrimaryDisplayStillUpdatesOtherDisplays() async throws {
+        let target = try Self.makeImage("target.jpg")
+        let other = try Self.makeImage("other.jpg")
+        let wallpaper = MultiDisplayWallpaper([DisplayWallpaper(displayID: "primary", path: target),
+                                              DisplayWallpaper(displayID: "other", path: other)])
+        let service = Engine(registry: Registry([Self.setting]),
+                             backend: SystemBackend(runner: RecordingRunner().runner, wallpaper: wallpaper),
+                             restarter: FakeRestarter(), probe: FakeProbe(), snapshots: InMemorySnapshotStore(),
+                             osVersion: { "26.0" })
+        let result = try await service.apply(Profile(name: "same primary", settings: ["desktop.wallpaper": .string(target)]),
+                                             dryRun: false, confirmed: false)
+        #expect(result.changes.count == 1)
+        #expect(await wallpaper.displays.allSatisfy { $0.path == target })
+        _ = try await service.undo(snapshotID: nil)
+        #expect(await wallpaper.displays.last?.path == other)
+    }
+
+    @Test func legacyScalarWallpaperSnapshotStillRestoresAllScreens() async throws {
+        let old = try Self.makeImage("legacy.jpg")
+        let current = try Self.makeImage("current.jpg")
+        let wallpaper = MultiDisplayWallpaper([DisplayWallpaper(displayID: "one", path: current),
+                                              DisplayWallpaper(displayID: "two", path: current)])
+        let store = InMemorySnapshotStore()
+        try store.save(Snapshot(id: "legacy", createdAt: Date(), changes: [
+            Change(id: "desktop.wallpaper", from: .string(old), to: .string(current)),
+        ]))
+        let service = Engine(registry: Registry([Self.setting]),
+                             backend: SystemBackend(runner: RecordingRunner().runner, wallpaper: wallpaper),
+                             restarter: FakeRestarter(), probe: FakeProbe(), snapshots: store, osVersion: { "26.0" })
+        _ = try await service.undo(snapshotID: "legacy")
+        #expect(await wallpaper.displays.allSatisfy { $0.path == old })
     }
 }

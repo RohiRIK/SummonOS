@@ -85,4 +85,59 @@ struct ThemeTests {
         let borders = paths.generated.appendingPathComponent("bordersrc").path
         #expect(FileManager.default.isExecutableFile(atPath: borders))
     }
+
+    @Test func rejectsDecorativeConfigInjectionBeforeWriting() throws {
+        let store = ThemeStore(paths: SummonPaths(home: try makeTempHome()))
+        for field in ["name", "font"] {
+            for payload in ["normal\ncommand = /usr/bin/true", "normal\rshell /usr/bin/true", "normal\0hidden", "normal\u{2028}command = /usr/bin/true"] {
+                var object = try #require(JSONSerialization.jsonObject(with: Data(sampleThemeJSON.utf8)) as? [String: Any])
+                object[field] = payload
+                let data = try JSONSerialization.data(withJSONObject: object)
+                #expect(throws: Theme.ValidationError.self) { try Theme.decode(data) }
+                var theme = try sample()
+                if field == "name" { theme.name = payload } else { theme.font = payload }
+                #expect(throws: Theme.ValidationError.self) { try store.activate(theme) }
+            }
+        }
+        #expect(!FileManager.default.fileExists(atPath: store.paths.generated.path))
+    }
+
+    @Test func ghosttyEscapesQuotedFontNames() throws {
+        var theme = try sample()
+        theme.font = "The \"Quoted\" \\ Font"
+        #expect(ThemeCompiler.ghostty(theme).contains("font-family = \"The \\\"Quoted\\\" \\\\ Font\"\n"))
+    }
+
+    @Test func wallpapersStayInsideTheirTheme() throws {
+        let paths = SummonPaths(home: try makeTempHome())
+        let store = ThemeStore(paths: paths)
+        for path in ["../private.jpg", "/tmp/private.jpg", "sub/../../private.jpg", "sub/./image.jpg", "image\n.jpg"] {
+            var theme = try sample()
+            theme.wallpapers = [path]
+            #expect(throws: Theme.ValidationError.self) { try theme.validate() }
+            #expect(store.wallpaperURL(theme) == nil)
+        }
+        var theme = try sample()
+        theme.wallpapers = ["nested/image.jpg"]
+        try theme.validate()
+        let root = paths.themes.appendingPathComponent(theme.slug)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let outside = paths.home.appendingPathComponent("private")
+        try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent("nested").path, withDestinationPath: outside.path)
+        #expect(store.wallpaperURL(theme) == nil)
+        #expect(throws: Theme.ValidationError.self) { try store.activate(theme) }
+    }
+
+    @Test func themeFolderSymlinksCannotEscapeThemesDirectory() throws {
+        let paths = SummonPaths(home: try makeTempHome())
+        let store = ThemeStore(paths: paths)
+        let theme = try sample()
+        try FileManager.default.createDirectory(at: paths.themes, withIntermediateDirectories: true)
+        let outside = paths.home.appendingPathComponent("themes-other")
+        try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(atPath: paths.themes.appendingPathComponent(theme.slug).path, withDestinationPath: outside.path)
+        #expect(store.wallpaperURL(theme) == nil)
+        #expect(throws: Theme.ValidationError.self) { try store.activate(theme) }
+    }
 }

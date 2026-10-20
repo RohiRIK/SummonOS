@@ -139,27 +139,50 @@ public struct Change: Sendable, Hashable, Codable {
     public let id: String
     public let from: Value?
     public let to: Value
+    /// Optional restoration metadata. Scalars remain readable by older clients and snapshots.
+    public let wallpaperBefore: [DisplayWallpaper]?
+    public let wallpaperAfter: [DisplayWallpaper]?
 
-    public init(id: String, from: Value?, to: Value) {
+    public init(id: String, from: Value?, to: Value,
+                wallpaperBefore: [DisplayWallpaper]? = nil, wallpaperAfter: [DisplayWallpaper]? = nil) {
         self.id = id
         self.from = from
         self.to = to
+        self.wallpaperBefore = wallpaperBefore
+        self.wallpaperAfter = wallpaperAfter
     }
 }
 
 /// Old values recorded before an apply, so `undo` can restore them.
 public struct Snapshot: Sendable, Hashable, Codable, Identifiable {
+    public enum Status: String, Sendable, Hashable, Codable {
+        case pending, completed, failed
+    }
     /// Sortable timestamp id, `yyyyMMdd-HHmmss`.
     public let id: String
     public let createdAt: Date
     public let changes: [Change]
     /// Set on the snapshot an `undo` records: the id of the snapshot it reverted.
     public let undoes: String?
+    /// Missing on legacy snapshots, which represent completed operations.
+    public let status: Status?
+    public let appliedSettings: [String]?
+    public let failure: String?
+    public var completed: Bool { status == nil || status == .completed }
 
-    public init(id: String, createdAt: Date, changes: [Change], undoes: String? = nil) {
+    public init(id: String, createdAt: Date, changes: [Change], undoes: String? = nil,
+                status: Status? = nil, appliedSettings: [String]? = nil, failure: String? = nil) {
         self.id = id
         self.createdAt = createdAt
         self.changes = changes
         self.undoes = undoes
+        self.status = status
+        self.appliedSettings = appliedSettings
+        self.failure = failure
+    }
+
+    func recording(_ status: Status, applied: [String], failure: String? = nil) -> Snapshot {
+        Snapshot(id: id, createdAt: createdAt, changes: changes, undoes: undoes,
+                 status: status, appliedSettings: applied, failure: failure)
     }
 }

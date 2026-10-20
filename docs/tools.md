@@ -54,7 +54,7 @@ is a reference to clone on demand), `path` (relative to the home).
 
 ## local-ci.sh
 
-`tools/local-ci.sh [ref|pr-number] [--no-post]`: what `.github/workflows/swift.yml` does, run on this Mac. Checks out
+`tools/local-ci.sh [ref|pr-number] [--no-post]`: the Swift package portion of `.github/workflows/swift.yml`, run on this Mac. Checks out
 exactly that commit in a temporary worktree, builds and tests every `Package.swift` outside `.build/` and `plugins/`
 (build cache in `~/Library/Caches/macplugins/local-ci`, logs per package under `logs/<sha>/`), and posts the result
 as the commit status `local / swift (macOS)` (pending, then success or failure). Now that the repo is public,
@@ -67,8 +67,8 @@ tools/local-ci.sh 42 && gh pr merge 42 --merge --delete-branch
 
 ## check-workspace.sh
 
-Workspace hygiene gate, meant for CI. Not in CI yet: the job snippet is in `tools/ci/check-workspace.yml`,
-and the owner has to paste it into `.github/workflows/swift.yml` (agents cannot edit workflows).
+Workspace hygiene gate, active in `.github/workflows/swift.yml` on every push and pull request.
+The reusable job snippet for other workspaces is in `tools/ci/check-workspace.yml`.
 
 ```bash
 tools/check-workspace.sh
@@ -79,6 +79,22 @@ tools/check-workspace.sh
 - Fails on a tracked file over 2 MB, except the Summon wallpaper and brand allowlist, which it prints.
 - Runs `tools/mp index --check` when `jq` is installed.
 - Runs `tools/okf-index.py --check`: every page in `docs/` has OKF frontmatter and every `index.md` is current.
+- Runs `tools/check-skills.py` for the six first-party design skills.
+
+## check-skills.py
+
+Checks the six modern and historical design skills for required metadata, concise entrypoints,
+routing tables, examples, gotchas, and contained local reference paths. Vendored skills are excluded.
+On macOS, `--compile-swift` typechecks every Swift example as an independent Swift 6 unit with a
+macOS 15 deployment target; it does not execute snippets or prove visual/accessibility behavior.
+
+```bash
+python3 tools/check-skills.py
+python3 tools/check-skills.py --compile-swift
+python3 -m unittest discover -s tools/tests -p 'test_*.py'
+```
+
+GitHub CI runs structural and regression checks on Linux and example typechecking on macOS.
 
 ## okf-index.py
 
@@ -105,7 +121,7 @@ tools/publish-public.sh plugins/<name> [branch] "<commit message>"
 
 - Exports the branch with `git archive` and drops `PROJECT-CONTEXT.md` (agent memory).
 - Refuses to publish if any regex in `tools/private-patterns.txt` matches. That file is gitignored
-  and must exist.
+  and must contain usable patterns. Invalid patterns, read errors, binary matches and private symlink targets block publishing.
 - Commits with your GitHub noreply address, so the author email never reaches the public history.
 - Needs `gh` signed in and the public repo `<login>/<name>` to exist.
 
@@ -117,9 +133,39 @@ Builds a plugin and uploads the `.app` as a zip to the public repo's GitHub Rele
 tools/release.sh plugins/<name> ["extra release notes"]
 ```
 
-- Runs only on `main`, and only if `scripts/check.sh` passes.
+- Runs only from clean `main`, checks that its exported source matches the public commit, and builds that exact
+  public SHA in isolation. `scripts/check.sh` and signature verification must pass.
 - Version and tag (`v<version>`) come from `Resources/Info.plist`.
-- Zips with `ditto` to keep the signature, and writes install notes for an un-notarized app.
+- Zips with `ditto` and uploads `SHA256SUMS` and `release-source.txt` alongside the artifact; the release tag targets
+  the source SHA. Without signing inputs the notes explicitly identify an ad-hoc preview.
+- Set both `SUMMON_SIGN_IDENTITY` and `SUMMON_NOTARY_PROFILE` to use the production pipeline below. Partial
+  configuration or failed notarization/assessment blocks publication.
+
+## notarize-app.sh
+
+```bash
+SUMMON_SIGN_IDENTITY='Developer ID Application: Name (TEAMID1234)' \
+SUMMON_NOTARY_PROFILE='stored-profile-name' \
+tools/notarize-app.sh build/App.app build/distribution
+```
+
+Signs a copy of an existing app (including nested Mach-O executables) with hardened runtime/timestamps,
+submits it to Apple, verifies acceptance, staples and validates the ticket, assesses Gatekeeper, then creates
+an archive and checksum. The original build stays intact. Optional `SUMMON_SIGN_ENTITLEMENTS` names a reviewed
+plist. Credentials remain in the maintainer's keychain. Real signing and clean-Mac verification remain release gates.
+
+## uninstall.sh
+
+```bash
+tools/uninstall.sh           # preview
+tools/uninstall.sh --apply   # remove unchanged receipt-owned files
+```
+
+Quit Summon first. A successful install records a private ownership receipt. Uninstall verifies fixed paths and
+fingerprints before removing the app, commands or owned skill links. Modified/unowned files remain and are reported.
+Projects, configuration, themes, checkpoints, logs and scheduled tasks remain. Remove recurring tasks before
+uninstalling if you want them unscheduled. Old installations need a fresh successful install to create a receipt.
+
 
 ## render-previews.sh
 

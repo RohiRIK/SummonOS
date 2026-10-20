@@ -40,12 +40,23 @@ public struct Theme: Sendable, Equatable, Codable, Identifiable {
         case badAppearance(String)
         case badColor(field: String, value: String)
         case terminalCount(Int)
+        case badText(field: String)
+        case badWallpaper(String)
     }
 
     public func validate() throws {
         let allowed = Set("abcdefghijklmnopqrstuvwxyz0123456789-")
         guard !slug.isEmpty, slug.allSatisfy({ allowed.contains($0) }) else { throw ValidationError.badSlug(slug) }
         guard appearance == "dark" || appearance == "light" else { throw ValidationError.badAppearance(appearance) }
+        for (field, value) in [("name", name), ("font", font)] {
+            guard !value.trimmingCharacters(in: .whitespaces).isEmpty,
+                  value.rangeOfCharacter(from: .controlCharacters.union(.newlines)) == nil else {
+                throw ValidationError.badText(field: field)
+            }
+        }
+        for wallpaper in wallpapers where !Self.isRelativeWallpaper(wallpaper) {
+            throw ValidationError.badWallpaper(wallpaper)
+        }
         let named: [(String, String)] = [
             ("background", colors.background), ("foreground", colors.foreground), ("accent", colors.accent),
             ("accent2", colors.accent2), ("muted", colors.muted), ("selection", colors.selection),
@@ -57,6 +68,15 @@ public struct Theme: Sendable, Equatable, Codable, Identifiable {
         guard terminal.count == 16 else { throw ValidationError.terminalCount(terminal.count) }
         for (index, value) in terminal.enumerated() where HexColor(value) == nil {
             throw ValidationError.badColor(field: "terminal[\(index)]", value: value)
+        }
+    }
+
+    /// Themes contain decorative data, never absolute paths or references outside their own folder.
+    static func isRelativeWallpaper(_ path: String) -> Bool {
+        guard !path.isEmpty, !path.hasPrefix("/"), !path.hasPrefix("~"),
+              !path.contains("\\"), path.rangeOfCharacter(from: .controlCharacters.union(.newlines)) == nil else { return false }
+        return path.split(separator: "/", omittingEmptySubsequences: false).allSatisfy {
+            !$0.isEmpty && $0 != "." && $0 != ".."
         }
     }
 
@@ -129,7 +149,8 @@ public enum ThemeCompiler {
         for (index, color) in theme.terminal.enumerated() {
             lines.append("palette = \(index)=\(hash(color))")
         }
-        lines.append("font-family = \"\(theme.font)\"")
+        let font = theme.font.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        lines.append("font-family = \"\(font)\"")
         return lines.joined(separator: "\n") + "\n"
     }
 
@@ -245,13 +266,37 @@ public struct ThemeStore: Sendable {
     }
 
     public func wallpaperURL(_ theme: Theme, index: Int = 0) -> URL? {
-        guard index >= 0, index < theme.wallpapers.count else { return nil }
-        return paths.themes.appendingPathComponent(theme.slug).appendingPathComponent(theme.wallpapers[index])
+        guard (try? theme.validate()) != nil, index >= 0, index < theme.wallpapers.count else { return nil }
+        return containedWallpaperURL(theme, index: index)
+    }
+
+    private func containedWallpaperURL(_ theme: Theme, index: Int) -> URL? {
+        let themes = paths.themes.resolvingSymlinksInPath().standardizedFileURL
+        let unresolvedRoot = themes.appendingPathComponent(theme.slug)
+        let root = unresolvedRoot.resolvingSymlinksInPath().standardizedFileURL
+        guard root.path.hasPrefix(themes.path + "/"), !isUnresolvedLink(unresolvedRoot, resolved: root) else { return nil }
+        var wallpaper = root
+        // Resolve each existing component: Foundation may leave an entire path unresolved when its final file
+        // does not exist yet, even if a parent is a symlink outside the theme.
+        for component in theme.wallpapers[index].split(separator: "/") {
+            let candidate = wallpaper.appendingPathComponent(String(component))
+            wallpaper = candidate.resolvingSymlinksInPath().standardizedFileURL
+            guard wallpaper.path.hasPrefix(root.path + "/"), !isUnresolvedLink(candidate, resolved: wallpaper) else { return nil }
+        }
+        return wallpaper
+    }
+
+    private func isUnresolvedLink(_ url: URL, resolved: URL) -> Bool {
+        (try? FileManager.default.destinationOfSymbolicLink(atPath: url.path)) != nil && url.standardizedFileURL.path == resolved.path
     }
 
     /// Writes `current-theme` and every generated file; returns the files written.
     @discardableResult
     public func activate(_ theme: Theme) throws -> [URL] {
+        try theme.validate()
+        for index in theme.wallpapers.indices where containedWallpaperURL(theme, index: index) == nil {
+            throw Theme.ValidationError.badWallpaper(theme.wallpapers[index])
+        }
         let ghostty = paths.generated.appendingPathComponent("ghostty.conf")
         let borders = paths.generated.appendingPathComponent("bordersrc")
         let kitty = paths.generated.appendingPathComponent("kitty.conf")

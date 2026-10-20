@@ -12,11 +12,25 @@
 
 - Absolute path (`/usr/sbin/networksetup`), arguments as an array. Never build a shell string.
 - Off the main actor, with a timeout; read stdout and stderr; non-zero exit → error with stderr text.
+- Enforce deadlines with a bounded termination grace period and escalation for the invocation's process
+  group. Propagate cancellation, close unrelated inherited descriptors, and cap output before buffering it.
+  Test a TERM-ignoring parent, a descendant holding stdout open, and a noisy child. Summon's
+  `Sources/SummonCore/ProcessExecutor.swift` provides the current implementation; detached sessions remain outside cleanup.
 - Some tools report failure on stdout with exit 0 (`networksetup -setairportnetwork`). Parse the output.
 - Secrets go through stdin or an in-process API, never argv.
 - Inject the runner (`typealias Runner = @Sendable (String, [String]) async throws -> String`) so
   tests use a fake and never touch the real system.
 - Reference implementation: `plugins/mac-network/Sources/MacNetworkCore/Shell.swift`.
+
+## Recoverable mutations across CLI processes
+
+- Hold an interprocess lock across read/plan, backup, writes and completion recording. Atomic file replacement
+  protects one write; it does not serialize a transaction or prevent two writers allocating the same backup ID.
+- Save a pending journal before changing state, then record completed steps and completed/failed outcome.
+  Only a completed undo consumes its original operation. Preserve a recovery reference on partial failure;
+  a failed or stale capture does not establish recovery coverage. Test failing writes and concurrent processes.
+- Migrate stored preferences under the same lock as explicit changes, and leave an already valid choice in
+  place. Resolve a missing preference separately from corrupt data so migration cannot broaden authority.
 
 ## Admin actions
 

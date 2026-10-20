@@ -38,25 +38,6 @@ public struct PanelView: View {
                 showActivity(selecting: nil)
             }
 
-            // Problems only when present; history lives in the Activity window, theme in Settings.
-            if !model.panelProblems.isEmpty {
-                PanelDivider()
-                HStack {
-                    SectionHeader(title: "Recent Problems")
-                    Spacer()
-                    Button("Clear") { model.archiveProblems(model.panelProblems) }
-                        .buttonStyle(.plain)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.top, 4)
-                        .help("Archive these; they stay in Activity")
-                }
-                ForEach(latestPerProgram.prefix(3), id: \.report.id) { item in
-                    CrashRow(report: item.report, count: item.count, diagnose: { model.diagnose(file: item.report.file) })
-                }
-            }
-
             PanelDivider()
             MenuRow(title: "Settings…", systemImage: nil, shortcut: "⌘,") {
                 NSApp.activate()
@@ -71,6 +52,7 @@ public struct PanelView: View {
         .padding(6)
         .frame(width: 300)
         .containerBackground(.ultraThinMaterial, for: .window)
+        .pinWindowTopToMenuBar()
         .task {
             if activity.live { await activity.refresh() }
         }
@@ -80,16 +62,6 @@ public struct PanelView: View {
         activity.selection = id
         NSApp.activate()
         openWindow(id: ActivityOpener.windowID)
-    }
-
-    /// One row per program (newest report first), so a crash loop does not fill the panel.
-    private var latestPerProgram: [(report: CrashReport, count: Int)] {
-        let problems = model.panelProblems
-        let counts = Dictionary(grouping: problems, by: \.program).mapValues(\.count)
-        var seen = Set<String>()
-        return problems
-            .filter { seen.insert($0.program).inserted }
-            .map { ($0, counts[$0.program] ?? 1) }
     }
 
     private var header: some View {
@@ -155,71 +127,6 @@ struct MenuRow: View {
         .buttonStyle(.plain)
         .opacity(isEnabled ? 1 : 0.45)
         .onHover { hovering = $0 }
-    }
-}
-
-struct CrashRow: View {
-    let report: CrashReport
-    let count: Int
-    let diagnose: () -> Void
-    @State private var hovering = false
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .frame(width: 16)
-                .foregroundStyle(.orange)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(report.program).lineLimit(1)
-                Text(detail)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            Spacer()
-            Button("Diagnose…", action: diagnose)
-                .controlSize(.small)
-                .help("Hand this report to your default agent")
-        }
-        // The whole row diagnoses, not only the button: the row is the problem.
-        .contentShape(Rectangle())
-        .onTapGesture(perform: diagnose)
-        .accessibilityAddTraits(.isButton)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(hovering ? AnyShapeStyle(HierarchicalShapeStyle.quaternary) : AnyShapeStyle(Color.clear))
-        )
-        .onHover { hovering = $0 }
-    }
-
-    private var icon: String {
-        switch report.kind {
-        case .crash: return "exclamationmark.triangle"
-        case .hang: return "hourglass"
-        case .panic: return "bolt.trianglebadge.exclamationmark"
-        case .memory: return "memorychip"
-        case .other: return "doc.text"
-        }
-    }
-
-    private var detail: String {
-        let what = report.kind == .memory ? (report.process == nil ? "Ran low" : "Stopped") : report.kind.rawValue.capitalized
-        let parts: [String?] = [what, report.signal ?? report.exceptionType, count > 1 ? "\(count) times" : nil]
-        return parts.compactMap { $0 }.joined(separator: " · ")
-    }
-}
-
-struct SectionHeader: View {
-    let title: String
-
-    var body: some View {
-        Text(title)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 8)
-            .padding(.top, 4)
     }
 }
 

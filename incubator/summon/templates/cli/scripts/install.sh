@@ -3,8 +3,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-swift build -c release --product cli-starter
-BIN="$(swift build -c release --show-bin-path)"
+CACHE="$HOME/Library/Caches/macplugins/cli-starter/build"
+
+swift build --scratch-path "$CACHE" -c release --product cli-starter
+BIN="$(swift build --scratch-path "$CACHE" -c release --show-bin-path)"
 mkdir -p "$HOME/.local/bin"
 cp "$BIN/cli-starter" "$HOME/.local/bin/cli-starter"
 echo "$HOME/.local/bin/cli-starter"

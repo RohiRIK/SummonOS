@@ -4,19 +4,51 @@ name: Swift (macOS)
 
 on:
   push:
+  pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: swift-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Workspace hygiene
+        run: tools/check-workspace.sh
+      - name: Tooling regression tests (isolated fixtures)
+        run: python3 -m unittest discover -s tools/tests -p 'test_*.py'
+      - name: Shell syntax and lint
+        run: |
+          bash -n install.sh tools/private-scan.sh tools/publish-public.sh tools/release.sh tools/notarize-app.sh tools/uninstall.sh incubator/summon/scripts/install.sh
+          shellcheck install.sh tools/private-scan.sh tools/publish-public.sh tools/release.sh tools/notarize-app.sh tools/uninstall.sh incubator/summon/scripts/install.sh
+
+  design-skills:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Typecheck design skill examples (Swift 6, macOS 15 deployment target)
+        run: python3 tools/check-skills.py --compile-swift
+
   discover:
     runs-on: ubuntu-latest
     outputs:
       packages: ${{ steps.find.outputs.packages }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - id: find
         run: |
           packages=$(find . -name Package.swift -not -path '*/.build/*' -not -path './plugins/*' \
@@ -37,17 +69,24 @@ jobs:
       run:
         working-directory: ${{ matrix.package }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Toolchain
         run: |
           sw_vers
           xcodebuild -version
           swift --version
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          path: ${{ matrix.package }}/.build
-          key: spm-${{ runner.os }}-${{ matrix.package }}-${{ hashFiles(format('{0}/Package.resolved', matrix.package), format('{0}/Package.swift', matrix.package)) }}
-          restore-keys: spm-${{ runner.os }}-${{ matrix.package }}-
+          # Compiled Swift/Clang modules embed absolute checkout and SDK paths.
+          # Cache dependency sources/artifacts only, never .build as a whole.
+          path: |
+            ${{ matrix.package }}/.build/repositories
+            ${{ matrix.package }}/.build/checkouts
+            ${{ matrix.package }}/.build/artifacts
+          key: spm-sources-v2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.package }}-${{ hashFiles(format('{0}/Package.resolved', matrix.package), format('{0}/Package.swift', matrix.package)) }}
+          restore-keys: spm-sources-v2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.package }}-
       - name: Build
         run: swift build --build-tests
       - name: Test
