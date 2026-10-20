@@ -1,4 +1,8 @@
 import Foundation
+#if canImport(CoreGraphics)
+// On Darwin, Foundation exposes CGRect but not its geometry accessors (minX, height, ==); CoreGraphics does.
+import CoreGraphics
+#endif
 
 // Pure decisions behind the menu bar panel (`PanelController` in SummonMenuUI). No AppKit here, so every rule
 // below is unit-tested on Linux and macOS. IDs (A1…G3) refer to the panel interaction spec v1.5.
