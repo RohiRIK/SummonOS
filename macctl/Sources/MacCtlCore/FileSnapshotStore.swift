@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(Darwin)
 import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#endif
 
 /// Optional health check a snapshot store can offer to `doctor`.
 /// (Addition to the shared contract; lives here so `Interfaces.swift` stays unchanged.)
@@ -47,14 +51,18 @@ public struct FileSnapshotStore: SnapshotStore, SnapshotStoreDiagnostics {
         defer { try? FileManager.default.removeItem(at: temporary) }
         try data.write(to: temporary, options: .withoutOverwriting)
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: temporary.path)
+        Failpoint.hit("snapshot.tmp-written")
         let handle = try FileHandle(forWritingTo: temporary)
         defer { try? handle.close() }
         try handle.synchronize()
+        Failpoint.hit("snapshot.tmp-synced")
         guard link(temporary.path, fileURL(for: snapshot.id).path) == 0 else {
             if errno == EEXIST { throw MacCtlError.snapshotExists(snapshot.id) }
             throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
         }
+        Failpoint.hit("snapshot.linked")
         try synchronizeDirectory()
+        Failpoint.hit("snapshot.dir-synced")
     }
 
     public func update(_ snapshot: Snapshot) throws {

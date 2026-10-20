@@ -63,9 +63,11 @@ public struct Engine: MacCtlService {
     public func apply(_ profile: Profile, dryRun: Bool, confirmed: Bool) async throws -> ApplyResult {
         let transaction = dryRun ? nil : try await snapshotStore.acquireTransaction()
         defer { transaction?.release() }
+        if !dryRun { Failpoint.hit("lock.acquired") }
         let targets = try resolve(profile)
         try await requirePermissions(targets.map(\.setting))
         let planned = try await plan(targets)
+        if !dryRun { Failpoint.hit("plan.done") }
 
         // Confirmation is required only for risky settings that would actually change.
         if !dryRun && !confirmed, let risky = planned.first(where: { $0.setting.risk >= .admin }) {
@@ -295,11 +297,14 @@ public struct Engine: MacCtlService {
                 } else {
                     try await backend.reset(step.setting)
                 }
+                Failpoint.hit("change.written")
                 written.append(step.setting)
                 try snapshotStore.update(snapshot.recording(.pending, applied: written.map(\.id)))
             }
             restartsStarted = true
+            Failpoint.hit("restarts.before")
             try await runRestarts(for: written)
+            Failpoint.hit("restarts.after")
             try snapshotStore.update(snapshot.recording(.completed, applied: written.map(\.id)))
         } catch {
             if !restartsStarted { try? await runRestarts(for: written) }
