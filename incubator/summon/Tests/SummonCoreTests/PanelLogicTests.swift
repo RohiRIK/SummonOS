@@ -290,3 +290,25 @@ struct PanelOpenGuardTests {
         #expect(PanelOpenGuard.acceptsReturn(source: .code, openedAt: nil, now: 10))
     }
 }
+
+@Suite("Menu bar panel: summon:// URLs on cold launch")
+struct LaunchURLQueueTests {
+    let menu = URL(string: "summon://menu/style.theme")!
+    let panel = URL(string: "summon://panel")!
+
+    @Test func urlsBeforeThePanelExistsAreQueuedNotDropped() {
+        var queue = LaunchURLQueue()
+        #expect(queue.receive([menu]).isEmpty)
+        #expect(queue.receive([panel]).isEmpty)
+        #expect(queue.markReady() == [menu, panel])
+        #expect(queue.pending.isEmpty)
+    }
+
+    @Test func urlsAfterReadyPassStraightThrough() {
+        var queue = LaunchURLQueue()
+        #expect(queue.markReady().isEmpty)
+        #expect(queue.receive([menu]) == [menu])
+        #expect(queue.pending.isEmpty)
+        #expect(queue.markReady().isEmpty)
+    }
+}

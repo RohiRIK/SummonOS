@@ -66,7 +66,7 @@ Behavior follows the interaction spec v1.5 (IDs A1–G3, 47 checklist lines). Th
 - Click and ⌃⌥Space opens focus the search field (A1).
 
 **Cold launch.** A `summon://` URL that launches Summon can arrive before `applicationDidFinishLaunching` made the
-panel. `AppDelegate` queues it and replays it once the panel exists, so `open -g 'summon://menu/<id>'` on a quit
+panel. `AppDelegate` queues it (`LaunchURLQueue`) and replays it once the panel exists, so `open -g 'summon://menu/<id>'` on a quit
 Summon opens the panel at that entry.
 
 The right-click (or ⌃-click) menu has exactly **Settings… ⌘,** and **Quit Summon ⌘Q**. If the panel is open, it

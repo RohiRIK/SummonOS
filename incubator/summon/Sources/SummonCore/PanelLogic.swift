@@ -212,6 +212,31 @@ public enum PanelOpenGuard {
     }
 }
 
+/// Holds `summon://` URLs that arrive before the panel exists (cold launch, Sam's review of #61), and hands them back
+/// once `markReady()` is called. After that, URLs pass straight through.
+public struct LaunchURLQueue: Sendable {
+    public private(set) var pending: [URL] = []
+    public private(set) var isReady = false
+
+    public init() {}
+
+    /// The URLs to handle now: all of them when ready, none (they are queued) before.
+    public mutating func receive(_ urls: [URL]) -> [URL] {
+        guard isReady else {
+            pending += urls
+            return []
+        }
+        return urls
+    }
+
+    /// Marks the panel ready and returns the queued URLs, oldest first. A second call returns nothing.
+    public mutating func markReady() -> [URL] {
+        isReady = true
+        defer { pending = [] }
+        return pending
+    }
+}
+
 /// B1 proof: milliseconds from the status item's mouse-down to the panel ordered front, and whether that meets the
 /// spec's warm budget (≤ 200 ms).
 public enum PanelTiming {
