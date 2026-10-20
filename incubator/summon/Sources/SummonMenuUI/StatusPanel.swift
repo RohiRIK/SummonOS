@@ -5,7 +5,7 @@ import SummonCore
 import SwiftUI
 
 // The menu bar container: NSStatusItem + a nonactivating NSPanel, replacing MenuBarExtra.
-// Spec: docs/menubar-panel.md (interaction spec v1.3, IDs A1–G3). Every open/close decision is made by
+// Spec: docs/menubar-panel.md (interaction spec v1.5, IDs A1–G3). Every open/close decision is made by
 // `PanelDismissal` in SummonCore, which is unit-tested on Linux; this file only wires AppKit events to it.
 
 /// Shared by every Summon panel.
@@ -16,8 +16,9 @@ public enum PanelConfig {
     public static let width: CGFloat = 360
 }
 
-/// B1 timing and the D-rules observer count, visible in Instruments (os_signpost) and Console / `log stream`:
-/// `log stream --level info --predicate 'subsystem == "local.macplugins.summon" && category == "panel"'`.
+/// B1 timing and the D-rules monitor count, visible in Instruments (os_signpost) and Console / `log stream`:
+/// `log stream --predicate 'subsystem == "local.macplugins.summon" AND category == "panel"'` (notice level, so no
+/// `--level` flag is needed).
 enum PanelTrace {
     static let log = Logger(subsystem: "local.macplugins.summon", category: "panel")
     static let signposter = OSSignposter(subsystem: "local.macplugins.summon", category: "panel")
@@ -122,6 +123,8 @@ public final class PanelController: NSObject {
     private var adjusting = false
     private var hotKeyFilter = HotKeyRepeatFilter()
     private var pendingEntry: String?
+    private var mouseDownMonitor: Any?
+    private var lastMouseDown: TimeInterval?
 
     /// Live observers right now; 0 whenever the panel is closed (D rules). Logged on every close.
     public var activeObserverCount: Int { observers.count }
@@ -136,7 +139,10 @@ public final class PanelController: NSObject {
         openSettingsHandler = openSettings
         self.prepare = prepare
         super.init()
+        #if DEBUG
+        // E4 fixture: debug builds only.
         state.fixtureRows = PanelFixture.rowCount(for: UserDefaults.standard.string(forKey: PanelFixture.defaultsKey))
+        #endif
 
         let actions = PanelActions(
             finish: { [weak self] in self?.handle(.actionFinished) },
@@ -158,6 +164,16 @@ public final class PanelController: NSObject {
             button.action = #selector(statusItemClicked(_:))
             // Left opens the panel, right (or ⌃-click) shows the menu (B1, B3).
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        }
+        // B1: remember when the status item was pressed, so the open can be measured from mouse-down. A local
+        // monitor sees only Summon's own events; it lives for the app's lifetime and never closes anything.
+        mouseDownMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
+            MainActor.assumeIsolated {
+                if let self, let window = self.statusItem.button?.window, event.window === window {
+                    self.lastMouseDown = event.timestamp
+                }
+            }
+            return event
         }
         // Resizes happen while open (E3); this observer lives as long as the panel, it is not a dismissal monitor.
         NotificationCenter.default.addObserver(self, selector: #selector(panelDidResize(_:)),
@@ -204,6 +220,11 @@ public final class PanelController: NSObject {
         hotKeyFilter.release()
     }
 
+    /// D12: the crash alert is about to take key. Close without handing focus back; the alert gets it.
+    public func yieldToCrashAlert() {
+        handle(.crashAlertPresenting)
+    }
+
     // MARK: Decisions
 
     private func handle(_ event: PanelEvent) {
@@ -232,16 +253,18 @@ public final class PanelController: NSObject {
         let right = event?.type == .rightMouseUp
             || (event?.type == .leftMouseUp && event?.modifierFlags.contains(.control) == true)
         guard !right else { return handle(.statusItemRightClick) }
-        // B1 proof: the "PanelOpen" interval covers click handling to ordered front; the log line adds the time
-        // since the click event's timestamp (mouse-up: the status button only sends its action on mouse-up).
-        let id = PanelTrace.signposter.makeSignpostID()
-        let interval = PanelTrace.signposter.beginInterval("PanelOpen", id: id)
+        // B1 proof: the "PanelOpen" signpost interval covers click handling to ordered front, and the log line gives
+        // the time from the status item's mouse-down (recorded by the local monitor) to ordered front.
+        let interval = PanelTrace.signposter.beginInterval("PanelOpen", id: PanelTrace.signposter.makeSignpostID())
         let wasOpen = isOpen
         handle(.statusItemLeftClick)
         PanelTrace.signposter.endInterval("PanelOpen", interval)
-        if !wasOpen, isOpen, let stamp = event?.timestamp {
-            let ms = (ProcessInfo.processInfo.systemUptime - stamp) * 1000
-            PanelTrace.log.info("panel ordered front \(ms, format: .fixed(precision: 1), privacy: .public) ms after the click event")
+        let down = lastMouseDown ?? event?.timestamp
+        lastMouseDown = nil
+        if !wasOpen, isOpen,
+           let ms = PanelTiming.milliseconds(mouseDown: down, orderedFront: ProcessInfo.processInfo.systemUptime) {
+            let verdict = PanelTiming.withinBudget(ms) ? "within" : "OVER"
+            PanelTrace.log.notice("B1 panel ordered front \(ms, format: .fixed(precision: 1), privacy: .public) ms after mouse-down (\(verdict, privacy: .public) the 200 ms budget)")
         }
     }
 
@@ -313,7 +336,7 @@ public final class PanelController: NSObject {
         previousApp = nil
         anchorTop = nil
         // D rules proof: expect 0 on every close.
-        PanelTrace.log.info("panel closed (\(reason.rawValue, privacy: .public)); active monitors: \(self.observers.count, privacy: .public)")
+        PanelTrace.log.notice("panel closed (\(reason.rawValue, privacy: .public)); active monitors: \(self.observers.count, privacy: .public)")
     }
 
     // MARK: Right-click menu (B3–B6)

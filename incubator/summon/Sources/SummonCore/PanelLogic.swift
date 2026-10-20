@@ -1,7 +1,7 @@
 import Foundation
 
 // Pure decisions behind the menu bar panel (`PanelController` in SummonMenuUI). No AppKit here, so every rule
-// below is unit-tested on Linux and macOS. IDs (A1…G3) refer to the panel interaction spec v1.3.
+// below is unit-tested on Linux and macOS. IDs (A1…G3) refer to the panel interaction spec v1.5.
 
 /// Why the panel closed. Every close goes through `PanelController.close(_:)` with one of these.
 public enum PanelCloseReason: String, Sendable, CaseIterable {
@@ -25,6 +25,8 @@ public enum PanelCloseReason: String, Sendable, CaseIterable {
     case contextMenu
     /// C6: `PanelController.close()` called from code.
     case programmatic
+    /// D12: the crash alert is about to take key; it, not the previous app, gets focus.
+    case crashAlert
 }
 
 /// Everything the controller can observe. Only some of these close the panel (spec section D).
@@ -45,6 +47,8 @@ public enum PanelEvent: Equatable, Sendable {
     case screenLocked
     case displaySlept
     case systemWillSleep
+    /// D12: Summon's crash alert is about to order front.
+    case crashAlertPresenting
     // Observed but never close the panel (D8–D11, decision 2).
     case clickInsidePanel
     case pointerLeftPanel
@@ -121,6 +125,8 @@ public enum PanelDismissal {
             return .close(.spaceChange)
         case .screenLocked, .displaySlept, .systemWillSleep:
             return .close(.lockOrSleep)
+        case .crashAlertPresenting:
+            return .close(.crashAlert)
         default:
             // D8–D11 and resign-key: no generic click-elsewhere dismissal.
             return .ignore
@@ -133,7 +139,7 @@ public enum PanelDismissal {
         switch reason {
         case .escape, .toggle, .action, .programmatic, .contextMenu:
             return true
-        case .appSwitch, .spaceChange, .settings, .quit, .lockOrSleep:
+        case .appSwitch, .spaceChange, .settings, .quit, .lockOrSleep, .crashAlert:
             return false
         }
     }
@@ -171,6 +177,22 @@ public struct HotKeyRepeatFilter: Sendable {
 
     public mutating func release() {
         held = false
+    }
+}
+
+/// B1 proof: milliseconds from the status item's mouse-down to the panel ordered front, and whether that meets the
+/// spec's warm budget (≤ 200 ms).
+public enum PanelTiming {
+    public static let budgetMilliseconds: Double = 200
+
+    /// nil when there is no mouse-down to measure from, or it came after `orderedFront` (clock or event mix-up).
+    public static func milliseconds(mouseDown: TimeInterval?, orderedFront: TimeInterval) -> Double? {
+        guard let mouseDown, orderedFront >= mouseDown else { return nil }
+        return (orderedFront - mouseDown) * 1000
+    }
+
+    public static func withinBudget(_ milliseconds: Double) -> Bool {
+        milliseconds <= budgetMilliseconds
     }
 }
 
@@ -247,8 +269,9 @@ public enum PanelRoute: Equatable, Sendable {
     }
 }
 
-/// E4 fixture: `defaults write local.macplugins.summon PanelFixture -string tall` adds enough placeholder rows to
-/// exceed any screen, so the height cap and inner scroll can be checked on a real Mac. Any other value: no rows.
+/// E4 fixture (debug builds only; `PanelController` ignores it in release): `defaults write local.macplugins.summon
+/// PanelFixture tall` adds enough placeholder rows to exceed any screen, so the height cap and inner scroll can be
+/// checked on a real Mac. Any other value: no rows.
 public enum PanelFixture {
     public static let defaultsKey = "PanelFixture"
     public static let tallRowCount = 80

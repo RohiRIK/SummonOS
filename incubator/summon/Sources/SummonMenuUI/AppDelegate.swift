@@ -49,6 +49,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
                                hotkeys: ["⌃⌥Space": menuOK, "⌃⌥⌘A": agentOK])
         try? AppHealthStore(paths: model.paths).save(health)
         setUpNotifications(health: health)
+        crashAlert.onWillPresent = { [weak panel] in panel?.yieldToCrashAlert() }
         model.onNewCrash = { [weak self] report in
             self?.notify(report)
             self?.crashAlert.present(report)

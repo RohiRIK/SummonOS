@@ -50,6 +50,14 @@ struct PanelLogicTests {
         }
     }
 
+    @Test func crashAlertClosesThePanelAndKeepsFocus() {
+        // D12: the panel closes first; focus goes to the crash alert, never back to the previous app.
+        #expect(PanelDismissal.decide(.crashAlertPresenting, isOpen: true, session: session) == .close(.crashAlert))
+        #expect(PanelDismissal.decide(.crashAlertPresenting, isOpen: false, session: nil) == .ignore)
+        #expect(!PanelDismissal.restoresFocus(after: .crashAlert))
+        #expect(PanelDismissal.focusAction(after: .crashAlert, frontmostPID: summon, session: session) == .none)
+    }
+
     @Test func sameAppOrSummonActivatingDoesNotClose() {
         // Decision 2: clicking back into the previous app keeps the panel open.
         #expect(PanelDismissal.decide(.frontmostAppChanged(pid: textEdit), isOpen: true, session: session) == .ignore)
@@ -69,7 +77,7 @@ struct PanelLogicTests {
 
     @Test func closedPanelIgnoresDismissalEvents() {
         let events: [PanelEvent] = [.escapePressed, .actionFinished, .frontmostAppChanged(pid: 777), .activeSpaceChanged,
-                                    .screenLocked, .displaySlept, .systemWillSleep]
+                                    .screenLocked, .displaySlept, .systemWillSleep, .crashAlertPresenting]
         for event in events {
             #expect(PanelDismissal.decide(event, isOpen: false, session: nil) == .ignore)
         }
@@ -238,5 +246,21 @@ struct PanelClockTests {
 
     @Test func clockSkewNeverGoesNegative() {
         #expect(PanelClock.elapsed(from: start, to: start.addingTimeInterval(-30)) == "00:00")
+    }
+}
+
+@Suite("Menu bar panel: B1 timing (≤ 200 ms warm from mouse-down)")
+struct PanelTimingTests {
+    @Test func measuresFromMouseDown() {
+        let ms = PanelTiming.milliseconds(mouseDown: 100.0, orderedFront: 100.12) ?? -1
+        #expect(abs(ms - 120) < 0.001)
+        #expect(PanelTiming.milliseconds(mouseDown: nil, orderedFront: 5) == nil)
+        #expect(PanelTiming.milliseconds(mouseDown: 6, orderedFront: 5) == nil)
+    }
+
+    @Test func budgetIs200Milliseconds() {
+        #expect(PanelTiming.budgetMilliseconds == 200)
+        #expect(PanelTiming.withinBudget(200))
+        #expect(!PanelTiming.withinBudget(200.1))
     }
 }

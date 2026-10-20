@@ -10,7 +10,7 @@ The panel:
 - keeps updating while open;
 - closes only on the triggers listed below.
 
-Behavior follows the interaction spec v1.3 (IDs A1–G3). The decision rules live in
+Behavior follows the interaction spec v1.5 (IDs A1–G3, 47 checklist lines). The decision rules live in
 `Sources/SummonCore/PanelLogic.swift` and are unit-tested without AppKit (`Tests/SummonCoreTests/PanelLogicTests.swift`).
 
 ## Shape
@@ -70,21 +70,28 @@ closes first.
 | D5 | Space change | `NSWorkspace.activeSpaceDidChangeNotification` |
 | D6 | Settings… or Quit | footer or right-click menu |
 | D7 | Lock, display sleep, system sleep, user switch | `com.apple.screenIsLocked` (distributed), `screensDidSleep`, `willSleep`, `sessionDidResignActive` |
+| D12 | The crash alert appears | `CrashAlertController.onWillPresent` → `PanelController.yieldToCrashAlert()`. The panel closes first, then the alert takes key; focus is not handed back (the alert wins). |
 
 - There's no global click monitor, and the panel doesn't close on `didResignKey`.
 - Every close removes all its observers and clears the highlight.
 - Focus goes back to the previous app. The panel never activated Summon, so ordering it out hands key focus back.
   If Summon did become frontmost in the meantime, the previous app is activated again.
-- An app switch, a Space change, Settings, Quit or a lock leaves focus where the user or macOS put it.
+- An app switch, a Space change, Settings, Quit, a lock or the crash alert (D12) leaves focus where the user,
+  macOS or the alert put it.
 - The panel never pastes (decision 1).
 
 ## Proof hooks
 
-- **B1:** the `PanelOpen` `os_signpost` interval, subsystem `local.macplugins.summon`, category `panel`. It also logs
-  "panel ordered front N ms after the click event". The status button only sends its action on mouse-up, so the log
-  measures from mouse-up. Mouse-down to ordered front needs the Mac screen recording.
-- **D rules:** every close logs `panel closed (<reason>); active monitors: N`. Expect 0. To watch it:
-  `log stream --level info --predicate 'subsystem == "local.macplugins.summon" && category == "panel"'`.
+All of these use `Logger`/`OSSignposter` with subsystem `local.macplugins.summon` and category `panel`, at notice
+level. To watch them: `log stream --predicate 'subsystem == "local.macplugins.summon" AND category == "panel"'`.
+
+- **B1:**
+  - A `PanelOpen` `os_signpost` interval covers click handling up to ordered-front.
+  - A local `leftMouseDown` monitor, which only sees Summon's own events and never closes anything, records the
+    status item's mouse-down.
+  - The log line `B1 panel ordered front N ms after mouse-down (within|OVER the 200 ms budget)` measures from that
+    mouse-down (`PanelTiming`, budget 200 ms warm).
+- **D rules:** every close logs `panel closed (<reason>); active monitors: N`. Expect 0. D12 logs the reason `crashAlert`.
 
 ## Deployment floor
 
@@ -100,8 +107,8 @@ closes first.
 - **Verified only on macOS 26.x.** The macOS 15 target is compile-checked, but runtime is unverified until a 15 machine or VM exists.
 - macOS 27 betas: `button.highlight(true)` reportedly doesn't stick (FB23330269). The panel still works, but the highlight may not show.
 
-## Test fixture (E4)
+## Test fixture (E4, debug builds only)
 
-- **On:** `defaults write local.macplugins.summon PanelFixture -string tall`, then relaunch. The panel gets 80
-  placeholder rows, so the height cap and inner scroll are visible.
+- **On:** `defaults write local.macplugins.summon PanelFixture tall`, then relaunch a **debug** build. The panel gets 80
+  placeholder rows, so the height cap and inner scroll are visible. Release builds ignore the key (`#if DEBUG`).
 - **Off:** `defaults delete local.macplugins.summon PanelFixture`.

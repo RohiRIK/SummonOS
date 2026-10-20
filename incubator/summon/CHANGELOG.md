@@ -13,10 +13,11 @@ version numbers yet; entries are grouped by day and point at the pull request.
 - Left click opens it. Right click shows Settings…/Quit Summon, which the footer also keeps.
 - It opens from `summon panel [--close]` and `open -g summon://panel[/close]`.
 - It refreshes every second while open, and the agent row shows elapsed mm:ss.
-- It closes only on spec section D triggers. Every close logs the active monitor count, and the B1 open is an
-  `os_signpost` interval.
+- It closes only on spec section D triggers, including D12: the crash alert closes the panel first, then takes key.
+  Every close logs the active monitor count, and the B1 open is an `os_signpost` interval plus a log line measured
+  from mouse-down (≤ 200 ms warm). Both use the `local.macplugins.summon` / `panel` Logger.
 - The crash alert also uses `.statusBar`. Settings marks shortcuts another app owns.
-- `PanelFixture=tall` is a debug fixture. See `docs/menubar-panel.md`. `WindowTopPinner` and `LauncherView` are gone.
+- `PanelFixture=tall` is a debug-only fixture. See `docs/menubar-panel.md`. `WindowTopPinner` and `LauncherView` are gone.
 
 ### Security and recovery
 - Validate theme text and wallpaper containment; preserve foreign skill links and record owned links.
