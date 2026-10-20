@@ -251,7 +251,18 @@ public struct FileJournalStore: JournalStore {
 
     public func ids() throws -> [String] {
         guard let names = try? FileManager.default.contentsOfDirectory(atPath: directory.path) else { return [] }
-        return names.filter { $0.hasSuffix(".jsonl") && !$0.hasPrefix(".") }.map { String($0.dropLast(6)) }
+        // Only names `url(_:)` accepts: a stray `a.b.jsonl` (or any non-id name) is skipped with a note
+        // on stderr instead of making every unresolvedIDs() call, and so every write, throw (Sam #62).
+        var ids: [String] = []
+        for name in names where name.hasSuffix(".jsonl") && !name.hasPrefix(".") {
+            let id = String(name.dropLast(6))
+            if FileSnapshotStore.isSafeID(id) {
+                ids.append(id)
+            } else {
+                FileHandle.standardError.write(Data("macctl: ignoring \(name) in the journal directory (not a session id)\n".utf8))
+            }
+        }
+        return ids
     }
 
     public func remove(_ id: String) throws {

@@ -141,5 +141,17 @@ struct ReviewFixTests {
         #expect(doctor.checks.contains { $0.name == "Older failed operations" && $0.detail.contains(legacy.id) })
         #expect(r.store.saved.first { $0.id == legacy.id } == legacy)
     }
-}
 
+    /// Sam #62 LOW: a stray non-id file in journal/ is ignored, not a reason to block every write.
+    @Test func strayDottedJournalFileDoesNotBlockWrites() async throws {
+        let (engine, root) = try Self.fileEngine()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let journal = root.appendingPathComponent("journal")
+        try FileManager.default.createDirectory(at: journal, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: journal.appendingPathComponent("a.b.jsonl").path, contents: Data("x\n".utf8))
+        let result = try await engine.apply(Profile(name: "t", settings: ["t.c": .string("y")]), dryRun: false, confirmed: true)
+        #expect(result.snapshotID != nil)
+        #expect(try await engine.recover().sessions.isEmpty)
+        #expect(FileManager.default.fileExists(atPath: journal.appendingPathComponent("a.b.jsonl").path))
+    }
+}
