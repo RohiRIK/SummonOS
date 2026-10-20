@@ -35,166 +35,117 @@ struct SystemBackendTests {
         )
     }
 
-    static let missingKey = CommandResult(
-        exitCode: 1, stdout: "",
-        stderr: "\nThe domain/default pair of (com.apple.dock, autohide) does not exist\n"
-    )
-
-    // MARK: defaults read
-
-    @Test func readsBoolFromOneOrZero() async throws {
-        let fake = RecordingRunner(result: CommandResult(exitCode: 0, stdout: "1\n"))
-        let backend = SystemBackend(runner: fake.runner)
-
-        let value = try await backend.read(Self.defaultsSetting())
-
-        #expect(value == .bool(true))
-        #expect(fake.calls == [RecordingRunner.Call(executable: Tool.defaults, arguments: ["read", "com.apple.dock", "autohide"])])
+    /// A backend whose `.defaults` keys live in memory; the runner must never be called for them.
+    static func preferencesBackend() -> (SystemBackend, MemoryPreferencesStore, RecordingRunner) {
+        let prefs = MemoryPreferencesStore()
+        let fake = RecordingRunner(result: CommandResult(exitCode: 0, stdout: ""))
+        return (SystemBackend(runner: fake.runner, preferences: prefs), prefs, fake)
     }
 
-    @Test func readsBoolFalse() async throws {
-        let fake = RecordingRunner(result: CommandResult(exitCode: 0, stdout: "0\n"))
-        let value = try await SystemBackend(runner: fake.runner).read(Self.defaultsSetting())
-        #expect(value == .bool(false))
-    }
+    // MARK: defaults (CFPreferences)
 
-    @Test func missingKeyReadsAsNil() async throws {
-        let fake = RecordingRunner(result: Self.missingKey)
-        let value = try await SystemBackend(runner: fake.runner).read(Self.defaultsSetting())
-        #expect(value == nil)
-    }
-
-    @Test func readsFloat() async throws {
-        let fake = RecordingRunner(result: CommandResult(exitCode: 0, stdout: "0.5\n"))
-        let setting = Self.defaultsSetting(
-            id: "dock.autohide-delay", type: .double(min: 0, max: 5),
-            key: "autohide-delay", defaultsType: .float
-        )
-        let value = try await SystemBackend(runner: fake.runner).read(setting)
-        #expect(value == .double(0.5))
-    }
-
-    @Test func readsInt() async throws {
-        let fake = RecordingRunner(result: CommandResult(exitCode: 0, stdout: "48\n"))
-        let setting = Self.defaultsSetting(
-            id: "dock.tile-size", type: .int(min: 16, max: 128), key: "tilesize", defaultsType: .int
-        )
-        let value = try await SystemBackend(runner: fake.runner).read(setting)
-        #expect(value == .int(48))
-    }
-
-    @Test func readsStringTrimmed() async throws {
-        let fake = RecordingRunner(result: CommandResult(exitCode: 0, stdout: "  Nlsv \n"))
-        let setting = Self.defaultsSetting(
-            id: "finder.view-style", type: .enumeration(["Nlsv", "icnv"]),
-            domain: "com.apple.finder", key: "FXPreferredViewStyle", defaultsType: .string
-        )
-        let value = try await SystemBackend(runner: fake.runner).read(setting)
-        #expect(value == .string("Nlsv"))
-    }
-
-    @Test func globalDomainUsesDashG() async throws {
-        let fake = RecordingRunner(result: CommandResult(exitCode: 0, stdout: "2\n"))
-        let setting = Self.defaultsSetting(
-            id: "keyboard.key-repeat", type: .int(min: 1, max: 120),
-            domain: Backend.globalDomain, key: "KeyRepeat", defaultsType: .int
-        )
-        _ = try await SystemBackend(runner: fake.runner).read(setting)
-        #expect(fake.calls.first?.arguments == ["read", "-g", "KeyRepeat"])
-    }
-
-    @Test func otherReadFailureThrowsWithStderr() async throws {
-        let fake = RecordingRunner(result: CommandResult(exitCode: 1, stdout: "", stderr: "boom\n"))
-        do {
-            _ = try await SystemBackend(runner: fake.runner).read(Self.defaultsSetting())
-            Issue.record("expected a throw")
-        } catch let error as MacCtlError {
-            #expect(error == .commandFailed(command: "defaults read com.apple.dock autohide", exitCode: 1, stderr: "boom"))
-        }
-    }
-
-    @Test func failureFallsBackToStdout() async throws {
-        let fake = RecordingRunner(result: CommandResult(exitCode: 2, stdout: "reason on stdout\n", stderr: ""))
-        do {
-            try await SystemBackend(runner: fake.runner).write(.bool(true), for: Self.defaultsSetting())
-            Issue.record("expected a throw")
-        } catch let error as MacCtlError {
-            #expect(error == .commandFailed(command: "defaults write com.apple.dock autohide", exitCode: 2, stderr: "reason on stdout"))
-        }
-    }
-
-    @Test func unexpectedBoolOutputThrows() async throws {
-        let fake = RecordingRunner(result: CommandResult(exitCode: 0, stdout: "maybe\n"))
-        await #expect(throws: MacCtlError.self) {
-            _ = try await SystemBackend(runner: fake.runner).read(Self.defaultsSetting())
-        }
-    }
-
-    // MARK: defaults write
-
-    @Test func writesBoolAsTRUEFALSE() async throws {
-        let fake = RecordingRunner()
-        let backend = SystemBackend(runner: fake.runner)
-
-        try await backend.write(.bool(true), for: Self.defaultsSetting())
-        try await backend.write(.bool(false), for: Self.defaultsSetting())
-
-        #expect(fake.calls == [
-            RecordingRunner.Call(executable: Tool.defaults, arguments: ["write", "com.apple.dock", "autohide", "-bool", "TRUE"]),
-            RecordingRunner.Call(executable: Tool.defaults, arguments: ["write", "com.apple.dock", "autohide", "-bool", "FALSE"]),
-        ])
-    }
-
-    @Test func writesIntFloatAndString() async throws {
-        let fake = RecordingRunner()
-        let backend = SystemBackend(runner: fake.runner)
-        let size = Self.defaultsSetting(id: "dock.tile-size", type: .int(min: 16, max: 128), key: "tilesize", defaultsType: .int)
-        let delay = Self.defaultsSetting(id: "dock.autohide-delay", type: .double(min: 0, max: 5), key: "autohide-delay", defaultsType: .float)
-        let style = Self.defaultsSetting(
-            id: "finder.view-style", type: .enumeration(["Nlsv", "icnv"]),
-            domain: "com.apple.finder", key: "FXPreferredViewStyle", defaultsType: .string
-        )
-
-        try await backend.write(.int(48), for: size)
-        try await backend.write(.double(0.5), for: delay)
-        try await backend.write(.int(1), for: delay)
-        try await backend.write(.string("Nlsv"), for: style)
-
-        #expect(fake.calls.map(\.arguments) == [
-            ["write", "com.apple.dock", "tilesize", "-int", "48"],
-            ["write", "com.apple.dock", "autohide-delay", "-float", "0.5"],
-            ["write", "com.apple.dock", "autohide-delay", "-float", "1.0"],
-            ["write", "com.apple.finder", "FXPreferredViewStyle", "-string", "Nlsv"],
-        ])
-    }
-
-    @Test func writeWithWrongValueTypeThrowsWithoutRunning() async throws {
-        let fake = RecordingRunner()
-        await #expect(throws: MacCtlError.self) {
-            try await SystemBackend(runner: fake.runner).write(.string("yes"), for: Self.defaultsSetting())
-        }
+    @Test func readsBoolFromExactTripleWithoutRunningTools() async throws {
+        let (backend, prefs, fake) = Self.preferencesBackend()
+        prefs.seed("autohide", TypedValue(type: .bool, value: .bool(true)), appID: "com.apple.dock")
+        #expect(try await backend.read(Self.defaultsSetting()) == .bool(true))
         #expect(fake.calls.isEmpty)
     }
 
-    // MARK: defaults reset
-
-    @Test func resetDeletesKey() async throws {
-        let fake = RecordingRunner()
-        try await SystemBackend(runner: fake.runner).reset(Self.defaultsSetting())
-        #expect(fake.calls == [RecordingRunner.Call(executable: Tool.defaults, arguments: ["delete", "com.apple.dock", "autohide"])])
+    @Test func intStoredUnderBoolSettingReadsAsBool() async throws {
+        let (backend, prefs, _) = Self.preferencesBackend()
+        prefs.seed("autohide", TypedValue(type: .int, value: .int(0)), appID: "com.apple.dock")
+        #expect(try await backend.read(Self.defaultsSetting()) == .bool(false))
     }
 
-    @Test func resetOfMissingKeyIsNotAnError() async throws {
-        let fake = RecordingRunner(result: Self.missingKey)
-        try await SystemBackend(runner: fake.runner).reset(Self.defaultsSetting())
-        #expect(fake.calls.count == 1)
+    @Test func realStoredUnderIntSettingReadsAsInt() async throws {
+        let (backend, prefs, _) = Self.preferencesBackend()
+        let setting = Self.defaultsSetting(id: "dock.tilesize", type: .int(min: 16, max: 128), key: "tilesize", defaultsType: .int)
+        prefs.seed("tilesize", TypedValue(type: .float, value: .double(64)), appID: "com.apple.dock")
+        #expect(try await backend.read(setting) == .int(64))
+        // The exact prior keeps the real type (QA R-a).
+        #expect(try await backend.priorState(setting).value == TypedValue(type: .float, value: .double(64)))
     }
 
-    @Test func resetOtherFailureThrows() async throws {
-        let fake = RecordingRunner(result: CommandResult(exitCode: 1, stdout: "", stderr: "Could not write domain"))
-        await #expect(throws: MacCtlError.self) {
-            try await SystemBackend(runner: fake.runner).reset(Self.defaultsSetting())
+    @Test func missingKeyReadsAsNilAndAbsent() async throws {
+        let (backend, _, _) = Self.preferencesBackend()
+        #expect(try await backend.read(Self.defaultsSetting()) == nil)
+        #expect(try await backend.priorState(Self.defaultsSetting()).state == .absent)
+    }
+
+    @Test func unreadableStoredTypeThrows() async throws {
+        let (backend, prefs, _) = Self.preferencesBackend()
+        prefs.seed("autohide", TypedValue(type: .string, value: .string("maybe")), appID: "com.apple.dock")
+        await #expect(throws: MacCtlError.self) { try await backend.read(Self.defaultsSetting()) }
+    }
+
+    @Test func globalDomainValueIsInheritedNotExplicit() async throws {
+        let (backend, prefs, _) = Self.preferencesBackend()
+        prefs.seed("autohide", TypedValue(type: .bool, value: .bool(true)), appID: Backend.globalDomain)
+        let prior = try await backend.priorState(Self.defaultsSetting())
+        #expect(prior.state == .inherited)
+        #expect(prior.layer == "global")
+        #expect(try await backend.read(Self.defaultsSetting()) == nil)
+    }
+
+    @Test func forcedKeyIsRefused() async throws {
+        let (backend, prefs, _) = Self.preferencesBackend()
+        prefs.force("autohide", TypedValue(type: .bool, value: .bool(true)), appID: "com.apple.dock")
+        await #expect(throws: MacCtlError.managedSetting(id: "dock.autohide")) {
+            try await backend.priorState(Self.defaultsSetting())
         }
+    }
+
+    @Test func currentHostValueShadowsAnyHostTarget() async throws {
+        let (backend, prefs, _) = Self.preferencesBackend()
+        prefs.seed("autohide", TypedValue(type: .bool, value: .bool(false)), appID: "com.apple.dock", host: .currentHost)
+        let prior = try await backend.priorState(Self.defaultsSetting())
+        #expect(prior.shadowedBy == .currentHost)
+        #expect(prior.state == .inherited)
+        #expect(prior.layer == "otherHost")
+    }
+
+    @Test func writesExactCFTypes() async throws {
+        let (backend, prefs, fake) = Self.preferencesBackend()
+        let size = Self.defaultsSetting(id: "dock.tile-size", type: .int(min: 16, max: 128), key: "tilesize", defaultsType: .int)
+        let delay = Self.defaultsSetting(id: "dock.autohide-delay", type: .double(min: 0, max: 5), key: "autohide-delay", defaultsType: .float)
+        try await backend.write(.bool(true), for: Self.defaultsSetting())
+        try await backend.write(.int(40), for: size)
+        try await backend.write(.int(1), for: delay)
+        #expect(try prefs.copyValue("autohide", appID: "com.apple.dock", host: .anyHost) == TypedValue(type: .bool, value: .bool(true)))
+        #expect(try prefs.copyValue("tilesize", appID: "com.apple.dock", host: .anyHost) == TypedValue(type: .int, value: .int(40)))
+        #expect(try prefs.copyValue("autohide-delay", appID: "com.apple.dock", host: .anyHost) == TypedValue(type: .float, value: .double(1)))
+        #expect(prefs.syncs == 3)
+        #expect(fake.calls.isEmpty)
+    }
+
+    @Test func writeWithWrongValueTypeThrowsWithoutWriting() async throws {
+        let (backend, prefs, _) = Self.preferencesBackend()
+        await #expect(throws: MacCtlError.self) { try await backend.write(.string("yes"), for: Self.defaultsSetting()) }
+        #expect(prefs.writes == 0)
+    }
+
+    @Test func resetDeletesOnlyTheExactTriple() async throws {
+        let (backend, prefs, _) = Self.preferencesBackend()
+        prefs.seed("autohide", TypedValue(type: .bool, value: .bool(true)), appID: "com.apple.dock")
+        prefs.seed("autohide", TypedValue(type: .bool, value: .bool(false)), appID: "com.apple.dock", host: .currentHost)
+        try await backend.reset(Self.defaultsSetting())
+        #expect(try prefs.copyValue("autohide", appID: "com.apple.dock", host: .anyHost) == nil)
+        #expect(try prefs.copyValue("autohide", appID: "com.apple.dock", host: .currentHost) != nil)
+    }
+
+    @Test func writeExactRestoresOriginalType() async throws {
+        let (backend, prefs, _) = Self.preferencesBackend()
+        try await backend.writeExact(TypedValue(type: .int, value: .int(1)), for: Self.defaultsSetting())
+        #expect(try prefs.copyValue("autohide", appID: "com.apple.dock", host: .anyHost) == TypedValue(type: .int, value: .int(1)))
+    }
+
+    @Test func currentHostScopeWritesCurrentHost() async throws {
+        let (backend, prefs, _) = Self.preferencesBackend()
+        let setting = Setting(id: "t.host", summary: "", type: .bool,
+                              backend: .defaults(domain: "com.apple.dock", key: "k", type: .bool), scope: .currentHost)
+        try await backend.write(.bool(true), for: setting)
+        #expect(try prefs.copyValue("k", appID: "com.apple.dock", host: .currentHost) != nil)
+        #expect(try prefs.copyValue("k", appID: "com.apple.dock", host: .anyHost) == nil)
     }
 
     // MARK: AppleScript

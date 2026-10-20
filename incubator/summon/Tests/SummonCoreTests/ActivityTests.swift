@@ -53,6 +53,36 @@ struct ActivityTests {
         #expect(snapshots[0].undoes == "20261018-100000")
     }
 
+    /// macctl's journaled sessions keep a write-once header with `status: "pending"`; the status comes
+    /// from `../journal/<id>.jsonl` (QA R-b), so a finished session never warns.
+    @Test func journaledMacctlHeaderTakesStatusFromJournal() throws {
+        let home = try makeTempHome()
+        let paths = SummonPaths(home: home)
+        let journal = paths.macctlSnapshots.deletingLastPathComponent().appendingPathComponent("journal")
+        for id in ["20261020-100000", "20261020-110000", "20261020-120000"] {
+            try writeFile("""
+            {"changes":[{"id":"dock.autohide","to":true}],"createdAt":"2026-10-20T07:00:00Z","id":"\(id)","status":"pending"}
+            """, to: paths.macctlSnapshots.appendingPathComponent("\(id).json"))
+        }
+        try writeFile("""
+        {"v":1,"seq":1,"op":"session_start"}
+        {"v":1,"seq":2,"op":"session_end","outcome":"completed"}
+
+        """, to: journal.appendingPathComponent("20261020-100000.jsonl"))
+        // Crashed after the intent, with a torn last line: still pending.
+        try writeFile("""
+        {"v":1,"seq":1,"op":"session_start"}
+        {"v":1,"seq":2,"op":"intent"}
+        {"v":1,"seq":3,"op":"sess
+        """, to: journal.appendingPathComponent("20261020-110000.jsonl"))
+
+        let byID = Dictionary(uniqueKeysWithValues: MacctlSnapshot.load(from: paths.macctlSnapshots).map { ($0.id, $0.status) })
+        #expect(byID["20261020-100000"] == "completed")
+        #expect(byID["20261020-110000"] == "pending")
+        // A header with no journal (crash at H1, or an older macctl) keeps its own status.
+        #expect(byID["20261020-120000"] == "pending")
+    }
+
     @Test func feedMergesSourcesNewestFirstByDate() throws {
         let change = MacctlSnapshot(id: "20261018-100000", createdAt: t0.addingTimeInterval(60),
                                     changes: [SettingChange(id: "dock.autohide", from: "false", to: "true")])

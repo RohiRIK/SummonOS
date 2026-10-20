@@ -36,7 +36,8 @@ under your account; review their sources before enabling them.
 
 Checkpoints do not cover arbitrary documents, app installation, Homebrew changes, deleted external
 wallpapers, credentials, remote repositories, messages, cloud data, or other external effects. A macctl
-setting changed by another application may also be overwritten when restoring its older value.
+setting changed by hand or by another application after macctl wrote it is **not** overwritten on undo: it is
+flagged, left as it is, and reported (`partial_restore`); only an explicit `macctl undo <id> --force` overwrites it.
 Concurrent sessions share the same configuration/settings history; undo is not isolated to one agent.
 
 Capture failures are persisted and reported. Interactive work can continue with a warning; scheduled
@@ -44,11 +45,15 @@ work stops before starting the agent if capture reports a failure. No config rep
 files are outside coverage, even when the macctl marker succeeds. Check the capture fields and problems
 in `summon checkpoint list --json`; use `summon checkpoint undo --dry-run` before restoring.
 
-macctl serializes cooperating mutations across processes sharing its snapshot directory. Before writing
-settings it saves a private journal, then records `pending`, `completed`, or `failed` and completed steps.
-Failures return a recovery snapshot reference. A failed undo remains retryable. Partial changes are not
-automatically rolled back. Do not run older macctl binaries against the new journal format: they ignore
-outcome metadata. Independent applications can still change settings outside macctl's lock.
+macctl serializes cooperating mutations across processes sharing its snapshot directory
+([ADR](adr/ADR-macctl-recovery.md)). Each session writes a write-once snapshot header (status `pending`, never
+rewritten) and an append-only journal (`journal/<id>.jsonl`, 0600 in a 0700 directory) in which every change's
+prior state (absent, explicit with its exact type, or inherited) is fsynced (`F_FULLFSYNC`) before the write.
+A failed change rolls the whole batch back at once. After a crash, every write refuses with `recovery_pending`
+until `macctl recover` rolls the unfinished session back; recover is idempotent. Managed (MDM) keys are refused
+(`managed_setting`). Settings marked sensitive keep only a keyed hash (HMAC-SHA256, key in `journal/.key`) and
+cannot be restored. Journals never leave the Mac. Do not run older macctl binaries against the new journal
+format: they ignore it. Independent applications can still change settings outside macctl's lock.
 
 Wallpaper recovery records images by display UUID. A disconnected display must be reconnected before
 its saved image can be restored. Legacy snapshots with one wallpaper retain their historical scalar behavior.

@@ -1,17 +1,45 @@
 import Foundation
 
-/// Reads and writes settings with the built-in tools: `defaults` and `osascript`, plus the desktop
-/// picture through an injected `WallpaperControlling` (`NSWorkspace` by default).
+/// Reads and writes settings: `.defaults` keys through CFPreferences (an injected `PreferencesStore`,
+/// ADR D1), AppleScript settings through `osascript`, and the desktop picture through an injected
+/// `WallpaperControlling` (`NSWorkspace` by default).
 ///
-/// Values only ever travel as argv items. AppleScript text is the fixed script from the catalog;
-/// the value goes after `--` so osascript never parses it as a flag or as code.
+/// AppleScript text is the fixed script from the catalog; the value goes after `--` as an argv item
+/// so osascript never parses it as a flag or as code.
 public struct SystemBackend: SettingBackend {
     private let runner: Runner
     private let wallpaper: any WallpaperControlling
+    private let preferences: PreferencesBackend
 
-    public init(runner: @escaping Runner, wallpaper: any WallpaperControlling = LiveWallpaper()) {
+    public init(runner: @escaping Runner, preferences: any PreferencesStore = SystemBackend.livePreferences(),
+                wallpaper: any WallpaperControlling = LiveWallpaper()) {
         self.runner = runner
         self.wallpaper = wallpaper
+        self.preferences = PreferencesBackend(store: preferences)
+    }
+
+    /// CFPreferences on macOS; elsewhere every `.defaults` call fails as unsupported.
+    public static func livePreferences() -> any PreferencesStore {
+        #if canImport(Darwin)
+        CFPreferencesStore()
+        #else
+        UnavailablePreferencesStore()
+        #endif
+    }
+
+    public func priorState(_ setting: Setting) async throws -> PriorState {
+        if case .defaults = setting.backend { return try preferences.prior(setting) }
+        return try await PriorState.explicitOrAbsent(read(setting))
+    }
+
+    public func storedValue(_ setting: Setting) async throws -> TypedValue? {
+        if case .defaults = setting.backend { return try preferences.stored(setting) }
+        return try await read(setting).map(TypedValue.init)
+    }
+
+    public func writeExact(_ value: TypedValue, for setting: Setting) async throws {
+        if case .defaults = setting.backend { return try preferences.writeExact(value, for: setting) }
+        try await write(value.value, for: setting)
     }
 
     // MARK: SettingBackend
@@ -31,13 +59,8 @@ public struct SystemBackend: SettingBackend {
 
     public func read(_ setting: Setting) async throws -> Value? {
         switch setting.backend {
-        case .defaults(let domain, let key, let type):
-            let result = try await runner(Tool.defaults, ["read", Self.domainArgument(domain), key])
-            if result.exitCode != 0 {
-                if Self.isMissingKey(result) { return nil }
-                throw Self.failure("defaults read \(domain) \(key)", result)
-            }
-            return try Self.parseDefaults(result.stdout, type: type, id: setting.id)
+        case .defaults:
+            return try preferences.read(setting)
 
         case .appleScript(let getScript, _):
             let result = try await runner(Tool.osascript, ["-e", getScript])
@@ -51,15 +74,12 @@ public struct SystemBackend: SettingBackend {
 
     public func write(_ value: Value, for setting: Setting) async throws {
         switch setting.backend {
-        case .defaults(let domain, let key, let type):
-            let (flag, text) = try Self.defaultsArgument(value, type: type, id: setting.id)
+        case .defaults(_, _, let type):
+            let typed = try PreferencesBackend.typed(value, type: type, id: setting.id)
             if case .path = setting.type, case .string(let path) = value {
                 try Self.createDirectory(path, id: setting.id)
             }
-            let result = try await runner(Tool.defaults, ["write", Self.domainArgument(domain), key, flag, text])
-            if result.exitCode != 0 {
-                throw Self.failure("defaults write \(domain) \(key)", result)
-            }
+            try preferences.writeExact(typed, for: setting)
 
         case .appleScript(_, let setScript):
             // `--` ends osascript's own options: a value such as "-e" or "-rf" stays a value.
@@ -101,11 +121,8 @@ public struct SystemBackend: SettingBackend {
 
     public func reset(_ setting: Setting) async throws {
         switch setting.backend {
-        case .defaults(let domain, let key, _):
-            let result = try await runner(Tool.defaults, ["delete", Self.domainArgument(domain), key])
-            if result.exitCode != 0, !Self.isMissingKey(result) {
-                throw Self.failure("defaults delete \(domain) \(key)", result)
-            }
+        case .defaults:
+            try preferences.delete(setting)
 
         case .appleScript, .wallpaper:
             guard let systemDefault = setting.systemDefault else {
@@ -115,57 +132,6 @@ public struct SystemBackend: SettingBackend {
                 )
             }
             try await write(systemDefault, for: setting)
-        }
-    }
-
-    // MARK: defaults helpers
-
-    static func domainArgument(_ domain: String) -> String {
-        domain == Backend.globalDomain ? "-g" : domain
-    }
-
-    /// `defaults` reports an unset key ("... does not exist") or an unknown domain ("Domain ... not found").
-    static func isMissingKey(_ result: CommandResult) -> Bool {
-        let text = result.stderr + result.stdout
-        return text.contains("does not exist") || text.contains("not found")
-    }
-
-    static func parseDefaults(_ output: String, type: DefaultsType, id: String) throws -> Value {
-        let text = output.trimmingCharacters(in: .whitespacesAndNewlines)
-        switch type {
-        case .bool:
-            if let bool = parseBool(text) { return .bool(bool) }
-        case .int:
-            if let int = Int(text) { return .int(int) }
-            if let double = Double(text), double.rounded() == double, abs(double) < 1e15 {
-                return .int(Int(double))
-            }
-        case .float:
-            if let double = Double(text) { return .double(double) }
-        case .string:
-            return .string(text)
-        }
-        throw MacCtlError.invalidValue(id: id, value: text, reason: "unexpected `defaults read` output for a \(type.rawValue)")
-    }
-
-    /// The `defaults write` type flag and value text for a typed value.
-    static func defaultsArgument(_ value: Value, type: DefaultsType, id: String) throws -> (String, String) {
-        switch (type, value) {
-        case (.bool, .bool(let b)):
-            return ("-bool", b ? "TRUE" : "FALSE")
-        case (.int, .int(let i)):
-            return ("-int", String(i))
-        case (.float, .double(let d)):
-            return ("-float", String(d))
-        case (.float, .int(let i)):
-            return ("-float", String(Double(i)))
-        case (.string, .string(let s)):
-            return ("-string", s)
-        default:
-            throw MacCtlError.invalidValue(
-                id: id, value: value.description,
-                reason: "expected a \(type.rawValue) value for this setting"
-            )
         }
     }
 
@@ -213,5 +179,89 @@ public struct SystemBackend: SettingBackend {
         let stderr = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
         let stdout = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
         return .commandFailed(command: command, exitCode: result.exitCode, stderr: stderr.isEmpty ? stdout : stderr)
+    }
+}
+
+/// The `.defaults` backend over a `PreferencesStore`: one exact `(appID, current user, host)` triple
+/// per setting, typed values, explicit synchronize. Never edits plist files and never shells out.
+struct PreferencesBackend: Sendable {
+    let store: any PreferencesStore
+
+    private struct Target {
+        let appID: String
+        let key: String
+        let type: DefaultsType
+        let host: PreferenceHost
+    }
+
+    private func target(_ setting: Setting) throws -> Target {
+        guard case .defaults(let domain, let key, let type) = setting.backend else {
+            throw MacCtlError.unsupported(id: setting.id, reason: "not a preferences setting")
+        }
+        return Target(appID: domain, key: key, type: type, host: setting.scope)
+    }
+
+    /// ADR D1 steps 0-3: refuse managed keys, then explicit (exact triple), inherited (layered), absent.
+    func prior(_ setting: Setting) throws -> PriorState {
+        let t = try target(setting)
+        if try store.isForced(t.key, appID: t.appID) { throw MacCtlError.managedSetting(id: setting.id) }
+        var shadow: PreferenceHost? = nil
+        if t.host == .anyHost, try store.copyValue(t.key, appID: t.appID, host: .currentHost) != nil {
+            shadow = .currentHost
+        }
+        if let exact = try store.copyValue(t.key, appID: t.appID, host: t.host) {
+            return PriorState(state: .explicit, value: exact, host: t.host, shadowedBy: shadow)
+        }
+        if let inherited = try store.copyAppValue(t.key, appID: t.appID) {
+            return PriorState(state: .inherited, value: inherited, host: t.host,
+                              layer: try store.inheritedLayer(t.key, appID: t.appID, host: t.host), shadowedBy: shadow)
+        }
+        return PriorState(state: .absent, host: t.host, shadowedBy: shadow)
+    }
+
+    func stored(_ setting: Setting) throws -> TypedValue? {
+        let t = try target(setting)
+        return try store.copyValue(t.key, appID: t.appID, host: t.host)
+    }
+
+    /// The stored value as the catalog type; nil when unset. A value of another type that cannot be
+    /// read as the catalog type is an error, as with `defaults read` before.
+    func read(_ setting: Setting) throws -> Value? {
+        let t = try target(setting)
+        guard let typed = try stored(setting) else { return nil }
+        guard let value = typed.catalogValue(t.type) else {
+            throw MacCtlError.invalidValue(id: setting.id, value: typed.value.description,
+                                           reason: "stored as \(typed.type.rawValue), expected a \(t.type.rawValue)")
+        }
+        return value
+    }
+
+    /// Writes the exact CF type, synchronizes, and verifies with an exact-triple read-back.
+    func writeExact(_ value: TypedValue, for setting: Setting) throws {
+        let t = try target(setting)
+        try store.setValue(value, key: t.key, appID: t.appID, host: t.host)
+        if let points = Failpoint.writePoints { Failpoint.hit(points.0) }
+        try store.synchronize(appID: t.appID, host: t.host)
+        if let points = Failpoint.writePoints { Failpoint.hit(points.1) }
+    }
+
+    /// Deletes only this triple's explicit key, so inheritance resumes (restore of absent/inherited).
+    func delete(_ setting: Setting) throws {
+        let t = try target(setting)
+        try store.setValue(nil, key: t.key, appID: t.appID, host: t.host)
+        if let points = Failpoint.writePoints { Failpoint.hit(points.0) }
+        try store.synchronize(appID: t.appID, host: t.host)
+        if let points = Failpoint.writePoints { Failpoint.hit(points.1) }
+    }
+
+    /// The typed value a catalog write stores (`-bool` → CFBoolean, `-int` → SInt64, `-float` → real).
+    static func typed(_ value: Value, type: DefaultsType, id: String) throws -> TypedValue {
+        switch (type, value) {
+        case (.bool, .bool), (.int, .int), (.float, .double), (.float, .int), (.string, .string):
+            return TypedValue(writing: value, as: type)
+        default:
+            throw MacCtlError.invalidValue(id: id, value: value.description,
+                                           reason: "expected a \(type.rawValue) value for this setting")
+        }
     }
 }

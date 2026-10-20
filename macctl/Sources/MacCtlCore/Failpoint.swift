@@ -8,67 +8,51 @@ import Glibc
 /// Deterministic crash injection for the kill -9 matrix. A no-op unless the process runs with
 /// `MACCTL_TEST_MODE=1` and `MACCTL_FAILPOINT` set:
 ///
-/// - `MACCTL_FAILPOINT=<name>` sends SIGKILL to this process the first time `<name>` is reached;
-///   `<name>@<n>` on the n-th time (for example the second change of a batch). No `defer`, no
-///   `atexit`, no buffered output runs: it is a real kill -9.
-/// - `MACCTL_FAILPOINT=list` prints every known point name (one per line, stdout) and exits 0
-///   before anything else runs, so nothing is read or written.
-/// - `MACCTL_FAILPOINT=trace` runs normally and prints `failpoint <name>@<n>` to stderr at every
+/// - `MACCTL_FAILPOINT=<point>` sends SIGKILL to this process the first time `<point>` is reached;
+///   `<point>@<n>` on the n-th time. No `defer`, no `atexit`, no buffered output runs: a real kill -9.
+/// - `MACCTL_FAILPOINT=list` prints every point template (one per line) and exits 0 before
+///   anything else runs, so nothing is read or written.
+/// - `MACCTL_FAILPOINT=trace` runs normally and prints `failpoint <point>@<n>` to stderr at every
 ///   point it passes. The crash matrix uses it to generate its cases.
 ///
-/// `Failpoint.all` is the single source of truth. `hit` refuses a name that is not listed
-/// (programmer error), and the matrix fails when a listed point is never reached by any case.
+/// Points are the ADR D2 canonical list, in write order. `i` is the 1-based change number within a
+/// session; `j` is the change number a revert walk restores (apply rollback, undo and recover walk
+/// newest first, so `RI3` comes before `RI2`). `Failpoint.all` is the single source of truth: `hit`
+/// refuses a name that matches no template, and the matrix fails when a template is never reached.
 public enum Failpoint {
-    /// Every point, in the order a mutation reaches them (ADR D2 write order).
     public static let all: [String] = [
-        // Session start (apply / undo / recover all take the lock first).
-        "lock.acquired",
-        "plan.done",
-        // Session header (`snapshots/<id>.json`): 0600 temp, fsync, exclusive link, dir fsync.
-        "snapshot.tmp-written",
-        "snapshot.tmp-synced",
-        "snapshot.linked",
-        "snapshot.dir-synced",
-        // Journal file (`journal/<id>.jsonl`), created O_EXCL 0600.
-        "journal.created",
-        "journal.dir-synced",
-        // Per change: intent is durable before the real write; applied (or failed) after read-back.
-        "change.intent-appended",
-        "change.intent-synced",
-        "change.written",
-        "change.synchronized",
-        "change.read-back",
-        "change.applied-appended",
-        "change.applied-synced",
-        "change.failed-appended",
-        "change.failed-synced",
-        // After the batch.
-        "restarts.before",
-        "restarts.after",
-        "session-end.appended",
-        "session-end.synced",
-        // Header status rewrite: 0600 temp, fsync, rename, dir fsync.
-        "status.tmp-written",
-        "status.renamed",
-        "status.synced",
-        "lock.releasing",
-        // Recovery (`macctl recover`, or `undo <id>` of an unresolved session).
-        "recover.lock-acquired",
-        "recover.resolve-appended",
-        "recover.resolve-synced",
-        "revert.intent-appended",
-        "revert.intent-synced",
-        "revert.written",
-        "revert.synchronized",
-        "revert.reverted-appended",
-        "revert.reverted-synced",
-        "revert.flagged-appended",
-        "revert.flagged-synced",
-        "recover.restarts-before",
-        "recover.restarts-after",
-        "recover.session-end-appended",
-        "recover.session-end-synced",
+        "H1",   // snapshot header durable (written once), before session_start
+        "K1",   // session_start durable, before I1.1
+        "Ii.1", // before appending intent i
+        "Ii.2", // intent i appended, before F_FULLFSYNC
+        "Ii.3", // intent i durable, before the real write
+        "Wi.1", // real write done (CFPreferencesSetValue), before synchronize
+        "Wi.2", // synchronized, before read-back
+        "Ai.1", // read back as written, before appending applied i
+        "Ai.2", // applied i durable
+        "Fi.1", // write threw or read-back differed, before appending failed i
+        "Fi.2", // failed i durable, before the immediate rollback
+        "K2",   // last Ai.2, before the restarts
+        "E1",   // restarts done, before session_end
+        "K3",   // session_end durable, before unlock
+        "RIj",  // revert walk: revert_intent j durable, before the restore write
+        "RVj",  // revert walk: restore j written and synchronized, before reverted
+        "R0",   // recover: lock held, before the scan
+        "RE",   // recover: session_end{recovered} durable (per session, use RE@n), before the next or unlock
     ]
+
+    /// The template a concrete point belongs to (`I2.3` → `Ii.3`, `RV1` → `RVj`), or nil.
+    public static func template(of name: String) -> String? {
+        if all.contains(name), !name.contains("i"), !name.contains("j") { return name }
+        for prefix in ["RI", "RV"] where name.hasPrefix(prefix) {
+            if let n = Int(name.dropFirst(2)), n >= 1 { return "\(prefix)j" }
+        }
+        guard let letter = name.first, "IWAF".contains(letter) else { return nil }
+        let parts = name.dropFirst().split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 2, let n = Int(parts[0]), n >= 1 else { return nil }
+        let candidate = "\(letter)i.\(parts[1])"
+        return all.contains(candidate) ? candidate : nil
+    }
 
     enum Mode: Equatable {
         case off
@@ -91,11 +75,15 @@ public enum Failpoint {
         }
     }
 
+    /// While a backend write runs: the name of its post-write and post-sync points (`W3.1`, `W3.2`),
+    /// or nil (revert walks, which use `RVj` after both).
+    @TaskLocal public static var writePoints: (String, String)? = nil
+
     private static let state = FailpointState(mode: mode(ProcessInfo.processInfo.environment))
 
     /// Whether `MACCTL_FAILPOINT` names a point that does not exist (the CLI refuses to start).
     public static var unknownRequestedPoint: String? {
-        if case .kill(let name, _) = state.mode, !all.contains(name) { return name }
+        if case .kill(let name, _) = state.mode, template(of: name) == nil { return name }
         return nil
     }
 
@@ -104,7 +92,7 @@ public enum Failpoint {
 
     /// Marks one step. Kills the process when this is the requested point and occurrence.
     public static func hit(_ name: String) {
-        precondition(all.contains(name), "Unknown failpoint \(name); add it to Failpoint.all")
+        precondition(template(of: name) != nil, "Unknown failpoint \(name); add it to Failpoint.all")
         guard state.mode != .off else { return }
         let count = state.count(name)
         switch state.mode {

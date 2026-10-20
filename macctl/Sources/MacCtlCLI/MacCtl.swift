@@ -25,6 +25,7 @@ struct MacCtl: AsyncParsableCommand {
             discussion: """
             Output is JSON when --json is passed or stdout is not a terminal.
             Exit codes: 0 ok, 1 error, 2 needs permission, 3 needs confirmation (--yes), 4 unsupported.
+            After an interrupted run, every write refuses with recovery_pending until `macctl recover`.
             """,
             version: "0.1.0",
             subcommands: [
@@ -37,6 +38,7 @@ struct MacCtl: AsyncParsableCommand {
                 ApplyCommand.self,
                 SnapshotCommand.self,
                 UndoCommand.self,
+                RecoverCommand.self,
             ]
         )
     }

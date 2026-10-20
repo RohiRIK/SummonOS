@@ -107,17 +107,39 @@ public struct MacctlSnapshot: Sendable, Equatable, Decodable {
     }
 
     /// Every readable snapshot in `directory`, newest first. Unreadable files are skipped.
+    ///
+    /// Since macctl's journal (ADR macctl-recovery D2), `snapshots/<id>.json` is a write-once header that
+    /// keeps `status: "pending"` forever; the real status is the last `session_end` in
+    /// `../journal/<id>.jsonl` (what `macctl snapshot list --json` reports). A header with a sibling
+    /// journal therefore takes its status from the journal, read-only (QA R-b).
     public static func load(from directory: URL) -> [MacctlSnapshot] {
         guard let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else {
             return []
         }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
+        let journal = directory.deletingLastPathComponent().appendingPathComponent("journal", isDirectory: true)
         let snapshots = files.filter { $0.pathExtension == "json" }.compactMap { url -> MacctlSnapshot? in
-            guard let data = try? Data(contentsOf: url) else { return nil }
-            return try? decoder.decode(MacctlSnapshot.self, from: data)
+            guard let data = try? Data(contentsOf: url),
+                  var snapshot = try? decoder.decode(MacctlSnapshot.self, from: data) else { return nil }
+            if let derived = journalStatus(journal.appendingPathComponent("\(snapshot.id).jsonl")) {
+                snapshot.status = derived
+            }
+            return snapshot
         }
         return snapshots.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    /// The status a macctl journal implies: the last complete line's `session_end` outcome
+    /// (`completed`, `rolled_back`, `undone`, `recovered`), else `pending`. nil when there is no journal.
+    static func journalStatus(_ url: URL) -> String? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        struct Line: Decodable { var op: String; var outcome: String? }
+        // A last line without a newline is torn (being written, or cut by a crash); it is ignored.
+        let complete = data.split(separator: 0x0a, omittingEmptySubsequences: false).dropLast()
+        guard let last = complete.last(where: { !$0.isEmpty }),
+              let line = try? JSONDecoder().decode(Line.self, from: Data(last)) else { return "pending" }
+        return line.op == "session_end" ? (line.outcome ?? "pending") : "pending"
     }
 }
 
