@@ -31,7 +31,9 @@
 - [x] Add repeatable skill validation to CI and rerun the project gates.
 - [x] Review intended files and reachable history for private data and asset provenance.
 - [ ] Commit and push all reviewed workspace changes; make RohiRIK/SummonOS public.
-- [ ] Open a PR, verify live GitHub CI, and merge only after all checks pass.
+- [x] Open PR #60 and verify public repository/installer access.
+- [ ] Repair hosted CI cache portability: stale compiled modules still contain the old checkout path.
+- [ ] Verify all live GitHub CI checks and merge only after they pass.
 - [ ] Verify public default-branch files and record final results.
 
 ## Review
