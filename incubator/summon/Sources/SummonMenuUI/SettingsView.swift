@@ -1,27 +1,192 @@
+import AppKit
 import ServiceManagement
 import SummonCore
 import SwiftUI
 
-/// The Settings window (⌘,): one toolbar tab per section (the macOS app-settings layout), one grouped form each.
+/// All targets reachable in the Settings sidebar.
+public enum SettingsPanel: Hashable {
+    case general
+    case agents
+    case terminal
+    case notifications
+    case appearance
+    case tasks
+    case agent(String)
+}
+
+/// The Settings window (⌘,): modern macOS sidebar navigation with grouped forms and glass translucency.
 /// Every app preference lives here, never in the menu bar panel.
 public struct SettingsView: View {
     @Bindable var model: SummonModel
+    @AppStorage("glassClearness") private var glassClearness: Double = 0.4
+    @State private var columnVisibility = NavigationSplitViewVisibility.all
+    @State private var selection: SettingsPanel? = .general
+    @State private var query = ""
 
-    /// Terminal lives on Agents › All Agents now (where agents open), so it has no tab of its own.
-    static let sections = SettingsSection.allCases.filter { $0 != .terminal }
+    static let sections = SettingsSection.allCases
+
+    private var filteredSections: [SettingsSection] {
+        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return Self.sections }
+        return Self.sections.filter { $0.title.localizedCaseInsensitiveContains(query) }
+    }
+
+    private var allAgents: [Agent] {
+        let installed = Set(model.installedAgentIDs)
+        return AgentRegistry.all.filter { installed.contains($0.id) } + AgentRegistry.all.filter { !installed.contains($0.id) }
+    }
+
+    private var filteredAgents: [Agent] {
+        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return allAgents }
+        return allAgents.filter { $0.name.localizedCaseInsensitiveContains(query) || $0.id.localizedCaseInsensitiveContains(query) }
+    }
 
     public init(model: SummonModel) {
         self.model = model
     }
 
     public var body: some View {
-        TabView {
-            ForEach(Self.sections) { section in
-                SettingsSectionView(section: section, model: model)
-                    .tabItem { Label(section.title, systemImage: section.systemImage) }
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            List(selection: $selection) {
+                Section {
+                    ForEach(filteredSections) { section in
+                        Label {
+                            Text(section.title)
+                                .font(.system(size: 13, weight: .regular))
+                        } icon: {
+                            Image(systemName: section.systemImage)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 22, height: 22)
+                                .background(section.badgeColor, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        }
+                        .tag(section.panel)
+                    }
+                }
+
+                Section {
+                    ForEach(filteredAgents, id: \.id) { agent in
+                        SidebarAgentRow(agent: agent, model: model)
+                            .tag(SettingsPanel.agent(agent.id))
+                    }
+                } header: {
+                    HStack {
+                        Text("Agents")
+                        Spacer()
+                        Text("\(model.installedAgentIDs.count) on")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .listStyle(.sidebar)
+            .searchable(text: $query, placement: .sidebar, prompt: "Search settings...")
+            .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 280)
+        } detail: {
+            detailView
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(minWidth: 860, idealWidth: 900, minHeight: 560, idealHeight: 620)
+        .background(WindowGlassAccessor(clearness: glassClearness))
+        .task {
+            await model.loadShippedSkills()
+            for id in model.installedAgentIDs where model.agentStatus[id] == nil {
+                await model.checkAgent(id)
+            }
+            await model.loadCatalog()
+        }
+    }
+
+    @ViewBuilder private var detailView: some View {
+        if let selection {
+            VStack(alignment: .leading, spacing: 0) {
+                detailHeader(for: selection)
+
+                detailContent(for: selection)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        } else {
+            ContentUnavailableView("Select a Section", systemImage: "gearshape")
+        }
+    }
+
+    @ViewBuilder private func detailHeader(for panel: SettingsPanel) -> some View {
+        HStack(spacing: 14) {
+            switch panel {
+            case .general:
+                headerIcon(systemName: "gearshape.fill", color: .gray)
+                headerText(title: "General", subtitle: "System defaults, startup behavior, and global shortcuts")
+            case .agents:
+                headerIcon(systemName: "sparkles", color: .purple)
+                headerText(title: "All Agents", subtitle: "Installed coding agents, model connections, and providers")
+            case .terminal:
+                headerIcon(systemName: "terminal.fill", color: .black)
+                headerText(title: "Terminal", subtitle: "Default terminal emulator, launch behavior, and window styling")
+            case .notifications:
+                headerIcon(systemName: "bell.badge.fill", color: .red)
+                headerText(title: "Notifications", subtitle: "Alert triggers, crash warnings, and sound effects")
+            case .appearance:
+                headerIcon(systemName: "paintpalette.fill", color: .blue)
+                headerText(title: "Appearance", subtitle: "Liquid Glass translucency, theme palette, and window styling")
+            case .tasks:
+                headerIcon(systemName: "clock.arrow.circlepath", color: .orange)
+                headerText(title: "Tasks", subtitle: "Automation schedule, recurring maintenance, and log rotation")
+            case .agent(let id):
+                if let agent = AgentRegistry.find(id) {
+                    AgentBrandIcon(agentId: agent.id, size: 24)
+                        .frame(width: 36, height: 36)
+                        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    headerText(title: agent.name, subtitle: "AI assistant settings, provider login, and custom model")
+                }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 28)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
+    }
+
+    private func headerIcon(systemName: String, color: Color) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 36, height: 36)
+            .background(color, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .shadow(color: color.opacity(0.25), radius: 3, y: 1.5)
+    }
+
+    private func headerText(title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(.primary)
+            Text(subtitle)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder private func detailContent(for panel: SettingsPanel) -> some View {
+        switch panel {
+        case .general:
+            GeneralSettings(model: model)
+        case .agents:
+            AllAgentsDetail(model: model)
+        case .terminal:
+            TerminalSettings(model: model)
+        case .notifications:
+            NotificationSettings(model: model)
+        case .appearance:
+            AppearanceSettings(model: model)
+        case .tasks:
+            TasksSettings(model: model)
+        case .agent(let id):
+            if let agent = AgentRegistry.find(id) {
+                AgentDetail(agent: agent, model: model)
+                    .id(agent.id)
+            } else {
+                ContentUnavailableView("Unknown Agent", systemImage: "questionmark")
             }
         }
-        .task { await model.loadShippedSkills() }
     }
 }
 
@@ -31,22 +196,88 @@ struct SettingsSectionView: View {
     @Bindable var model: SummonModel
 
     var body: some View {
-        // Short tabs fit their rows; Agents (a row per skill) gets room and scrolls.
-        if section == .agents {
-            content.frame(width: 780, height: 560)
-        } else {
-            content.frame(width: 580).fixedSize(horizontal: false, vertical: true)
-        }
+        content
+            .navigationTitle(section.title)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder private var content: some View {
         switch section {
         case .general: GeneralSettings(model: model)
-        case .agents: AgentsSettings(model: model)
-        case .terminal: AllAgentsDetail(model: model)  // no tab of its own: Agents › All Agents
+        case .agents: AllAgentsDetail(model: model)
+        case .terminal: TerminalSettings(model: model)
         case .notifications: NotificationSettings(model: model)
         case .appearance: AppearanceSettings(model: model)
         case .tasks: TasksSettings(model: model)
+        }
+    }
+}
+
+extension SettingsSection {
+    var panel: SettingsPanel {
+        switch self {
+        case .general: return .general
+        case .agents: return .agents
+        case .terminal: return .terminal
+        case .notifications: return .notifications
+        case .appearance: return .appearance
+        case .tasks: return .tasks
+        }
+    }
+
+    var badgeColor: Color {
+        switch self {
+        case .general: return Color.blue
+        case .agents: return Color.purple
+        case .terminal: return Color.cyan
+        case .notifications: return Color.red
+        case .appearance: return Color.pink
+        case .tasks: return Color.orange
+        }
+    }
+}
+
+/// Agent row displayed in the Settings sidebar with its connection status dot.
+struct SidebarAgentRow: View {
+    let agent: Agent
+    let model: SummonModel
+
+    private var installed: Bool { model.installedAgentIDs.contains(agent.id) }
+    private var isDefault: Bool { model.defaultAgent?.id == agent.id }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            AgentBrandIcon(agentId: agent.id, size: 16)
+                .foregroundStyle(installed ? .primary : .secondary)
+                .frame(width: 18, height: 18)
+
+            Text(agent.name)
+                .font(.system(size: 13, weight: isDefault ? .medium : .regular))
+                .foregroundStyle(installed ? .primary : .secondary)
+
+            Spacer()
+
+            if isDefault {
+                Text("Default")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(Color.secondary.opacity(0.15), in: Capsule())
+            }
+
+            Circle()
+                .fill(statusColor)
+                .frame(width: 7, height: 7)
+        }
+    }
+
+    private var statusColor: Color {
+        guard installed else { return .secondary.opacity(0.3) }
+        switch model.agentStatus[agent.id]?.login.loggedIn {
+        case true?: return .green
+        case false?: return .orange
+        case nil: return .green.opacity(0.8)
         }
     }
 }
@@ -59,12 +290,31 @@ struct GeneralSettings: View {
 
     @State private var cleanPlan: SummonCleaner.Plan?
     @State private var confirmingClean = false
-    let model: SummonModel
+    @Bindable var model: SummonModel
 
     var body: some View {
         Form {
-            Section {
-                Toggle("Open at Login", isOn: $openAtLogin)
+            Section("System") {
+                Picker("Default agent", selection: Binding(
+                    get: { model.defaultAgent?.id ?? "" },
+                    set: { if !$0.isEmpty { model.setDefaultAgent($0) } }
+                )) {
+                    if model.defaultAgent == nil { Text("None").tag("") }
+                    ForEach(AgentRegistry.all.filter { model.installedAgentIDs.contains($0.id) }, id: \.id) { agent in
+                        Text(agent.name).tag(agent.id)
+                    }
+                }
+
+                Picker("Default terminal", selection: Binding(
+                    get: { model.terminal },
+                    set: { model.setTerminal($0) }
+                )) {
+                    ForEach(model.installedTerminals, id: \.self) { term in
+                        Text(term.name).tag(term)
+                    }
+                }
+
+                Toggle("Start at login", isOn: $openAtLogin)
                     .onChange(of: openAtLogin) { _, newValue in
                         setOpenAtLogin(newValue)
                     }
@@ -73,10 +323,20 @@ struct GeneralSettings: View {
                         .font(.subheadline)
                         .foregroundStyle(.red)
                 }
+
+                LabeledContent("Summon workspace") {
+                    Button("Reveal in Finder") {
+                        NSWorkspace.shared.open(model.paths.home)
+                    }
+                }
+            }
+
+            Section("Automation & Storage") {
                 Toggle(isOn: Binding(get: { model.repoPolicy == .always }, set: { model.setRepoPolicy($0 ? .always : .ask) })) {
                     Text("Create a private GitHub repo for every new app")
                     Text("With screenshots and CI. Always private. Off: Summon asks each time.")
                 }
+
                 LabeledContent {
                     Button("Clean Now…") {
                         Task {
@@ -88,12 +348,43 @@ struct GeneralSettings: View {
                     Text("Keep ~/Summon tidy")
                     Text("Once a day, old task logs and art go to the Trash. Apps are never touched.")
                 }
-            } footer: {
-                Text("Powered by caffeine and questionable choices.")
-                    .font(.footnote)
-                    .foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 12)
+            }
+
+            Section("Keyboard Shortcuts") {
+                LabeledContent("Open Summon Menu") {
+                    Text("⌃⌥Space")
+                        .font(.system(.subheadline, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
+                }
+
+                LabeledContent("Ask Default Agent") {
+                    Text("⌃⌥⌘A")
+                        .font(.system(.subheadline, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
+                }
+            }
+
+            Section {
+                HStack {
+                    Text("Powered by caffeine and questionable choices.")
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                    Button(role: .destructive) {
+                        NSApp.terminate(nil)
+                    } label: {
+                        Text("Quit Summon")
+                            .font(.system(size: 13, weight: .medium))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                }
             }
         }
         .formStyle(.grouped)
@@ -267,6 +558,8 @@ struct AgentListRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            AgentBrandIcon(agentId: agent.id, size: 14)
+                .foregroundStyle(installed ? .primary : .secondary)
             Circle()
                 .fill(color)
                 .frame(width: 7, height: 7)
@@ -537,6 +830,40 @@ struct AgentDetail: View {
     }
 }
 
+// MARK: Terminal
+
+struct TerminalSettings: View {
+    @Bindable var model: SummonModel
+
+    var body: some View {
+        Form {
+            Section("Default Terminal") {
+                Picker("Open agents in", selection: Binding(
+                    get: { model.terminal },
+                    set: { model.setTerminal($0) }
+                )) {
+                    ForEach(model.installedTerminals, id: \.self) { term in
+                        Text(term.name).tag(term)
+                    }
+                }
+            }
+
+            Section("Detected Terminals") {
+                ForEach(TerminalApp.allCases, id: \.self) { term in
+                    let isInstalled = model.installedTerminals.contains(term)
+                    LabeledContent {
+                        Text(isInstalled ? "Installed" : "Not Found")
+                            .foregroundStyle(isInstalled ? .primary : .secondary)
+                    } label: {
+                        Label(term.name, systemImage: "terminal")
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
 // MARK: Notifications
 
 struct NotificationSettings: View {
@@ -568,19 +895,91 @@ struct NotificationSettings: View {
 struct AppearanceSettings: View {
     @Bindable var model: SummonModel
 
+    @AppStorage("glassClearness") private var glassClearness: Double = 0.4
+    @AppStorage("glassStyle") private var glassStyle: String = "ultraThin"
+
     var body: some View {
-        if model.themes.isEmpty {
-            ContentUnavailableView("No Themes", systemImage: "paintpalette")
-        } else {
-            Form {
-                Picker("Theme", selection: themeBinding) {
-                    ForEach(model.themes) { theme in
-                        Text(theme.name).tag(theme.slug)
+        Form {
+            Section("Theme & Palette") {
+                if model.themes.isEmpty {
+                    Text("No themes installed.").foregroundStyle(.secondary)
+                } else {
+                    Picker("Theme", selection: themeBinding) {
+                        ForEach(model.themes) { theme in
+                            Text(theme.name).tag(theme.slug)
+                        }
+                    }
+
+                    if let current = currentTheme {
+                        HStack(spacing: 8) {
+                            Text("Palette")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            HStack(spacing: 6) {
+                                ColorDot(hex: current.colors.accent, label: "Accent")
+                                ColorDot(hex: current.colors.accent2, label: "Accent 2")
+                                ColorDot(hex: current.colors.background, label: "Background")
+                                ColorDot(hex: current.colors.foreground, label: "Foreground")
+                                ColorDot(hex: current.colors.muted, label: "Muted")
+                            }
+                        }
                     }
                 }
             }
-            .formStyle(.grouped)
+
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Display Clearness")
+                        Spacer()
+                        Text(clearnessLabel)
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack(spacing: 12) {
+                        Image(systemName: "circle")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .help("Solid / Opaque")
+
+                        Slider(value: $glassClearness, in: 0.0...1.0, step: 0.02)
+
+                        Image(systemName: "circle.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.blue)
+                            .help("Maximum Clear")
+                    }
+                }
+                .padding(.vertical, 4)
+
+                Picker("Glass Material", selection: $glassStyle) {
+                    Text("Ultra-Thin Liquid").tag("ultraThin")
+                    Text("Frosted Thin").tag("thin")
+                    Text("Regular Material").tag("regular")
+                }
+            } header: {
+                Text("Liquid Glass & Clearness")
+            } footer: {
+                Text("Drag the slider horizontally to adjust how clearly you can see through to the display.")
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+            }
         }
+        .formStyle(.grouped)
+    }
+
+    private var clearnessLabel: String {
+        let percent = Int(glassClearness * 100)
+        if percent < 15 { return "\(percent)% · Solid" }
+        if percent < 45 { return "\(percent)% · Frosted" }
+        if percent < 75 { return "\(percent)% · Clear Glass" }
+        return "\(percent)% · Ultra Clear"
+    }
+
+    private var currentTheme: Theme? {
+        model.themes.first { $0.slug == model.currentThemeSlug }
     }
 
     private var themeBinding: Binding<String> {
@@ -588,6 +987,61 @@ struct AppearanceSettings: View {
             get: { model.currentThemeSlug ?? "" },
             set: { newValue in model.setTheme(newValue) }
         )
+    }
+}
+
+/// Applies real-time dynamic transparency to the NSWindow so the display/desktop behind shows through.
+struct WindowGlassAccessor: NSViewRepresentable {
+    let clearness: Double
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            apply(to: view.window)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        apply(to: nsView.window)
+    }
+
+    private func apply(to window: NSWindow?) {
+        guard let window else { return }
+        window.isOpaque = false
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.titlebarSeparatorStyle = .none
+        window.styleMask.insert(.fullSizeContentView)
+        // Adjust background alpha: 0% -> solid (alpha 1.0); 100% -> very clear (alpha 0.25)
+        window.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(CGFloat(max(0.25, 1.0 - clearness * 0.70)))
+    }
+}
+
+struct ColorDot: View {
+    let hex: String
+    let label: String
+
+    var body: some View {
+        Circle()
+            .fill(Color(hex: hex) ?? .gray)
+            .frame(width: 16, height: 16)
+            .overlay(Circle().stroke(Color.primary.opacity(0.15), lineWidth: 0.5))
+            .help("\(label): \(hex)")
+    }
+}
+
+extension Color {
+    init?(hex: String) {
+        var clean = hex.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "#", with: "")
+        if clean.count == 3 {
+            clean = clean.map { "\($0)\($0)" }.joined()
+        }
+        guard clean.count == 6, let int = UInt64(clean, radix: 16) else { return nil }
+        let r = Double((int >> 16) & 0xFF) / 255.0
+        let g = Double((int >> 8) & 0xFF) / 255.0
+        let b = Double(int & 0xFF) / 255.0
+        self.init(red: r, green: g, blue: b)
     }
 }
 
