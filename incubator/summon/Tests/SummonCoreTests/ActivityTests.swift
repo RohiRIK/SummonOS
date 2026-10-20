@@ -150,6 +150,73 @@ struct ActivityTests {
         let macctlWarnings = status.warnings.filter { $0.hasPrefix("macctl ") }
         #expect(macctlWarnings.count == 1)
         #expect(macctlWarnings.first?.contains("20261020-090000") == true)
+
+        // Event categories per status (decision for #62): finished and recovered are not Problems.
+        let events = Dictionary(uniqueKeysWithValues: ActivityFeed.build(log: [], snapshots: snapshots, checkpoints: [], crashes: [])
+            .map { ($0.refs["snapshot"] ?? "", $0) })
+        #expect(events["20261020-090000"]?.category == .problem)        // pending
+        #expect(events["20261020-091000"]?.category == .settings)       // completed
+        #expect(events["20261020-091000"]?.kind == "setting.change")
+        #expect(events["20261020-092000"]?.category == .settings)       // undone
+        #expect(events["20261020-092000"]?.kind == "setting.undone")
+        #expect(events["20261020-093000"]?.category == .settings)       // rolled_back
+        #expect(events["20261020-093000"]?.title.contains("recovered after interruption") == true)
+        #expect(events["20261020-094000"]?.category == .settings)       // recovered
+        #expect(events["20261020-094000"]?.kind == "setting.recovered")
+    }
+
+    /// The rest of the decision: abandoned, flagged hand edits and unknown statuses are Problems.
+    @Test func macctlProblemStatusesAreProblems() throws {
+        let home = try makeTempHome()
+        let paths = SummonPaths(home: home)
+        let journal = paths.macctlSnapshots.deletingLastPathComponent().appendingPathComponent("journal")
+        for id in ["20261020-100000", "20261020-101000", "20261020-102000", "20261020-103000"] {
+            try writeFile("""
+            {"changes":[{"id":"dock.autohide","to":true}],"createdAt":"2026-10-20T07:00:00Z","id":"\(id)","status":"pending"}
+            """, to: paths.macctlSnapshots.appendingPathComponent("\(id).json"))
+        }
+        // Hand edit left as it is by recover.
+        try writeFile("""
+        {"v":1,"seq":1,"op":"session_start"}
+        {"v":1,"seq":2,"op":"intent"}
+        {"v":1,"seq":3,"op":"applied","ref":2}
+        {"v":1,"seq":4,"op":"revert_flagged","ref":2}
+        {"v":1,"seq":5,"op":"session_end","outcome":"recovered"}
+
+        """, to: journal.appendingPathComponent("20261020-100000.jsonl"))
+        // Flagged, then `undo --force` restored it: no longer a problem.
+        try writeFile("""
+        {"v":1,"seq":1,"op":"session_start"}
+        {"v":1,"seq":2,"op":"intent"}
+        {"v":1,"seq":3,"op":"applied","ref":2}
+        {"v":1,"seq":4,"op":"session_end","outcome":"completed"}
+        {"v":1,"seq":5,"op":"revert_flagged","ref":2}
+        {"v":1,"seq":6,"op":"session_end","outcome":"undone"}
+        {"v":1,"seq":7,"op":"revert_intent","ref":2}
+        {"v":1,"seq":8,"op":"reverted","ref":2}
+        {"v":1,"seq":9,"op":"session_end","outcome":"undone"}
+
+        """, to: journal.appendingPathComponent("20261020-101000.jsonl"))
+        // recover --abandon kept the journal as .corrupt.
+        try writeFile("garbage\n", to: journal.appendingPathComponent("20261020-102000.jsonl.corrupt"))
+        // A status this Summon does not know.
+        try writeFile("""
+        {"v":1,"seq":1,"op":"session_end","outcome":"something_new"}
+
+        """, to: journal.appendingPathComponent("20261020-103000.jsonl"))
+
+        let snapshots = MacctlSnapshot.load(from: paths.macctlSnapshots)
+        let byID = Dictionary(uniqueKeysWithValues: snapshots.map { ($0.id, $0) })
+        #expect(byID["20261020-100000"]?.status == "flagged")
+        #expect(byID["20261020-101000"]?.status == "undone")
+        #expect(byID["20261020-102000"]?.status == "abandoned")
+        #expect(byID["20261020-103000"]?.status == "something_new")
+        let events = Dictionary(uniqueKeysWithValues: ActivityFeed.build(log: [], snapshots: snapshots, checkpoints: [], crashes: [])
+            .map { ($0.refs["snapshot"] ?? "", $0.category) })
+        #expect(events["20261020-100000"] == .problem)
+        #expect(events["20261020-101000"] == .settings)
+        #expect(events["20261020-102000"] == .problem)
+        #expect(events["20261020-103000"] == .problem)
     }
 
     @Test func feedMergesSourcesNewestFirstByDate() throws {
