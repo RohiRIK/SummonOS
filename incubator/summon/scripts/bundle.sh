@@ -26,7 +26,10 @@ for size in 16 32 128 256 512; do
   sips -z $((size * 2)) $((size * 2)) design/brand/app-icon-1024.png --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
+cp design/brand/app-icon-128.png "$APP/Contents/Resources/app-icon.png"
 cp design/brand/menubar-icon.png design/brand/menubar-icon@2x.png "$APP/Contents/Resources/"
+mkdir -p "$APP/Contents/Resources/agents"
+cp Resources/agents/*.svg "$APP/Contents/Resources/agents/"
 
 # Shared files: themes (with wallpapers), skills, config templates, project templates, logo.
 cp -R themes "$APP/Contents/share/summon/themes"
