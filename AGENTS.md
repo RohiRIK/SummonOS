@@ -41,7 +41,13 @@ creates the repo pair. Tool details: `docs/tools.md`. Apps made through Summon a
 |---|---|
 | Start or port a plugin; "what is next" (the whole process, phase by phase) | `MacPluginPlaybook` (lives in the skills library, symlinked here) |
 | Plan an app or feature; state, concurrency, API calls, storage, secrets, system tools | `MacAppArchitecture` |
-| Any view, panel, window, or settings UI; a redesign or UI complaint | `MacUX` › `DesignPass` workflow (+ `swiftui-expert-skill` for API depth) |
+| Default for all modern macOS views, windows, settings, and glass design pass | `LiquidGlass` (sidebar settings, materials, Liquid Glass) |
+| Mac OS X Aqua era (10.0–10.6): jelly pill buttons, brushed metal, pinstripes, candy progress | `MacAqua` |
+| OS X Linen & Skeuomorphic era (10.7–10.9): woven linen, stitched leather, legal pad notes | `MacLinen` |
+| OS X Flat Vibrancy era (10.10–10.15): frosted glass, SF typography, flat colorful pills | `MacYosemite` |
+| NeXTSTEP & OPENSTEP (1989–1996): 3D sculpted chisel bevels, vertical dock, dark gray tiles | `MacNeXT` |
+| System 7 & Mac OS 8/9 Platinum: pinstripe title bars, 3D bevels, Chicago/Charcoal, classic dialogs | `MacClassic` |
+| Menu panel basics, typography, legacy design passes | `MacUX` › `DesignPass` workflow (+ `swiftui-expert-skill` for API depth) |
 | Scaffold, build, previews, verify, PR, release | `MacAppBuild` |
 | Port a Linux widget or script | `PortLinuxWidget` |
 | Actors, `Sendable`, cancellation, Swift 6 errors | `swift-concurrency-pro` |

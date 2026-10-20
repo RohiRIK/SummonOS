@@ -9,7 +9,8 @@
 
 **One coding agent you can summon from anywhere on your Mac.** It sees the whole Mac through documented
 commands, is handed problems automatically (crashes, hangs), and can set up, theme, fix and build things for
-you. Every session is checkpointed, so anything it does can be undone.
+you. Every session attempts a checkpoint for supported settings and captured config files.
+See the [security and recovery model](../../docs/security-model.md) for scope and limits.
 
 ## What it does
 
@@ -17,9 +18,10 @@ you. Every session is checkpointed, so anything it does can be undone.
   skill routes it to the right skill, whether that's Mac settings, themes and art, a new app, crashes, logs, or
   the agent's own skills.
 - **Your agents, your way.** Claude Code, Codex, OpenCode, Antigravity, Pi and more, each with its own model and
-  its own set of skills, opened in Ghostty, kitty or Terminal with permission prompts bypassed.
-- **Nothing is permanent.** Every agent session and task starts with a checkpoint (macOS settings plus your
-  `~/.config`), and `summon checkpoint undo` puts it back.
+  its own set of skills, opened in Ghostty, kitty or Terminal. New installs use the agent's own controls;
+  `summon default execution unattended` selects bypass mode. Existing configured installs retain their choice.
+- **Scoped recovery.** Agent sessions and tasks capture a macctl marker and, when available, a Git commit of
+  `~/.config`. `summon checkpoint undo` restores covered state. Arbitrary files and external actions are excluded.
 - **The Mac calls the agent.** A crash or hang turns into a notification with Diagnose, which hands the
   report to your agent.
 - **Work while you're away.** Describe a recurring task in plain words ("weekdays at 9, check brew updates") and

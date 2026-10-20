@@ -1,10 +1,11 @@
-# Snippet for .github/workflows/swift.yml: run tools/check-workspace.sh on every push.
-# It lives here because the Claude GitHub app cannot push workflow files. To turn it on, the owner
-# pastes the job below under `jobs:` in .github/workflows/swift.yml (ubuntu runners ship jq).
+# Reference snippet. The workspace job is active in .github/workflows/swift.yml on pushes and PRs.
+# Make gate changes in that workflow; this is a minimal example for other workspace repositories.
 
   workspace:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Workspace hygiene (package roots, file sizes, plugins.md)
         run: tools/check-workspace.sh

@@ -24,6 +24,15 @@ in the workspace. Agent instructions: workspace skill `MacSetup`.
 - Lives in the workspace repo for now (`macctl/`); planned move to `mac-ctl-dev` / `mac-ctl`.
 
 ## Recent History
+### 2026-10-20 — Recoverable serialized transactions
+- Cross-process cancellable lock covers planning/backup/write/outcome; snapshots publish without overwrite.
+  Optional status/appliedSettings/failure distinguish pending/completed/failed; absent status is legacy completed.
+- Failed undo stays retryable. mutation_failed reports recoverySnapshot/appliedSettings; partial failures
+  are recoverable, not automatically compensated. New errors: snapshot_exists and transaction_busy.
+- Wallpaper snapshots save display UUID/path arrays; undo/redo restore distinct displays, retaining scalar
+  compatibility. Missing displays remain retryable after reconnect; deleted files keep skip-with-note behavior.
+- 94 tests passed with separate-process lock fixtures; release CLI built. Live settings, actual display
+  reconnect and OS matrix remain unverified. Old executables ignore journal outcomes; upgrade for recovery.
 ### 2026-10-18 — desktop.wallpaper
 - New setting `desktop.wallpaper` (path, user risk, no restart): read = main screen, write = every screen,
   keeping each screen's scaling options. Missing file or folder → `invalid_value` before any snapshot or

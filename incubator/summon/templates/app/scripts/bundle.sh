@@ -3,9 +3,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+CACHE="$HOME/Library/Caches/macplugins/app-starter/build"
+
 APP="build/Starter.app"
-swift build -c release --product Starter
-BIN="$(swift build -c release --show-bin-path)"
+swift build --scratch-path "$CACHE" -c release --product Starter
+BIN="$(swift build --scratch-path "$CACHE" -c release --show-bin-path)"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"

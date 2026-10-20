@@ -3,9 +3,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+CACHE="$HOME/Library/Caches/macplugins/screensaver-starter/build"
+
 SAVER="build/Starter.saver"
-swift build -c release --product Starter
-BIN="$(swift build -c release --show-bin-path)"
+swift build --scratch-path "$CACHE" -c release --product Starter
+BIN="$(swift build --scratch-path "$CACHE" -c release --show-bin-path)"
 
 rm -rf "$SAVER"
 mkdir -p "$SAVER/Contents/MacOS" "$SAVER/Contents/Resources"

@@ -8,6 +8,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
     public let model = SummonModel()
     public private(set) lazy var launcher = LauncherController(model: model)
     public private(set) lazy var activity = ActivityModel(summon: model)
+    public private(set) lazy var crashAlert = CrashAlertController(model: model)
 
     static let crashCategory = "summon.crash"
     static let diagnoseAction = "summon.crash.diagnose"
@@ -38,6 +39,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         setUpNotifications(health: health)
         model.onNewCrash = { [weak self] report in
             self?.notify(report)
+            self?.crashAlert.present(report)
         }
         model.startWatching()
         // Every launch relinks the shipped skills, so an updated or moved app still reaches every agent.
@@ -63,6 +65,25 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
                 activity.requestOpen()
             case "settings":
                 activity.requestSettings()
+            #if DEBUG
+            case "test-crash":
+                let sample = CrashReport(
+                    file: "/Library/Logs/DiagnosticReports/Ghostty-2026-10-20-100700.ips",
+                    kind: .crash,
+                    bugType: "309",
+                    appName: "Ghostty",
+                    appVersion: "1.1.2",
+                    timestamp: "2026-10-20 10:07:00.00 +0300",
+                    incidentID: UUID().uuidString,
+                    osVersion: "macOS 26.0 (26A425)",
+                    process: "Ghostty",
+                    pid: 48192,
+                    exceptionType: "EXC_BAD_ACCESS",
+                    signal: "SIGSEGV",
+                    topFrames: ["0   libsystem_kernel.dylib   0x000000018a14b534 __pthread_kill + 8", "1   GhosttyApp               0x00000001048b2910 main + 420"]
+                )
+                crashAlert.present(sample)
+            #endif
             default:
                 break
             }

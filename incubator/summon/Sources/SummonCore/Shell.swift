@@ -6,9 +6,15 @@ public typealias Runner = @Sendable (String, [String]) async throws -> String
 
 public enum RunnerError: Error, Equatable, Sendable, CustomStringConvertible {
     case failed(path: String, status: Int32, output: String)
+    case timedOut(path: String, seconds: TimeInterval, output: String)
+    case outputLimit(path: String, limit: Int)
 
     public var description: String {
         switch self {
+        case let .timedOut(path, seconds, _):
+            return "\((path as NSString).lastPathComponent) exceeded its \(seconds)-second deadline"
+        case let .outputLimit(path, limit):
+            return "\((path as NSString).lastPathComponent) output exceeded \(limit) bytes; output is incomplete"
         case let .failed(path, status, output):
             let name = (path as NSString).lastPathComponent
             let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -18,49 +24,19 @@ public enum RunnerError: Error, Equatable, Sendable, CustomStringConvertible {
 }
 
 public enum Shell {
-    /// The real runner. The blocking wait runs on a GCD thread, never on a Swift concurrency thread.
+    /// Bounded execution off the main actor, with cancellation propagated to its process group.
     public static let live: Runner = { path, arguments in
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<String, any Error>) in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    continuation.resume(returning: try Shell.runSync(path, arguments))
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
+        try checked(try await ProcessExecutor.run(path, arguments), path: path, options: .init())
     }
 
-    public static func runSync(_ path: String, _ arguments: [String]) throws -> String {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: path)
-        process.arguments = arguments
-        // One pipe for both streams: reading two pipes in sequence can deadlock when the second fills up.
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-        process.standardInput = FileHandle.nullDevice
-        // Read as data arrives instead of to end-of-file: a child the command left running in the
-        // background (`caffeinate … &`) keeps the pipe open, and reading to EOF would wait for it.
-        let buffer = OutputBuffer()
-        let reader = pipe.fileHandleForReading
-        reader.readabilityHandler = { handle in
-            let chunk = handle.availableData
-            if chunk.isEmpty {
-                handle.readabilityHandler = nil
-            } else {
-                buffer.append(chunk)
-            }
-        }
-        try process.run()
-        process.waitUntilExit()
-        Thread.sleep(forTimeInterval: 0.05)  // let the handler take what the process wrote just before exiting
-        reader.readabilityHandler = nil
-        let output = String(decoding: buffer.data, as: UTF8.self)
-        guard process.terminationStatus == 0 else {
-            throw RunnerError.failed(path: path, status: process.terminationStatus, output: output)
-        }
-        return output
+    public static func runSync(_ path: String, _ arguments: [String], options: ProcessOptions = .init()) throws -> String {
+        try checked(ProcessExecutor.runSync(path, arguments, options: options), path: path, options: options)
+    }
+
+    private static func checked(_ result: ProcessOutput, path: String, options: ProcessOptions) throws -> String {
+        guard result.status == 0 else { throw RunnerError.failed(path: path, status: result.status, output: result.output) }
+        guard !result.truncated else { throw RunnerError.outputLimit(path: path, limit: options.maxOutputBytes) }
+        return result.output
     }
 
     /// Starts a process and does not wait for it (daemons such as `borders`, or GUI launches).
@@ -72,26 +48,6 @@ public enum Shell {
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         try process.run()
-    }
-}
-
-/// Collects pipe output from the readability handler's thread.
-public final class OutputBuffer: @unchecked Sendable {
-    private let lock = NSLock()
-    private var storage = Data()
-
-    public init() {}
-
-    public func append(_ chunk: Data) {
-        lock.lock()
-        storage.append(chunk)
-        lock.unlock()
-    }
-
-    public var data: Data {
-        lock.lock()
-        defer { lock.unlock() }
-        return storage
     }
 }
 

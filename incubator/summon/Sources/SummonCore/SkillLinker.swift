@@ -30,7 +30,10 @@ public struct SkillLinker: Sendable {
 
     public func link(from source: URL, settings: AgentSettings) throws -> Result {
         let fm = FileManager.default
+        let lease = try FileLease.acquireSync(home.appendingPathComponent(".local/state/summon/locks/skills.lock"))
+        defer { lease.hold() }
         var result = Result()
+        var owned = try loadOwnership()
         let shipped = Self.skillNames(in: source)
         for agent in AgentRegistry.all {
             guard let folder = agent.skillFolder else { continue }
@@ -41,32 +44,64 @@ public struct SkillLinker: Sendable {
                 let link = dir.appendingPathComponent(name)
                 let isLink = (try? fm.destinationOfSymbolicLink(atPath: link.path)) != nil
                 if !chosen.contains(name) {
-                    if isLink, isOurs(link, name: name) { try fm.removeItem(at: link) }
+                    if isLink, isOurs(link, name: name, source: source, owned: owned) {
+                        try fm.removeItem(at: link)
+                        owned.removeValue(forKey: link.path)
+                    }
                     continue
                 }
                 if isLink {
+                    guard isOurs(link, name: name, source: source, owned: owned) else {
+                        result.kept.append(link.path)
+                        owned.removeValue(forKey: link.path)
+                        continue
+                    }
                     try fm.removeItem(at: link)
                 } else if fm.fileExists(atPath: link.path) {
                     result.kept.append(link.path)
                     continue
                 }
                 try fm.createSymbolicLink(atPath: link.path, withDestinationPath: source.appendingPathComponent(name).path)
+                owned[link.path] = source.appendingPathComponent(name).path
                 result.linked.append(link.path)
             }
         }
         for folder in Self.retiredFolders {
             for name in shipped {
                 let link = home.appendingPathComponent(folder).appendingPathComponent(name)
-                if isOurs(link, name: name) { try fm.removeItem(at: link) }
+                if isOurs(link, name: name, source: source, owned: owned) {
+                    try fm.removeItem(at: link)
+                    owned.removeValue(forKey: link.path)
+                }
             }
         }
+        try TextFile.write(String(decoding: JSONEncoder().encode(owned), as: UTF8.self), to: ownershipFile)
         return result
     }
 
-    /// A symlink to some Summon install's copy of this skill (`…/share/summon/skills/<name>`), not the user's own.
+    var ownershipFile: URL { home.appendingPathComponent(".local/state/summon/skill-links.json") }
+
+    private func loadOwnership() throws -> [String: String] {
+        do {
+            return try JSONDecoder().decode([String: String].self, from: Data(contentsOf: ownershipFile))
+        } catch CocoaError.fileReadNoSuchFile {
+            return [:]
+        }
+    }
+
+    /// Only an unchanged recorded link, the current source, or an exact known installation can be updated.
+    /// A matching suffix alone also matches unrelated users' plugins and cannot establish ownership.
     func isOurs(_ link: URL, name: String) -> Bool {
+        isOurs(link, name: name, source: nil, owned: (try? loadOwnership()) ?? [:])
+    }
+
+    private func isOurs(_ link: URL, name: String, source: URL?, owned: [String: String]) -> Bool {
         guard let target = try? FileManager.default.destinationOfSymbolicLink(atPath: link.path) else { return false }
-        return target.hasSuffix("/share/summon/skills/" + name) || target.hasSuffix("/plugin/skills/" + name)
+        if owned[link.path] == target { return true }
+        guard target.hasPrefix("/") else { return false }
+        let knownSources = [source, URL(fileURLWithPath: "/Applications/Summon.app/Contents/share/summon/skills"),
+                            home.appendingPathComponent("Applications/Summon.app/Contents/share/summon/skills")].compactMap { $0 }
+        return knownSources.contains { $0.appendingPathComponent(name).standardizedFileURL.path == URL(fileURLWithPath: target).standardizedFileURL.path }
     }
 
     /// Folders under `source` that hold a `SKILL.md`, sorted.

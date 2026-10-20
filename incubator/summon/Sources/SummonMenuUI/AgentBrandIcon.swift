@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Renders the official brand vector logo for an agent.
+/// Renders an agent icon adapted from CodexBar; see THIRD_PARTY_NOTICES.md.
 public struct AgentBrandIcon: View {
     let agentId: String
     var size: CGFloat = 16
@@ -71,7 +71,7 @@ final class AgentIconCache {
     }
 }
 
-/// Official brand SVG vector paths extracted from the provider asset suite.
+/// CodexBar provider SVG paths adapted for template rendering; see THIRD_PARTY_NOTICES.md.
 enum AgentIconData {
     static func svg(for key: String) -> String? {
         switch key {

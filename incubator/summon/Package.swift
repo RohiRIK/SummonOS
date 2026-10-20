@@ -17,5 +17,6 @@ let package = Package(
         .target(name: "SummonMenuUI", dependencies: ["SummonCore"]),
         .executableTarget(name: "SummonMenu", dependencies: ["SummonMenuUI"]),
         .testTarget(name: "SummonCoreTests", dependencies: ["SummonCore"]),
+        .testTarget(name: "SummonCLITests", dependencies: ["SummonCLI", "SummonCore"]),
     ]
 )

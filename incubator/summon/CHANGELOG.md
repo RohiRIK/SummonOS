@@ -3,6 +3,18 @@
 All notable changes to Summon. Newest first. Summon is still incubating in the SummonOS workspace, so there are no
 version numbers yet; entries are grouped by day and point at the pull request.
 
+## 2026-10-20
+
+### Security and recovery
+- Validate theme text and wallpaper containment; preserve foreign skill links and record owned links.
+- Persist checkpoint capture failures without advertising a stale Git commit; scheduled work stops on capture failure.
+- Use bounded/cancellable process groups, hard deadlines, bounded private logs and nonzero failed-task status.
+- Preserve corrupt task/agent state; serialize task scheduling and Activity writes; drain crash bursts without the five-report loss.
+- Add Agent controls / Unattended execution preference, preserving existing choices and freezing new task bindings.
+- Redact known diagnostic identifiers/credential labels before export; redaction still needs human review.
+- Stage installations with rollback, record ownership for uninstall, and support exact-source releases and optional notarization.
+- Exclude the development crash-test URL route from release builds.
+
 ## 2026-10-19
 
 ### Added

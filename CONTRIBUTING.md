@@ -27,8 +27,8 @@ Every Swift package (`macctl/`, `incubator/summon/`, `examples/*`, `incubator/su
 tests on its own:
 
 ```sh
-cd macctl && swift build && swift test
-cd incubator/summon && scripts/test.sh
+swift test --package-path macctl --scratch-path ~/Library/Caches/macplugins/macctl/build
+incubator/summon/scripts/test.sh
 ```
 
 Before you open a pull request, run the workspace checks from the repo root:
@@ -40,7 +40,9 @@ python3 tools/okf-index.py --check    # docs/ frontmatter and indexes
 shellcheck install.sh tools/*.sh      # any shell you touched
 ```
 
-CI (`.github/workflows/swift.yml`) builds and tests every package on a macOS runner for each push.
+CI (`.github/workflows/swift.yml`) builds and tests every package on a macOS runner for pushes and pull
+requests; workspace, shell, and isolated tooling regression checks run in a separate job.
+The six first-party design skills get structural checks and Swift 6 example typechecks targeting macOS 15.
 
 ## How we build
 

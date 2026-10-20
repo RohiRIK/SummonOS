@@ -19,8 +19,7 @@ enum DebugCommands {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyyMMdd-HHmmss"
         let file = context.paths.state.appendingPathComponent("debug-\(formatter.string(from: Date())).txt")
-        try FileManager.default.createDirectory(at: context.paths.state, withIntermediateDirectories: true)
-        try Data(text.utf8).write(to: file, options: .atomic)
+        try DebugBundle.save(text, to: file)
         print(file.path)
     }
 

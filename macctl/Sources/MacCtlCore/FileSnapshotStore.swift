@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 /// Optional health check a snapshot store can offer to `doctor`.
 /// (Addition to the shared contract; lives here so `Interfaces.swift` stays unchanged.)
@@ -38,9 +39,51 @@ public struct FileSnapshotStore: SnapshotStore, SnapshotStoreDiagnostics {
 
     public func save(_ snapshot: Snapshot) throws {
         guard Self.isSafeID(snapshot.id) else { throw MacCtlError.snapshotNotFound(snapshot.id) }
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try ensureDirectory()
+        let data = try Self.encoder().encode(snapshot)
+        // Publish a fully written file with an exclusive hard link. A duplicate id can never replace
+        // an older backup, even when a caller did not acquire the transaction lock.
+        let temporary = directory.appendingPathComponent(".snapshot-\(UUID().uuidString).tmp")
+        defer { try? FileManager.default.removeItem(at: temporary) }
+        try data.write(to: temporary, options: .withoutOverwriting)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: temporary.path)
+        let handle = try FileHandle(forWritingTo: temporary)
+        defer { try? handle.close() }
+        try handle.synchronize()
+        guard link(temporary.path, fileURL(for: snapshot.id).path) == 0 else {
+            if errno == EEXIST { throw MacCtlError.snapshotExists(snapshot.id) }
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+        try synchronizeDirectory()
+    }
+
+    public func update(_ snapshot: Snapshot) throws {
+        _ = try load(id: snapshot.id)
         let data = try Self.encoder().encode(snapshot)
         try data.write(to: fileURL(for: snapshot.id), options: .atomic)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: fileURL(for: snapshot.id).path)
+        let handle = try FileHandle(forWritingTo: fileURL(for: snapshot.id))
+        defer { try? handle.close() }
+        try handle.synchronize()
+        try synchronizeDirectory()
+    }
+
+    public func acquireTransaction() async throws -> TransactionLease {
+        try ensureDirectory()
+        return try await FileTransactionLock.acquire(at: directory.appendingPathComponent(".transaction.lock"))
+    }
+
+    private func ensureDirectory() throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
+                                                attributes: [.posixPermissions: 0o700])
+    }
+
+    private func synchronizeDirectory() throws {
+        // Persist the new name/atomic replacement as well as the JSON contents before mutating settings.
+        let descriptor = open(directory.path, O_RDONLY | O_CLOEXEC)
+        guard descriptor >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        defer { close(descriptor) }
+        guard fsync(descriptor) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
     }
 
     /// Newest first (by `createdAt`, then id). A missing directory means no snapshots.

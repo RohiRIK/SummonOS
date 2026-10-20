@@ -11,7 +11,7 @@ enum AgentProbeCommands {
         guard let path = context.tools.find(agent.command) else {
             throw CLIError("\(agent.name) is not installed: \(agent.installHint)")
         }
-        let model = AgentSettingsStore(paths: context.paths).load().model(for: agent.id)
+        let model = try AgentSettingsStore(paths: context.paths).loadValidated().model(for: agent.id)
         var login = AgentLogin(loggedIn: nil)
         var models = AgentProbe.models(agent, output: "")
         if let argv = AgentProbe.modelList(agent) {
@@ -52,29 +52,18 @@ enum AgentProbeCommands {
     /// even when Summon runs from the app (a GUI app has a bare PATH). stderr is dropped: shells and CLIs print noise.
     static func capture(_ path: String, _ arguments: [String], _ context: Context, includeErrors: Bool = false,
                         limit: TimeInterval = 30) -> (Bool, String) {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: path)
-        process.arguments = arguments
+        var options = ProcessOptions()
+        options.timeout = limit
+        options.includeStandardError = includeErrors
         var environment = ProcessInfo.processInfo.environment
         environment["PATH"] = context.tools.searchPath.joined(separator: ":")
         environment["NO_COLOR"] = "1"
-        process.environment = environment
-        let pipe = Pipe()
-        let buffer = OutputBuffer()
-        pipe.fileHandleForReading.readabilityHandler = { handle in
-            let chunk = handle.availableData
-            if chunk.isEmpty { handle.readabilityHandler = nil } else { buffer.append(chunk) }
+        options.environment = environment
+        do {
+            let result = try ProcessExecutor.runSync(path, arguments, options: options)
+            return (result.status == 0 && !result.truncated, result.truncated ? "Probe output exceeded its limit" : result.output)
+        } catch {
+            return (false, String(describing: error))
         }
-        process.standardOutput = pipe
-        process.standardError = includeErrors ? pipe : FileHandle.nullDevice
-        process.standardInput = FileHandle.nullDevice
-        do { try process.run() } catch { return (false, "") }
-        let deadline = Date().addingTimeInterval(limit)
-        while process.isRunning, Date() < deadline { Thread.sleep(forTimeInterval: 0.1) }
-        if process.isRunning { process.terminate() }
-        process.waitUntilExit()
-        Thread.sleep(forTimeInterval: 0.05)
-        pipe.fileHandleForReading.readabilityHandler = nil
-        return (process.terminationStatus == 0, String(decoding: buffer.data, as: UTF8.self))
     }
 }
