@@ -68,3 +68,14 @@ typechecks skill examples on macOS, and builds/tests all seven Swift packages on
 are pinned and token permissions are read-only. Local fixture tests do not use real signing credentials
 or publish binaries. Repository visibility, public installer access, PR checks, and final merge results
 are recorded below after live verification.
+
+
+### Hosted-runner cache correction
+
+The first live run passed workspace and design-skill checks, then exposed compiled SwiftShims modules
+restored from the workspace's former repository path. Those modules are not relocatable. CI now caches
+only dependency source repositories/checkouts/artifacts under a new key namespace, rebuilding compiler
+outputs for each checkout/toolchain. The failure was observed on GitHub, not inferred from local tests.
+
+- Repository visibility is PUBLIC; anonymous repository, installer, and agent install-guide requests return HTTP 200.
+- Review: [PR #60](https://github.com/RohiRIK/SummonOS/pull/60). Final live checks are pending.

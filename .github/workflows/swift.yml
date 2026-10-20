@@ -79,9 +79,14 @@ jobs:
           swift --version
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          path: ${{ matrix.package }}/.build
-          key: spm-${{ runner.os }}-${{ matrix.package }}-${{ hashFiles(format('{0}/Package.resolved', matrix.package), format('{0}/Package.swift', matrix.package)) }}
-          restore-keys: spm-${{ runner.os }}-${{ matrix.package }}-
+          # Compiled Swift/Clang modules embed absolute checkout and SDK paths.
+          # Cache dependency sources/artifacts only, never .build as a whole.
+          path: |
+            ${{ matrix.package }}/.build/repositories
+            ${{ matrix.package }}/.build/checkouts
+            ${{ matrix.package }}/.build/artifacts
+          key: spm-sources-v2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.package }}-${{ hashFiles(format('{0}/Package.resolved', matrix.package), format('{0}/Package.swift', matrix.package)) }}
+          restore-keys: spm-sources-v2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.package }}-
       - name: Build
         run: swift build --build-tests
       - name: Test
