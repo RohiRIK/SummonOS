@@ -422,6 +422,14 @@ public struct Engine: MacCtlService {
         } catch {
             checks.append(DoctorReport.Check(name: "No unfinished operations", ok: false, detail: "\(error)"))
         }
+        // Legacy `failed` snapshots are not adopted by recover (old contract: partial writes stay);
+        // list them so they stay visible.
+        if let legacyFailed = try? snapshotStore.list().filter({ $0.status == .failed })
+            .filter({ (try? journals.contents($0.id)) == nil }).map(\.id), !legacyFailed.isEmpty {
+            checks.append(DoctorReport.Check(
+                name: "Older failed operations", ok: true,
+                detail: "\(legacyFailed.joined(separator: ", ")): partial writes were left in place; `macctl undo <id>` reverts one"))
+        }
 
         return DoctorReport(macOSVersion: version, checks: checks)
     }
@@ -527,9 +535,10 @@ extension Engine {
         journals.removeTemporaries()
     }
 
-    /// Unresolved sessions, newest first: a journal that is unfinished or corrupt, or a header
-    /// (`pending`/`failed`) with no journal: a crash at H1, or a pre-journal snapshot an older
-    /// macctl left unfinished. Headers whose journal was set aside with `--abandon` no longer count.
+    /// Unresolved sessions, newest first: a journal that is unfinished or corrupt, or a `pending`
+    /// header with no journal: a crash at H1, or an older macctl killed mid-batch. A legacy `failed`
+    /// snapshot is not adopted: the old contract left its partial writes in place on purpose, so it
+    /// neither gates nor gets rolled back (`macctl undo <id>` still reverts it; Max, #62 review). Headers whose journal was set aside with `--abandon` no longer count.
     fileprivate func unresolvedIDs() throws -> [String] {
         var found: [(Date, String)] = []
         let journaled = Set(try journals.ids())
@@ -556,7 +565,7 @@ extension Engine {
         return Session(id: id, records: parsed.records, tornTail: parsed.tornTail)
     }
 
-    /// A header with no journal (crash at H1, or a pre-journal snapshot left pending/failed) is
+    /// A `pending` header with no journal (crash at H1, or an older macctl killed mid-batch) is
     /// adopted: its changes become intents with unknown outcome, which the walk resolves by
     /// re-reading, exactly like a crash after an intent. Nothing is read from or written to the header.
     fileprivate func loadOrAdoptSession(_ id: String) throws -> Session {
@@ -787,8 +796,8 @@ extension Engine {
             } else {
                 let isFailedChange = outcomes[intent.seq] == .failed
                 let matchesNew = try (intent.new ?? .missing).matches(current, key: key)
-                // Open decision (Pat → Max): a failed change whose read-back is a third value (neither
-                // prior nor new) is not ours to overwrite: revert_flagged, before-state not matched.
+                // Accepted by Max (#62 design review): a failed change whose read-back is a third value
+                // (neither prior nor new) is not ours to overwrite: revert_flagged, before-state not matched.
                 if isFailedChange && !matchesNew && !force {
                     try flag("before-state not matched: read-back returned a third value")
                     continue
@@ -823,6 +832,19 @@ extension Engine {
                 try await backend.writeExact(value, for: setting)
             }
             if let j { Failpoint.hit("RV\(j)") }
+            // D1: every restore is read back with the exact triple. A restore that did not take (dropped
+            // or landed as something else) is revert_flagged with what is there, never `reverted`.
+            let restored = try await backend.storedValue(setting)
+            guard try prior.isCurrent(restored, key: key), try await wallpapersAt(intent.wallpapers, setting) else {
+                let observed = try RecordedValue.record(restored, sensitive: setting.sensitive, key: key)
+                try writer.append(.revertFlagged) { record in
+                    record.ref = intent.seq
+                    record.observed = observed
+                    record.reason = "restore did not take"
+                }
+                report.flagged.append(setting.id)
+                continue
+            }
             try writer.append(.reverted) { $0.ref = intent.seq }
             report.reverted.append(setting)
             report.changes.append(Change(id: setting.id, from: current.map(\.value),

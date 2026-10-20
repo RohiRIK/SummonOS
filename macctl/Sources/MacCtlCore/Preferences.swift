@@ -379,6 +379,8 @@ enum Durable {
     static func posixError() -> POSIXError { POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
 
     /// `F_FULLFSYNC` on Darwin (plain fsync does not flush the drive cache there), fsync elsewhere.
+    /// When F_FULLFSYNC is not supported (some file systems, e.g. network or FUSE mounts) this falls
+    /// back to fsync silently: the strongest flush the file system offers.
     static func fullSync(_ descriptor: Int32) throws {
         #if canImport(Darwin)
         if fcntl(descriptor, F_FULLFSYNC) == 0 { return }

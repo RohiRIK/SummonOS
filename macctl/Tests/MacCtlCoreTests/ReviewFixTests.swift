@@ -108,4 +108,38 @@ struct ReviewFixTests {
         #expect(ops.contains(.revertFlagged))
         #expect(try r.lines(id).last?.outcome == "rolled_back")
     }
+
+    /// Max #62 Required 1: a restore is read back; one that does not take is revert_flagged.
+    @Test func restoreThatDoesNotTakeIsFlaggedNotReverted() async throws {
+        let r = JournalTests.rig()
+        r.prefs.seed("B", JournalTests.typed(.int, .int(50)), appID: JournalTests.domain)
+        let id = try await r.apply(["t.b": .int(40)])
+        r.prefs.landWrites("B", as: JournalTests.typed(.int, .int(77)), appID: JournalTests.domain)
+        await expectMacCtlError("partial_restore") { _ = try await r.engine.undo(snapshotID: id, force: false) }
+        #expect(r.value("B") == JournalTests.typed(.int, .int(77)))
+        let flagged = try r.lines(id).filter { $0.op == .revertFlagged }
+        #expect(flagged.count == 1)
+        #expect(flagged.first?.reason == "restore did not take")
+        #expect(flagged.first?.observed?.value == JournalTests.typed(.int, .int(77)))
+        #expect(!(try r.lines(id).contains { $0.op == .reverted }))
+    }
+
+    /// Max #62 Required 2: a legacy `failed` snapshot neither gates writes nor is rolled back by
+    /// recover; it is listed by doctor and still undoable by id.
+    @Test func legacyFailedSnapshotDoesNotGateAndIsNotRecovered() async throws {
+        let r = JournalTests.rig()
+        r.prefs.seed("B", JournalTests.typed(.int, .int(40)), appID: JournalTests.domain)  // partial write kept
+        let legacy = Snapshot(id: "20261001-120000", createdAt: Date(timeIntervalSince1970: 1_790_000_000),
+                              changes: [Change(id: "t.b", from: .int(64), to: .int(40))], status: .failed)
+        try r.store.save(legacy)
+        let recovered = try await r.engine.recover()
+        #expect(recovered.sessions.isEmpty)
+        #expect(r.value("B") == JournalTests.typed(.int, .int(40)))
+        _ = try await r.apply(["t.c": .string("y")])  // no recovery_pending
+        let doctor = await r.engine.doctor()
+        #expect(doctor.checks.contains { $0.name == "No unfinished operations" && $0.ok })
+        #expect(doctor.checks.contains { $0.name == "Older failed operations" && $0.detail.contains(legacy.id) })
+        #expect(r.store.saved.first { $0.id == legacy.id } == legacy)
+    }
 }
+

@@ -186,7 +186,12 @@ Error codes: `unknown_setting`, `invalid_value`, `command_failed`, `permission_m
 - `invalid_test_mode`: a `MACCTL_TEST_MODE` variable is set without `MACCTL_TEST_MODE=1`, or test mode is incomplete
   or names a domain outside `com.summonos.test.` (exit 64).
 
-`mutation_failed` now means the batch was rolled back at once; `appliedSettings` lists keys still changed (normally none).
+`mutation_failed` now means the batch was rolled back at once; `appliedSettings` (name kept for compatibility) lists
+keys left as they are, not restored: changed by someone else, a third value on read-back, or a restore that did not
+take (normally none). `undo --force` cannot overwrite the failed change's third value of a `rolled_back` session
+(undo walks applied changes only). A legacy `failed` snapshot from an older macctl is not rolled back by `recover`
+and does not block writes (its partial writes were left in place by design); `doctor` lists it and `macctl undo <id>`
+reverts it. Every restore is read back; one that did not take is `revert_flagged` (`partial_restore`).
 
 ### Exit codes
 

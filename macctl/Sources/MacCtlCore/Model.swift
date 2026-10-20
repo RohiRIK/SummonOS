@@ -246,8 +246,9 @@ public struct Snapshot: Sendable, Hashable, Codable, Identifiable {
     public let appliedSettings: [String]?
     public let failure: String?
     public var completed: Bool { status == nil || status == .completed }
-    /// Pending or failed: blocks new mutations until `macctl recover` (ADR Q4).
-    public var unresolved: Bool { status == .pending || status == .failed }
+    /// Only `pending` blocks new mutations until `macctl recover` (ADR Q4). A legacy `failed` snapshot
+    /// stays visible and undoable but is not adopted: the old contract left its partial writes in place.
+    public var unresolved: Bool { status == .pending }
 
     public init(id: String, createdAt: Date, changes: [Change], undoes: String? = nil,
                 status: Status? = nil, appliedSettings: [String]? = nil, failure: String? = nil) {
