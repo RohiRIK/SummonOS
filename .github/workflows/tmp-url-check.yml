@@ -1,0 +1,33 @@
+# TEMPORARY for PR #61 (removed before the PR is done): does a summon:// open show the Activity window?
+name: TEMP url check (PR 61)
+on:
+  push:
+    branches: [feat/menubar-status-panel]
+    paths: [tmp-url-check/**, .github/workflows/tmp-url-check.yml]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Variants
+        run: |
+          swiftc -O tmp-url-check/windows.swift -o "$RUNNER_TEMP/windows"
+          for v in base scene ae; do
+            git checkout -- incubator
+            [ "$v" = base ] || git apply "tmp-url-check/$v.patch"
+            (cd incubator/summon && scripts/bundle.sh) >/dev/null 2>&1 || { echo "::error::build failed for $v"; (cd incubator/summon && scripts/bundle.sh) 2>&1 | tail -40; continue; }
+            tmp-url-check/check.sh "$v" out "$RUNNER_TEMP/windows"
+          done
+          grep -h RESULT out/*-log.txt | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Upload
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: url-check
+          path: out/
+          if-no-files-found: warn
