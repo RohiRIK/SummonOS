@@ -43,6 +43,9 @@ summon agent prompt "summon, give my Mac a calm dark theme"       # or ⌃⌥⌘
 summon task new "weekdays at 9, check brew updates and summarize"     # the agent sets it up
 ```
 
+Building from source needs Xcode 26 (the macOS 26 SDK), even to run on macOS 15: the code calls macOS 26 APIs
+behind `#available`.
+
 Every feature, command by command: [`docs/features.md`](../../docs/features.md#summon). What changed:
 [`CHANGELOG.md`](CHANGELOG.md).
 Moves to its own repos, `mac-summon-dev` / `mac-summon`, with the owner's OK.
@@ -77,7 +80,7 @@ Everforest), credited in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). New t
 | `config/` | Desktop layer: `Brewfile` (AeroSpace, Ghostty, JankyBorders, Nerd Font), `aerospace.toml` (⌥ keymap), Ghostty config with a drop-down quick terminal, borders, shell aliases (`a`, `ap`) |
 | `design/` | Logo, app icon, menu bar icon, wordmarks, `generate.py`, which renders all of them plus the wallpapers, and `brandkit.py`, the palettes and SVG mark it shares with the workspace README art |
 | `templates/` | Project templates for `summon project new`: menu bar app, window app, CLI tool, screensaver |
-| `scripts/` | `check.sh` (the gate), `bundle.sh`, `install.sh`, `test.sh` |
+| `scripts/` | `check.sh` (the gate), `bundle.sh`, `install.sh`, `test.sh`; `visual-qa/` for the CI screenshot job (GitHub-hosted runners only) |
 | `Sources/`, `Tests/` | The `summon` CLI, the Summon Menu app, and their tests |
 
 ## Install the plugin (Claude Code)
