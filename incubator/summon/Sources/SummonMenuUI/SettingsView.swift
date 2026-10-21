@@ -14,7 +14,7 @@ public enum SettingsPanel: Hashable {
     case agent(String)
 }
 
-/// The Settings window (⌘,): modern macOS sidebar navigation with grouped forms and glass translucency.
+/// The Settings window (⌘,): modern macOS sidebar navigation with grouped forms.
 /// Every app preference lives here, never in the menu bar panel.
 public struct SettingsView: View {
     @Bindable var model: SummonModel
@@ -125,7 +125,7 @@ public struct SettingsView: View {
                 headerText(title: "Notifications", subtitle: "Alert triggers, crash warnings, and sound effects")
             case .appearance:
                 headerIcon(systemName: "paintpalette.fill", color: .blue)
-                headerText(title: "Appearance", subtitle: "Liquid Glass translucency, theme palette, and window styling")
+                headerText(title: "Appearance", subtitle: "Theme palettes, colors, and visual styling")
             case .tasks:
                 headerIcon(systemName: "clock.arrow.circlepath", color: .orange)
                 headerText(title: "Tasks", subtitle: "Automation schedule, recurring maintenance, and log rotation")
