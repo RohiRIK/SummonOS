@@ -89,6 +89,12 @@ public final class SummonModel {
         }
     }
 
+    public var previousThemeSlug: String? {
+        didSet {
+            UserDefaults.standard.set(previousThemeSlug, forKey: Self.previousThemeKey)
+        }
+    }
+
     /// Callback to re-register global hotkeys when customized in Settings.
     @ObservationIgnored public var onUpdateGlobalHotKeys: (() -> Void)? = nil
 
@@ -102,12 +108,14 @@ public final class SummonModel {
     static let panelAgentShortcutKey = "summon.shortcut.panelAgent"
     static let globalMenuShortcutKey = "summon.shortcut.globalMenu"
     static let globalAgentShortcutKey = "summon.shortcut.globalAgent"
+    static let previousThemeKey = "summon.appearance.previousTheme"
 
     public init(paths: SummonPaths = .live, runner: @escaping Runner = Shell.live) {
         self.paths = paths
         self.runner = runner
         self.menu = MenuTree.standard
         self.crashCaptureEnabled = UserDefaults.standard.object(forKey: Self.crashCaptureKey) as? Bool ?? true
+        self.previousThemeSlug = UserDefaults.standard.string(forKey: Self.previousThemeKey)
         if let data = UserDefaults.standard.data(forKey: Self.globalMenuShortcutKey),
            let loaded = try? JSONDecoder().decode(PanelShortcut.self, from: data) {
             self.globalMenuShortcut = loaded
@@ -336,8 +344,36 @@ public final class SummonModel {
         Task { await summon(["default", "terminal", terminal.rawValue]) }
     }
 
+    public static func findBrew() -> String? {
+        if FileManager.default.isExecutableFile(atPath: "/opt/homebrew/bin/brew") {
+            return "/opt/homebrew/bin/brew"
+        }
+        if FileManager.default.isExecutableFile(atPath: "/usr/local/bin/brew") {
+            return "/usr/local/bin/brew"
+        }
+        return ToolLocator.live().find("brew")
+    }
+
+    public func installTerminal(_ terminal: TerminalApp) async throws {
+        guard let cask = terminal.caskName else { return }
+        guard let brew = Self.findBrew() else {
+            throw TerminalInstallError.brewMissing
+        }
+        let output = try await runner(brew, ["install", "--cask", cask])
+        _ = output
+        reload()
+    }
+
     public func setTheme(_ slug: String) {
+        if let current = currentThemeSlug, current != slug {
+            previousThemeSlug = current
+        }
         Task { await summon(["theme", "set", slug]) }
+    }
+
+    public func revertTheme() {
+        guard let prev = previousThemeSlug else { return }
+        setTheme(prev)
     }
 
     public func setDefaultAgent(_ id: String) {
@@ -556,5 +592,19 @@ extension SummonModel {
                                     schedule: TaskSchedule(kind: .weekdays, hour: 9, minute: 0))]
         model.taskResults = ["brew": "done"]
         return model
+    }
+}
+
+public enum TerminalInstallError: LocalizedError, Sendable {
+    case brewMissing
+    case failed(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .brewMissing:
+            return "Homebrew is not installed. Please install Homebrew from https://brew.sh first."
+        case .failed(let message):
+            return "Installation failed: \(message)"
+        }
     }
 }

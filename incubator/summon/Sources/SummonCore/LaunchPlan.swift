@@ -24,13 +24,27 @@ public enum TerminalApp: String, Sendable, Equatable, CaseIterable {
         }
     }
 
+    public var caskName: String? {
+        switch self {
+        case .ghostty: return "ghostty"
+        case .kitty: return "kitty"
+        case .terminal: return nil
+        }
+    }
+
     public var isInstalled: Bool {
         switch self {
         case .terminal: return true
         case .ghostty, .kitty:
-            let app = name + ".app"
-            return FileManager.default.fileExists(atPath: "/Applications/" + app)
-                || FileManager.default.fileExists(atPath: FileManager.default.homeDirectoryForCurrentUser.path + "/Applications/" + app)
+            let names = [name + ".app", name.lowercased() + ".app", name.capitalized + ".app"]
+            let homeApps = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications").path
+            for n in names {
+                if FileManager.default.fileExists(atPath: "/Applications/" + n) ||
+                   FileManager.default.fileExists(atPath: homeApps + "/" + n) {
+                    return true
+                }
+            }
+            return false
         }
     }
 

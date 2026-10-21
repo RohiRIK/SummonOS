@@ -117,7 +117,8 @@ sections:
   Catppuccin, Gruvbox, Nord, Rosé Pine Dawn, Kanagawa, Everforest), each with 5K wallpapers.
 - **One command restyles everything:** `summon theme set <slug>` sets macOS dark or light mode, the
   wallpaper (through `macctl`, so it can be undone), Ghostty, kitty, window borders and Claude Code.
-  There is also `theme list` and `theme current`.
+  There is also `theme list` and `theme current`. Settings › Appearance provides full 16:9 wallpaper previews, color swatches, one-click Apply, and an Undo button to revert to the previous theme.
+- **Default terminal with auto-installer:** Settings › Terminal lets you select Ghostty, kitty, or Apple Terminal. If Ghostty or kitty is not installed, install it directly with one click via Homebrew.
 - **Custom icons** on any file, folder or app: `summon icon set <image> <path>`, `icon reset`.
 - **Hooks:** scripts in `~/.config/summon/hooks/<event>.d/` for `theme-set`, `post-login`,
   `post-update`, `wake` and `crash` (`summon hooks list`, `hooks run`).
