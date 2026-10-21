@@ -46,25 +46,10 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
             PanelView(model: model, activity: activity, panel: state, actions: actions)
         }
         self.panel = panel
-        // ⌃⌥Space toggles the panel (the launcher merged into it, decision 4). Releases let a held key open once (C3).
-        let menuOK = HotKeyCenter.shared.register(id: SummonHotKey.menuID, keyCode: SummonHotKey.menuKey,
-                                                  modifiers: SummonHotKey.menuModifiers,
-                                                  onRelease: { [weak panel] in panel?.hotKeyReleased() }) { [weak panel] in
-            panel?.hotKeyPressed()
+        let health = registerHotKeys() ?? AppHealth(pid: ProcessInfo.processInfo.processIdentifier, hotkeys: [:])
+        model.onUpdateGlobalHotKeys = { [weak self] in
+            self?.registerHotKeys()
         }
-        let agentOK = HotKeyCenter.shared.register(id: SummonHotKey.agentID, keyCode: SummonHotKey.agentKey, modifiers: SummonHotKey.agentModifiers) { [weak self] in
-            self?.model.askAgent()
-        }
-        // Another app may own the combination; say so instead of failing silently.
-        let taken = [menuOK ? nil : "⌃⌥Space", agentOK ? nil : "⌃⌥⌘A"].compactMap { $0 }
-        model.unavailableHotKeys = Set(taken)
-        if !taken.isEmpty {
-            model.lastError = "Shortcut \(taken.joined(separator: " and ")) is taken by another app."
-        }
-        // `summon doctor` reads this to report whether the app runs and its shortcuts registered.
-        let health = AppHealth(pid: ProcessInfo.processInfo.processIdentifier,
-                               hotkeys: ["⌃⌥Space": menuOK, "⌃⌥⌘A": agentOK])
-        try? AppHealthStore(paths: model.paths).save(health)
         setUpNotifications(health: health)
         crashAlert.onWillPresent = { [weak panel] in panel?.yieldToCrashAlert() }
         // A `summon://` URL that launched Summon can arrive before this method ran (Sam's review); replay it now,
@@ -137,6 +122,48 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
     /// UNUserNotificationCenter raises an exception outside an .app bundle (`swift run SummonMenu`).
     private var canNotify: Bool {
         Bundle.main.bundleURL.pathExtension == "app" && Bundle.main.bundleIdentifier != nil
+    }
+
+    @discardableResult
+    func registerHotKeys() -> AppHealth? {
+        guard let panel = self.panel else { return nil }
+        let menuShortcut = model.globalMenuShortcut
+        let agentShortcut = model.globalAgentShortcut
+
+        let menuOK = HotKeyCenter.shared.register(
+            id: SummonHotKey.menuID,
+            keyCode: menuShortcut.keyCode,
+            modifiers: menuShortcut.carbonModifiers,
+            onRelease: { [weak panel] in panel?.hotKeyReleased() }
+        ) { [weak panel] in
+            panel?.hotKeyPressed()
+        }
+
+        let agentOK = HotKeyCenter.shared.register(
+            id: SummonHotKey.agentID,
+            keyCode: agentShortcut.keyCode,
+            modifiers: agentShortcut.carbonModifiers
+        ) { [weak self] in
+            self?.model.askAgent()
+        }
+
+        let taken = [
+            menuOK ? nil : menuShortcut.displayString,
+            agentOK ? nil : agentShortcut.displayString
+        ].compactMap { $0 }
+        model.unavailableHotKeys = Set(taken)
+        if !taken.isEmpty {
+            model.lastError = "Shortcut \(taken.joined(separator: " and ")) is taken by another app."
+        }
+
+        let existing = AppHealthStore(paths: model.paths).load()
+        let health = AppHealth(
+            pid: ProcessInfo.processInfo.processIdentifier,
+            hotkeys: [menuShortcut.displayString: menuOK, agentShortcut.displayString: agentOK],
+            notifications: existing?.notifications
+        )
+        try? AppHealthStore(paths: model.paths).save(health)
+        return health
     }
 
     private func setUpNotifications(health: AppHealth) {

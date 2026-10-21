@@ -357,18 +357,34 @@ struct GeneralSettings: View {
             }
 
             Section {
-                ShortcutRow(title: "Open Summon Panel", keys: "⌃⌥Space", available: !model.unavailableHotKeys.contains("⌃⌥Space"))
-                ShortcutRow(title: "Ask Default Agent (Global)", keys: "⌃⌥⌘A", available: !model.unavailableHotKeys.contains("⌃⌥⌘A"))
+                ShortcutRecorderRow(
+                    title: "Open Summon Panel (Global)",
+                    shortcut: model.globalMenuShortcut,
+                    defaultShortcut: .defaultGlobalMenu,
+                    available: !model.unavailableHotKeys.contains(model.globalMenuShortcut.displayString),
+                    onRecord: { model.setGlobalMenuShortcut($0) },
+                    onReset: { model.resetGlobalMenuShortcut() }
+                )
+                ShortcutRecorderRow(
+                    title: "Ask Default Agent (Global)",
+                    shortcut: model.globalAgentShortcut,
+                    defaultShortcut: .defaultGlobalAgent,
+                    available: !model.unavailableHotKeys.contains(model.globalAgentShortcut.displayString),
+                    onRecord: { model.setGlobalAgentShortcut($0) },
+                    onReset: { model.resetGlobalAgentShortcut() }
+                )
                 ShortcutRecorderRow(
                     title: "Quick-Launch Agent (in Panel)",
                     shortcut: model.panelAgentShortcut,
+                    defaultShortcut: .defaultPanelAgent,
+                    available: true,
                     onRecord: { model.setPanelAgentShortcut($0) },
                     onReset: { model.resetPanelAgentShortcut() }
                 )
             } header: {
                 Text("Keyboard Shortcuts")
             } footer: {
-                Text("Quick-Launch Agent triggers directly from the search bar or anywhere in the Summon panel. Global shortcuts work anywhere in macOS.")
+                Text("Global shortcuts work anywhere in macOS. Quick-Launch Agent triggers directly from the search bar or anywhere in the Summon panel. Click Record on any shortcut to customize it.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -1063,6 +1079,8 @@ private struct ShortcutRow: View {
 private struct ShortcutRecorderRow: View {
     let title: String
     let shortcut: PanelShortcut
+    let defaultShortcut: PanelShortcut
+    var available: Bool = true
     let onRecord: (PanelShortcut) -> Void
     let onReset: () -> Void
 
@@ -1072,6 +1090,13 @@ private struct ShortcutRecorderRow: View {
     var body: some View {
         LabeledContent(title) {
             HStack(spacing: 8) {
+                if !available {
+                    Text("Unavailable")
+                        .font(.subheadline)
+                        .foregroundStyle(.red)
+                        .help("Another app owns this shortcut. Free it there, or record a different shortcut.")
+                }
+
                 if isRecording {
                     HStack(spacing: 6) {
                         ProgressView()
@@ -1094,6 +1119,7 @@ private struct ShortcutRecorderRow: View {
                     Text(shortcut.displayString)
                         .font(.system(.subheadline, design: .monospaced))
                         .foregroundStyle(.primary)
+                        .strikethrough(!available)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
@@ -1104,8 +1130,8 @@ private struct ShortcutRecorderRow: View {
                     .buttonStyle(.bordered)
                     .controlSize(.small)
 
-                    if shortcut != .defaultShortcut {
-                        Button("Reset to ⌥↵") {
+                    if shortcut != defaultShortcut {
+                        Button("Reset to \(defaultShortcut.displayString)") {
                             onReset()
                         }
                         .buttonStyle(.borderless)
@@ -1136,16 +1162,17 @@ private struct ShortcutRecorderRow: View {
             let hasShift = flags.contains(.shift)
 
             // Must include at least one modifier
-            guard hasCommand || hasOption || hasControl else {
+            guard hasCommand || hasOption || hasControl || hasShift else {
                 return nil
             }
 
+            let keyCode = UInt32(event.keyCode)
             var keyName = ""
-            if event.keyCode == 36 || event.keyCode == 76 { // Return or Enter
+            if keyCode == 36 || keyCode == 76 { // Return or Enter
                 keyName = "return"
-            } else if event.keyCode == 49 { // Space
+            } else if keyCode == 49 { // Space
                 keyName = "space"
-            } else if event.keyCode == 48 { // Tab
+            } else if keyCode == 48 { // Tab
                 keyName = "tab"
             } else if let chars = event.charactersIgnoringModifiers?.lowercased(), !chars.isEmpty {
                 keyName = chars
@@ -1155,6 +1182,7 @@ private struct ShortcutRecorderRow: View {
 
             let display = PanelShortcut.format(
                 key: keyName,
+                keyCode: keyCode,
                 isCommand: hasCommand,
                 isOption: hasOption,
                 isControl: hasControl,
@@ -1163,6 +1191,7 @@ private struct ShortcutRecorderRow: View {
 
             let newShortcut = PanelShortcut(
                 key: keyName,
+                keyCode: keyCode,
                 displayString: display,
                 isCommand: hasCommand,
                 isOption: hasOption,

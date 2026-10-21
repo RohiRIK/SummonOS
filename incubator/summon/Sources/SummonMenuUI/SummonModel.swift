@@ -63,6 +63,24 @@ public final class SummonModel {
         didSet { UserDefaults.standard.set(crashCaptureEnabled, forKey: Self.crashCaptureKey) }
     }
 
+    public var globalMenuShortcut: PanelShortcut {
+        didSet {
+            if let data = try? JSONEncoder().encode(globalMenuShortcut) {
+                UserDefaults.standard.set(data, forKey: Self.globalMenuShortcutKey)
+            }
+            onUpdateGlobalHotKeys?()
+        }
+    }
+
+    public var globalAgentShortcut: PanelShortcut {
+        didSet {
+            if let data = try? JSONEncoder().encode(globalAgentShortcut) {
+                UserDefaults.standard.set(data, forKey: Self.globalAgentShortcutKey)
+            }
+            onUpdateGlobalHotKeys?()
+        }
+    }
+
     public var panelAgentShortcut: PanelShortcut {
         didSet {
             if let data = try? JSONEncoder().encode(panelAgentShortcut) {
@@ -70,6 +88,9 @@ public final class SummonModel {
             }
         }
     }
+
+    /// Callback to re-register global hotkeys when customized in Settings.
+    @ObservationIgnored public var onUpdateGlobalHotKeys: (() -> Void)? = nil
 
     /// Set by the app delegate to post a notification for each new report.
     @ObservationIgnored public var onNewCrash: ((CrashReport) -> Void)? = nil
@@ -79,17 +100,31 @@ public final class SummonModel {
 
     static let crashCaptureKey = "crashCaptureEnabled"
     static let panelAgentShortcutKey = "summon.shortcut.panelAgent"
+    static let globalMenuShortcutKey = "summon.shortcut.globalMenu"
+    static let globalAgentShortcutKey = "summon.shortcut.globalAgent"
 
     public init(paths: SummonPaths = .live, runner: @escaping Runner = Shell.live) {
         self.paths = paths
         self.runner = runner
         self.menu = MenuTree.standard
         self.crashCaptureEnabled = UserDefaults.standard.object(forKey: Self.crashCaptureKey) as? Bool ?? true
+        if let data = UserDefaults.standard.data(forKey: Self.globalMenuShortcutKey),
+           let loaded = try? JSONDecoder().decode(PanelShortcut.self, from: data) {
+            self.globalMenuShortcut = loaded
+        } else {
+            self.globalMenuShortcut = .defaultGlobalMenu
+        }
+        if let data = UserDefaults.standard.data(forKey: Self.globalAgentShortcutKey),
+           let loaded = try? JSONDecoder().decode(PanelShortcut.self, from: data) {
+            self.globalAgentShortcut = loaded
+        } else {
+            self.globalAgentShortcut = .defaultGlobalAgent
+        }
         if let data = UserDefaults.standard.data(forKey: Self.panelAgentShortcutKey),
            let loaded = try? JSONDecoder().decode(PanelShortcut.self, from: data) {
             self.panelAgentShortcut = loaded
         } else {
-            self.panelAgentShortcut = .defaultShortcut
+            self.panelAgentShortcut = .defaultPanelAgent
         }
         reload()
     }
@@ -212,12 +247,28 @@ public final class SummonModel {
         }
     }
 
+    public func setGlobalMenuShortcut(_ shortcut: PanelShortcut) {
+        self.globalMenuShortcut = shortcut
+    }
+
+    public func resetGlobalMenuShortcut() {
+        self.globalMenuShortcut = .defaultGlobalMenu
+    }
+
+    public func setGlobalAgentShortcut(_ shortcut: PanelShortcut) {
+        self.globalAgentShortcut = shortcut
+    }
+
+    public func resetGlobalAgentShortcut() {
+        self.globalAgentShortcut = .defaultGlobalAgent
+    }
+
     public func setPanelAgentShortcut(_ shortcut: PanelShortcut) {
         self.panelAgentShortcut = shortcut
     }
 
     public func resetPanelAgentShortcut() {
-        self.panelAgentShortcut = .defaultShortcut
+        self.panelAgentShortcut = .defaultPanelAgent
     }
 
     public func reloadProjects() {
