@@ -1,5 +1,5 @@
 // CI helper for scripts/visual-qa/run.sh (GitHub macOS runners only; not part of the app).
-//   windows <owner>    one line per on-screen window of that process: id layer x y w h
+//   windows <pid>      one line per on-screen window of that process: id layer x y w h
 //   windows screen     main display size in points: w h
 //   windows click x y  posts a left click at (x, y), top-left origin
 // Window bounds and ids come from CGWindowList and need no Screen Recording permission.
@@ -19,9 +19,10 @@ case "click":
         CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: .left)?.post(tap: .cghidEventTap)
         usleep(80_000)
     }
-case let owner?:
+case let pid?:
+    guard let owner = Int(pid) else { exit(64) }
     let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
-    for window in info where (window[kCGWindowOwnerName as String] as? String) == owner {
+    for window in info where (window[kCGWindowOwnerPID as String] as? Int) == owner {
         let id = window[kCGWindowNumber as String] as? Int ?? 0
         let layer = window[kCGWindowLayer as String] as? Int ?? 0
         let bounds = window[kCGWindowBounds as String] as? [String: Double] ?? [:]

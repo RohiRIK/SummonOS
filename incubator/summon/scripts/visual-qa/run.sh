@@ -11,11 +11,12 @@ OUT=$1 APP=$2 WINDOWS=$3 TAG=$4
 mkdir -p "$OUT"
 LOG="$OUT/$TAG-log.txt"
 SUMMARY=${GITHUB_STEP_SUMMARY:-/dev/null}
-OWNER=SummonMenu
+OWNER=SummonMenu   # process name; CGWindowList reports the bundle name (Summon), so windows are matched by pid
+PID=
 
 log() { echo "$*" | tee -a "$LOG"; }
-ids() { "$WINDOWS" "$OWNER" | awk '{print $1}' | sort; }
-geometry() { "$WINDOWS" "$OWNER" | awk -v id="$1" '$1 == id {print $3, $4, $5, $6}'; }
+ids() { "$WINDOWS" "$PID" | awk '{print $1}' | sort; }
+geometry() { "$WINDOWS" "$PID" | awk -v id="$1" '$1 == id {print $3, $4, $5, $6}'; }
 keystroke() { osascript -e "tell application \"System Events\" to key code $1$2" 2>&1 | tee -a "$LOG"; }
 
 # New SummonMenu windows since <before> (a sorted id list), waiting up to 4 s for one to appear.
@@ -49,9 +50,11 @@ log "screen ${SCREEN_W}x${SCREEN_H} points; $(sw_vers -productName) $(sw_vers -p
 open "$APP"
 for _ in $(seq 1 30); do pgrep -x "$OWNER" >/dev/null && break; sleep 1; done
 sleep 5
-log "SummonMenu pid: $(pgrep -x "$OWNER" || echo none)"
+PID=$(pgrep -x "$OWNER" | head -1)
+log "SummonMenu pid: ${PID:-none}"
+[ -n "$PID" ] || { log "Summon did not start"; exit 1; }
 log "app health (hotkey registration): $(tr -d '\n' <"$HOME/.local/state/summon/app.json" 2>/dev/null || echo missing)"
-log "windows at start (id layer x y w h):"; "$WINDOWS" "$OWNER" | tee -a "$LOG"
+log "windows at start (id layer x y w h):"; "$WINDOWS" "$PID" | tee -a "$LOG"
 
 echo "## Visual QA: $TAG" >>"$SUMMARY"
 for theme in light dark; do
@@ -62,6 +65,8 @@ for theme in light dark; do
   log "appearance: $(defaults read -g AppleInterfaceStyle 2>/dev/null || echo Light)"
 
   screencapture -x -R"0,0,$SCREEN_W,40" "$OUT/$TAG-$theme-menubar.png" 2>&1 | tee -a "$LOG"
+  screencapture -x "$OUT/$TAG-$theme-before-screen.png" 2>&1 | tee -a "$LOG"
+  log "windows before (id layer x y w h):"; "$WINDOWS" "$PID" | tee -a "$LOG"
 
   # Launcher: the hotkey first, then the documented fallbacks.
   path=none
@@ -93,14 +98,14 @@ for theme in light dark; do
 
   # Menu bar panel (MenuBarExtra): click the status item through Accessibility, else at its window's centre.
   before=$(ids)
-  ppath=none
+  ppath=none opened=""
   log "try panel: System Events click menu bar item 1 of menu bar 2 of process $OWNER"
   if osascript -e "tell application \"System Events\" to tell process \"$OWNER\" to click menu bar item 1 of menu bar 2" >>"$LOG" 2>&1; then
     opened=$(opened_since "$before")
     [ -n "$opened" ] && ppath=accessibility-click
   fi
   if [ -z "${opened:-}" ] || [ "$ppath" = none ]; then
-    item=$("$WINDOWS" "$OWNER" | awk '$2 == 25 && $4 == 0 {print $3 + $5 / 2, $4 + $6 / 2; exit}')
+    item=$("$WINDOWS" "$PID" | awk '$2 == 25 && $4 == 0 {print $3 + $5 / 2, $4 + $6 / 2; exit}')
     if [ -n "$item" ]; then
       log "try panel: CGEvent click at status item centre $item"
       # shellcheck disable=SC2086 # two coordinates on purpose

@@ -35,6 +35,13 @@ jobs:
           persist-credentials: false
       - name: Toolchain
         run: |
+          # The code calls macOS 26 APIs behind #available, so it needs the macOS 26 SDK (Xcode 26) even on macos-15.
+          if ! xcodebuild -version | grep -q '^Xcode 26'; then
+            xcode=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+            echo "Default Xcode is not 26; available: $(ls -d /Applications/Xcode_*.app | xargs -n1 basename | tr '\n' ' ')"
+            [ -n "$xcode" ] || { echo "::error::no Xcode 26 on this image"; exit 1; }
+            sudo xcode-select -s "$xcode"
+          fi
           sw_vers
           xcodebuild -version
           swift --version
