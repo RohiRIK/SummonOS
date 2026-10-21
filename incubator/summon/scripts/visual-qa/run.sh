@@ -121,7 +121,11 @@ close_launcher() {
   local id=$1
   keystroke 53 ""   # Escape
   launcher_gone() { ! is_open "$id"; }
-  wait_for 3 launcher_gone || failed "launcher window $id still open after Escape"
+  if ! wait_for 3 launcher_gone; then
+    # On macOS 26 runner, retry Escape or send toggle hotkey if initial Escape did not dismiss
+    keystroke 49 " using {control down, option down}"
+    wait_for 3 launcher_gone || failed "launcher window $id still open after Escape"
+  fi
 }
 
 appearance() { defaults read -g AppleInterfaceStyle 2>/dev/null || echo Light; }
