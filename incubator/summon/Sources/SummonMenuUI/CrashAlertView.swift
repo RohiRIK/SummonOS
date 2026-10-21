@@ -198,6 +198,8 @@ public final class CrashAlertController {
     private let model: SummonModel
     private var panel: NSPanel?
     private var autoDismissTask: Task<Void, Never>?
+    /// Runs right before the alert orders front and takes key: the menu bar panel closes first (panel spec D12).
+    public var onWillPresent: (() -> Void)?
 
     public init(model: SummonModel) {
         self.model = model
@@ -242,6 +244,8 @@ public final class CrashAlertController {
             panel.setFrameOrigin(origin)
         }
 
+        // D12: only one Summon panel is key at a time, and the crash alert wins.
+        onWillPresent?()
         panel.alphaValue = 0
         panel.makeKeyAndOrderFront(nil)
 
@@ -283,7 +287,7 @@ public final class CrashAlertController {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
-        panel.level = .floating
+        panel.level = PanelConfig.level
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false

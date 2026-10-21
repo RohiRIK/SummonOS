@@ -2,33 +2,62 @@ import AppKit
 import SummonCore
 import UserNotifications
 
-/// Owns everything that outlives a view: hotkeys, the launcher, the crash watcher, notifications, `summon://` URLs.
+/// Owns everything that outlives a view: hotkeys, the menu bar panel, the crash watcher, notifications, `summon://` URLs.
 @MainActor
 public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     public let model = SummonModel()
-    public private(set) lazy var launcher = LauncherController(model: model)
     public private(set) lazy var activity = ActivityModel(summon: model)
     public private(set) lazy var crashAlert = CrashAlertController(model: model)
+    /// The menu bar status item and its panel (replaces MenuBarExtra). Created at launch.
+    public private(set) var panel: PanelController?
 
     static let crashCategory = "summon.crash"
     static let diagnoseAction = "summon.crash.diagnose"
     static let muteAction = "summon.crash.mute"
 
+    /// `summon://` URLs that arrived before the panel existed; replayed at the end of applicationDidFinishLaunching.
+    private var launchURLs = LaunchURLQueue()
+
     public override init() {
         super.init()
+    }
+
+    /// summon:// URLs come in as a kAEGetURL Apple event. Handling it here, before AppKit finishes launching, keeps
+    /// SwiftUI from also routing it to a scene (which showed the Activity window), and still works on cold launch.
+    public func applicationWillFinishLaunching(_ notification: Notification) {
+        NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(handleGetURL(_:withReply:)),
+                                                     forEventClass: AEEventClass(kInternetEventClass),
+                                                     andEventID: AEEventID(kAEGetURL))
+    }
+
+    @objc private func handleGetURL(_ event: NSAppleEventDescriptor, withReply reply: NSAppleEventDescriptor) {
+        guard let string = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
+              let url = URL(string: string) else { return }
+        application(NSApp, open: [url])
     }
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
         // Every project lives in ~/Summon and agents start there, so it exists from the first launch.
         try? ProjectsFolder.ensure(.live)
-        let menuOK = HotKeyCenter.shared.register(id: SummonHotKey.menuID, keyCode: SummonHotKey.menuKey, modifiers: SummonHotKey.menuModifiers) { [weak self] in
-            self?.launcher.toggle()
+        let activity = self.activity
+        let model = self.model
+        let panel = PanelController(openSettings: { activity.requestSettings() },
+                                    prepare: { model.prepareLauncher(startAt: $0) }) { state, actions in
+            PanelView(model: model, activity: activity, panel: state, actions: actions)
+        }
+        self.panel = panel
+        // ⌃⌥Space toggles the panel (the launcher merged into it, decision 4). Releases let a held key open once (C3).
+        let menuOK = HotKeyCenter.shared.register(id: SummonHotKey.menuID, keyCode: SummonHotKey.menuKey,
+                                                  modifiers: SummonHotKey.menuModifiers,
+                                                  onRelease: { [weak panel] in panel?.hotKeyReleased() }) { [weak panel] in
+            panel?.hotKeyPressed()
         }
         let agentOK = HotKeyCenter.shared.register(id: SummonHotKey.agentID, keyCode: SummonHotKey.agentKey, modifiers: SummonHotKey.agentModifiers) { [weak self] in
             self?.model.askAgent()
         }
         // Another app may own the combination; say so instead of failing silently.
         let taken = [menuOK ? nil : "⌃⌥Space", agentOK ? nil : "⌃⌥⌘A"].compactMap { $0 }
+        model.unavailableHotKeys = Set(taken)
         if !taken.isEmpty {
             model.lastError = "Shortcut \(taken.joined(separator: " and ")) is taken by another app."
         }
@@ -37,6 +66,13 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
                                hotkeys: ["⌃⌥Space": menuOK, "⌃⌥⌘A": agentOK])
         try? AppHealthStore(paths: model.paths).save(health)
         setUpNotifications(health: health)
+        crashAlert.onWillPresent = { [weak panel] in panel?.yieldToCrashAlert() }
+        // A `summon://` URL that launched Summon can arrive before this method ran (Sam's review); replay it now,
+        // after the status item has had a pass to get its place in the menu bar so the panel opens under it.
+        let queued = launchURLs.markReady()
+        if !queued.isEmpty {
+            DispatchQueue.main.async { [weak self] in self?.application(NSApp, open: queued) }
+        }
         model.onNewCrash = { [weak self] report in
             self?.notify(report)
             self?.crashAlert.present(report)
@@ -51,14 +87,20 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         }
     }
 
-    /// `summon://menu/<id>` opens the launcher at that entry; `summon://agent` starts the agent;
+    /// `summon://panel` opens the menu bar panel and `summon://panel/close` closes it (use `open -g`);
+    /// `summon://menu/<id>` opens the panel at that Summon Menu entry; `summon://agent` starts the agent;
     /// `summon://activity` opens the Activity window; `summon://settings` opens Settings.
     public func application(_ application: NSApplication, open urls: [URL]) {
-        for url in urls where url.scheme == "summon" {
+        // Cold launch: AppKit can deliver the URL before applicationDidFinishLaunching made the panel. Queue it.
+        for url in launchURLs.receive(urls) where url.scheme == "summon" {
+            if let route = PanelRoute.parse(host: url.host, pathComponents: url.pathComponents) {
+                if route == .open { panel?.open() } else { panel?.close() }
+                continue
+            }
             switch url.host {
             case "menu":
                 let id = url.pathComponents.dropFirst().first
-                launcher.show(startAt: id)
+                panel?.open(at: id)
             case "agent":
                 model.askAgent()
             case "activity":
