@@ -22,6 +22,20 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         super.init()
     }
 
+    /// summon:// URLs come in as a kAEGetURL Apple event. Handling it here, before AppKit finishes launching, keeps
+    /// SwiftUI from also routing it to a scene (which showed the Activity window), and still works on cold launch.
+    public func applicationWillFinishLaunching(_ notification: Notification) {
+        NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(handleGetURL(_:withReply:)),
+                                                     forEventClass: AEEventClass(kInternetEventClass),
+                                                     andEventID: AEEventID(kAEGetURL))
+    }
+
+    @objc private func handleGetURL(_ event: NSAppleEventDescriptor, withReply reply: NSAppleEventDescriptor) {
+        guard let string = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
+              let url = URL(string: string) else { return }
+        application(NSApp, open: [url])
+    }
+
     public func applicationDidFinishLaunching(_ notification: Notification) {
         // Every project lives in ~/Summon and agents start there, so it exists from the first launch.
         try? ProjectsFolder.ensure(.live)

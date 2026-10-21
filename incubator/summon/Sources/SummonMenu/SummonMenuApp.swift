@@ -13,6 +13,9 @@ struct SummonMenuApp: App {
         }
         .defaultSize(width: 980, height: 640)
         .defaultLaunchBehavior(.suppressed)
+        // AppDelegate handles every summon:// URL. Without this, SwiftUI also routes the URL's open event to the
+        // first scene and shows this window (`summon panel`, `summon menu summon`).
+        .handlesExternalEvents(matching: [])
 
         // Invisible and always open: it hosts the openers for summon://activity and summon://settings.
         Window("Summon", id: "summon-opener") {
@@ -21,6 +24,8 @@ struct SummonMenuApp: App {
         .defaultLaunchBehavior(.presented)
         .restorationBehavior(.disabled)
         .windowResizability(.contentSize)
+        // The invisible, always-open opener claims summon:// so SwiftUI reuses it instead of opening a window.
+        .handlesExternalEvents(matching: ["summon"])
 
         Settings {
             SettingsView(model: delegate.model)
