@@ -52,6 +52,7 @@ public struct FileSnapshotStore: SnapshotStore, SnapshotStoreDiagnostics {
         // replace an older backup, even when a caller did not acquire the transaction lock.
         let temporary = directory.appendingPathComponent(".snapshot-\(UUID().uuidString).tmp")
         defer { unlink(temporary.path) }
+        try Failpoint.checkDiskFull("header")
         try Durable.writeExclusive(temporary, data)
         guard link(temporary.path, fileURL(for: snapshot.id).path) == 0 else {
             if errno == EEXIST { throw MacCtlError.snapshotExists(snapshot.id) }

@@ -22,5 +22,7 @@ let package = Package(
             ]
         ),
         .testTarget(name: "MacCtlCoreTests", dependencies: ["MacCtlCore"]),
+        // kill -9 crash matrix (QA plan v3): drives the built macctl binary; no module dependency.
+        .testTarget(name: "MacCtlCrashTests"),
     ]
 )

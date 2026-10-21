@@ -32,8 +32,15 @@ func makeService() -> any MacCtlService {
         restarter: TestModeRestarter(),
         probe: SystemPermissionProbe(),
         snapshots: FileSnapshotStore(directory: test.snapshotDirectory),
-        osVersion: { macOSProductVersion() }
+        osVersion: { macOSProductVersion() },
+        now: clock(test.now)
     )
+}
+
+/// `MACCTL_TEST_NOW` as a fixed clock, else the real one.
+func clock(_ fixed: Date?) -> @Sendable () -> Date {
+    guard let fixed else { return { Date() } }
+    return { fixed }
 }
 
 /// `sw_vers -productVersion` (for example `26.0` or `15.6.1`); falls back to ProcessInfo.

@@ -90,6 +90,30 @@ public enum Failpoint {
     /// `MACCTL_FAILPOINT=list`: the CLI prints `all` and exits before parsing arguments.
     public static var listRequested: Bool { state.mode == .list }
 
+    /// `MACCTL_TEST_ENOSPC=header|intent[@n]` (test mode only): the n-th header write or intent append
+    /// fails with ENOSPC before any byte is written, as on a full disk (QA plan E-diskfull).
+    static func diskFullMode(_ environment: [String: String]) -> (site: String, occurrence: Int)? {
+        guard environment["MACCTL_TEST_MODE"] == "1", let spec = environment["MACCTL_TEST_ENOSPC"], !spec.isEmpty
+        else { return nil }
+        let parts = spec.split(separator: "@", maxSplits: 1).map(String.init)
+        return (parts[0], parts.count == 2 ? max(1, Int(parts[1]) ?? 1) : 1)
+    }
+
+    private static let diskFull = diskFullMode(ProcessInfo.processInfo.environment)
+    private static let diskFullState = FailpointState(mode: .off)
+
+    /// Whether `MACCTL_TEST_ENOSPC` names a site that does not exist (the CLI refuses to start).
+    public static var unknownDiskFullSite: String? {
+        guard let site = diskFull?.site, !["header", "intent"].contains(site) else { return nil }
+        return site
+    }
+
+    /// Throws ENOSPC when `MACCTL_TEST_ENOSPC` asks for this site and occurrence. Otherwise a no-op.
+    static func checkDiskFull(_ site: String) throws {
+        guard let diskFull, diskFull.site == site else { return }
+        if diskFullState.count(site) == diskFull.occurrence { throw POSIXError(.ENOSPC) }
+    }
+
     /// Marks one step. Kills the process when this is the requested point and occurrence.
     public static func hit(_ name: String) {
         precondition(template(of: name) != nil, "Unknown failpoint \(name); add it to Failpoint.all")

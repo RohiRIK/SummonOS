@@ -232,6 +232,12 @@ Command-line usage errors (a missing argument) exit with 64 and print usage to s
 - **Test mode.** `MACCTL_TEST_MODE=1` with `MACCTL_SNAPSHOT_DIR`, `MACCTL_TEST_CATALOG` (domains must start with
   `com.summonos.test.`), optional `MACCTL_FAKE_DEFAULTS` and `MACCTL_FAILPOINT=<point>[@n]|list|trace` is the
   crash-test seam; restarts never run in it. Without `MACCTL_TEST_MODE=1` these variables are refused.
+  `MACCTL_TEST_NOW=<unix seconds>` fixes the clock (stable session ids). The fake store also reads the knobs
+  `.fail-writes.plist`, `.drop-writes.plist` and `.read-back.plist` in its directory (each consumed by the first write).
+- **Crash matrix.** `Tests/MacCtlCrashTests` kills the built binary at every failpoint and checks that `recover`
+  restores every test domain byte for byte. `swift test` runs a smoke slice; the full matrix:
+  `MACCTL_CRASH_BACKEND=fake|cfprefs MACCTL_CRASH_SHARD=1/3 swift test --filter MacCtlCrashTests` (CI job
+  `macctl-crash-matrix`). `cfprefs` writes only `com.summonos.test.<uuid>` domains and deletes them afterwards.
 - **Dry runs.** `--dry-run` and `diff` show the plan and write nothing.
 - **Risk tiers.** Each setting has a risk: `read`, `user` (Dock, Finder, keyboard, appearance: applied
   directly), `admin` and `destructive` (refused with exit code 3 unless you pass `--yes`).

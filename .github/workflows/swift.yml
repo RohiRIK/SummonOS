@@ -91,3 +91,134 @@ jobs:
         run: swift build --build-tests
       - name: Test
         run: swift test --skip-build
+
+  # kill -9 crash matrix for macctl (QA plan v3 §3b): every failpoint of every op, recover's own
+  # failpoints, idempotence and the edge cases, on the fake store and on real CFPreferences.
+  # Only com.summonos.test.<uuid> domains are written (TestMode refuses anything else); each case
+  # has its own temp root and HOME; real domains are fingerprinted before and after.
+  macctl-crash-matrix:
+    runs-on: macos-26
+    # One group per PR (or ref) and shard: a new commit on a PR cancels that PR's older matrix;
+    # push runs are never cancelled.
+    concurrency:
+      group: ${{ github.workflow }}-macctl-crash-matrix-${{ github.event.pull_request.number || github.ref }}-${{ matrix.backend }}-${{ matrix.shard }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    env:
+      # Domains are com.summonos.test.<run id>.<uuid>; this run's sweeps touch only its own prefix.
+      MACCTL_CRASH_RUN_ID: gh${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.backend }}-${{ matrix.shard }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [fake, cfprefs]
+        shard: [1, 2, 3]
+    defaults:
+      run:
+        working-directory: macctl
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            macctl/.build/repositories
+            macctl/.build/checkouts
+            macctl/.build/artifacts
+          key: spm-sources-v2-${{ runner.os }}-${{ runner.arch }}-macctl-${{ hashFiles('macctl/Package.resolved', 'macctl/Package.swift') }}
+          restore-keys: spm-sources-v2-${{ runner.os }}-${{ runner.arch }}-macctl-
+      - name: Build
+        run: swift build --build-tests
+      - name: Failpoint list matches ADR D2
+        run: |
+          list=$(MACCTL_TEST_MODE=1 MACCTL_FAILPOINT=list .build/debug/macctl)
+          for p in H1 K1 K2 E1 K3 Ii.1 Ii.2 Ii.3 Wi.1 Wi.2 Ai.1 Ai.2 Fi.1 Fi.2 RIj RVj R0 RE; do
+            grep -qx "$p" <<<"$list" || { echo "::error::failpoint $p missing from MACCTL_FAILPOINT=list"; exit 1; }
+          done
+          [ "$(wc -l <<<"$list" | tr -d ' ')" = 18 ] || { echo "::error::unexpected failpoints: $list"; exit 1; }
+      - name: Fingerprint real domains (before)
+        run: |
+          mkdir -p "$RUNNER_TEMP/real.before"
+          for d in com.apple.dock com.apple.finder com.apple.screencapture -g; do
+            defaults export "$d" "$RUNNER_TEMP/real.before/$d.plist" 2>/dev/null || rm -f "$RUNNER_TEMP/real.before/$d.plist"
+          done
+          # Per-key comparison: prints "<domain> <key>" for each key added, removed or changed.
+          cat > "$RUNNER_TEMP/plistdiff.py" <<'PY'
+          import plistlib, sys
+          def load(path):
+              try:
+                  with open(path, "rb") as f: return plistlib.load(f)
+              except FileNotFoundError: return None
+          domain, before, after = sys.argv[1], load(sys.argv[2]), load(sys.argv[3])
+          if before is None and after is None: sys.exit(0)
+          if before is None or after is None:
+              print(f"{domain} (domain {'appeared' if before is None else 'disappeared'})"); sys.exit(1)
+          changed = sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
+          for k in changed: print(f"{domain} {k}")
+          sys.exit(1 if changed else 0)
+          PY
+      - name: Crash matrix (${{ matrix.backend }}, shard ${{ matrix.shard }}/3)
+        env:
+          MACCTL_CRASH_BACKEND: ${{ matrix.backend }}
+          MACCTL_CRASH_SHARD: ${{ matrix.shard }}/3
+          MACCTL_CRASH_REPORT: ${{ runner.temp }}/crash-report.txt
+          # The hosted runner has passwordless sudo: E-lock "owned by another user" chowns a lock
+          # file inside the case's temp root to nobody.
+          MACCTL_CRASH_SUDO: "1"
+        run: swift test --skip-build --filter MacCtlCrashTests
+      - name: Real domains unchanged (after)
+        if: always()
+        run: |
+          # A change in dock/finder/screencapture fails the job. One retry after 5 s rules out a
+          # transient cfprefsd read; a key that still differs is printed as "<domain> <key>".
+          check() {
+            mkdir -p "$RUNNER_TEMP/real.after"; out=""
+            for d in com.apple.dock com.apple.finder com.apple.screencapture; do
+              defaults export "$d" "$RUNNER_TEMP/real.after/$d.plist" 2>/dev/null || rm -f "$RUNNER_TEMP/real.after/$d.plist"
+              out="$out$(python3 "$RUNNER_TEMP/plistdiff.py" "$d" "$RUNNER_TEMP/real.before/$d.plist" "$RUNNER_TEMP/real.after/$d.plist" || true)"$'\n'
+            done
+            changed=$(grep -v '^$' <<<"$out" || true)
+          }
+          check
+          if [ -n "$changed" ]; then
+            echo "changed on first read, retrying in 5 s:"; echo "$changed"
+            sleep 5; check
+          fi
+          if [ -n "$changed" ]; then
+            while read -r line; do echo "::error::real domain changed: $line"; done <<<"$changed"
+            exit 1
+          fi
+          # Watched domains (dock/finder/screencapture) FAIL above. NSGlobalDomain (-g) only WARNS:
+          # macOS and other processes write it on their own, and macctl test mode cannot write -g.
+          # plistdiff exits 1 when a key differs, so `|| true` keeps pipefail from failing the step.
+          defaults export -g "$RUNNER_TEMP/real.after/-g.plist" 2>/dev/null || true
+          { python3 "$RUNNER_TEMP/plistdiff.py" -g "$RUNNER_TEMP/real.before/-g.plist" "$RUNNER_TEMP/real.after/-g.plist" || true; } \
+            | while read -r line; do echo "::warning::NSGlobalDomain changed (warning only): $line"; done
+      - name: No test domains left behind
+        if: always()
+        run: |
+          set -euo pipefail
+          # Only this run's prefix is checked and cleaned (another run's domains are never touched).
+          # A domain counts if it still holds a key in either host scope, or if any plist file is
+          # left in ~/Library/Preferences or ByHost (the same check as checklist K.6).
+          prefix="com.summonos.test.${MACCTL_CRASH_RUN_ID}."
+          all=$(defaults domains) || { echo "::error::defaults domains failed"; exit 1; }
+          left=""
+          for d in $(tr ',' '\n' <<<"$all" | sed 's/^ *//' | grep -F "$prefix" || true); do
+            if defaults read "$d" >/dev/null 2>&1 || defaults -currentHost read "$d" >/dev/null 2>&1; then
+              left="$left $d"
+              defaults delete "$d" 2>/dev/null || true
+              defaults -currentHost delete "$d" 2>/dev/null || true
+            fi
+          done
+          files=$(ls ~/Library/Preferences/"$prefix"* ~/Library/Preferences/ByHost/"$prefix"* 2>/dev/null || true)
+          others=$(ls ~/Library/Preferences/com.summonos.test.* ~/Library/Preferences/ByHost/com.summonos.test.* 2>/dev/null | grep -vF "$prefix" || true)
+          [ -z "$others" ] || { echo "::warning::com.summonos.test.* files from another run (not touched):"; echo "$others"; }
+          [ -z "$left" ] || echo "::error::test domains left behind with keys:$left"
+          [ -z "$files" ] || { echo "::error::test plist files left behind:"; echo "$files"; }
+          [ -z "$left" ] && [ -z "$files" ]
+      - name: Summary
+        if: always()
+        run: |
+          { echo "### macctl crash matrix: ${{ matrix.backend }} shard ${{ matrix.shard }}/3"; echo '```';
+            cat "$RUNNER_TEMP/crash-report.txt" 2>/dev/null || echo "no report"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

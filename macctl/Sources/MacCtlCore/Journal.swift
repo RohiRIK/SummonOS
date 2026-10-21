@@ -393,6 +393,7 @@ final class JournalWriter: @unchecked Sendable {
                 _ fill: (inout JournalRecord) -> Void = { _ in }) throws -> Int {
         var record = JournalRecord(seq: nextSeq, ts: now(), op: op)
         fill(&record)
+        if op == .intent { try Failpoint.checkDiskFull("intent") }
         try sink.append(try JournalCodec.line(record))
         nextSeq += 1
         if let written = points.written { Failpoint.hit(written) }
