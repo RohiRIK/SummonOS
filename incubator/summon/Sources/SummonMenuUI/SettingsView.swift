@@ -357,24 +357,16 @@ struct GeneralSettings: View {
                 }
             }
 
-            Section("Keyboard Shortcuts") {
-                LabeledContent("Open Summon Menu") {
-                    Text("⌃⌥Space")
-                        .font(.system(.subheadline, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
-                }
-
-                LabeledContent("Ask Default Agent") {
-                    Text("⌃⌥⌘A")
-                        .font(.system(.subheadline, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
-                }
+            Section {
+                ShortcutRow(title: "Open Summon Panel", keys: "⌃⌥Space", available: !model.unavailableHotKeys.contains("⌃⌥Space"))
+                ShortcutRow(title: "Ask Default Agent", keys: "⌃⌥⌘A", available: !model.unavailableHotKeys.contains("⌃⌥⌘A"))
+            } header: {
+                Text("Keyboard Shortcuts")
+            } footer: {
+                // C4b: a system shortcut (Input Sources uses ⌃⌥Space) can't be detected; point at where to look.
+                Text("Shortcut does nothing? Check System Settings › Keyboard › Keyboard Shortcuts › Input Sources.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
 
             Section {
@@ -1112,4 +1104,31 @@ struct TasksSettings: View {
 #Preview("Tasks") {
     SettingsSectionView(section: .tasks, model: .preview())
         .frame(width: 580)
+}
+
+/// One fixed shortcut; "Unavailable" when another app owned it at launch (panel spec C4).
+private struct ShortcutRow: View {
+    let title: String
+    let keys: String
+    let available: Bool
+
+    var body: some View {
+        LabeledContent(title) {
+            HStack(spacing: 6) {
+                if !available {
+                    Text("Unavailable")
+                        .font(.subheadline)
+                        .foregroundStyle(.red)
+                        .help("Another app owns this shortcut. Free it there, then relaunch Summon.")
+                }
+                Text(keys)
+                    .font(.system(.subheadline, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .strikethrough(!available)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
+            }
+        }
+    }
 }

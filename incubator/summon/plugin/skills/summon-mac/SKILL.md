@@ -96,7 +96,7 @@ checkpoint, for at most 30 minutes.
 
 | Keys | Does |
 |---|---|
-| ⌃⌥Space | Summon Menu |
+| ⌃⌥Space | Summon panel with the Summon Menu (also `summon panel`) |
 | ⌃⌥⌘A | Summon the agent in a new terminal |
 | ⌃⌥⌘\` | Drop-down terminal (Ghostty quick terminal); type `a` for the agent |
 | ⌥1…9 / ⌥⇧1…9 | Go to / move window to workspace |
