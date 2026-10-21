@@ -139,7 +139,7 @@ struct WallpaperTests {
         let value = try rig.engine.parse(new, for: "desktop.wallpaper")
         let applied = try await rig.engine.apply(
             Profile(name: "t", settings: ["desktop.wallpaper": value]), dryRun: false, confirmed: false)
-        #expect(applied.changes == [Change(id: "desktop.wallpaper", from: .string(old), to: .string(new))])
+        #expect(applied.changes.core == [Change(id: "desktop.wallpaper", from: .string(old), to: .string(new))])
         #expect(applied.snapshotID != nil)
         #expect(await rig.wallpaper.current == new)
 
@@ -166,11 +166,10 @@ struct WallpaperTests {
             Profile(name: "t", settings: ["desktop.wallpaper": .string(new)]), dryRun: false, confirmed: false)
         #expect(applied.notes.contains { $0.contains("Undo cannot restore the current desktop.wallpaper") })
 
-        let undone = try await rig.engine.undo(snapshotID: nil)
-        #expect(undone.changes.isEmpty)
-        #expect(undone.notes.contains { $0.contains("Could not restore desktop.wallpaper") })
+        // The old picture cannot come back: it is flagged and left, the session still ends undone.
+        await expectMacCtlError("partial_restore") { try await rig.engine.undo(snapshotID: nil) }
         #expect(await rig.wallpaper.sets == [new])
-        #expect(rig.store.saved.count == 2)  // the undo is recorded, so the next undo steps further back
+        #expect(try rig.engine.snapshots().first?.status == .undone)
         await expectMacCtlError("no_snapshots") { try await rig.engine.undo(snapshotID: nil) }
     }
 
@@ -179,7 +178,7 @@ struct WallpaperTests {
         await expectMacCtlError("invalid_value") { try rig.engine.parse("wall.jpg", for: "desktop.wallpaper") }
     }
 
-    @Test func undoRestoresEachDisplaysOriginalImageAndCanBeRedone() async throws {
+    @Test func undoRestoresEachDisplaysOriginalImageInPlace() async throws {
         let left = try Self.makeImage("left.jpg")
         let right = try Self.makeImage("right.jpg")
         let next = try Self.makeImage("next.jpg")
@@ -196,9 +195,12 @@ struct WallpaperTests {
         #expect(applied.changes.first?.wallpaperBefore == original)
         let undone = try await service.undo(snapshotID: nil)
         #expect(await wallpaper.displays == original)
-        let undoID: String = try #require(undone.snapshotID)
-        _ = try await service.undo(snapshotID: undoID)
-        #expect(await wallpaper.displays.allSatisfy { $0.path == next })
+        // Journaled sessions are undone in place (ADR Q-U): undoing the same id again changes nothing.
+        let id: String = try #require(undone.snapshotID)
+        #expect(id == applied.snapshotID)
+        let again = try await service.undo(snapshotID: id)
+        #expect(again.changes.isEmpty)
+        #expect(await wallpaper.displays == original)
     }
 
     @Test func matchingPrimaryDisplayStillUpdatesOtherDisplays() async throws {

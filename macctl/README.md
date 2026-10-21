@@ -72,7 +72,8 @@ macctl undo                      # restores the newest change that was not undon
 | `macctl apply <profile.json> [--dry-run] [--yes] [--only <domain>]` | make the Mac match a profile |
 | `macctl snapshot list` | snapshots, newest first (`macctl snapshot` alone does the same) |
 | `macctl snapshot show <id>` | the old values one snapshot holds |
-| `macctl undo [<id>]` | restore a snapshot (the newest when no id is given) |
+| `macctl undo [<id>] [--force]` | roll back a change (the newest when no id is given); `--force` also overwrites keys changed by hand (needs an id) |
+| `macctl recover [--force] [--abandon <id>]` | roll back any operation that was interrupted or failed; safe to run again |
 
 Every command takes `--json`. Run `macctl <command> --help` for details. The full catalog is in
 [`docs/settings.md`](docs/settings.md).
@@ -164,13 +165,33 @@ Failure (the exit code matches the error):
 - `get`: an array of `{"id", "value"}`; `desktop.wallpaper` reads the main screen's picture path. `value` is `null` when the key is unset and has no known default.
 - `diff`: `{"profile", "changes": [{"id", "from", "to"}]}`. A missing `from` means the key is unset.
 - `set`, `apply`, `undo`: `{"snapshotID", "changes", "dryRun", "notes"}`.
-- `snapshot list`: an array of `{"id", "createdAt", "changeCount", "settings"}`.
+- `recover`: `{"sessions": [{"id", "reverted", "notApplied", "flagged"}], "notes"}`; `sessions` is empty when nothing was unfinished.
+- `snapshot list`: an array of `{"id", "createdAt", "changeCount", "settings", "status"}`. `status` comes from the
+  journal: `completed`, `rolled_back`, `undone`, `recovered`, `pending` (unfinished: run `macctl recover`), or
+  `failed` (older snapshots only). The header file on disk always says `pending`; read the status from this command.
 - `snapshot show`: `{"id", "createdAt", "changes"}`.
 - `doctor`: `{"macOSVersion", "checks": [{"name", "ok", "detail", "fixURL"}]}`.
 
 Error codes: `unknown_setting`, `invalid_value`, `command_failed`, `permission_missing`,
 `needs_confirmation`, `unsupported`, `snapshot_not_found`, `no_snapshots`, `invalid_profile`,
-`internal_error`, `mutation_failed`, `snapshot_exists`, `transaction_busy`.
+`internal_error`, `mutation_failed`, `snapshot_exists`, `transaction_busy`, and:
+
+- `managed_setting`: the key is forced by a configuration profile (MDM); nothing was written.
+- `recovery_pending`: an earlier operation did not finish (`recoverySnapshot` names it). Every `set`, `apply`
+  and `undo` refuses until `macctl recover`.
+- `journal_corrupt`: a journal line before the last is unreadable; that session is not recovered automatically
+  and nothing was written. Inspect it, then `macctl recover --abandon <id>` (the file is kept as `<id>.jsonl.corrupt`).
+- `partial_restore`: undo or recover restored everything except the keys in `flagged`, which changed after macctl
+  wrote them (or whose old value cannot be restored). They are left as they are; `macctl undo <id> --force` overwrites them.
+- `invalid_test_mode`: a `MACCTL_TEST_MODE` variable is set without `MACCTL_TEST_MODE=1`, or test mode is incomplete
+  or names a domain outside `com.summonos.test.` (exit 64).
+
+`mutation_failed` now means the batch was rolled back at once; `appliedSettings` (name kept for compatibility) lists
+keys left as they are, not restored: changed by someone else, a third value on read-back, or a restore that did not
+take (normally none). `undo --force` cannot overwrite the failed change's third value of a `rolled_back` session
+(undo walks applied changes only). A legacy `failed` snapshot from an older macctl is not rolled back by `recover`
+and does not block writes (its partial writes were left in place by design); `doctor` lists it and `macctl undo <id>`
+reverts it. Every restore is read back; one that did not take is `revert_flagged` (`partial_restore`).
 
 ### Exit codes
 
@@ -186,18 +207,37 @@ Command-line usage errors (a missing argument) exit with 64 and print usage to s
 
 ### Safety
 
-- **Recoverable transactions.** Cooperating CLI processes serialize planning/snapshot/write operations.
-  Snapshots record `status` (`pending`, `completed`, `failed`), `appliedSettings`, and `failure` when relevant.
-  A failed undo remains retryable; a failed mutation returns `mutation_failed` with `recoverySnapshot` and
-  `appliedSettings` in its error object. Partial writes are not automatically compensated.
+- **Journal and recovery** ([ADR](../docs/adr/ADR-macctl-recovery.md)). Each `set`, `apply` and `undo` of an old
+  snapshot runs as a session: a write-once header `snapshots/<id>.json` (never rewritten) and an append-only journal
+  `journal/<id>.jsonl` (0600, directory 0700). Every key's prior state (absent, explicit with its exact type, or
+  inherited) is fsynced before the write, then read back. A failed write rolls the batch back at once. A crash
+  leaves the session unfinished: further writes refuse with `recovery_pending` until `macctl recover` rolls it
+  back (idempotent). Undo of a session adds revert lines to its own journal (no redo). A key changed by hand after
+  macctl wrote it is flagged and left alone (`partial_restore`) unless `--force`. `--force` is for an explicit
+  user decision only: Summon never passes it, and an agent must not add it without the user confirming that the
+  flagged keys may be overwritten.
+- **Safe ids.** Every session id (`undo <id>`, `recover --abandon <id>`) must be letters, digits, `-` or `_`;
+  anything else (for example `../x`) is `snapshot_not_found` before a path is built.
+- **CFPreferences, not `defaults`.** `.defaults` settings read and write through CFPreferences on the exact
+  `(domain, current user, host)` triple, keeping CF types; managed keys are refused (`managed_setting`).
 - **Display-aware wallpapers.** New snapshots retain display UUIDs and paths; reconnect missing displays
   before restoration. Older scalar snapshots remain readable. A deleted wallpaper file cannot be recreated.
-- Use the upgraded executable for recovery: older binaries ignore journal outcomes. External preference
+- Use the upgraded executable for recovery: older binaries ignore the journal. External preference
   changes are outside macctl's process lock. See the [security model](../docs/security-model.md).
 
-- **Snapshots.** Before writing anything, `set`, `apply` and `undo` save the old values to
-  `~/Library/Application Support/macctl/snapshots/`. `macctl undo` restores the newest one;
-  `macctl undo <id>` restores a given one. A key that was unset before is deleted again on undo.
+- **Snapshots.** Before writing anything, `set`, `apply` and `undo` record the old values under
+  `~/Library/Application Support/macctl/` (`snapshots/` and `journal/`). `macctl undo` reverts the newest change;
+  `macctl undo <id>` a given one. A key that was unset (or inherited) before is deleted again; a key that held a
+  value gets that exact value and type back, even when it equals the default.
+- **Test mode.** `MACCTL_TEST_MODE=1` with `MACCTL_SNAPSHOT_DIR`, `MACCTL_TEST_CATALOG` (domains must start with
+  `com.summonos.test.`), optional `MACCTL_FAKE_DEFAULTS` and `MACCTL_FAILPOINT=<point>[@n]|list|trace` is the
+  crash-test seam; restarts never run in it. Without `MACCTL_TEST_MODE=1` these variables are refused.
+  `MACCTL_TEST_NOW=<unix seconds>` fixes the clock (stable session ids). The fake store also reads the knobs
+  `.fail-writes.plist`, `.drop-writes.plist` and `.read-back.plist` in its directory (each consumed by the first write).
+- **Crash matrix.** `Tests/MacCtlCrashTests` kills the built binary at every failpoint and checks that `recover`
+  restores every test domain byte for byte. `swift test` runs a smoke slice; the full matrix:
+  `MACCTL_CRASH_BACKEND=fake|cfprefs MACCTL_CRASH_SHARD=1/3 swift test --filter MacCtlCrashTests` (CI job
+  `macctl-crash-matrix`). `cfprefs` writes only `com.summonos.test.<uuid>` domains and deletes them afterwards.
 - **Dry runs.** `--dry-run` and `diff` show the plan and write nothing.
 - **Risk tiers.** Each setting has a risk: `read`, `user` (Dock, Finder, keyboard, appearance: applied
   directly), `admin` and `destructive` (refused with exit code 3 unless you pass `--yes`).
