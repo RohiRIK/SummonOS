@@ -31,10 +31,12 @@ opened_since() {
 
 # Captures each window in <ids> by id, plus the whole screen, as <name>.png and <name>-screen.png.
 capture() {
-  local name=$1 opened=$2 id
+  local name=$1 opened=$2 id file count
+  count=$(echo "$opened" | grep -c . || true)
   for id in $opened; do
-    log "  window $id: $(geometry "$id") (x y w h)"
-    screencapture -x -o -l"$id" "$OUT/$TAG-$name.png" 2>&1 | tee -a "$LOG"
+    file="$TAG-$name"; [ "$count" -gt 1 ] && file="$file-w$id"
+    log "  window $id: $(geometry "$id") (x y w h) -> $file.png"
+    screencapture -x -o -l"$id" "$OUT/$file.png" 2>&1 | tee -a "$LOG"
   done
   screencapture -x "$OUT/$TAG-$name-screen.png" 2>&1 | tee -a "$LOG"
 }
@@ -119,10 +121,26 @@ for theme in light dark; do
   log "panel path used ($theme): $ppath"
   echo "- $theme menu bar panel: opened by **$ppath**" >>"$SUMMARY"
   capture "$theme-panel" "${opened:-}"
-  keystroke 53 ""
-  sleep 1
+  # Escape does not close a MenuBarExtra window; a second click on the status item does.
+  for id in ${opened:-}; do
+    osascript -e "tell application \"System Events\" to tell process \"$OWNER\" to click menu bar item 1 of menu bar 2" >/dev/null 2>&1
+    sleep 1
+    if ids | grep -qx "$id"; then log "  panel window $id still open after a second click"; else log "  panel closed"; fi
+  done
   opened=""
 done
+
+# The fallback path on its own, so the artifacts show it works too (in light, the hotkey already did the job).
+osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to false' >/dev/null 2>&1
+sleep 2
+log "=== fallback check (light): summon menu summon ==="
+before=$(ids)
+"$APP/Contents/MacOS/summon" menu summon 2>&1 | tee -a "$LOG"
+opened=$(opened_since "$before")
+log "summon menu summon opened: ${opened:-nothing}"
+echo "- fallback check: \`summon menu summon\` opened ${opened:+window(s) $opened}${opened:-nothing}" >>"$SUMMARY"
+capture "light-fallback-cli" "$opened"
+close_launcher
 
 osascript -e 'tell application "System Events" to tell appearance preferences to set dark mode to false' >/dev/null 2>&1
 log "files:"; ls -l "$OUT" | tee -a "$LOG"
