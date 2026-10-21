@@ -82,9 +82,10 @@ enum MenuCommands {
     static func loadTree(_ context: Context) throws -> MenuTree {
         let loaded = MenuTree.load(from: context.paths.menuFile)
         let projects = (try? ProjectStore(paths: context.paths).load().projects) ?? []
+        let themes = ThemeStore(paths: context.paths).all()
         if let problem = loaded.problem {
             context.warn(problem)
         }
-        return loaded.tree.withProjects(projects)
+        return loaded.tree.withProjects(projects, themes: themes)
     }
 }

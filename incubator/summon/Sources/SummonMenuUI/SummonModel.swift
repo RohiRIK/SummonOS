@@ -114,7 +114,7 @@ public final class SummonModel {
 
     func loadMenu() {
         let loaded = MenuTree.load(from: paths.menuFile)
-        menu = loaded.tree.withProjects(projects)
+        menu = loaded.tree.withProjects(projects, themes: themes)
         menuError = loaded.problem
     }
 
@@ -409,10 +409,14 @@ public final class SummonModel {
     }
 
     public func run(_ item: MenuItem) {
-        if item.id.hasPrefix("apps."), let projectName = item.id.split(separator: ".").dropFirst().first {
-            if let project = projects.first(where: { $0.name == projectName }) {
-                openProject(project)
-                return
+        if item.id.hasPrefix("apps.") {
+            let parts = item.id.split(separator: ".")
+            if parts.count >= 3 {
+                let projectName = String(parts[2])
+                if let project = projects.first(where: { $0.name == projectName }) {
+                    openProject(project)
+                    return
+                }
             }
         }
         guard let action = item.action else { return }

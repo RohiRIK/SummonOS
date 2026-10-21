@@ -93,11 +93,13 @@ struct MenuTests {
         ]
         let tree = base.withProjects(projects)
         #expect(tree.children(of: nil).contains(where: { $0.id == "apps" && $0.label == "My Apps" }))
-        let appChildren = tree.children(of: "apps")
-        #expect(appChildren.count == 2)
-        #expect(appChildren.map(\.id) == ["apps.my-tool", "apps.my-widget"])
-        #expect(tree.path(to: "apps.my-tool") == ["My Apps", "my-tool"])
+        let appCategories = tree.children(of: "apps")
+        #expect(appCategories.contains(where: { $0.id == "apps.panel" && $0.label == "Panel Apps" }))
+        #expect(appCategories.contains(where: { $0.id == "apps.cli" && $0.label == "Command-Line Tools" }))
+        let panelChildren = tree.children(of: "apps.panel")
+        #expect(panelChildren.map(\.id) == ["apps.panel.my-widget"])
+        #expect(tree.path(to: "apps.panel.my-widget") == ["My Apps", "Panel Apps", "my-widget"])
         let searchResults = tree.search("my-widget")
-        #expect(searchResults.first?.id == "apps.my-widget")
+        #expect(searchResults.first?.id == "apps.panel.my-widget")
     }
 }

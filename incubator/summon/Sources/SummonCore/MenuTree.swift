@@ -81,32 +81,96 @@ public struct MenuTree: Sendable, Equatable {
         items.filter { $0.parentID == parent }
     }
 
-    /// Returns a new menu tree with registered projects included under a "My Apps" submenu.
-    public func withProjects(_ projects: [Project]) -> MenuTree {
-        guard !projects.isEmpty, !items.contains(where: { $0.id == "apps" }) else { return self }
+    /// Shipped themes that come standard with Summon.
+    public static let shippedThemeSlugs: Set<String> = [
+        "catppuccin", "everforest", "gruvbox", "kanagawa",
+        "nord", "rose-pine-dawn", "summon-dawn", "summon-night", "tokyo-night"
+    ]
+
+    /// Returns a new menu tree with registered projects and themes organized into template categories under "My Apps".
+    public func withProjects(_ projects: [Project], themes: [Theme] = []) -> MenuTree {
+        guard (!projects.isEmpty || !themes.isEmpty), !items.contains(where: { $0.id == "apps" }) else { return self }
         var updated = items
         let appsParent = MenuItem(id: "apps", label: "My Apps", icon: "square.grid.2x2", aliases: ["apps"])
-        if let agentIndex = updated.firstIndex(where: { $0.id == "agent" }) {
-            let lastAgentChildIndex = updated.lastIndex(where: { $0.id.hasPrefix("agent.") }) ?? agentIndex
-            updated.insert(appsParent, at: lastAgentChildIndex + 1)
-            for (offset, project) in projects.enumerated() {
-                updated.insert(MenuItem(
-                    id: "apps.\(project.name)",
-                    label: project.name,
-                    icon: project.kind.systemImage,
-                    action: "summon project open \(project.name)"
-                ), at: lastAgentChildIndex + 2 + offset)
-            }
-        } else {
-            updated.append(appsParent)
-            for project in projects {
-                updated.append(MenuItem(
-                    id: "apps.\(project.name)",
-                    label: project.name,
-                    icon: project.kind.systemImage,
-                    action: "summon project open \(project.name)"
+        var appsItems: [MenuItem] = [appsParent]
+
+        // 1. Panel Apps (menubar template)
+        let panelProjects = projects.filter { $0.kind == .menubar }
+        if !panelProjects.isEmpty {
+            appsItems.append(MenuItem(id: "apps.panel", label: "Panel Apps", icon: "menubar.rectangle", aliases: ["menubar", "panel"]))
+            for proj in panelProjects {
+                appsItems.append(MenuItem(
+                    id: "apps.panel.\(proj.name)",
+                    label: proj.name,
+                    icon: "menubar.rectangle",
+                    action: "summon project open \(proj.name)"
                 ))
             }
+        }
+
+        // 2. Window Apps (app template)
+        let appProjects = projects.filter { $0.kind == .app }
+        if !appProjects.isEmpty {
+            appsItems.append(MenuItem(id: "apps.app", label: "Window Apps", icon: "macwindow", aliases: ["apps", "window"]))
+            for proj in appProjects {
+                appsItems.append(MenuItem(
+                    id: "apps.app.\(proj.name)",
+                    label: proj.name,
+                    icon: "macwindow",
+                    action: "summon project open \(proj.name)"
+                ))
+            }
+        }
+
+        // 3. Themes (theme template)
+        let customThemes = themes.filter { $0.source == "summon-art" || !Self.shippedThemeSlugs.contains($0.slug) }
+        let displayThemes = customThemes.isEmpty ? themes : customThemes
+        if !displayThemes.isEmpty {
+            appsItems.append(MenuItem(id: "apps.theme", label: "Themes", icon: "paintbrush", aliases: ["theme", "style"]))
+            for theme in displayThemes {
+                appsItems.append(MenuItem(
+                    id: "apps.theme.\(theme.slug)",
+                    label: theme.name,
+                    icon: "paintbrush",
+                    action: "summon theme set \(theme.slug)",
+                    checked: "[ \"$(cat ~/.config/summon/current-theme 2>/dev/null)\" = '\(theme.slug)' ]"
+                ))
+            }
+        }
+
+        // 4. Command-Line Tools (cli template)
+        let cliProjects = projects.filter { $0.kind == .cli }
+        if !cliProjects.isEmpty {
+            appsItems.append(MenuItem(id: "apps.cli", label: "Command-Line Tools", icon: "terminal", aliases: ["cli", "tools"]))
+            for proj in cliProjects {
+                appsItems.append(MenuItem(
+                    id: "apps.cli.\(proj.name)",
+                    label: proj.name,
+                    icon: "terminal",
+                    action: "summon project open \(proj.name)"
+                ))
+            }
+        }
+
+        // 5. Screensavers (screensaver template)
+        let screensaverProjects = projects.filter { $0.kind == .screensaver }
+        if !screensaverProjects.isEmpty {
+            appsItems.append(MenuItem(id: "apps.screensaver", label: "Screensavers", icon: "sparkles.tv", aliases: ["screensaver"]))
+            for proj in screensaverProjects {
+                appsItems.append(MenuItem(
+                    id: "apps.screensaver.\(proj.name)",
+                    label: proj.name,
+                    icon: "sparkles.tv",
+                    action: "summon project open \(proj.name)"
+                ))
+            }
+        }
+
+        if let agentIndex = updated.firstIndex(where: { $0.id == "agent" }) {
+            let lastAgentChildIndex = updated.lastIndex(where: { $0.id.hasPrefix("agent.") }) ?? agentIndex
+            updated.insert(contentsOf: appsItems, at: lastAgentChildIndex + 1)
+        } else {
+            updated.append(contentsOf: appsItems)
         }
         return (try? MenuTree(items: updated)) ?? self
     }
