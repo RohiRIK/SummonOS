@@ -1,5 +1,8 @@
 # Docs update log
 
+## 2026-10-21
+* **Update**: [Features](features.md) CI section lists the new Visual QA (macOS) workflow: launcher and menu bar panel screenshots in light and dark on macOS 26 and 15, as run artifacts.
+
 ## 2026-10-20
 * **Update**: [features](features.md): the Summon Menu now lives in the menu bar panel (⌃⌥Space, `summon panel`); the separate launcher window is gone (PR #61).
 * **Creation**: [ADR: macctl prior state, journal and recovery](adr/ADR-macctl-recovery.md): per-key prior state, write-once header plus JSONL journal, `macctl recover`, the `recovery_pending` gate and test-only failpoints.
