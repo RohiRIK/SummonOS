@@ -10,9 +10,6 @@ on:
     paths:
       - incubator/summon/**
       - .github/workflows/visual-qa.yml
-  # Spike only, removed before review: run on pushes to this branch.
-  push:
-    branches: [ci/visual-qa]
 
 permissions:
   contents: read
