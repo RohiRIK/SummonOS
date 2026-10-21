@@ -16,6 +16,18 @@ struct ThemeTests {
         #expect(theme.source == "original")
     }
 
+    @Test func wallpaperURLRetrieval() throws {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tmp.appendingPathComponent(".config/summon/themes/summon-night"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let wallpaperFile = tmp.appendingPathComponent(".config/summon/themes/summon-night/wallpaper-1.jpg")
+        try Data("fake image".utf8).write(to: wallpaperFile)
+        let theme = try Theme.decode(Data(sampleThemeJSON.utf8))
+        let store = ThemeStore(paths: SummonPaths(home: tmp))
+        let url = store.wallpaperURL(theme)
+        #expect(url?.lastPathComponent == "wallpaper-1.jpg")
+    }
+
     @Test func rejectsBadThemes() throws {
         let shortPalette = sampleThemeJSON.replacingOccurrences(of: "\"#414868\", ", with: "")
         #expect(throws: Theme.ValidationError.terminalCount(15)) { try Theme.decode(Data(shortPalette.utf8)) }

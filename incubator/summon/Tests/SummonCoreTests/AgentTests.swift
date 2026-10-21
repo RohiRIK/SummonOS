@@ -90,6 +90,12 @@ struct AgentTests {
         #expect(AgentLauncher.preferredTerminal(saved: .kitty, installed: [.terminal]) == .terminal)
     }
 
+    @Test func terminalCaskNames() {
+        #expect(TerminalApp.ghostty.caskName == "ghostty")
+        #expect(TerminalApp.kitty.caskName == "kitty")
+        #expect(TerminalApp.terminal.caskName == nil)
+    }
+
     @Test func terminalChoiceRoundTrips() throws {
         let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: home) }
