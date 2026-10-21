@@ -284,3 +284,7 @@ What this repo gives you for building more apps ([`README.md`](../README.md), [`
 CI ([`.github/workflows/swift.yml`](../.github/workflows/swift.yml)) builds and tests every Swift package
 on macOS on every push, including Summon's templates and `examples/menubar-starter`.
 It also validates design skill structure, typechecks their Swift examples, and runs tooling regressions.
+A second workflow, [`visual-qa.yml`](../.github/workflows/visual-qa.yml) (Visual QA (macOS)), runs on PRs that touch
+`incubator/summon/**` and on demand: on GitHub-hosted `macos-26` and `macos-15` runners it opens Summon's launcher
+(⌃⌥Space) and menu bar panel in light and dark and uploads screenshots as 14-day artifacts. It fails when a surface
+does not open or a capture is missing or the wrong theme. It is not a merge gate.

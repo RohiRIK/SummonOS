@@ -1,5 +1,8 @@
 # Docs update log
 
+## 2026-10-21
+* **Update**: [Features](features.md) CI section lists the new Visual QA (macOS) workflow: launcher and menu bar panel screenshots in light and dark on macOS 26 and 15, as run artifacts.
+
 ## 2026-10-20
 * **Update**: SummonOS made public under the owner’s approval; live GitHub CI verified after correcting non-relocatable Swift build caching.
 * **Creation**: [Design skills and public preview](plans/2026-10-20-skills-public-preview.md): controlled skill tests, rendered samples, privacy review, and publication verification.

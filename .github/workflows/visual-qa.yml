@@ -1,7 +1,8 @@
 # Visual QA: builds Summon on GitHub's macOS runners and uploads screenshots of the menu bar, the launcher
 # (⌃⌥Space, or its CLI/URL fallback) and the menu bar panel in light and dark, plus the template's off-screen
-# `--screenshot` render. Artifacts only: nothing is posted or committed. Review the PNGs from the run page or
-# with `gh run download`.
+# `--screenshot` render. Fails when a surface does not open or close, a capture is missing, or a capture looks like
+# the wrong theme. Artifacts only: nothing is posted or committed, and it is not a merge gate. Review the PNGs from
+# the run page or with `gh run download`.
 name: Visual QA (macOS)
 
 on:
@@ -21,22 +22,30 @@ concurrency:
 jobs:
   visual-qa:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         os: [macos-26, macos-15]
+    env:
+      OS: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # Full-desktop screenshots go into public artifacts: only ever on an ephemeral GitHub-hosted VM.
+      - name: Require a GitHub-hosted runner
+        if: runner.environment != 'github-hosted'
+        run: echo "::error::visual-qa screenshots the whole desktop; run it only on GitHub-hosted runners" && exit 1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
       - name: Toolchain
         run: |
           # The code calls macOS 26 APIs behind #available, so it needs the macOS 26 SDK (Xcode 26) even on macos-15.
-          if ! xcodebuild -version | grep -q '^Xcode 26'; then
-            xcode=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
-            echo "Default Xcode is not 26; available: $(ls -d /Applications/Xcode_*.app | xargs -n1 basename | tr '\n' ' ')"
-            [ -n "$xcode" ] || { echo "::error::no Xcode 26 on this image"; exit 1; }
+          # Read the version into a variable first: piping xcodebuild into `grep -q` breaks its pipe and it aborts.
+          version=$(xcodebuild -version)
+          if ! grep -q '^Xcode 26' <<<"$version"; then
+            xcode=/Applications/Xcode_26.3.app
+            echo "Default is $(head -1 <<<"$version"); available: $(ls -d /Applications/Xcode_*.app | xargs -n1 basename | tr '\n' ' ')"
+            [ -d "$xcode" ] || { echo "::error::$xcode is not on this image"; exit 1; }
             sudo xcode-select -s "$xcode"
           fi
           sw_vers
@@ -52,12 +61,12 @@ jobs:
           "$(swift build --show-bin-path)/Starter" --screenshot "$RUNNER_TEMP/offscreen"
           mkdir -p "$GITHUB_WORKSPACE/out"
           for theme in light dark; do
-            cp "$RUNNER_TEMP/offscreen/panel-$theme.png" "$GITHUB_WORKSPACE/out/${{ matrix.os }}-$theme-offscreen-template-panel.png"
+            cp "$RUNNER_TEMP/offscreen/panel-$theme.png" "$GITHUB_WORKSPACE/out/$OS-$theme-offscreen-template-panel.png"
           done
       - name: Live captures (hotkey, launcher, menu bar panel)
         run: |
           swiftc -O incubator/summon/scripts/visual-qa/windows.swift -o "$RUNNER_TEMP/windows"
-          incubator/summon/scripts/visual-qa/run.sh out "$PWD/incubator/summon/build/Summon.app" "$RUNNER_TEMP/windows" "${{ matrix.os }}"
+          incubator/summon/scripts/visual-qa/run.sh out "$PWD/incubator/summon/build/Summon.app" "$RUNNER_TEMP/windows" "$OS"
       - name: Upload light
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -66,7 +75,8 @@ jobs:
           path: |
             out/*-light-*.png
             out/*-log.txt
-          if-no-files-found: warn
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload dark
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -75,4 +85,5 @@ jobs:
           path: |
             out/*-dark-*.png
             out/*-log.txt
-          if-no-files-found: warn
+          if-no-files-found: error
+          retention-days: 14
