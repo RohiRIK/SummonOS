@@ -33,6 +33,14 @@ public struct PanelView: View {
         query.isEmpty ? model.visibleChildren(of: level) : model.menu.search(query).filter { model.visibility[$0.id] != false }
     }
 
+    private var displayedProjects: [Project] {
+        if query.isEmpty {
+            return level == nil ? model.projects : []
+        } else {
+            return model.projects.filter { $0.name.localizedCaseInsensitiveContains(query) }
+        }
+    }
+
     public var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -74,6 +82,7 @@ public struct PanelView: View {
         // E1/E5: refresh at once on open, then every 1 s while open; cancelled on close.
         .task(id: panel.isOpen) {
             guard panel.isOpen else { return }
+            model.reloadProjects()
             let session = panel.session
             guard activity.live else {
                 refreshedSession = session
@@ -102,7 +111,7 @@ public struct PanelView: View {
                 }
                 .id(item.id)
             }
-            if rows.isEmpty {
+            if rows.isEmpty && displayedProjects.isEmpty {
                 Text(query.isEmpty ? "Nothing here." : "No match for “\(query)”.")
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
@@ -115,11 +124,13 @@ public struct PanelView: View {
                     .lineLimit(3)
                     .padding(.horizontal, 8)
             }
+            appsSection
             PanelDivider()
-            MenuRow(title: "Ask Agent", systemImage: "sparkles", shortcut: "⌃⌥⌘A") {
+            MenuRow(title: "Ask Agent", systemImage: "sparkles", shortcut: "⌘↵") {
                 actions.finish()
                 model.askAgent()
             }
+            .keyboardShortcut(.return, modifiers: .command)
             .disabled(model.defaultAgent == nil || !model.agentInstalled)
             MenuRow(title: "Activity…", systemImage: "list.bullet.rectangle", shortcut: nil) {
                 actions.finish()
@@ -148,6 +159,30 @@ public struct PanelView: View {
         .padding(6)
     }
 
+    @ViewBuilder
+    private var appsSection: some View {
+        if !displayedProjects.isEmpty {
+            PanelDivider()
+            HStack {
+                Text("My Apps")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal, 8)
+            .padding(.top, 4)
+            .padding(.bottom, 2)
+
+            ForEach(displayedProjects, id: \.name) { project in
+                MenuRow(title: project.name, systemImage: project.kind.systemImage, shortcut: nil) {
+                    actions.finish()
+                    model.openProject(project)
+                }
+            }
+        }
+    }
+
     /// A2/A4: typing stays in the panel. ↑↓ select, → or Return opens a submenu, ← goes back, Return runs, Esc closes.
     private var search: some View {
         HStack(spacing: 6) {
@@ -167,6 +202,15 @@ public struct PanelView: View {
                 .accessibilityLabel("Search Summon")
                 .onSubmit(activateFromKeyboard)
                 .onKeyPress(.escape) { actions.escape(); return .handled }
+                .onKeyPress(keys: [.return], phases: .down) { press in
+                    if press.modifiers.contains(.command) {
+                        guard model.defaultAgent != nil && model.agentInstalled else { return .ignored }
+                        actions.finish()
+                        model.askAgent()
+                        return .handled
+                    }
+                    return .ignored
+                }
                 .onKeyPress(.downArrow) { move(1); return .handled }
                 .onKeyPress(.upArrow) { move(-1); return .handled }
                 .onKeyPress(.rightArrow) {
@@ -197,6 +241,7 @@ public struct PanelView: View {
         query = ""
         level = model.launcherStartLevel
         selection = 0
+        model.reloadProjects()
     }
 
     private func move(_ delta: Int) {
@@ -218,7 +263,13 @@ public struct PanelView: View {
 
     private func activateSelection() {
         let current = rows
-        guard current.indices.contains(selection) else { return }
+        guard current.indices.contains(selection) else {
+            if rows.isEmpty, displayedProjects.count == 1, let first = displayedProjects.first {
+                actions.finish()
+                model.openProject(first)
+            }
+            return
+        }
         let item = current[selection]
         if item.action != nil {
             actions.finish()

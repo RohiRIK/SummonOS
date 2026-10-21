@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 import SummonCore
@@ -43,6 +44,8 @@ public final class SummonModel {
     public private(set) var pluginWork: String? = nil
     public private(set) var menu: MenuTree
     public private(set) var menuError: String? = nil
+    /// Apps made with Summon (`~/.config/summon/projects.json`), shown in the panel.
+    public private(set) var projects: [Project] = []
     /// Last action error, shown under the row that caused it.
     public var lastError: String? = nil
     /// Hotkey labels whose registration failed at launch (another app owns them); Settings marks them (C4).
@@ -105,6 +108,7 @@ public final class SummonModel {
         mutedPrograms = CrashWatcher(paths: paths).muted().sorted()
         do { agentSettings = try AgentSettingsStore(paths: paths).loadValidated() }
         catch { lastError = String(describing: error) }
+        reloadProjects()
         loadMenu()
     }
 
@@ -191,6 +195,28 @@ public final class SummonModel {
                 await summon(["agent"])
             }
         }
+    }
+
+    public func reloadProjects() {
+        projects = (try? ProjectStore(paths: paths).load().projects) ?? []
+    }
+
+    /// Opens the project's built .app if present, else reveals its folder.
+    public func openProject(_ project: Project) {
+        let folder = URL(fileURLWithPath: project.path)
+        let pascal = ProjectName.pascal(project.name)
+        let primaryApp = folder.appendingPathComponent("build/\(pascal).app")
+        if FileManager.default.fileExists(atPath: primaryApp.path) {
+            NSWorkspace.shared.open(primaryApp)
+            return
+        }
+        let buildDir = folder.appendingPathComponent("build")
+        if let items = try? FileManager.default.contentsOfDirectory(at: buildDir, includingPropertiesForKeys: nil),
+           let appURL = items.first(where: { $0.pathExtension == "app" }) {
+            NSWorkspace.shared.open(appURL)
+            return
+        }
+        NSWorkspace.shared.open(folder)
     }
 
     /// Problems the panel still shows: not archived, not older than a day (Activity keeps them all).
