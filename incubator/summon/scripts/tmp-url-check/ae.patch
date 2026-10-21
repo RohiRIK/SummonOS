@@ -1,0 +1,48 @@
+diff --git a/incubator/summon/Sources/SummonMenu/SummonMenuApp.swift b/incubator/summon/Sources/SummonMenu/SummonMenuApp.swift
+index 1933b65..db885a8 100644
+--- a/incubator/summon/Sources/SummonMenu/SummonMenuApp.swift
++++ b/incubator/summon/Sources/SummonMenu/SummonMenuApp.swift
+@@ -13,6 +13,9 @@ struct SummonMenuApp: App {
+         }
+         .defaultSize(width: 980, height: 640)
+         .defaultLaunchBehavior(.suppressed)
++        // AppDelegate handles every summon:// URL. Without this, SwiftUI also routes the URL's open event to the
++        // first scene and shows this window (`summon panel`, `summon menu summon`).
++        .handlesExternalEvents(matching: [])
+ 
+         // Invisible and always open: it hosts the openers for summon://activity and summon://settings.
+         Window("Summon", id: "summon-opener") {
+@@ -21,6 +24,8 @@ struct SummonMenuApp: App {
+         .defaultLaunchBehavior(.presented)
+         .restorationBehavior(.disabled)
+         .windowResizability(.contentSize)
++        // The invisible, always-open opener claims summon:// so SwiftUI reuses it instead of opening a window.
++        .handlesExternalEvents(matching: ["summon"])
+ 
+         Settings {
+             SettingsView(model: delegate.model)
+diff --git a/incubator/summon/Sources/SummonMenuUI/AppDelegate.swift b/incubator/summon/Sources/SummonMenuUI/AppDelegate.swift
+index bd6be71..adaf8fa 100644
+--- a/incubator/summon/Sources/SummonMenuUI/AppDelegate.swift
++++ b/incubator/summon/Sources/SummonMenuUI/AppDelegate.swift
+@@ -22,6 +22,20 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
+         super.init()
+     }
+ 
++    /// summon:// URLs come in as a kAEGetURL Apple event. Handling it here, before AppKit finishes launching, keeps
++    /// SwiftUI from also routing it to a scene (which showed the Activity window), and still works on cold launch.
++    public func applicationWillFinishLaunching(_ notification: Notification) {
++        NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(handleGetURL(_:withReply:)),
++                                                     forEventClass: AEEventClass(kInternetEventClass),
++                                                     andEventID: AEEventID(kAEGetURL))
++    }
++
++    @objc private func handleGetURL(_ event: NSAppleEventDescriptor, withReply reply: NSAppleEventDescriptor) {
++        guard let string = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
++              let url = URL(string: string) else { return }
++        application(NSApp, open: [url])
++    }
++
+     public func applicationDidFinishLaunching(_ notification: Notification) {
+         // Every project lives in ~/Summon and agents start there, so it exists from the first launch.
+         try? ProjectsFolder.ensure(.live)

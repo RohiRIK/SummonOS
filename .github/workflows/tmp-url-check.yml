@@ -3,7 +3,7 @@ name: TEMP url check (PR 61)
 on:
   push:
     branches: [feat/menubar-status-panel]
-    paths: [tmp-url-check/**, .github/workflows/tmp-url-check.yml]
+    paths: [incubator/summon/scripts/tmp-url-check/**, .github/workflows/tmp-url-check.yml]
 permissions:
   contents: read
 jobs:
@@ -16,12 +16,12 @@ jobs:
           persist-credentials: false
       - name: Variants
         run: |
-          swiftc -O tmp-url-check/windows.swift -o "$RUNNER_TEMP/windows"
+          swiftc -O incubator/summon/scripts/tmp-url-check/windows.swift -o "$RUNNER_TEMP/windows"
           for v in base scene ae; do
             git checkout -- incubator
-            [ "$v" = base ] || git apply "tmp-url-check/$v.patch"
+            [ "$v" = base ] || git apply "incubator/summon/scripts/tmp-url-check/$v.patch"
             (cd incubator/summon && scripts/bundle.sh) >/dev/null 2>&1 || { echo "::error::build failed for $v"; (cd incubator/summon && scripts/bundle.sh) 2>&1 | tail -40; continue; }
-            tmp-url-check/check.sh "$v" out "$RUNNER_TEMP/windows"
+            incubator/summon/scripts/tmp-url-check/check.sh "$v" out "$RUNNER_TEMP/windows"
           done
           grep -h RESULT out/*-log.txt | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Upload
