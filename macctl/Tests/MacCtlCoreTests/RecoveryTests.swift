@@ -46,7 +46,7 @@ struct RecoveryTests {
                now: { Date(timeIntervalSince1970: 1_792_154_096) })
     }
 
-    @Test func failedUndoRemainsRetryable() async throws {
+    @Test func failedUndoBlocksUntilRecover() async throws {
         let backend = RecoverableBackend()
         let store = InMemorySnapshotStore()
         let service = engine(backend, store)
@@ -58,34 +58,46 @@ struct RecoveryTests {
             Issue.record("Expected injected restore failure")
         } catch {}
         await backend.fail(nil)
-        _ = try await service.undo(snapshotID: nil)
+        // The interrupted revert left a revert-intent with no outcome: everything waits for recover.
+        await expectMacCtlError("recovery_pending") { try await service.undo(snapshotID: nil) }
+        let result = try await service.recover()
+        #expect(result.changes == 1)
         #expect(await backend.values["dock.tilesize"] == .int(64))
+        #expect(try await service.recover().changes == 0)
     }
 
-    @Test func failedBatchReportsRecoverySnapshot() async throws {
+    @Test func failedBatchRollsBackAtOnce() async throws {
         let backend = RecoverableBackend()
         let store = InMemorySnapshotStore()
         let service = engine(backend, store)
         await backend.fail("dock.tilesize")
+        var failedID: String?
         do {
             _ = try await service.apply(Profile(name: "partial", settings: [
                 "dock.autohide": .bool(true), "dock.tilesize": .int(40),
             ]), dryRun: false, confirmed: false)
             Issue.record("Expected injected write failure")
-        } catch {
-            let backup = try #require(store.saved.first)
-            #expect(String(describing: error).contains(backup.id))
-            #expect(String(describing: error).contains("dock.autohide"))
+        } catch let MacCtlError.mutationFailed(id, stillChanged, _) {
+            failedID = id
+            #expect(stillChanged.isEmpty)
         }
-        #expect(await backend.values["dock.autohide"] == .bool(true))
-        await backend.fail(nil)
-        _ = try await service.undo(snapshotID: nil)
+        // ADR Q-F: Fi.1/Fi.2, then i..1 rolled back newest first, session_end{rolled_back}.
+        #expect(try service.snapshots().first?.id == failedID)
+        #expect(try service.snapshots().first?.status == .rolledBack)
         #expect(await backend.values["dock.autohide"] == nil)
+        #expect(await backend.values["dock.tilesize"] == .int(64))
+        await backend.fail(nil)
+        // Nothing is left to recover, and new changes are not blocked.
+        #expect(try await service.recover().sessions.isEmpty)
+        _ = try await service.apply(Profile(name: "x", settings: ["dock.autohide": .bool(true)]),
+                                    dryRun: false, confirmed: false)
+        #expect(await backend.values["dock.autohide"] == .bool(true))
     }
 
     @Test func independentEnginesSerializePlanningAndKeepBothBackups() async throws {
-        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("macctl-lock-\(UUID())")
-        defer { try? FileManager.default.removeItem(at: folder) }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("macctl-lock-\(UUID())")
+        let folder = root.appendingPathComponent("snapshots")
+        defer { try? FileManager.default.removeItem(at: root) }
         let backend = RecoverableBackend(delay: .milliseconds(100))
         let first = engine(backend, FileSnapshotStore(directory: folder))
         let second = engine(backend, FileSnapshotStore(directory: folder))
@@ -95,9 +107,9 @@ struct RecoveryTests {
                                    dryRun: false, confirmed: false)
         _ = try await (a, b)
         #expect(await backend.maximumActive == 1)
-        let backups = try FileSnapshotStore(directory: folder).list().reversed()
-        #expect(backups.count == 2)
-        let changes = backups.flatMap(\.changes)
+        let sessions = try first.snapshots().reversed()
+        #expect(sessions.count == 2)
+        let changes = sessions.flatMap(\.changes)
         #expect(changes.first?.from == .int(64))
         #expect(changes.last?.from == changes.first?.to)
     }
@@ -180,17 +192,17 @@ struct RecoveryTests {
         let store = InMemorySnapshotStore()
         let service = Engine(registry: Registry(TestCatalog.settings), backend: backend, restarter: restarter,
                              probe: FakeProbe(), snapshots: store, osVersion: { "26.0" })
-        do {
-            _ = try await service.apply(Profile(name: "change", settings: ["dock.tilesize": .int(40)]),
-                                        dryRun: false, confirmed: false)
-            Issue.record("Expected restart failure")
-        } catch {}
+        // The value is written and kept; the failed restart becomes a note (the session completes).
+        let result = try await service.apply(Profile(name: "change", settings: ["dock.tilesize": .int(40)]),
+                                             dryRun: false, confirmed: false)
+        #expect(result.notes.contains { $0.contains("restart:Dock failed") })
         #expect(await restarter.calls == 1)
-        #expect(store.saved.first?.status == .failed)
-        #expect(store.saved.first?.appliedSettings == ["dock.tilesize"])
+        let session = try #require(try service.snapshots().first)
+        #expect(session.status == .completed)
+        #expect(session.appliedSettings == ["dock.tilesize"])
     }
 
-    @Test func interruptedUndoAndAlreadyRestoredValueDoNotBlockOlderHistory() async throws {
+    @Test func legacyPendingSnapshotBlocksThenRecoversAndOlderHistoryStillUndoes() async throws {
         let backend = RecoverableBackend()
         let store = InMemorySnapshotStore()
         let service = engine(backend, store)
@@ -199,14 +211,17 @@ struct RecoveryTests {
         let second = try await service.apply(Profile(name: "second", settings: ["dock.tilesize": .int(30)]),
                                              dryRun: false, confirmed: false)
         let secondID = try #require(second.snapshotID)
-        // Simulate a previous process dying after recording undo intent, before changing anything.
-        try store.save(Snapshot(id: "interrupted", createdAt: Date(), changes: [],
+        // An older macctl died after recording undo intent, before changing anything.
+        try store.save(Snapshot(id: "interrupted", createdAt: Date(timeIntervalSince1970: 1_792_154_097), changes: [],
                                 undoes: secondID, status: .pending))
+        await expectMacCtlError("recovery_pending") { try await service.undo(snapshotID: nil) }
+        #expect(try await service.recover().changes == 0)
         _ = try await service.undo(snapshotID: nil)
         #expect(await backend.values["dock.tilesize"] == .int(40))
-        // If the older target was already restored externally, a no-op undo must consume it.
+        // If the older target was already restored externally, the undo writes nothing and consumes it.
         try await backend.write(.int(64), for: TestCatalog.settings.first { $0.id == "dock.tilesize" }!)
-        _ = try await service.undo(snapshotID: first.snapshotID)
+        let noop = try await service.undo(snapshotID: first.snapshotID)
+        #expect(noop.changes.isEmpty)
         await expectMacCtlError("no_snapshots") { try await service.undo(snapshotID: nil) }
     }
 }

@@ -193,9 +193,15 @@ Code: [`macctl/`](../macctl). Overview: [its README](../macctl/README.md).
 - **Change safely:** `set <id> <value>` and `apply <profile.json> [--only <domain>]`, with `--dry-run`, and
   `diff <profile>` to preview. `admin` and `destructive` settings need `--yes`.
 - **Snapshots and undo:** every write saves the old values first. `snapshot list`, `snapshot show <id>`,
-  and `undo [<id>]`, which also deletes keys that were unset before. Transactions serialize across cooperating
-  processes; pending/completed/failed journals keep failed undo retryable and identify partially applied settings.
-  Wallpaper recovery retains distinct per-display images; legacy scalar snapshots remain readable.
+  and `undo [<id>]`. Each key's prior state (absent, explicit with its exact plist type, or inherited; managed keys are refused)
+  is recorded before the write, so undo deletes what was unset or inherited and writes back exact typed values.
+  Transactions serialize across cooperating processes.
+- **Crash recovery:** every change is journaled step by step (`journal/<id>.jsonl`, 0600, synced per line) under
+  a write-once header. After a crash, `set`, `apply` and `undo` stop with `recovery_pending` until
+  `macctl recover` rolls the unfinished session back to its prior state; `recover --abandon <id>` sets an
+  unreadable journal aside. A key changed by hand since macctl wrote it is left as it is and flagged, and undo
+  reports `partial_restore`; `undo <id> --force` (explicit user only, never passed by Summon) overwrites it.
+  Wallpaper recovery retains distinct per-display images; legacy snapshots remain readable.
 - **Built for agents:** `--json` (automatic in a pipe) prints one object per run with stable error codes
   and exit codes. `doctor` checks permissions without triggering a prompt and links to the right System
   Settings pane.

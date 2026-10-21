@@ -4,6 +4,20 @@ import MacCtlCore
 
 @main
 struct MacCtl: AsyncParsableCommand {
+    /// Test seams are checked before any argument parsing, so `MACCTL_FAILPOINT=list` never reads
+    /// or writes anything and a misspelled point fails loudly instead of silently passing.
+    static func main() async {
+        if Failpoint.listRequested {
+            print(Failpoint.all.joined(separator: "\n"))
+            Foundation.exit(0)
+        }
+        if let unknown = Failpoint.unknownRequestedPoint {
+            FileHandle.standardError.write(Data("macctl: unknown MACCTL_FAILPOINT \(unknown); run with MACCTL_FAILPOINT=list\n".utf8))
+            Foundation.exit(64)
+        }
+        await Self.main(nil)
+    }
+
     static var configuration: CommandConfiguration {
         CommandConfiguration(
             commandName: "macctl",
@@ -11,6 +25,7 @@ struct MacCtl: AsyncParsableCommand {
             discussion: """
             Output is JSON when --json is passed or stdout is not a terminal.
             Exit codes: 0 ok, 1 error, 2 needs permission, 3 needs confirmation (--yes), 4 unsupported.
+            After an interrupted run, every write refuses with recovery_pending until `macctl recover`.
             """,
             version: "0.1.0",
             subcommands: [
@@ -23,6 +38,7 @@ struct MacCtl: AsyncParsableCommand {
                 ApplyCommand.self,
                 SnapshotCommand.self,
                 UndoCommand.self,
+                RecoverCommand.self,
             ]
         )
     }

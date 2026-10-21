@@ -5,6 +5,11 @@ import CoreServices
 #if canImport(ApplicationServices)
 import ApplicationServices
 #endif
+#if !canImport(Darwin)
+import Glibc
+/// Linux builds (journal/recovery CI) have no Carbon; keep the status mapping testable.
+public typealias OSStatus = Int32
+#endif
 
 /// Checks TCC permissions without ever showing a prompt.
 ///

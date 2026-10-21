@@ -24,6 +24,8 @@ struct ErrorEnvelope: Encodable {
         let message: String
         var recoverySnapshot: String? = nil
         var appliedSettings: [String]? = nil
+        /// `partial_restore`: settings left as they are because they were changed by hand.
+        var flagged: [String]? = nil
     }
 
     let ok: Bool
@@ -60,6 +62,13 @@ enum Output {
                 try printJSON(ErrorEnvelope(ok: false, command: command,
                                             error: .init(code: error.code, message: error.description,
                                                          recoverySnapshot: id, appliedSettings: applied)))
+            } else if case .partialRestore(let id, let flagged) = error, json {
+                try printJSON(ErrorEnvelope(ok: false, command: command,
+                                            error: .init(code: error.code, message: error.description,
+                                                         recoverySnapshot: id, flagged: flagged)))
+            } else if case .recoveryPending(let id) = error, json {
+                try printJSON(ErrorEnvelope(ok: false, command: command,
+                                            error: .init(code: error.code, message: error.description, recoverySnapshot: id)))
             } else {
                 report(command: command, code: error.code, message: error.description, json: json)
             }
@@ -168,6 +177,18 @@ enum Human {
         for note in result.notes {
             lines.append("Note: \(note)")
         }
+        return lines.joined(separator: "\n")
+    }
+
+    static func recovered(_ result: RecoverResult) -> String {
+        var lines: [String] = []
+        if result.sessions.isEmpty {
+            lines.append("Nothing to recover.")
+        }
+        for session in result.sessions {
+            lines.append("Recovered \(session.id): \(session.reverted.count) rolled back, \(session.notApplied.count) never written, \(session.flagged.count) left as they are.")
+        }
+        for note in result.notes { lines.append("Note: \(note)") }
         return lines.joined(separator: "\n")
     }
 }

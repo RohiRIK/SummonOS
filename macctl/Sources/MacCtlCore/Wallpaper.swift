@@ -1,6 +1,8 @@
-import AppKit
 import Foundation
+#if canImport(AppKit)
+import AppKit
 import CoreGraphics
+#endif
 
 /// Display UUIDs survive screen ordering changes and reconnects; paths remain ordinary scalar values.
 public struct DisplayWallpaper: Sendable, Hashable, Codable {
@@ -30,6 +32,7 @@ extension WallpaperControlling {
     }
 }
 
+#if canImport(AppKit)
 /// The real desktop picture, through `NSWorkspace`. AppKit screen APIs run on the main actor.
 public struct LiveWallpaper: WallpaperControlling {
     public init() {}
@@ -100,3 +103,15 @@ public struct LiveWallpaper: WallpaperControlling {
         }
     }
 }
+#else
+/// Non-macOS builds (Linux CI for the journal and recovery logic) have no desktop picture.
+public struct LiveWallpaper: WallpaperControlling {
+    public init() {}
+    public func currentWallpaper() async throws -> String? {
+        throw MacCtlError.unsupported(id: "desktop.wallpaper", reason: "requires macOS")
+    }
+    public func setWallpaper(_ path: String) async throws {
+        throw MacCtlError.unsupported(id: "desktop.wallpaper", reason: "requires macOS")
+    }
+}
+#endif

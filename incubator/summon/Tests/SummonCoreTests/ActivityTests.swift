@@ -53,6 +53,172 @@ struct ActivityTests {
         #expect(snapshots[0].undoes == "20261018-100000")
     }
 
+    /// macctl's journaled sessions keep a write-once header with `status: "pending"`; the status comes
+    /// from `../journal/<id>.jsonl` (QA R-b), so a finished session never warns.
+    @Test func journaledMacctlHeaderTakesStatusFromJournal() throws {
+        let home = try makeTempHome()
+        let paths = SummonPaths(home: home)
+        let journal = paths.macctlSnapshots.deletingLastPathComponent().appendingPathComponent("journal")
+        for id in ["20261020-100000", "20261020-110000", "20261020-120000"] {
+            try writeFile("""
+            {"changes":[{"id":"dock.autohide","to":true}],"createdAt":"2026-10-20T07:00:00Z","id":"\(id)","status":"pending"}
+            """, to: paths.macctlSnapshots.appendingPathComponent("\(id).json"))
+        }
+        try writeFile("""
+        {"v":1,"seq":1,"op":"session_start"}
+        {"v":1,"seq":2,"op":"session_end","outcome":"completed"}
+
+        """, to: journal.appendingPathComponent("20261020-100000.jsonl"))
+        // Crashed after the intent, with a torn last line: still pending.
+        try writeFile("""
+        {"v":1,"seq":1,"op":"session_start"}
+        {"v":1,"seq":2,"op":"intent"}
+        {"v":1,"seq":3,"op":"sess
+        """, to: journal.appendingPathComponent("20261020-110000.jsonl"))
+
+        let byID = Dictionary(uniqueKeysWithValues: MacctlSnapshot.load(from: paths.macctlSnapshots).map { ($0.id, $0.status) })
+        #expect(byID["20261020-100000"] == "completed")
+        #expect(byID["20261020-110000"] == "pending")
+        // A header with no journal (crash at H1, or an older macctl) keeps its own status.
+        #expect(byID["20261020-120000"] == "pending")
+    }
+
+    /// R-b through the path the panel refreshes every second (ActivityModel.refresh →
+    /// ActivitySources.load → StatusProbe): every header says `pending`, the journal decides.
+    /// Only the session whose journal ends mid-way (last line `applied`) warns.
+    @Test func activityStatusComesFromTheJournalNotTheHeader() throws {
+        let home = try makeTempHome()
+        let paths = SummonPaths(home: home)
+        let journal = paths.macctlSnapshots.deletingLastPathComponent().appendingPathComponent("journal")
+        let journals: [String: String] = [
+            "20261020-090000": """
+            {"v":1,"seq":1,"op":"session_start"}
+            {"v":1,"seq":2,"op":"intent"}
+            {"v":1,"seq":3,"op":"applied","ref":2}
+
+            """,
+            "20261020-091000": """
+            {"v":1,"seq":1,"op":"session_start"}
+            {"v":1,"seq":2,"op":"intent"}
+            {"v":1,"seq":3,"op":"applied","ref":2}
+            {"v":1,"seq":4,"op":"session_end","outcome":"completed"}
+
+            """,
+            "20261020-092000": """
+            {"v":1,"seq":1,"op":"session_start"}
+            {"v":1,"seq":2,"op":"intent"}
+            {"v":1,"seq":3,"op":"applied","ref":2}
+            {"v":1,"seq":4,"op":"session_end","outcome":"completed"}
+            {"v":1,"seq":5,"op":"revert_intent","ref":2}
+            {"v":1,"seq":6,"op":"reverted","ref":2}
+            {"v":1,"seq":7,"op":"session_end","outcome":"undone"}
+
+            """,
+            "20261020-093000": """
+            {"v":1,"seq":1,"op":"session_start"}
+            {"v":1,"seq":2,"op":"intent"}
+            {"v":1,"seq":3,"op":"failed","ref":2}
+            {"v":1,"seq":4,"op":"session_end","outcome":"rolled_back"}
+
+            """,
+            "20261020-094000": """
+            {"v":1,"seq":1,"op":"session_start"}
+            {"v":1,"seq":2,"op":"intent"}
+            {"v":1,"seq":3,"op":"reverted","ref":2}
+            {"v":1,"seq":4,"op":"session_end","outcome":"recovered"}
+
+            """,
+        ]
+        for (id, text) in journals {
+            try writeFile("""
+            {"changes":[{"id":"dock.autohide","to":true}],"createdAt":"2026-10-20T07:00:00Z","id":"\(id)","status":"pending"}
+            """, to: paths.macctlSnapshots.appendingPathComponent("\(id).json"))
+            try writeFile(text, to: journal.appendingPathComponent("\(id).jsonl"))
+        }
+        let snapshots = ActivitySources.load(paths: paths, crashLimit: 0).snapshots
+        let byID = Dictionary(uniqueKeysWithValues: snapshots.map { ($0.id, $0.status) })
+        #expect(byID["20261020-090000"] == "pending")      // applied, no session_end: unfinished
+        #expect(byID["20261020-091000"] == "completed")
+        #expect(byID["20261020-092000"] == "undone")       // reverted by undo
+        #expect(byID["20261020-093000"] == "rolled_back")
+        #expect(byID["20261020-094000"] == "recovered")
+
+        let status = StatusProbe.build(
+            agent: nil, agentInstalled: false, log: [], macctlInstalled: true, macctlProblems: [],
+            snapshots: snapshots, checkpoints: [], configIsRepo: true, crashes: []
+        )
+        let macctlWarnings = status.warnings.filter { $0.hasPrefix("macctl ") }
+        #expect(macctlWarnings.count == 1)
+        #expect(macctlWarnings.first?.contains("20261020-090000") == true)
+
+        // Event categories per status (decision for #62): finished and recovered are not Problems.
+        let events = Dictionary(uniqueKeysWithValues: ActivityFeed.build(log: [], snapshots: snapshots, checkpoints: [], crashes: [])
+            .map { ($0.refs["snapshot"] ?? "", $0) })
+        #expect(events["20261020-090000"]?.category == .problem)        // pending
+        #expect(events["20261020-091000"]?.category == .settings)       // completed
+        #expect(events["20261020-091000"]?.kind == "setting.change")
+        #expect(events["20261020-092000"]?.category == .settings)       // undone
+        #expect(events["20261020-092000"]?.kind == "setting.undone")
+        #expect(events["20261020-093000"]?.category == .settings)       // rolled_back
+        #expect(events["20261020-093000"]?.title.contains("recovered after interruption") == true)
+        #expect(events["20261020-094000"]?.category == .settings)       // recovered
+        #expect(events["20261020-094000"]?.kind == "setting.recovered")
+    }
+
+    /// The rest of the decision: abandoned, flagged hand edits and unknown statuses are Problems.
+    @Test func macctlProblemStatusesAreProblems() throws {
+        let home = try makeTempHome()
+        let paths = SummonPaths(home: home)
+        let journal = paths.macctlSnapshots.deletingLastPathComponent().appendingPathComponent("journal")
+        for id in ["20261020-100000", "20261020-101000", "20261020-102000", "20261020-103000"] {
+            try writeFile("""
+            {"changes":[{"id":"dock.autohide","to":true}],"createdAt":"2026-10-20T07:00:00Z","id":"\(id)","status":"pending"}
+            """, to: paths.macctlSnapshots.appendingPathComponent("\(id).json"))
+        }
+        // Hand edit left as it is by recover.
+        try writeFile("""
+        {"v":1,"seq":1,"op":"session_start"}
+        {"v":1,"seq":2,"op":"intent"}
+        {"v":1,"seq":3,"op":"applied","ref":2}
+        {"v":1,"seq":4,"op":"revert_flagged","ref":2}
+        {"v":1,"seq":5,"op":"session_end","outcome":"recovered"}
+
+        """, to: journal.appendingPathComponent("20261020-100000.jsonl"))
+        // Flagged, then `undo --force` restored it: no longer a problem.
+        try writeFile("""
+        {"v":1,"seq":1,"op":"session_start"}
+        {"v":1,"seq":2,"op":"intent"}
+        {"v":1,"seq":3,"op":"applied","ref":2}
+        {"v":1,"seq":4,"op":"session_end","outcome":"completed"}
+        {"v":1,"seq":5,"op":"revert_flagged","ref":2}
+        {"v":1,"seq":6,"op":"session_end","outcome":"undone"}
+        {"v":1,"seq":7,"op":"revert_intent","ref":2}
+        {"v":1,"seq":8,"op":"reverted","ref":2}
+        {"v":1,"seq":9,"op":"session_end","outcome":"undone"}
+
+        """, to: journal.appendingPathComponent("20261020-101000.jsonl"))
+        // recover --abandon kept the journal as .corrupt.
+        try writeFile("garbage\n", to: journal.appendingPathComponent("20261020-102000.jsonl.corrupt"))
+        // A status this Summon does not know.
+        try writeFile("""
+        {"v":1,"seq":1,"op":"session_end","outcome":"something_new"}
+
+        """, to: journal.appendingPathComponent("20261020-103000.jsonl"))
+
+        let snapshots = MacctlSnapshot.load(from: paths.macctlSnapshots)
+        let byID = Dictionary(uniqueKeysWithValues: snapshots.map { ($0.id, $0) })
+        #expect(byID["20261020-100000"]?.status == "flagged")
+        #expect(byID["20261020-101000"]?.status == "undone")
+        #expect(byID["20261020-102000"]?.status == "abandoned")
+        #expect(byID["20261020-103000"]?.status == "something_new")
+        let events = Dictionary(uniqueKeysWithValues: ActivityFeed.build(log: [], snapshots: snapshots, checkpoints: [], crashes: [])
+            .map { ($0.refs["snapshot"] ?? "", $0.category) })
+        #expect(events["20261020-100000"] == .problem)
+        #expect(events["20261020-101000"] == .settings)
+        #expect(events["20261020-102000"] == .problem)
+        #expect(events["20261020-103000"] == .problem)
+    }
+
     @Test func feedMergesSourcesNewestFirstByDate() throws {
         let change = MacctlSnapshot(id: "20261018-100000", createdAt: t0.addingTimeInterval(60),
                                     changes: [SettingChange(id: "dock.autohide", from: "false", to: "true")])
