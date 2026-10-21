@@ -1,0 +1,74 @@
+# Visual QA: builds Summon on GitHub's macOS runners and uploads screenshots of the menu bar, the launcher
+# (⌃⌥Space, or its CLI/URL fallback) and the menu bar panel in light and dark, plus the template's off-screen
+# `--screenshot` render. Artifacts only: nothing is posted or committed. Review the PNGs from the run page or
+# with `gh run download`.
+name: Visual QA (macOS)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - incubator/summon/**
+      - .github/workflows/visual-qa.yml
+  # Spike only, removed before review: run on pushes to this branch.
+  push:
+    branches: [ci/visual-qa]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: visual-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  visual-qa:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, macos-15]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+      - name: Build Summon.app
+        working-directory: incubator/summon
+        run: scripts/bundle.sh
+      - name: Off-screen render (template --screenshot)
+        working-directory: incubator/summon/templates/menubar
+        run: |
+          swift build --product Starter
+          "$(swift build --show-bin-path)/Starter" --screenshot "$RUNNER_TEMP/offscreen"
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          for theme in light dark; do
+            cp "$RUNNER_TEMP/offscreen/panel-$theme.png" "$GITHUB_WORKSPACE/out/${{ matrix.os }}-$theme-offscreen-template-panel.png"
+          done
+      - name: Live captures (hotkey, launcher, menu bar panel)
+        run: |
+          swiftc -O incubator/summon/scripts/visual-qa/windows.swift -o "$RUNNER_TEMP/windows"
+          incubator/summon/scripts/visual-qa/run.sh out "$PWD/incubator/summon/build/Summon.app" "$RUNNER_TEMP/windows" "${{ matrix.os }}"
+      - name: Upload light
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: visual-qa-${{ matrix.os }}-light
+          path: |
+            out/*-light-*.png
+            out/*-log.txt
+          if-no-files-found: warn
+      - name: Upload dark
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: visual-qa-${{ matrix.os }}-dark
+          path: |
+            out/*-dark-*.png
+            out/*-log.txt
+          if-no-files-found: warn
