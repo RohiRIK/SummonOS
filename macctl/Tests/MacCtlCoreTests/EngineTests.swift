@@ -28,7 +28,7 @@ struct EngineTests {
             "dock.tilesize": .int(40),
             "dock.autohide": .bool(true),
         ]))
-        #expect(changes == [Change(id: "dock.autohide", from: .bool(false), to: .bool(true))])
+        #expect(changes.core == [Change(id: "dock.autohide", from: .bool(false), to: .bool(true))])
     }
 
     @Test func diffUsesSystemDefaultWhenUnset() async throws {
@@ -36,7 +36,7 @@ struct EngineTests {
         let same = try await h.engine.diff(Profile(name: "t", settings: ["dock.autohide": .bool(false)]))
         #expect(same.isEmpty)
         let changed = try await h.engine.diff(Profile(name: "t", settings: ["dock.autohide": .bool(true)]))
-        #expect(changed == [Change(id: "dock.autohide", from: nil, to: .bool(true))])
+        #expect(changed.core == [Change(id: "dock.autohide", from: nil, to: .bool(true))])
     }
 
     @Test func diffRejectsUnknownAndInvalid() async {
@@ -67,7 +67,7 @@ struct EngineTests {
             Change(id: "dock.tilesize", from: .int(64), to: .int(40)),
             Change(id: "finder.show-extensions", from: nil, to: .bool(true)),
         ]
-        #expect(result.changes == expected)
+        #expect(result.changes.core == expected)
         #expect(result.dryRun == false)
         #expect(await h.backend.ops == [
             .write("dock.autohide", .bool(true)),
@@ -75,12 +75,17 @@ struct EngineTests {
             .write("finder.show-extensions", .bool(true)),
         ])
 
-        let snapshots = h.store.saved
+        // A write-once header (still `pending` on disk); the status shown comes from the journal.
+        #expect(h.store.saved.map(\.status) == [.pending])
+        let snapshots = try h.engine.snapshots()
         #expect(snapshots.count == 1)
         #expect(snapshots.first?.id == result.snapshotID)
-        #expect(snapshots.first?.changes == expected)
+        #expect(snapshots.first?.status == .completed)
+        #expect(snapshots.first?.changes.core == expected)
+        #expect(result.changes.map(\.prior?.state) == [.absent, .explicit, .absent])
 
-        #expect(await h.restarter.calls == [[.restart(process: "Dock"), .restart(process: "Finder")]])
+        // One restart per process, in name order (ADR Q-K).
+        #expect(await h.restarter.calls == [[.restart(process: "Dock")], [.restart(process: "Finder")]])
     }
 
     @Test func applyWithNothingToChangeDoesNothing() async throws {
@@ -164,18 +169,18 @@ struct EngineTests {
 
         #expect(await h.backend.stored == ["dock.tilesize": .int(64)])
         let ops = await h.backend.ops
+        // Newest change first.
         #expect(Array(ops.suffix(2)) == [.write("dock.tilesize", .int(64)), .reset("dock.autohide")])
-        #expect(undone.changes == [
+        #expect(undone.changes.core == [
             Change(id: "dock.tilesize", from: .int(40), to: .int(64)),
             Change(id: "dock.autohide", from: .bool(true), to: .bool(false)),
         ])
 
-        // The undo is itself snapshotted, newest first.
+        // Undo of a journaled session is rolled back in place (ADR Q-U): same id, now recovered.
         let snapshots = try h.engine.snapshots()
-        #expect(snapshots.count == 2)
-        #expect(snapshots.first?.id == undone.snapshotID)
-        #expect(snapshots.last?.id == applied.snapshotID)
-        #expect(undone.snapshotID != applied.snapshotID)
+        #expect(snapshots.count == 1)
+        #expect(undone.snapshotID == applied.snapshotID)
+        #expect(snapshots.first?.status == .undone)
 
         // Side effects ran once for the apply and once for the undo.
         #expect(await h.restarter.calls == [[.restart(process: "Dock")], [.restart(process: "Dock")]])
@@ -192,8 +197,8 @@ struct EngineTests {
         #expect(await h.backend.stored["dock.tilesize"] == .int(40))
         let second = try await h.engine.undo(snapshotID: nil)
         #expect(await h.backend.stored["dock.tilesize"] == .int(64))
-        #expect(try h.engine.snapshots().first?.undoes == first.snapshotID)
-        #expect(second.snapshotID != nil)
+        #expect(second.snapshotID == first.snapshotID)
+        #expect(try h.engine.snapshots().allSatisfy { $0.status == .undone })
 
         // Everything is undone: a third bare undo has nothing left.
         await expectMacCtlError("no_snapshots") { try await h.engine.undo(snapshotID: nil) }
@@ -217,7 +222,8 @@ struct EngineTests {
         let h = Harness(denied: [TestCatalog.automation])
         let report = await h.engine.doctor()
         #expect(report.macOSVersion == "26.0")
-        #expect(report.checks.count == 2)
+        #expect(report.checks.count == 3)
+        #expect(report.checks.contains { $0.name == "No unfinished operations" && $0.ok })
         let automation = report.checks.first { $0.name == "Automation: com.apple.systemevents" }
         #expect(automation?.ok == false)
         #expect(automation?.fixURL == "x-apple.systempreferences:test")

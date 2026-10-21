@@ -25,6 +25,7 @@ OKF_VERSION = "0.2"
 # Directories: title and one-line description, used for their heading and for the parent's index entry.
 DIRS = {
     "": ("SummonOS docs", "Everything written down about SummonOS: features, how to install and build, tools, plans and research."),
+    "adr": ("Architecture decisions", "Accepted and proposed design decisions, one per file."),
     "plans": ("Plans and reports", "Finished and long plans, one per file. A plan records what was decided at the time; "
                        "when it disagrees with a project's README or PROJECT-CONTEXT.md, those win."),
     "research": ("Research", "Research notes behind the skills and the design of SummonOS apps."),

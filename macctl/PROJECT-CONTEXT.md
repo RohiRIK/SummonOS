@@ -14,7 +14,8 @@ in the workspace. Agent instructions: workspace skill `MacSetup`.
 - Backends: `defaults`, AppleScript (argv only), and `.wallpaper` (`NSWorkspace` on the main actor, behind
   the injectable `WallpaperControlling`; tests use `FakeWallpaper`).
 - `SettingBackend.validate` runs live checks (wallpaper file exists) for every value before the first write.
-- Data: snapshots in `~/Library/Application Support/macctl/snapshots/<id>.json`.
+- Data: write-once headers in `~/Library/Application Support/macctl/snapshots/<id>.json` and append-only
+  journals in `.../macctl/journal/<id>.jsonl` (ADR `../docs/adr/ADR-macctl-recovery.md`; status lives only in the journal).
 - Permissions: Automation (System Events) for dark mode only.
 
 ## Constraints
@@ -41,3 +42,13 @@ in the workspace. Agent instructions: workspace skill `MacSetup`.
 ### 2026-10-16 — Milestone 1 written, not yet compiled
 - Scaffold + four parallel modules (core, backends, catalog, CLI) written in a Linux container with no
   Swift toolchain. Needs `swift build && swift test` and per-key verification on a Mac.
+
+## Recovery journal (ADR macctl-recovery, PR-1)
+- `.defaults` I/O goes through `PreferencesStore` (CFPreferences on macOS; memory and plist-file fakes on Linux).
+  Prior state is absent / explicit (exact CF type) / inherited; managed keys → `managed_setting`.
+- Engine is the only journal writer: header [H1] session_start [K1], per change I/W/A (F on failure, immediate
+  rollback), [K2] restarts [E1] session_end [K3]. `undo`, rollback and `recover` share one newest-first revert walk
+  (RIj/RVj); recover adds R0/RE. Failpoints: `Failpoint.all` (`MACCTL_FAILPOINT=list`), test mode only.
+- `recovery_pending` gates apply/undo; `recover` is idempotent; hand edits → `revert_flagged` + `partial_restore`.
+- AppleScript and wallpaper settings are journaled too (state explicit; wallpaper keeps per-display priors).
+
