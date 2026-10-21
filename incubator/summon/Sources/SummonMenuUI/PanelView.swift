@@ -74,6 +74,7 @@ public struct PanelView: View {
         // E1/E5: refresh at once on open, then every 1 s while open; cancelled on close.
         .task(id: panel.isOpen) {
             guard panel.isOpen else { return }
+            model.reloadProjects()
             let session = panel.session
             guard activity.live else {
                 refreshedSession = session
@@ -116,10 +117,11 @@ public struct PanelView: View {
                     .padding(.horizontal, 8)
             }
             PanelDivider()
-            MenuRow(title: "Ask Agent", systemImage: "sparkles", shortcut: "⌃⌥⌘A") {
+            MenuRow(title: "Ask Agent", systemImage: "sparkles", shortcut: model.panelAgentShortcut.displayString) {
                 actions.finish()
                 model.askAgent()
             }
+            .keyboardShortcut(model.panelAgentShortcut.keyEquivalent, modifiers: model.panelAgentShortcut.eventModifiers)
             .disabled(model.defaultAgent == nil || !model.agentInstalled)
             MenuRow(title: "Activity…", systemImage: "list.bullet.rectangle", shortcut: nil) {
                 actions.finish()
@@ -167,6 +169,15 @@ public struct PanelView: View {
                 .accessibilityLabel("Search Summon")
                 .onSubmit(activateFromKeyboard)
                 .onKeyPress(.escape) { actions.escape(); return .handled }
+                .onKeyPress(phases: .down) { press in
+                    if model.panelAgentShortcut.matches(press) {
+                        guard model.defaultAgent != nil && model.agentInstalled else { return .ignored }
+                        actions.finish()
+                        model.askAgent()
+                        return .handled
+                    }
+                    return .ignored
+                }
                 .onKeyPress(.downArrow) { move(1); return .handled }
                 .onKeyPress(.upArrow) { move(-1); return .handled }
                 .onKeyPress(.rightArrow) {
@@ -197,6 +208,7 @@ public struct PanelView: View {
         query = ""
         level = model.launcherStartLevel
         selection = 0
+        model.reloadProjects()
     }
 
     private func move(_ delta: Int) {

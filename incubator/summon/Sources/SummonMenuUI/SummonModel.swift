@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 import SummonCore
@@ -43,6 +44,8 @@ public final class SummonModel {
     public private(set) var pluginWork: String? = nil
     public private(set) var menu: MenuTree
     public private(set) var menuError: String? = nil
+    /// Apps made with Summon (`~/.config/summon/projects.json`), shown in the panel.
+    public private(set) var projects: [Project] = []
     /// Last action error, shown under the row that caused it.
     public var lastError: String? = nil
     /// Hotkey labels whose registration failed at launch (another app owns them); Settings marks them (C4).
@@ -60,6 +63,35 @@ public final class SummonModel {
         didSet { UserDefaults.standard.set(crashCaptureEnabled, forKey: Self.crashCaptureKey) }
     }
 
+    public var globalMenuShortcut: PanelShortcut {
+        didSet {
+            if let data = try? JSONEncoder().encode(globalMenuShortcut) {
+                UserDefaults.standard.set(data, forKey: Self.globalMenuShortcutKey)
+            }
+            onUpdateGlobalHotKeys?()
+        }
+    }
+
+    public var globalAgentShortcut: PanelShortcut {
+        didSet {
+            if let data = try? JSONEncoder().encode(globalAgentShortcut) {
+                UserDefaults.standard.set(data, forKey: Self.globalAgentShortcutKey)
+            }
+            onUpdateGlobalHotKeys?()
+        }
+    }
+
+    public var panelAgentShortcut: PanelShortcut {
+        didSet {
+            if let data = try? JSONEncoder().encode(panelAgentShortcut) {
+                UserDefaults.standard.set(data, forKey: Self.panelAgentShortcutKey)
+            }
+        }
+    }
+
+    /// Callback to re-register global hotkeys when customized in Settings.
+    @ObservationIgnored public var onUpdateGlobalHotKeys: (() -> Void)? = nil
+
     /// Set by the app delegate to post a notification for each new report.
     @ObservationIgnored public var onNewCrash: ((CrashReport) -> Void)? = nil
     @ObservationIgnored private var recentKey: [String] = []
@@ -67,12 +99,33 @@ public final class SummonModel {
     @ObservationIgnored private var watchTask: Task<Void, Never>? = nil
 
     static let crashCaptureKey = "crashCaptureEnabled"
+    static let panelAgentShortcutKey = "summon.shortcut.panelAgent"
+    static let globalMenuShortcutKey = "summon.shortcut.globalMenu"
+    static let globalAgentShortcutKey = "summon.shortcut.globalAgent"
 
     public init(paths: SummonPaths = .live, runner: @escaping Runner = Shell.live) {
         self.paths = paths
         self.runner = runner
         self.menu = MenuTree.standard
         self.crashCaptureEnabled = UserDefaults.standard.object(forKey: Self.crashCaptureKey) as? Bool ?? true
+        if let data = UserDefaults.standard.data(forKey: Self.globalMenuShortcutKey),
+           let loaded = try? JSONDecoder().decode(PanelShortcut.self, from: data) {
+            self.globalMenuShortcut = loaded
+        } else {
+            self.globalMenuShortcut = .defaultGlobalMenu
+        }
+        if let data = UserDefaults.standard.data(forKey: Self.globalAgentShortcutKey),
+           let loaded = try? JSONDecoder().decode(PanelShortcut.self, from: data) {
+            self.globalAgentShortcut = loaded
+        } else {
+            self.globalAgentShortcut = .defaultGlobalAgent
+        }
+        if let data = UserDefaults.standard.data(forKey: Self.panelAgentShortcutKey),
+           let loaded = try? JSONDecoder().decode(PanelShortcut.self, from: data) {
+            self.panelAgentShortcut = loaded
+        } else {
+            self.panelAgentShortcut = .defaultPanelAgent
+        }
         reload()
     }
 
@@ -105,12 +158,13 @@ public final class SummonModel {
         mutedPrograms = CrashWatcher(paths: paths).muted().sorted()
         do { agentSettings = try AgentSettingsStore(paths: paths).loadValidated() }
         catch { lastError = String(describing: error) }
+        reloadProjects()
         loadMenu()
     }
 
     func loadMenu() {
         let loaded = MenuTree.load(from: paths.menuFile)
-        menu = loaded.tree
+        menu = loaded.tree.withProjects(projects, themes: themes)
         menuError = loaded.problem
     }
 
@@ -191,6 +245,56 @@ public final class SummonModel {
                 await summon(["agent"])
             }
         }
+    }
+
+    public func setGlobalMenuShortcut(_ shortcut: PanelShortcut) {
+        self.globalMenuShortcut = shortcut
+    }
+
+    public func resetGlobalMenuShortcut() {
+        self.globalMenuShortcut = .defaultGlobalMenu
+    }
+
+    public func setGlobalAgentShortcut(_ shortcut: PanelShortcut) {
+        self.globalAgentShortcut = shortcut
+    }
+
+    public func resetGlobalAgentShortcut() {
+        self.globalAgentShortcut = .defaultGlobalAgent
+    }
+
+    public func setPanelAgentShortcut(_ shortcut: PanelShortcut) {
+        self.panelAgentShortcut = shortcut
+    }
+
+    public func resetPanelAgentShortcut() {
+        self.panelAgentShortcut = .defaultPanelAgent
+    }
+
+    public func reloadProjects() {
+        let loaded = (try? ProjectStore(paths: paths).load().projects) ?? []
+        if loaded != projects {
+            projects = loaded
+            loadMenu()
+        }
+    }
+
+    /// Opens the project's built .app if present, else reveals its folder.
+    public func openProject(_ project: Project) {
+        let folder = URL(fileURLWithPath: project.path)
+        let pascal = ProjectName.pascal(project.name)
+        let primaryApp = folder.appendingPathComponent("build/\(pascal).app")
+        if FileManager.default.fileExists(atPath: primaryApp.path) {
+            NSWorkspace.shared.open(primaryApp)
+            return
+        }
+        let buildDir = folder.appendingPathComponent("build")
+        if let items = try? FileManager.default.contentsOfDirectory(at: buildDir, includingPropertiesForKeys: nil),
+           let appURL = items.first(where: { $0.pathExtension == "app" }) {
+            NSWorkspace.shared.open(appURL)
+            return
+        }
+        NSWorkspace.shared.open(folder)
     }
 
     /// Problems the panel still shows: not archived, not older than a day (Activity keeps them all).
@@ -379,6 +483,16 @@ public final class SummonModel {
     }
 
     public func run(_ item: MenuItem) {
+        if item.id.hasPrefix("apps.") {
+            let parts = item.id.split(separator: ".")
+            if parts.count >= 3 {
+                let projectName = String(parts[2])
+                if let project = projects.first(where: { $0.name == projectName }) {
+                    openProject(project)
+                    return
+                }
+            }
+        }
         guard let action = item.action else { return }
         Task {
             do {

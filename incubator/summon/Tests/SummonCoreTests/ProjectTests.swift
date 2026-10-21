@@ -43,6 +43,13 @@ struct ProjectTests {
         #expect(ProjectName.pascal("mac-battery") == "MacBattery")
     }
 
+    @Test func projectKindsHaveSystemImages() {
+        #expect(ProjectKind.menubar.systemImage == "menubar.rectangle")
+        #expect(ProjectKind.app.systemImage == "macwindow")
+        #expect(ProjectKind.cli.systemImage == "terminal")
+        #expect(ProjectKind.screensaver.systemImage == "display")
+    }
+
     @Test func projectsLiveInSummonUnderHome() throws {
         let paths = SummonPaths(home: try makeTempHome())
         #expect(paths.projects.path.hasSuffix("/Summon/Apps"))
