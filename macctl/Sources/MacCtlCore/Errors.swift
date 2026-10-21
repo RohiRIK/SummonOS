@@ -14,6 +14,11 @@ public enum MacCtlError: Error, Sendable, Equatable, CustomStringConvertible {
     case snapshotExists(String)
     case transactionBusy
     case mutationFailed(snapshotID: String, appliedSettings: [String], reason: String)
+    case invalidTestMode(String)
+    case managedSetting(id: String)
+    case recoveryPending(snapshotID: String)
+    case journalCorrupt(snapshotID: String, line: Int)
+    case partialRestore(snapshotID: String, flagged: [String])
 
     public var exitCode: Int32 {
         switch self {
@@ -39,6 +44,11 @@ public enum MacCtlError: Error, Sendable, Equatable, CustomStringConvertible {
         case .snapshotExists: "snapshot_exists"
         case .transactionBusy: "transaction_busy"
         case .mutationFailed: "mutation_failed"
+        case .invalidTestMode: "invalid_test_mode"
+        case .managedSetting: "managed_setting"
+        case .recoveryPending: "recovery_pending"
+        case .journalCorrupt: "journal_corrupt"
+        case .partialRestore: "partial_restore"
         }
     }
 
@@ -55,8 +65,15 @@ public enum MacCtlError: Error, Sendable, Equatable, CustomStringConvertible {
         case .invalidProfile(let reason): "Invalid profile: \(reason)"
         case .snapshotExists(let id): "Snapshot \(id) already exists; the original backup was preserved."
         case .transactionBusy: "Another macctl mutation is still running; retry when it finishes."
+        case .invalidTestMode(let reason): "Invalid test mode: \(reason)"
+        case .managedSetting(let id): "\(id) is managed by a configuration profile (forced); macctl will not change it."
+        case .recoveryPending(let id): "recovery_pending \(id): an earlier macctl operation did not finish. Run `macctl recover` first."
+        case .journalCorrupt(let id, let line):
+            "journal_corrupt \(id): line \(line) of its journal is unreadable, so it cannot be recovered automatically. Nothing was written. Inspect journal/\(id).jsonl, then set it aside with `macctl recover --abandon \(id)` (the file is kept as \(id).jsonl.corrupt)."
+        case .partialRestore(let id, let flagged):
+            "partial_restore \(id): left as they are: \(flagged.joined(separator: ", ")) (changed after macctl wrote them, or the old value can no longer be restored). Everything else was restored. To overwrite hand edits: macctl undo \(id) --force"
         case .mutationFailed(let id, let applied, let reason):
-            "Change failed: \(reason). Completed settings: \(applied.isEmpty ? "none" : applied.joined(separator: ", ")). Backup \(id) preserved; recover with: macctl undo \(id)"
+            "Change failed: \(reason). Session \(id) was rolled back; \(applied.isEmpty ? "nothing is left changed" : "still changed: \(applied.joined(separator: ", ")) (see `macctl snapshot show \(id)`; `macctl recover` finishes an interrupted rollback)")."
         }
     }
 }

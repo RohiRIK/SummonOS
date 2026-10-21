@@ -64,11 +64,8 @@ final class InMemorySnapshotStore: SnapshotStore {
         state.withLock { $0.append(snapshot) }
     }
 
-    func update(_ snapshot: Snapshot) throws {
-        state.withLock { snapshots in
-            snapshots.removeAll { $0.id == snapshot.id }
-            snapshots.append(snapshot)
-        }
+    func remove(id: String) throws {
+        state.withLock { $0.removeAll { $0.id == id } }
     }
 
     func list() throws -> [Snapshot] {
@@ -133,11 +130,13 @@ struct Harness {
     let backend: FakeBackend
     let restarter: FakeRestarter
     let store: InMemorySnapshotStore
+    let journal: MemoryJournalStore
 
     init(stored: [String: Value] = [:], denied: Set<Permission> = []) {
         backend = FakeBackend(stored: stored)
         restarter = FakeRestarter()
         store = InMemorySnapshotStore()
+        journal = MemoryJournalStore()
         let clock = TestClock()
         engine = Engine(
             registry: Registry(TestCatalog.settings),
@@ -145,6 +144,7 @@ struct Harness {
             restarter: restarter,
             probe: FakeProbe(denied: denied),
             snapshots: store,
+            journal: journal,
             osVersion: { "26.0" },
             now: { clock.next() }
         )
@@ -164,4 +164,13 @@ func expectMacCtlError<T>(
     } catch {
         Issue.record("Expected \(code), got \(error)", sourceLocation: sourceLocation)
     }
+}
+
+extension Change {
+    /// Without the journal fields (prior/new), for comparing what a command reports.
+    var core: Change { Change(id: id, from: from, to: to, wallpaperBefore: wallpaperBefore) }
+}
+
+extension Array where Element == Change {
+    var core: [Change] { map(\.core) }
 }

@@ -105,19 +105,61 @@ struct UndoCommand: AsyncParsableCommand {
     static var configuration: CommandConfiguration {
         CommandConfiguration(
             commandName: "undo",
-            abstract: "Restore a snapshot (the newest when no id is given)."
+            abstract: "Roll back a change (the newest when no id is given).",
+            discussion: """
+            Keys changed by hand since macctl wrote them are left alone and reported (partial_restore).
+            --force overwrites them too; it needs an explicit id.
+            """
         )
     }
 
     @OptionGroup var global: GlobalOptions
 
-    @Argument(help: "Snapshot id from `macctl snapshot list`.")
+    @Argument(help: "Session id from `macctl snapshot list`.")
     var id: String?
+
+    @Flag(name: .long, help: "Also restore keys changed by hand since macctl wrote them (needs an id).")
+    var force = false
+
+    func validate() throws {
+        if force && id == nil { throw ValidationError("--force needs an explicit session id") }
+    }
 
     func run() async throws {
         let id = self.id
+        let force = self.force
         try await Output.run("undo", global, text: Human.restored) {
-            try await makeService().undo(snapshotID: id)
+            try await makeService().undo(snapshotID: id, force: force)
+        }
+    }
+}
+
+struct RecoverCommand: AsyncParsableCommand {
+    static var configuration: CommandConfiguration {
+        CommandConfiguration(
+            commandName: "recover",
+            abstract: "Roll back any macctl operation that was interrupted or failed.",
+            discussion: """
+            Reads the journal and puts every key an unfinished operation touched back to its prior state,
+            newest first. Safe to run again: a second run changes nothing. Keys changed by hand are left
+            alone and reported (partial_restore) unless --force.
+            """
+        )
+    }
+
+    @OptionGroup var global: GlobalOptions
+
+    @Flag(name: .long, help: "Also restore keys changed by hand since macctl wrote them.")
+    var force = false
+
+    @Option(name: .long, help: "Set aside a corrupt journal (kept as <id>.jsonl.corrupt) so it stops blocking.")
+    var abandon: String?
+
+    func run() async throws {
+        let force = self.force
+        let abandon = self.abandon
+        try await Output.run("recover", global, text: Human.recovered) {
+            try await makeService().recover(force: force, abandon: abandon)
         }
     }
 }

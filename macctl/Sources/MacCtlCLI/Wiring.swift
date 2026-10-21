@@ -1,14 +1,37 @@
 import Foundation
 import MacCtlCore
 
-/// The one place the CLI builds the real service. Fix init labels here if Core changes.
+/// The one place the CLI builds the service. Fix init labels here if Core changes.
+///
+/// With `MACCTL_TEST_MODE=1` (see `TestMode`) the catalog, snapshot directory and optionally the
+/// preferences store are replaced, and restarts never run. A partial or unsafe test configuration
+/// exits 64 before anything is read or written.
 func makeService() -> any MacCtlService {
-    Engine(
-        registry: Registry(Catalog.all),
-        backend: SystemBackend(runner: ProcessRunner.live()),
-        restarter: KillallRestarter(runner: ProcessRunner.live()),
+    let test: TestMode.Configuration?
+    do {
+        test = try TestMode.configuration(ProcessInfo.processInfo.environment)
+    } catch {
+        FileHandle.standardError.write(Data("macctl: \(error)\n".utf8))
+        exit(64)
+    }
+    guard let test else {
+        return Engine(
+            registry: Registry(Catalog.all),
+            backend: SystemBackend(runner: ProcessRunner.live()),
+            restarter: KillallRestarter(runner: ProcessRunner.live()),
+            probe: SystemPermissionProbe(),
+            snapshots: FileSnapshotStore(),
+            osVersion: { macOSProductVersion() }
+        )
+    }
+    let preferences: any PreferencesStore = test.fakeDefaults.map { PlistFilePreferencesStore(directory: $0) }
+        ?? SystemBackend.livePreferences()
+    return Engine(
+        registry: Registry(test.settings),
+        backend: SystemBackend(runner: ProcessRunner.live(), preferences: preferences),
+        restarter: TestModeRestarter(),
         probe: SystemPermissionProbe(),
-        snapshots: FileSnapshotStore(),
+        snapshots: FileSnapshotStore(directory: test.snapshotDirectory),
         osVersion: { macOSProductVersion() }
     )
 }

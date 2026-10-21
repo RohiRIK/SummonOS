@@ -71,7 +71,7 @@ public enum StatusProbe {
             warnings.append("macctl is not installed, so settings changes are not recorded or undoable.")
         }
         warnings.append(contentsOf: macctlProblems.map { "macctl: \($0)" })
-        warnings.append(contentsOf: snapshots.filter { $0.status == "failed" || $0.status == "pending" }.map {
+        warnings.append(contentsOf: snapshots.filter { $0.presentation == .problem }.map {
             "macctl \($0.status ?? "incomplete") operation: \($0.id). Inspect its recovery snapshot before further changes."
         })
         if let last = checkpoints.max(by: { $0.createdAt < $1.createdAt }) {

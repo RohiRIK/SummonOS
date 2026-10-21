@@ -107,17 +107,64 @@ public struct MacctlSnapshot: Sendable, Equatable, Decodable {
     }
 
     /// Every readable snapshot in `directory`, newest first. Unreadable files are skipped.
+    ///
+    /// Since macctl's journal (ADR macctl-recovery D2), `snapshots/<id>.json` is a write-once header that
+    /// keeps `status: "pending"` forever; the real status is the last `session_end` in
+    /// `../journal/<id>.jsonl` (what `macctl snapshot list --json` reports). A header with a sibling
+    /// journal therefore takes its status from the journal, read-only (QA R-b).
     public static func load(from directory: URL) -> [MacctlSnapshot] {
         guard let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else {
             return []
         }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
+        let journal = directory.deletingLastPathComponent().appendingPathComponent("journal", isDirectory: true)
         let snapshots = files.filter { $0.pathExtension == "json" }.compactMap { url -> MacctlSnapshot? in
-            guard let data = try? Data(contentsOf: url) else { return nil }
-            return try? decoder.decode(MacctlSnapshot.self, from: data)
+            guard let data = try? Data(contentsOf: url),
+                  var snapshot = try? decoder.decode(MacctlSnapshot.self, from: data) else { return nil }
+            if let derived = journalStatus(journal.appendingPathComponent("\(snapshot.id).jsonl")) {
+                snapshot.status = derived
+            } else if FileManager.default.fileExists(atPath: journal.appendingPathComponent("\(snapshot.id).jsonl.corrupt").path) {
+                snapshot.status = "abandoned"  // `macctl recover --abandon <id>` set its journal aside
+            }
+            return snapshot
         }
         return snapshots.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    /// The status a macctl journal implies: the last complete line's `session_end` outcome
+    /// (`completed`, `rolled_back`, `undone`, `recovered`), else `pending`; `flagged` when the session
+    /// ended but a key was left as it is (`flagged`/`revert_flagged` not later `reverted`: a hand edit,
+    /// a third value, or a restore that did not take). nil when there is no journal.
+    static func journalStatus(_ url: URL) -> String? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        struct Line: Decodable { var op: String; var outcome: String?; var ref: Int? }
+        // A last line without a newline is torn (being written, or cut by a crash); it is ignored.
+        let complete = data.split(separator: 0x0a, omittingEmptySubsequences: false).dropLast().filter { !$0.isEmpty }
+        let lines = complete.compactMap { try? JSONDecoder().decode(Line.self, from: Data($0)) }
+        guard let last = lines.last, lines.count == complete.count else { return "pending" }
+        guard last.op == "session_end" else { return "pending" }
+        var flagged: Set<Int> = []
+        for line in lines {
+            guard let ref = line.ref else { continue }
+            if line.op == "flagged" || line.op == "revert_flagged" { flagged.insert(ref) }
+            if line.op == "reverted" { flagged.remove(ref) }
+        }
+        return flagged.isEmpty ? (last.outcome ?? "pending") : "flagged"
+    }
+
+    /// How Summon presents a macctl status (decision for #62): `completed`, `undone`/`reverted` (and a
+    /// legacy snapshot with no status) are finished; `rolled_back` and `recovered` are informational
+    /// ("recovered after interruption", consistent end state); everything else is a Problem:
+    /// `pending` (recovery_pending), `failed`, `abandoned`, `flagged`/`revert_flagged` and any unknown status.
+    public enum Presentation: Equatable, Sendable { case finished, recovered, problem }
+
+    public var presentation: Presentation {
+        switch status ?? "completed" {  // a legacy snapshot with no status is a completed change
+        case "completed", "undone", "reverted": return .finished
+        case "rolled_back", "recovered": return .recovered
+        default: return .problem
+        }
     }
 }
 
@@ -189,7 +236,7 @@ public enum ActivityFeed {
 
     static func event(from snapshot: MacctlSnapshot) -> ActivityEvent {
         var refs = ["snapshot": snapshot.id]
-        if let status = snapshot.status, status != "completed" {
+        if let status = snapshot.status, snapshot.presentation == .problem {
             refs["status"] = status
             let action = snapshot.undoes == nil ? "Settings change" : "Settings undo"
             return ActivityEvent(id: "macctl:\(snapshot.id)", date: snapshot.createdAt, category: .problem,
@@ -197,14 +244,27 @@ public enum ActivityFeed {
                                  detail: snapshot.failure ?? "Recovery journal \(snapshot.id); completed steps: \((snapshot.appliedSettings ?? []).joined(separator: ", "))",
                                  changes: [], refs: refs)
         }
+        if let status = snapshot.status, status != "completed" { refs["status"] = status }
+        if let undone = snapshot.undoes { refs["undoes"] = undone }
         let title: String
-        if let undone = snapshot.undoes {
-            refs["undoes"] = undone
+        let kind: String
+        if snapshot.presentation == .recovered {
+            let what = snapshot.changes.count == 1 ? snapshot.changes[0].id : "\(snapshot.changes.count) settings"
+            title = "\(snapshot.undoes == nil ? "Change" : "Undo") of \(what) recovered after interruption"
+            kind = "setting.recovered"
+        } else if snapshot.status == "undone" || snapshot.status == "reverted" {
+            title = snapshot.changes.count == 1 ? "Changed \(snapshot.changes[0].id), then undid it"
+                : "Applied \(snapshot.changes.count) settings, then undid them"
+            kind = "setting.undone"
+        } else if snapshot.undoes != nil {
             title = snapshot.changes.count == 1 ? "Undid \(snapshot.changes[0].id)" : "Undid \(snapshot.changes.count) settings"
+            kind = "setting.undo"
         } else if snapshot.changes.count == 1 {
             title = "Changed \(snapshot.changes[0].id)"
+            kind = "setting.change"
         } else {
             title = "Applied \(snapshot.changes.count) settings"
+            kind = "setting.change"
         }
         let detail = snapshot.changes.count == 1
             ? "\(snapshot.changes[0].from ?? "unset") → \(snapshot.changes[0].to)"
@@ -213,7 +273,7 @@ public enum ActivityFeed {
             id: "macctl:\(snapshot.id)",
             date: snapshot.createdAt,
             category: .settings,
-            kind: snapshot.undoes == nil ? "setting.change" : "setting.undo",
+            kind: kind,
             title: title,
             detail: detail,
             changes: snapshot.changes,

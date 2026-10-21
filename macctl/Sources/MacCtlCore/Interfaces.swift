@@ -14,9 +14,25 @@ public protocol SettingBackend: Sendable {
     func validate(_ value: Value, for setting: Setting) throws
     func wallpapers(for setting: Setting) async throws -> [DisplayWallpaper]?
     func restoreWallpapers(_ wallpapers: [DisplayWallpaper], for setting: Setting) async throws
+    /// ADR D1 prior state: absent, explicit (exact typed value) or inherited (domain default).
+    /// Throws `managed_setting` for a forced key. Default: `read` as explicit or absent.
+    func priorState(_ setting: Setting) async throws -> PriorState
+    /// The exact stored value (type and value), for read-back and the hand-edit check.
+    func storedValue(_ setting: Setting) async throws -> TypedValue?
+    /// Writes back an exact typed value (restoring an explicit prior). Default: `write(value.value)`.
+    func writeExact(_ value: TypedValue, for setting: Setting) async throws
 }
 
 extension SettingBackend {
+    public func priorState(_ setting: Setting) async throws -> PriorState {
+        try await PriorState.explicitOrAbsent(read(setting))
+    }
+    public func storedValue(_ setting: Setting) async throws -> TypedValue? {
+        try await read(setting).map(TypedValue.init)
+    }
+    public func writeExact(_ value: TypedValue, for setting: Setting) async throws {
+        try await write(value.value, for: setting)
+    }
     public func validate(_ value: Value, for setting: Setting) throws {}
     public func wallpapers(for setting: Setting) async throws -> [DisplayWallpaper]? { nil }
     public func restoreWallpapers(_ wallpapers: [DisplayWallpaper], for setting: Setting) async throws {
@@ -43,14 +59,13 @@ public protocol SnapshotStore: Sendable {
     /// Newest first.
     func list() throws -> [Snapshot]
     func load(id: String) throws -> Snapshot
-    /// Updates an existing journal's outcome without allocating a new backup.
-    func update(_ snapshot: Snapshot) throws
+    /// Deletes a header (retention only; a header is never rewritten).
+    func remove(id: String) throws
     /// Held across planning, durable backup, mutation and outcome recording.
     func acquireTransaction() async throws -> TransactionLease
 }
 
 extension SnapshotStore {
-    public func update(_ snapshot: Snapshot) throws { try save(snapshot) }
     public func acquireTransaction() async throws -> TransactionLease {
         try await InProcessTransactionLock.shared.acquire()
     }
@@ -114,5 +129,9 @@ public protocol MacCtlService: Sendable {
     func snapshots() throws -> [Snapshot]
     /// Restores a snapshot (newest when id is nil). Returns the changes made.
     func undo(snapshotID: String?) async throws -> ApplyResult
+    /// Like `undo(snapshotID:)`; `force` also overwrites keys changed by hand (ADR Q1).
+    func undo(snapshotID: String?, force: Bool) async throws -> ApplyResult
+    /// Rolls back every unfinished operation (ADR D2). `abandon` sets one corrupt journal aside.
+    func recover(force: Bool, abandon: String?) async throws -> RecoverResult
     func doctor() async -> DoctorReport
 }

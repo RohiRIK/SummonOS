@@ -132,6 +132,10 @@ extension Value {
         case .int: "an integer"
         case .double: "a number"
         case .string: "a string"
+        case .data: "data"
+        case .date: "a date"
+        case .array: "an array"
+        case .dictionary: "a dictionary"
         }
     }
 
