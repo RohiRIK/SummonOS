@@ -63,6 +63,14 @@ public final class SummonModel {
         didSet { UserDefaults.standard.set(crashCaptureEnabled, forKey: Self.crashCaptureKey) }
     }
 
+    public var panelAgentShortcut: PanelShortcut {
+        didSet {
+            if let data = try? JSONEncoder().encode(panelAgentShortcut) {
+                UserDefaults.standard.set(data, forKey: Self.panelAgentShortcutKey)
+            }
+        }
+    }
+
     /// Set by the app delegate to post a notification for each new report.
     @ObservationIgnored public var onNewCrash: ((CrashReport) -> Void)? = nil
     @ObservationIgnored private var recentKey: [String] = []
@@ -70,12 +78,19 @@ public final class SummonModel {
     @ObservationIgnored private var watchTask: Task<Void, Never>? = nil
 
     static let crashCaptureKey = "crashCaptureEnabled"
+    static let panelAgentShortcutKey = "summon.shortcut.panelAgent"
 
     public init(paths: SummonPaths = .live, runner: @escaping Runner = Shell.live) {
         self.paths = paths
         self.runner = runner
         self.menu = MenuTree.standard
         self.crashCaptureEnabled = UserDefaults.standard.object(forKey: Self.crashCaptureKey) as? Bool ?? true
+        if let data = UserDefaults.standard.data(forKey: Self.panelAgentShortcutKey),
+           let loaded = try? JSONDecoder().decode(PanelShortcut.self, from: data) {
+            self.panelAgentShortcut = loaded
+        } else {
+            self.panelAgentShortcut = .defaultShortcut
+        }
         reload()
     }
 
@@ -195,6 +210,14 @@ public final class SummonModel {
                 await summon(["agent"])
             }
         }
+    }
+
+    public func setPanelAgentShortcut(_ shortcut: PanelShortcut) {
+        self.panelAgentShortcut = shortcut
+    }
+
+    public func resetPanelAgentShortcut() {
+        self.panelAgentShortcut = .defaultShortcut
     }
 
     public func reloadProjects() {

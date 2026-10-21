@@ -117,11 +117,11 @@ public struct PanelView: View {
                     .padding(.horizontal, 8)
             }
             PanelDivider()
-            MenuRow(title: "Ask Agent", systemImage: "sparkles", shortcut: "⌘↵") {
+            MenuRow(title: "Ask Agent", systemImage: "sparkles", shortcut: model.panelAgentShortcut.displayString) {
                 actions.finish()
                 model.askAgent()
             }
-            .keyboardShortcut(.return, modifiers: .command)
+            .keyboardShortcut(model.panelAgentShortcut.keyEquivalent, modifiers: model.panelAgentShortcut.eventModifiers)
             .disabled(model.defaultAgent == nil || !model.agentInstalled)
             MenuRow(title: "Activity…", systemImage: "list.bullet.rectangle", shortcut: nil) {
                 actions.finish()
@@ -169,8 +169,8 @@ public struct PanelView: View {
                 .accessibilityLabel("Search Summon")
                 .onSubmit(activateFromKeyboard)
                 .onKeyPress(.escape) { actions.escape(); return .handled }
-                .onKeyPress(keys: [.return], phases: .down) { press in
-                    if press.modifiers.contains(.command) {
+                .onKeyPress(phases: .down) { press in
+                    if model.panelAgentShortcut.matches(press) {
                         guard model.defaultAgent != nil && model.agentInstalled else { return .ignored }
                         actions.finish()
                         model.askAgent()

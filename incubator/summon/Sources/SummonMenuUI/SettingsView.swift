@@ -18,7 +18,6 @@ public enum SettingsPanel: Hashable {
 /// Every app preference lives here, never in the menu bar panel.
 public struct SettingsView: View {
     @Bindable var model: SummonModel
-    @AppStorage("glassClearness") private var glassClearness: Double = 0.4
     @State private var columnVisibility = NavigationSplitViewVisibility.all
     @State private var selection: SettingsPanel? = .general
     @State private var query = ""
@@ -84,9 +83,9 @@ public struct SettingsView: View {
         } detail: {
             detailView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(nsColor: .windowBackgroundColor))
         }
         .frame(minWidth: 860, idealWidth: 900, minHeight: 560, idealHeight: 620)
-        .background(WindowGlassAccessor(clearness: glassClearness))
         .task {
             await model.loadShippedSkills()
             for id in model.installedAgentIDs where model.agentStatus[id] == nil {
@@ -359,12 +358,17 @@ struct GeneralSettings: View {
 
             Section {
                 ShortcutRow(title: "Open Summon Panel", keys: "⌃⌥Space", available: !model.unavailableHotKeys.contains("⌃⌥Space"))
-                ShortcutRow(title: "Ask Default Agent", keys: "⌃⌥⌘A", available: !model.unavailableHotKeys.contains("⌃⌥⌘A"))
+                ShortcutRow(title: "Ask Default Agent (Global)", keys: "⌃⌥⌘A", available: !model.unavailableHotKeys.contains("⌃⌥⌘A"))
+                ShortcutRecorderRow(
+                    title: "Quick-Launch Agent (in Panel)",
+                    shortcut: model.panelAgentShortcut,
+                    onRecord: { model.setPanelAgentShortcut($0) },
+                    onReset: { model.resetPanelAgentShortcut() }
+                )
             } header: {
                 Text("Keyboard Shortcuts")
             } footer: {
-                // C4b: a system shortcut (Input Sources uses ⌃⌥Space) can't be detected; point at where to look.
-                Text("Shortcut does nothing? Check System Settings › Keyboard › Keyboard Shortcuts › Input Sources.")
+                Text("Quick-Launch Agent triggers directly from the search bar or anywhere in the Summon panel. Global shortcuts work anywhere in macOS.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -894,9 +898,6 @@ struct NotificationSettings: View {
 struct AppearanceSettings: View {
     @Bindable var model: SummonModel
 
-    @AppStorage("glassClearness") private var glassClearness: Double = 0.4
-    @AppStorage("glassStyle") private var glassStyle: String = "ultraThin"
-
     var body: some View {
         Form {
             Section("Theme & Palette") {
@@ -926,55 +927,8 @@ struct AppearanceSettings: View {
                     }
                 }
             }
-
-            Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Display Clearness")
-                        Spacer()
-                        Text(clearnessLabel)
-                            .font(.system(size: 12, weight: .medium, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                    }
-
-                    HStack(spacing: 12) {
-                        Image(systemName: "circle")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                            .help("Solid / Opaque")
-
-                        Slider(value: $glassClearness, in: 0.0...1.0, step: 0.02)
-
-                        Image(systemName: "circle.circle.fill")
-                            .font(.system(size: 14))
-                            .foregroundStyle(.blue)
-                            .help("Maximum Clear")
-                    }
-                }
-                .padding(.vertical, 4)
-
-                Picker("Glass Material", selection: $glassStyle) {
-                    Text("Ultra-Thin Liquid").tag("ultraThin")
-                    Text("Frosted Thin").tag("thin")
-                    Text("Regular Material").tag("regular")
-                }
-            } header: {
-                Text("Liquid Glass & Clearness")
-            } footer: {
-                Text("Drag the slider horizontally to adjust how clearly you can see through to the display.")
-                    .font(.footnote)
-                    .foregroundStyle(.tertiary)
-            }
         }
         .formStyle(.grouped)
-    }
-
-    private var clearnessLabel: String {
-        let percent = Int(glassClearness * 100)
-        if percent < 15 { return "\(percent)% · Solid" }
-        if percent < 45 { return "\(percent)% · Frosted" }
-        if percent < 75 { return "\(percent)% · Clear Glass" }
-        return "\(percent)% · Ultra Clear"
     }
 
     private var currentTheme: Theme? {
@@ -986,34 +940,6 @@ struct AppearanceSettings: View {
             get: { model.currentThemeSlug ?? "" },
             set: { newValue in model.setTheme(newValue) }
         )
-    }
-}
-
-/// Applies real-time dynamic transparency to the NSWindow so the display/desktop behind shows through.
-struct WindowGlassAccessor: NSViewRepresentable {
-    let clearness: Double
-
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        DispatchQueue.main.async {
-            apply(to: view.window)
-        }
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        apply(to: nsView.window)
-    }
-
-    private func apply(to window: NSWindow?) {
-        guard let window else { return }
-        window.isOpaque = false
-        window.titleVisibility = .hidden
-        window.titlebarAppearsTransparent = true
-        window.titlebarSeparatorStyle = .none
-        window.styleMask.insert(.fullSizeContentView)
-        // Adjust background alpha: 0% -> solid (alpha 1.0); 100% -> very clear (alpha 0.25)
-        window.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(CGFloat(max(0.25, 1.0 - clearness * 0.70)))
     }
 }
 
@@ -1130,5 +1056,131 @@ private struct ShortcutRow: View {
                     .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
             }
         }
+    }
+}
+
+/// An interactive shortcut recorder row allowing the user to record custom shortcut keys.
+private struct ShortcutRecorderRow: View {
+    let title: String
+    let shortcut: PanelShortcut
+    let onRecord: (PanelShortcut) -> Void
+    let onReset: () -> Void
+
+    @State private var isRecording = false
+    @State private var monitor: Any?
+
+    var body: some View {
+        LabeledContent(title) {
+            HStack(spacing: 8) {
+                if isRecording {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Press keys… (Esc to cancel)")
+                            .font(.system(.subheadline, design: .monospaced))
+                            .foregroundStyle(.blue)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.blue.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
+                    .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.blue, lineWidth: 1))
+
+                    Button("Cancel") {
+                        stopRecording()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                } else {
+                    Text(shortcut.displayString)
+                        .font(.system(.subheadline, design: .monospaced))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
+
+                    Button("Record") {
+                        startRecording()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+
+                    if shortcut != .defaultShortcut {
+                        Button("Reset to ⌥↵") {
+                            onReset()
+                        }
+                        .buttonStyle(.borderless)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .onDisappear {
+            stopRecording()
+        }
+    }
+
+    private func startRecording() {
+        stopRecording()
+        isRecording = true
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if event.keyCode == 53 { // Escape
+                stopRecording()
+                return nil
+            }
+
+            let flags = event.modifierFlags.intersection([.command, .option, .control, .shift])
+            let hasCommand = flags.contains(.command)
+            let hasOption = flags.contains(.option)
+            let hasControl = flags.contains(.control)
+            let hasShift = flags.contains(.shift)
+
+            // Must include at least one modifier
+            guard hasCommand || hasOption || hasControl else {
+                return nil
+            }
+
+            var keyName = ""
+            if event.keyCode == 36 || event.keyCode == 76 { // Return or Enter
+                keyName = "return"
+            } else if event.keyCode == 49 { // Space
+                keyName = "space"
+            } else if event.keyCode == 48 { // Tab
+                keyName = "tab"
+            } else if let chars = event.charactersIgnoringModifiers?.lowercased(), !chars.isEmpty {
+                keyName = chars
+            } else {
+                return nil
+            }
+
+            let display = PanelShortcut.format(
+                key: keyName,
+                isCommand: hasCommand,
+                isOption: hasOption,
+                isControl: hasControl,
+                isShift: hasShift
+            )
+
+            let newShortcut = PanelShortcut(
+                key: keyName,
+                displayString: display,
+                isCommand: hasCommand,
+                isOption: hasOption,
+                isControl: hasControl,
+                isShift: hasShift
+            )
+
+            onRecord(newShortcut)
+            stopRecording()
+            return nil
+        }
+    }
+
+    private func stopRecording() {
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+            self.monitor = nil
+        }
+        isRecording = false
     }
 }
