@@ -67,6 +67,13 @@ extension AgentProbeTests {
         #expect(dirs.firstIndex(of: home + "/.bun/bin")! < dirs.firstIndex(of: "/opt/homebrew/bin")!)
     }
 
+    @Test func userFoldersComeBeforeHomebrewEvenIfHomebrewIsInPath() {
+        let dirs = ToolLocator.live(environment: ["PATH": "/opt/homebrew/bin:/usr/bin"]).searchPath
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        #expect(dirs.firstIndex(of: home + "/.bun/bin")! < dirs.firstIndex(of: "/opt/homebrew/bin")!)
+        #expect(dirs.firstIndex(of: home + "/.local/bin")! < dirs.firstIndex(of: "/opt/homebrew/bin")!)
+    }
+
     @Test func codexLineAfterNoise() throws {
         #expect(AgentProbe.login(try agent("codex"), output: "WARNING: x\nLogged in using ChatGPT\n", ok: true) == .init(loggedIn: true, detail: "ChatGPT"))
     }

@@ -550,9 +550,16 @@ public final class SummonModel {
         }
     }
 
-    /// GUI apps get a minimal PATH; menu commands expect Homebrew, ~/.local/bin and the bundled `summon`.
+    /// GUI apps get a minimal PATH; menu commands expect user tools, Homebrew and the bundled `summon`.
     private var shellPrefix: String {
-        var dirs = ["/opt/homebrew/bin", "/usr/local/bin", paths.home.appendingPathComponent(".local/bin").path]
+        let home = paths.home.path
+        var dirs = [
+            "\(home)/.local/bin",
+            "\(home)/.bun/bin",
+            "\(home)/.cargo/bin",
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+        ]
         if let summonPath {
             dirs.insert((summonPath as NSString).deletingLastPathComponent, at: 0)
         }

@@ -64,13 +64,25 @@ public struct ToolLocator: Sendable {
 
     public static func live(environment: [String: String] = ProcessInfo.processInfo.environment) -> ToolLocator {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
-        var dirs = (environment["PATH"] ?? "").split(separator: ":").map(String.init)
+        let userDirs = ["\(home)/.local/bin", "\(home)/.bun/bin", "\(home)/.cargo/bin", "\(home)/.npm-global/bin"]
+        let fallbackDirs = ["/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin", "/usr/bin", "/bin"]
+        let rawDirs = (environment["PATH"] ?? "").split(separator: ":").map(String.init)
+
+        var seen = Set<String>()
+        var dirs: [String] = []
+
+        func add(_ dir: String) {
+            guard !dir.isEmpty, !seen.contains(dir) else { return }
+            seen.insert(dir)
+            dirs.append(dir)
+        }
+
         // The user's own folders first, as in their shell: a tool installed with bun or a script can be newer than
         // a Homebrew copy (two OpenCodes on one Mac: Homebrew 1.15 and bun 2.0).
-        for extra in ["\(home)/.local/bin", "\(home)/.bun/bin", "\(home)/.npm-global/bin", "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
-        where !dirs.contains(extra) {
-            dirs.append(extra)
-        }
+        for dir in userDirs { add(dir) }
+        for dir in rawDirs { add(dir) }
+        for dir in fallbackDirs { add(dir) }
+
         return ToolLocator(searchPath: dirs) { path in
             FileManager.default.isExecutableFile(atPath: path)
         }
