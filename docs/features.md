@@ -66,14 +66,16 @@ panel immediately launches the default agent in your preferred terminal in `~/Su
 
 At the top of the panel is the Summon Menu: a searchable, keyboard-first menu tree defined in
 `~/.config/summon/menu.jsonc` (`summon menu init`, `menu list`, `menu summon [id]`, which opens the panel at that
-entry). There's no separate launcher window. Entries can be hidden, checked or disabled by shell guards. Underneath
-the menu tree, a "My Apps" section provides quick access to apps built through Summon (`~/.config/summon/projects.json`),
-launching their built `.app` bundle or opening their project folder. Default
+entry). There's no separate launcher window. Entries can be hidden, checked or disabled by shell guards.
+Apps built through Summon (`~/.config/summon/projects.json`) are automatically listed under a "My Apps" menu item
+in the menu tree, allowing you to click or drill down into your apps and launch their built `.app` bundle or open
+their project folder. Default
 sections:
 
 | Section | Entries |
 |---|---|
 | Agent | Ask Agent, Diagnose Last Crash, Save Debug Bundle, Undo Last Agent Session, Default Agent |
+| My Apps | Your built apps (opens the built .app or reveals the project folder) |
 | Style | Theme, Dark Mode, Light Mode, Start Screensaver |
 | Setup | Show Profile Drift, Check Permissions, Edit This Menu, Open Hooks Folder, System Settings |
 | Trigger | Screenshot Area, Screenshot to Desktop, Stay Awake for 1 Hour, Lock Screen |

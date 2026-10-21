@@ -33,14 +33,6 @@ public struct PanelView: View {
         query.isEmpty ? model.visibleChildren(of: level) : model.menu.search(query).filter { model.visibility[$0.id] != false }
     }
 
-    private var displayedProjects: [Project] {
-        if query.isEmpty {
-            return level == nil ? model.projects : []
-        } else {
-            return model.projects.filter { $0.name.localizedCaseInsensitiveContains(query) }
-        }
-    }
-
     public var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -111,7 +103,7 @@ public struct PanelView: View {
                 }
                 .id(item.id)
             }
-            if rows.isEmpty && displayedProjects.isEmpty {
+            if rows.isEmpty {
                 Text(query.isEmpty ? "Nothing here." : "No match for “\(query)”.")
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
@@ -124,7 +116,6 @@ public struct PanelView: View {
                     .lineLimit(3)
                     .padding(.horizontal, 8)
             }
-            appsSection
             PanelDivider()
             MenuRow(title: "Ask Agent", systemImage: "sparkles", shortcut: "⌘↵") {
                 actions.finish()
@@ -157,30 +148,6 @@ public struct PanelView: View {
             .keyboardShortcut("q", modifiers: .command)
         }
         .padding(6)
-    }
-
-    @ViewBuilder
-    private var appsSection: some View {
-        if !displayedProjects.isEmpty {
-            PanelDivider()
-            HStack {
-                Text("My Apps")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-            .padding(.horizontal, 8)
-            .padding(.top, 4)
-            .padding(.bottom, 2)
-
-            ForEach(displayedProjects, id: \.name) { project in
-                MenuRow(title: project.name, systemImage: project.kind.systemImage, shortcut: nil) {
-                    actions.finish()
-                    model.openProject(project)
-                }
-            }
-        }
     }
 
     /// A2/A4: typing stays in the panel. ↑↓ select, → or Return opens a submenu, ← goes back, Return runs, Esc closes.
@@ -263,13 +230,7 @@ public struct PanelView: View {
 
     private func activateSelection() {
         let current = rows
-        guard current.indices.contains(selection) else {
-            if rows.isEmpty, displayedProjects.count == 1, let first = displayedProjects.first {
-                actions.finish()
-                model.openProject(first)
-            }
-            return
-        }
+        guard current.indices.contains(selection) else { return }
         let item = current[selection]
         if item.action != nil {
             actions.finish()

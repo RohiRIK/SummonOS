@@ -114,7 +114,7 @@ public final class SummonModel {
 
     func loadMenu() {
         let loaded = MenuTree.load(from: paths.menuFile)
-        menu = loaded.tree
+        menu = loaded.tree.withProjects(projects)
         menuError = loaded.problem
     }
 
@@ -198,7 +198,11 @@ public final class SummonModel {
     }
 
     public func reloadProjects() {
-        projects = (try? ProjectStore(paths: paths).load().projects) ?? []
+        let loaded = (try? ProjectStore(paths: paths).load().projects) ?? []
+        if loaded != projects {
+            projects = loaded
+            loadMenu()
+        }
     }
 
     /// Opens the project's built .app if present, else reveals its folder.
@@ -405,6 +409,12 @@ public final class SummonModel {
     }
 
     public func run(_ item: MenuItem) {
+        if item.id.hasPrefix("apps."), let projectName = item.id.split(separator: ".").dropFirst().first {
+            if let project = projects.first(where: { $0.name == projectName }) {
+                openProject(project)
+                return
+            }
+        }
         guard let action = item.action else { return }
         Task {
             do {

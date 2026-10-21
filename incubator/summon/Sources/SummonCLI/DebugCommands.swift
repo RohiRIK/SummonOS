@@ -81,9 +81,10 @@ enum MenuCommands {
     /// The user's menu when it exists and parses; otherwise the bundled default.
     static func loadTree(_ context: Context) throws -> MenuTree {
         let loaded = MenuTree.load(from: context.paths.menuFile)
+        let projects = (try? ProjectStore(paths: context.paths).load().projects) ?? []
         if let problem = loaded.problem {
             context.warn(problem)
         }
-        return loaded.tree
+        return loaded.tree.withProjects(projects)
     }
 }

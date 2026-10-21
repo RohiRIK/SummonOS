@@ -13,6 +13,7 @@ enum ProjectCommands {
         case "path": try path(&args, context)
         case "forget": try forget(&args, context)
         case "repo": try await repo(&args, context)
+        case "open": try await open(&args, context)
         case "shots":
             guard let name = args.next() else { throw CLIError("Usage: summon project shots <name>") }
             let images = try await ShotCommands.shots(name, context)
@@ -84,6 +85,28 @@ enum ProjectCommands {
             throw CLIError(ProjectError.notRegistered(name).description)
         }
         print(project.path)
+    }
+
+    /// `summon project open <name>`: opens the app bundle if built, otherwise reveals its folder.
+    static func open(_ args: inout Arguments, _ context: Context) async throws {
+        guard let name = args.next() else { throw CLIError("Usage: summon project open <name>") }
+        guard let project = try ProjectStore(paths: context.paths).load().find(name) else {
+            throw CLIError(ProjectError.notRegistered(name).description)
+        }
+        let folder = URL(fileURLWithPath: project.path)
+        let pascal = ProjectName.pascal(project.name)
+        let primaryApp = folder.appendingPathComponent("build/\(pascal).app")
+        if FileManager.default.fileExists(atPath: primaryApp.path) {
+            _ = try await context.runner("/usr/bin/open", [primaryApp.path])
+            return
+        }
+        let buildDir = folder.appendingPathComponent("build")
+        if let items = try? FileManager.default.contentsOfDirectory(at: buildDir, includingPropertiesForKeys: nil),
+           let appURL = items.first(where: { $0.pathExtension == "app" }) {
+            _ = try await context.runner("/usr/bin/open", [appURL.path])
+            return
+        }
+        _ = try await context.runner("/usr/bin/open", [folder.path])
     }
 
     /// Removes a project from the list only; its folder and any repo stay.

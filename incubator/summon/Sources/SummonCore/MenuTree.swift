@@ -81,6 +81,36 @@ public struct MenuTree: Sendable, Equatable {
         items.filter { $0.parentID == parent }
     }
 
+    /// Returns a new menu tree with registered projects included under a "My Apps" submenu.
+    public func withProjects(_ projects: [Project]) -> MenuTree {
+        guard !projects.isEmpty, !items.contains(where: { $0.id == "apps" }) else { return self }
+        var updated = items
+        let appsParent = MenuItem(id: "apps", label: "My Apps", icon: "square.grid.2x2", aliases: ["apps"])
+        if let agentIndex = updated.firstIndex(where: { $0.id == "agent" }) {
+            let lastAgentChildIndex = updated.lastIndex(where: { $0.id.hasPrefix("agent.") }) ?? agentIndex
+            updated.insert(appsParent, at: lastAgentChildIndex + 1)
+            for (offset, project) in projects.enumerated() {
+                updated.insert(MenuItem(
+                    id: "apps.\(project.name)",
+                    label: project.name,
+                    icon: project.kind.systemImage,
+                    action: "summon project open \(project.name)"
+                ), at: lastAgentChildIndex + 2 + offset)
+            }
+        } else {
+            updated.append(appsParent)
+            for project in projects {
+                updated.append(MenuItem(
+                    id: "apps.\(project.name)",
+                    label: project.name,
+                    icon: project.kind.systemImage,
+                    action: "summon project open \(project.name)"
+                ))
+            }
+        }
+        return (try? MenuTree(items: updated)) ?? self
+    }
+
     /// Items with an action whose label, alias or id contains every word of `query`, in file order.
     public func search(_ query: String) -> [MenuItem] {
         let words = query.lowercased().split(separator: " ").map(String.init)
