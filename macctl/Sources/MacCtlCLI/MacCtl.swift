@@ -15,6 +15,10 @@ struct MacCtl: AsyncParsableCommand {
             FileHandle.standardError.write(Data("macctl: unknown MACCTL_FAILPOINT \(unknown); run with MACCTL_FAILPOINT=list\n".utf8))
             Foundation.exit(64)
         }
+        if let unknown = Failpoint.unknownDiskFullSite {
+            FileHandle.standardError.write(Data("macctl: unknown MACCTL_TEST_ENOSPC \(unknown); use header or intent\n".utf8))
+            Foundation.exit(64)
+        }
         await Self.main(nil)
     }
 

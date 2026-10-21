@@ -292,7 +292,14 @@ public final class MemoryPreferencesStore: LayeredPreferences, @unchecked Sendab
 /// - `<dir>/<appID>.plist` (anyHost), `<dir>/<appID>.currentHost.plist` (currentHost);
 ///   the global domain is `NSGlobalDomain`.
 /// - `<dir>/.managed.plist`: `{"<appID>/<key>": value}` forced values.
-/// - `<dir>/.fail-writes.plist`: `["<appID>/<key>"]` writes that fail (injected error).
+/// - `<dir>/.fail-writes.plist`: `["<appID>/<key>"]` writes that throw (crash plan `writeError`, O6a).
+/// - `<dir>/.drop-writes.plist`: `["<appID>/<key>"]` writes that report success but change nothing
+///   (`dropWrite`, O6b: the read-back still sees the prior value).
+/// - `<dir>/.read-back.plist`: `{"<appID>/<key>": value}` writes that land as that value instead
+///   (`readBack`, E-mismatch: a third value, neither prior nor new).
+///
+/// Each knob is consumed by the first write to that key (the entry is removed), so the revert walk
+/// that follows writes normally.
 ///
 /// Each set is read-modify-write through a 0600 temp file, fsync and rename, so a kill -9 leaves
 /// either the old or the new file, never a torn one (like cfprefsd's write-through). A domain
@@ -321,15 +328,21 @@ public struct PlistFilePreferencesStore: LayeredPreferences {
 
     public func setValue(_ value: TypedValue?, key: String, appID: String, host: PreferenceHost) throws {
         try Self.validateName(appID)
-        let failing = directory.appendingPathComponent(".fail-writes.plist")
-        if let data = try? Data(contentsOf: failing),
-           let list = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String],
-           list.contains("\(appID)/\(key)") {
+        let id = "\(appID)/\(key)"
+        if try consumeListKnob(".fail-writes.plist", id) {
             throw MacCtlError.commandFailed(command: "CFPreferencesSetValue \(appID) \(key)", exitCode: 1, stderr: "injected failure")
+        }
+        if try consumeListKnob(".drop-writes.plist", id) { return }
+        var stored: Any? = value.map { PlistBridge.object(from: $0.value) }
+        let readBack = directory.appendingPathComponent(".read-back.plist")
+        var substitutes = try Self.load(readBack)
+        if let substitute = substitutes.removeValue(forKey: id) {
+            stored = substitute
+            try Self.store(substitutes, at: readBack)
         }
         let url = file(appID: appID, host: host)
         var domain = try Self.load(url)
-        domain[key] = value.map { PlistBridge.object(from: $0.value) }
+        domain[key] = stored
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
                                                 attributes: [.posixPermissions: 0o700])
         if domain.isEmpty {
@@ -342,6 +355,23 @@ public struct PlistFilePreferencesStore: LayeredPreferences {
     }
 
     public func synchronize(appID: String, host: PreferenceHost) throws {}
+
+    /// True (and removes the entry) when the knob file lists `id`.
+    private func consumeListKnob(_ name: String, _ id: String) throws -> Bool {
+        let url = directory.appendingPathComponent(name)
+        guard let data = try? Data(contentsOf: url),
+              var list = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String],
+              let index = list.firstIndex(of: id) else { return false }
+        list.remove(at: index)
+        let out = try PropertyListSerialization.data(fromPropertyList: list, format: .xml, options: 0)
+        try Durable.replace(url, with: out, temporaryPrefix: ".knob-")
+        return true
+    }
+
+    private static func store(_ dict: [String: Any], at url: URL) throws {
+        let out = try PropertyListSerialization.data(fromPropertyList: dict, format: .xml, options: 0)
+        try Durable.replace(url, with: out, temporaryPrefix: ".knob-")
+    }
 
     /// Canonical bytes of one domain file (empty when absent), for the byte-identity oracle.
     public func bytes(appID: String, host: PreferenceHost = .anyHost) -> Data {

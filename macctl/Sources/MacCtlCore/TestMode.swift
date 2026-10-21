@@ -6,18 +6,24 @@ import Foundation
 /// - `MACCTL_TEST_CATALOG=<json>`: the only settings available. Refused unless every setting is a
 ///   `defaults` key in a domain starting with `com.summonos.test.` (throwaway domains, `com.summonos.test.<uuid>` in tests).
 /// - `MACCTL_FAKE_DEFAULTS=<dir>`: a type-preserving plist store instead of CFPreferences (Linux).
+/// - `MACCTL_TEST_NOW=<unix seconds>`: a fixed clock, so the crash matrix can build sessions with
+///   distinct, known ids in separate roots and merge them (plan v3 §2.3, O7).
+/// - `MACCTL_TEST_ENOSPC=header|intent[@n]`: the n-th header write or intent append fails with
+///   ENOSPC before any byte is written (E-diskfull).
 ///
 /// Restart effects never run in test mode. Both the snapshot directory and the catalog are
 /// required, so test mode can never write the real snapshot history or a real Apple domain.
 /// Setting any of these variables without `MACCTL_TEST_MODE=1` is refused rather than ignored.
 public enum TestMode {
     public static let domainPrefix = "com.summonos.test."
-    static let variables = ["MACCTL_SNAPSHOT_DIR", "MACCTL_TEST_CATALOG", "MACCTL_FAKE_DEFAULTS", "MACCTL_FAILPOINT"]
+    static let variables = ["MACCTL_SNAPSHOT_DIR", "MACCTL_TEST_CATALOG", "MACCTL_FAKE_DEFAULTS", "MACCTL_FAILPOINT", "MACCTL_TEST_NOW", "MACCTL_TEST_ENOSPC"]
 
     public struct Configuration: Sendable {
         public let snapshotDirectory: URL
         public let settings: [Setting]
         public let fakeDefaults: URL?
+        /// `MACCTL_TEST_NOW`, or nil for the real clock.
+        public let now: Date?
     }
 
     /// nil = normal operation. Throws `invalid_test_mode` for any partial or unsafe configuration.
@@ -44,8 +50,15 @@ public enum TestMode {
             throw MacCtlError.invalidTestMode("cannot read MACCTL_TEST_CATALOG \(catalog)")
         }
         let fake = environment["MACCTL_FAKE_DEFAULTS"].flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0, isDirectory: true) }
+        var now: Date?
+        if let text = environment["MACCTL_TEST_NOW"], !text.isEmpty {
+            guard let seconds = Double(text), seconds.isFinite, seconds >= 0 else {
+                throw MacCtlError.invalidTestMode("MACCTL_TEST_NOW must be unix seconds")
+            }
+            now = Date(timeIntervalSince1970: seconds)
+        }
         return Configuration(snapshotDirectory: URL(fileURLWithPath: snapshots, isDirectory: true),
-                             settings: try parseCatalog(data), fakeDefaults: fake)
+                             settings: try parseCatalog(data), fakeDefaults: fake, now: now)
     }
 
     struct Entry: Decodable {
