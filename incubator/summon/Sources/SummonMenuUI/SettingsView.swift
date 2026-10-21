@@ -853,6 +853,8 @@ struct AgentDetail: View {
 
 struct TerminalSettings: View {
     @Bindable var model: SummonModel
+    @State private var installingTerminal: TerminalApp? = nil
+    @State private var installError: String? = nil
 
     var body: some View {
         Form {
@@ -867,19 +869,95 @@ struct TerminalSettings: View {
                 }
             }
 
-            Section("Detected Terminals") {
+            Section {
                 ForEach(TerminalApp.allCases, id: \.self) { term in
                     let isInstalled = model.installedTerminals.contains(term)
-                    LabeledContent {
-                        Text(isInstalled ? "Installed" : "Not Found")
-                            .foregroundStyle(isInstalled ? .primary : .secondary)
-                    } label: {
+                    let isDefault = model.terminal == term
+
+                    HStack(spacing: 8) {
                         Label(term.name, systemImage: "terminal")
+
+                        if isDefault {
+                            Text("Default")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.blue)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.blue.opacity(0.12), in: Capsule())
+                        }
+
+                        Spacer()
+
+                        if isInstalled {
+                            HStack(spacing: 6) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                Text("Installed")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+
+                                if !isDefault {
+                                    Button("Make Default") {
+                                        model.setTerminal(term)
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                }
+                            }
+                        } else if term.caskName != nil {
+                            if installingTerminal == term {
+                                HStack(spacing: 6) {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Installing \(term.name)…")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                            } else {
+                                Button("Install with Homebrew") {
+                                    install(term)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                            }
+                        } else {
+                            Text("Not Found")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
                     }
+                    .padding(.vertical, 2)
                 }
+
+                if let installError {
+                    Text(installError)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                        .padding(.top, 4)
+                }
+            } header: {
+                Text("Detected & Available Terminals")
+            } footer: {
+                Text("Summon launches your default terminal for agents in ~/Summon. Ghostty and kitty can be automatically installed via Homebrew.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func install(_ term: TerminalApp) {
+        installError = nil
+        installingTerminal = term
+        Task {
+            do {
+                try await model.installTerminal(term)
+                installingTerminal = nil
+            } catch {
+                installingTerminal = nil
+                installError = error.localizedDescription
+            }
+        }
     }
 }
 
@@ -913,49 +991,174 @@ struct NotificationSettings: View {
 
 struct AppearanceSettings: View {
     @Bindable var model: SummonModel
+    @State private var previewSlug: String = ""
+    @State private var applySuccess = false
+
+    private var store: ThemeStore {
+        ThemeStore(paths: model.paths)
+    }
+
+    private var activeTheme: Theme? {
+        model.themes.first { $0.slug == model.currentThemeSlug }
+    }
+
+    private var selectedTheme: Theme? {
+        model.themes.first { $0.slug == previewSlug } ?? activeTheme ?? model.themes.first
+    }
+
+    private var previousTheme: Theme? {
+        guard let prev = model.previousThemeSlug else { return nil }
+        return model.themes.first { $0.slug == prev }
+    }
 
     var body: some View {
         Form {
-            Section("Theme & Palette") {
+            Section {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "paintpalette.fill")
+                            .foregroundStyle(.blue)
+                        Text("System-Wide Aesthetic")
+                            .font(.headline)
+                    }
+                    Text("Applying a theme automatically sets your desktop wallpaper, switches macOS light/dark mode, updates your terminal colors (Ghostty), and tints window borders.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 4)
+            }
+
+            Section("Theme Preview & Selection") {
                 if model.themes.isEmpty {
                     Text("No themes installed.").foregroundStyle(.secondary)
                 } else {
-                    Picker("Theme", selection: themeBinding) {
+                    Picker("Select Theme", selection: $previewSlug) {
                         ForEach(model.themes) { theme in
-                            Text(theme.name).tag(theme.slug)
+                            HStack {
+                                Text(theme.name)
+                                if theme.slug == model.currentThemeSlug {
+                                    Text("(Active)")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .tag(theme.slug)
+                        }
+                    }
+                    .onAppear {
+                        if previewSlug.isEmpty {
+                            previewSlug = model.currentThemeSlug ?? model.themes.first?.slug ?? ""
                         }
                     }
 
-                    if let current = currentTheme {
-                        HStack(spacing: 8) {
-                            Text("Palette")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                    if let theme = selectedTheme {
+                        ThemePreviewCard(theme: theme, store: store)
+
+                        HStack(spacing: 12) {
+                            if theme.slug == model.currentThemeSlug {
+                                Label("Currently Active", systemImage: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                    .font(.subheadline.weight(.medium))
+                            } else {
+                                Button {
+                                    model.setTheme(theme.slug)
+                                    applySuccess = true
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                        applySuccess = false
+                                    }
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: applySuccess ? "checkmark" : "sparkles")
+                                        Text(applySuccess ? "Applied!" : "Apply Theme")
+                                    }
+                                    .frame(minWidth: 110)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.blue)
+                            }
+
                             Spacer()
-                            HStack(spacing: 6) {
-                                ColorDot(hex: current.colors.accent, label: "Accent")
-                                ColorDot(hex: current.colors.accent2, label: "Accent 2")
-                                ColorDot(hex: current.colors.background, label: "Background")
-                                ColorDot(hex: current.colors.foreground, label: "Foreground")
-                                ColorDot(hex: current.colors.muted, label: "Muted")
+
+                            if let prev = previousTheme, prev.slug != model.currentThemeSlug {
+                                Button {
+                                    previewSlug = prev.slug
+                                    model.revertTheme()
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "arrow.uturn.backward")
+                                        Text("Undo: Revert to \(prev.name)")
+                                    }
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
                             }
                         }
+                        .padding(.top, 4)
                     }
                 }
             }
         }
         .formStyle(.grouped)
     }
+}
 
-    private var currentTheme: Theme? {
-        model.themes.first { $0.slug == model.currentThemeSlug }
-    }
+struct ThemePreviewCard: View {
+    let theme: Theme
+    let store: ThemeStore
 
-    private var themeBinding: Binding<String> {
-        Binding(
-            get: { model.currentThemeSlug ?? "" },
-            set: { newValue in model.setTheme(newValue) }
-        )
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let url = store.wallpaperURL(theme),
+               let nsImage = NSImage(contentsOf: url) {
+                ZStack(alignment: .bottomTrailing) {
+                    Image(nsImage: nsImage)
+                        .resizable()
+                        .aspectRatio(16/9, contentMode: .fit)
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+                        )
+
+                    HStack(spacing: 4) {
+                        Image(systemName: theme.isDark ? "moon.fill" : "sun.max.fill")
+                        Text(theme.appearance.capitalized)
+                    }
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .padding(8)
+                }
+            }
+
+            HStack(alignment: .center, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(theme.name)
+                        .font(.headline)
+                    if let source = theme.source {
+                        Text(source)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                HStack(spacing: 6) {
+                    ColorDot(hex: theme.colors.accent, label: "Accent")
+                    ColorDot(hex: theme.colors.accent2, label: "Accent 2")
+                    ColorDot(hex: theme.colors.background, label: "Background")
+                    ColorDot(hex: theme.colors.foreground, label: "Foreground")
+                    ColorDot(hex: theme.colors.muted, label: "Muted")
+                    ColorDot(hex: theme.colors.borderActive, label: "Border")
+                }
+            }
+            .padding(.horizontal, 2)
+        }
+        .padding(8)
+        .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
 
