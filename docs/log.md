@@ -1,6 +1,7 @@
 # Docs update log
 
 ## 2026-10-21
+* **Update**: [Features](features.md): added ⌘↵ quick-launch for default agent in `~/Summon` and "My Apps" section in the menu bar panel for Summon-built projects.
 * **Update**: [Features](features.md) CI section lists the new Visual QA (macOS) workflow: launcher and menu bar panel screenshots in light and dark on macOS 26 and 15, as run artifacts.
 
 ## 2026-10-20

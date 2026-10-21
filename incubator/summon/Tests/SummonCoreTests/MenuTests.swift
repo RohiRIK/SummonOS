@@ -84,4 +84,22 @@ struct MenuTests {
             #expect(!action.contains("scratch"))
         }
     }
+
+    @Test func withProjectsInjectsMyAppsSubmenu() throws {
+        let base = try MenuTree.parse(DefaultMenu.jsonc)
+        let projects = [
+            Project(name: "my-tool", kind: .cli, path: "/path/to/my-tool", created: Date()),
+            Project(name: "my-widget", kind: .menubar, path: "/path/to/my-widget", created: Date())
+        ]
+        let tree = base.withProjects(projects)
+        #expect(tree.children(of: nil).contains(where: { $0.id == "apps" && $0.label == "My Apps" }))
+        let appCategories = tree.children(of: "apps")
+        #expect(appCategories.contains(where: { $0.id == "apps.panel" && $0.label == "Panel Apps" }))
+        #expect(appCategories.contains(where: { $0.id == "apps.cli" && $0.label == "Command-Line Tools" }))
+        let panelChildren = tree.children(of: "apps.panel")
+        #expect(panelChildren.map(\.id) == ["apps.panel.my-widget"])
+        #expect(tree.path(to: "apps.panel.my-widget") == ["My Apps", "Panel Apps", "my-widget"])
+        let searchResults = tree.search("my-widget")
+        #expect(searchResults.first?.id == "apps.panel.my-widget")
+    }
 }

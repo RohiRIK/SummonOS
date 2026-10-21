@@ -16,6 +16,15 @@ public enum ProjectKind: String, CaseIterable, Codable, Sendable {
         }
     }
 
+    public var systemImage: String {
+        switch self {
+        case .menubar: "menubar.rectangle"
+        case .app: "macwindow"
+        case .cli: "terminal"
+        case .screensaver: "display"
+        }
+    }
+
     /// The kebab-case name the template is written with; replaced by the project's name.
     public var placeholder: String { "\(rawValue)-starter" }
 }
