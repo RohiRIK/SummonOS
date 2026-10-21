@@ -115,6 +115,8 @@ struct SummonCommand {
             try await DebugCommands.hooks(&args, context)
         case "menu":
             try await MenuCommands.run(&args, context)
+        case "panel":
+            try await PanelCommand.run(&args, context)
         case "icon":
             try IconCommands.run(&args, context)
         case "showcase":

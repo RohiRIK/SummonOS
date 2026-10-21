@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// The menu bar icon: Summon's mark as a template image (bundled by scripts/bundle.sh),
+/// The menu bar icon (`PanelController`'s status item): Summon's mark as a template image (bundled by scripts/bundle.sh),
 /// falling back to an SF Symbol when running unbundled from `swift run`.
 public struct MenuBarLabel: View {
     public init() {}
@@ -12,6 +12,11 @@ public struct MenuBarLabel: View {
         } else {
             Image(systemName: "sparkles")
         }
+    }
+
+    /// The status item's image (NSStatusItem needs an NSImage, not a view).
+    @MainActor public static var statusImage: NSImage? {
+        templateImage ?? NSImage(systemSymbolName: "sparkles", accessibilityDescription: "Summon")
     }
 
     @MainActor private static let templateImage: NSImage? = {

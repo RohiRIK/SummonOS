@@ -91,7 +91,7 @@ launch) also links the skills into every installed agent.
 
 | Keys | Does |
 |---|---|
-| ⌃⌥Space | Summon Menu |
+| ⌃⌥Space | Summon panel (the Summon Menu, under the menu bar icon) |
 | ⌃⌥⌘A | Summon the agent |
 | ⌃⌥⌘\` | Drop-down terminal (type `a` for the agent) |
 | ⌥1…9, ⌥⇧1…9 | Workspaces |

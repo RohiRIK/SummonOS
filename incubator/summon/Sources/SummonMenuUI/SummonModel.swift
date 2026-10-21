@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import SummonCore
 
-/// App state for the menu bar panel, the launcher and Settings. Actions go through the `summon` CLI,
+/// App state for the menu bar panel (with its Summon Menu) and Settings. Actions go through the `summon` CLI,
 /// so the app and agents use one code path (and one checkpoint rule).
 @MainActor
 @Observable
@@ -45,12 +45,14 @@ public final class SummonModel {
     public private(set) var menuError: String? = nil
     /// Last action error, shown under the row that caused it.
     public var lastError: String? = nil
+    /// Hotkey labels whose registration failed at launch (another app owns them); Settings marks them (C4).
+    public var unavailableHotKeys: Set<String> = []
 
     /// Shell guard results by item id. Missing means not evaluated yet (shown, unchecked).
     public private(set) var visibility: [String: Bool] = [:]
     public private(set) var checks: [String: Bool] = [:]
 
-    /// Bumped each time the launcher opens, so the view resets its search and level.
+    /// Bumped each time the panel opens, so the view resets its search and level.
     public private(set) var launcherSession = 0
     public private(set) var launcherStartLevel: String? = nil
 
@@ -347,7 +349,7 @@ public final class SummonModel {
         Task { await summon(["agents", "login", id]) }
     }
 
-    // MARK: Launcher
+    // MARK: Summon Menu (in the panel)
 
     public func prepareLauncher(startAt level: String?) {
         loadMenu()

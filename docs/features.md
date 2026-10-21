@@ -57,10 +57,15 @@ Code: [`incubator/summon/`](../incubator/summon). Overview: [its README](../incu
 - **Debug bundle:** `summon debug [--print] [--save] [--since 1h]` collects the macOS version, hardware,
   recent errors, reports and packages, with best-effort redaction and private saved files. Review before sharing.
 
-### Summon Menu (⌃⌥Space)
+### Summon panel and Summon Menu (⌃⌥Space)
 
-A searchable, keyboard-first launcher defined in `~/.config/summon/menu.jsonc` (`summon menu init`,
-`menu list`, `menu summon [id]`). Entries can be hidden, checked or disabled by shell guards. Default
+The menu bar panel (⌃⌥Space) with the Summon Menu opens under the Summon icon from a left click, ⌃⌥Space, `summon panel` or
+`open -g summon://panel` (`summon panel --close` closes it). It takes typing without taking focus from the app
+you're in, and Esc returns you there. Right-click the icon for Settings… and Quit.
+
+At the top of the panel is the Summon Menu: a searchable, keyboard-first menu tree defined in
+`~/.config/summon/menu.jsonc` (`summon menu init`, `menu list`, `menu summon [id]`, which opens the panel at that
+entry). There's no separate launcher window. Entries can be hidden, checked or disabled by shell guards. Default
 sections:
 
 | Section | Entries |
