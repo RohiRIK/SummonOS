@@ -1514,7 +1514,7 @@ struct AppsSettings: View {
 
     private var navBar: some View {
         HStack(spacing: 8) {
-            if let selected = selectedCategory, !isSearching {
+            if let selected = selectedCategory {
                 Button {
                     selectedCategory = nil
                     query = ""
@@ -1526,6 +1526,7 @@ struct AppsSettings: View {
                             .font(.system(size: 14, weight: .semibold))
                     }
                     .foregroundStyle(.primary)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
 
@@ -1536,6 +1537,22 @@ struct AppsSettings: View {
                 Text(selected.rawValue)
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.secondary)
+
+                Spacer()
+            } else if isSearching {
+                Button {
+                    query = ""
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("All Categories")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundStyle(.primary)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
 
                 Spacer()
             } else {

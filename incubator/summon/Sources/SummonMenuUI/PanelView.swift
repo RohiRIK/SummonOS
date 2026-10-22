@@ -152,22 +152,43 @@ public struct PanelView: View {
     /// A2/A4: typing stays in the panel. ↑↓ select, → or Return opens a submenu, ← goes back, Return runs, Esc closes.
     private var search: some View {
         HStack(spacing: 6) {
-            Image(systemName: level == nil ? "magnifyingglass" : "chevron.left")
-                .foregroundStyle(.secondary)
-                .frame(width: 16)
-                .accessibilityHidden(true)
-            if let level {
-                Text(model.menu.path(to: level).joined(separator: " › "))
+            if level != nil {
+                Button(action: back) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 11, weight: .bold))
+                        Text(model.menu.path(to: level!).joined(separator: " › "))
+                            .font(.system(size: 12, weight: .semibold))
+                            .lineLimit(1)
+                            .fixedSize()
+                    }
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Color.secondary.opacity(0.16), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Back (click, ←, or Delete)")
+            } else {
+                Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .fixedSize()
+                    .frame(width: 16)
+                    .accessibilityHidden(true)
             }
             TextField(level == nil ? "Search Summon…" : "Search", text: $query)
                 .textFieldStyle(.plain)
                 .focused($searchFocused)
                 .accessibilityLabel("Search Summon")
                 .onSubmit(activateFromKeyboard)
-                .onKeyPress(.escape) { actions.escape(); return .handled }
+                .onKeyPress(.escape) {
+                    if level != nil {
+                        back()
+                        return .handled
+                    }
+                    actions.escape()
+                    return .handled
+                }
                 .onKeyPress(phases: .down) { press in
                     if model.panelAgentShortcut.matches(press) {
                         guard model.defaultAgent != nil && model.agentInstalled else { return .ignored }
@@ -185,6 +206,11 @@ public struct PanelView: View {
                     return .handled
                 }
                 .onKeyPress(.leftArrow) {
+                    guard query.isEmpty, level != nil else { return .ignored }
+                    back()
+                    return .handled
+                }
+                .onKeyPress(.delete) {
                     guard query.isEmpty, level != nil else { return .ignored }
                     back()
                     return .handled
@@ -216,7 +242,14 @@ public struct PanelView: View {
     }
 
     private func back() {
-        level = level.flatMap { model.menu.item($0)?.parentID }
+        query = ""
+        if let current = level {
+            if let dot = current.lastIndex(of: ".") {
+                level = String(current[..<dot])
+            } else {
+                level = nil
+            }
+        }
         selection = 0
     }
 
