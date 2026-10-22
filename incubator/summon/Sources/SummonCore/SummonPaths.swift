@@ -64,6 +64,22 @@ public struct SummonPaths: Sendable, Equatable {
         }
         return dirs
     }
+
+    /// Where Summon's shared files live (themes, skills, wallpapers): `$SUMMON_PATH`, else `<binary>/../share/summon`,
+    /// else the folder holding the binary.
+    public static func installPath(environment: [String: String] = ProcessInfo.processInfo.environment) -> String {
+        if let explicit = environment["SUMMON_PATH"], !explicit.isEmpty {
+            return (explicit as NSString).expandingTildeInPath
+        }
+        let binary = (Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])).resolvingSymlinksInPath()
+        let binDir = binary.deletingLastPathComponent()
+        let share = binDir.deletingLastPathComponent().appendingPathComponent("share/summon", isDirectory: true)
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: share.path, isDirectory: &isDirectory), isDirectory.boolValue {
+            return share.path
+        }
+        return binDir.path
+    }
 }
 
 /// Small text-file helpers shared by the stores.
