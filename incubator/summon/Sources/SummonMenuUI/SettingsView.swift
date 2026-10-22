@@ -1319,6 +1319,7 @@ extension Color {
 enum AppSectionCategory: String, CaseIterable, Identifiable {
     case panel = "Panel Apps"
     case themes = "Themes"
+    case art = "Art & Wallpapers"
     case app = "Window Apps"
     case cli = "Command-Line Tools"
     case screensaver = "Screensavers"
@@ -1329,6 +1330,7 @@ enum AppSectionCategory: String, CaseIterable, Identifiable {
         switch self {
         case .panel: return "menubar.rectangle"
         case .themes: return "paintbrush"
+        case .art: return "photo.on.rectangle.angled"
         case .app: return "macwindow"
         case .cli: return "terminal"
         case .screensaver: return "sparkles.tv"
@@ -1359,6 +1361,10 @@ struct AppsSettings: View {
         model.projects.filter { $0.kind == .screensaver }
     }
 
+    private var artJobs: [ArtJob] {
+        model.artJobs
+    }
+
     private var displayThemes: [Theme] {
         let custom = model.themes.filter { $0.source == "summon-art" || !MenuTree.shippedThemeSlugs.contains($0.slug) }
         return custom.isEmpty ? model.themes : custom
@@ -1368,11 +1374,12 @@ struct AppsSettings: View {
         var list: [AppSectionCategory] = []
         if !panelProjects.isEmpty { list.append(.panel) }
         if !displayThemes.isEmpty { list.append(.themes) }
+        if !artJobs.isEmpty { list.append(.art) }
         if !appProjects.isEmpty { list.append(.app) }
         if !cliProjects.isEmpty { list.append(.cli) }
         if !screensaverProjects.isEmpty { list.append(.screensaver) }
         if list.isEmpty {
-            list = [.panel, .themes]
+            list = [.panel, .themes, .art]
         }
         return list
     }
@@ -1389,10 +1396,15 @@ struct AppsSettings: View {
         displayThemes.filter { model.themeHealth[$0.slug]?.isHealthy == false }
     }
 
+    private var unhealthyArtJobs: [ArtJob] {
+        artJobs.filter { model.artJobHealth[$0.name]?.isHealthy == false }
+    }
+
     private func categoryHasWarning(_ category: AppSectionCategory) -> Bool {
         switch category {
         case .panel: return panelProjects.contains { model.appHealth[$0.name]?.isHealthy == false }
         case .themes: return displayThemes.contains { model.themeHealth[$0.slug]?.isHealthy == false }
+        case .art: return artJobs.contains { model.artJobHealth[$0.name]?.isHealthy == false }
         case .app: return appProjects.contains { model.appHealth[$0.name]?.isHealthy == false }
         case .cli: return cliProjects.contains { model.appHealth[$0.name]?.isHealthy == false }
         case .screensaver: return screensaverProjects.contains { model.appHealth[$0.name]?.isHealthy == false }
@@ -1403,6 +1415,7 @@ struct AppsSettings: View {
         switch category {
         case .panel: return panelProjects.count
         case .themes: return displayThemes.count
+        case .art: return artJobs.count
         case .app: return appProjects.count
         case .cli: return cliProjects.count
         case .screensaver: return screensaverProjects.count
@@ -1417,13 +1430,13 @@ struct AppsSettings: View {
                 .padding(.top, 16)
                 .padding(.bottom, 12)
 
-            if !unhealthyApps.isEmpty || !unhealthyThemes.isEmpty {
-                let count = unhealthyApps.count + unhealthyThemes.count
+            if !unhealthyApps.isEmpty || !unhealthyThemes.isEmpty || !unhealthyArtJobs.isEmpty {
+                let count = unhealthyApps.count + unhealthyThemes.count + unhealthyArtJobs.count
                 HStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 14))
                         .foregroundStyle(.orange)
-                    Text("\(count) item\(count == 1 ? "" : "s") need attention")
+                    Text("\(count) item\(count == 1 ? "" : "s") need attention (code or art)")
                         .font(.system(size: 12, weight: .medium))
                     Spacer()
                     Button {
@@ -1596,6 +1609,14 @@ struct AppsSettings: View {
                     ThemeItemRow(theme: theme, model: model)
                 }
             }
+        case .art:
+            if artJobs.isEmpty {
+                emptyCategoryView(title: "No Art Jobs", subtitle: "Generate wallpapers or app icons with summon-art skill")
+            } else {
+                ForEach(artJobs) { job in
+                    ArtJobItemRow(job: job, model: model)
+                }
+            }
         case .app:
             if appProjects.isEmpty {
                 emptyCategoryView(title: "No Window Apps", subtitle: "Scaffold one with 'summon project new <name> --kind app'")
@@ -1647,9 +1668,13 @@ struct AppsSettings: View {
                 $0.name.localizedCaseInsensitiveContains(query) ||
                 $0.slug.localizedCaseInsensitiveContains(query)
             }
+            let matchingArt = artJobs.filter {
+                $0.name.localizedCaseInsensitiveContains(query) ||
+                $0.kind.rawValue.localizedCaseInsensitiveContains(query)
+            }
 
-            if matches.isEmpty && matchingThemes.isEmpty {
-                Text("No matching apps or themes for \"\(query)\"")
+            if matches.isEmpty && matchingThemes.isEmpty && matchingArt.isEmpty {
+                Text("No matching apps, themes, or art for \"\(query)\"")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
@@ -1671,6 +1696,16 @@ struct AppsSettings: View {
                         .padding(.top, 8)
                     ForEach(matchingThemes) { theme in
                         ThemeItemRow(theme: theme, model: model)
+                    }
+                }
+
+                if !matchingArt.isEmpty {
+                    Text("Art Jobs")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 8)
+                    ForEach(matchingArt) { job in
+                        ArtJobItemRow(job: job, model: model)
                     }
                 }
             }
@@ -1934,6 +1969,88 @@ struct ThemeItemRow: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
             }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(isHovered ? Color.secondary.opacity(0.12) : Color.secondary.opacity(0.05))
+        )
+        .onHover { isHovered = $0 }
+    }
+}
+
+// MARK: Art Job Item Row
+
+struct ArtJobItemRow: View {
+    let job: ArtJob
+    let model: SummonModel
+    @State private var isHovered = false
+
+    private var health: ItemHealth {
+        model.artJobHealth[job.name] ?? AppHealthChecker.check(artJob: job)
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: job.kind.systemImage)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(health.level == .error ? Color.red : (health.level == .warning ? Color.orange : Color.primary))
+                .frame(width: 24, height: 24)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(job.name)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.primary)
+
+                    Text(job.kind.title)
+                        .font(.system(size: 10, weight: .medium))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1.5)
+                        .background(Color.secondary.opacity(0.12), in: Capsule())
+
+                    HealthBadge(health: health)
+                }
+
+                if !health.isHealthy {
+                    Text(health.detail)
+                        .font(.system(size: 11))
+                        .foregroundStyle(health.level == .error ? Color.red : Color.orange)
+                }
+
+                Text(job.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            if !health.isHealthy {
+                Button {
+                    model.fixArtJobWithAI(job)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "wrench.and.screwdriver.fill")
+                        Text("Fix with AI")
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.purple)
+                .controlSize(.small)
+                .help("Ask default agent to complete art generation or compile icon")
+            }
+
+            Button {
+                let folder = URL(fileURLWithPath: job.path)
+                NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: folder.path)
+            } label: {
+                Image(systemName: "folder")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .help("Reveal in Finder")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)

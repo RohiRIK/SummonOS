@@ -12,6 +12,12 @@ struct ItemHealthTests {
         try fm.createDirectory(at: projectFolder, withIntermediateDirectories: true)
         try writeFile("// swift-tools-version: 6.0\n", to: projectFolder.appendingPathComponent("Package.swift"))
         try fm.createDirectory(at: projectFolder.appendingPathComponent("build/my-widget.app"), withIntermediateDirectories: true)
+        let resFolder = projectFolder.appendingPathComponent("Resources")
+        try fm.createDirectory(at: resFolder, withIntermediateDirectories: true)
+        try writeFile("fake icns", to: resFolder.appendingPathComponent("AppIcon.icns"))
+        let shotsFolder = projectFolder.appendingPathComponent("docs/screenshots")
+        try fm.createDirectory(at: shotsFolder, withIntermediateDirectories: true)
+        try writeFile("fake png", to: shotsFolder.appendingPathComponent("panel-dark.png"))
 
         let project = Project(name: "my-widget", kind: .menubar, path: projectFolder.path, created: Date())
         let health = AppHealthChecker.check(project: project)
@@ -19,6 +25,41 @@ struct ItemHealthTests {
         #expect(health.isHealthy)
         #expect(health.badge == "Healthy")
         #expect(health.level == .healthy)
+    }
+
+    @Test func projectMissingArtReportsWarning() throws {
+        let temp = try makeTempHome()
+        let projectFolder = temp.appendingPathComponent("Apps/no-art")
+        try fm.createDirectory(at: projectFolder, withIntermediateDirectories: true)
+        try writeFile("// swift-tools-version: 6.0\n", to: projectFolder.appendingPathComponent("Package.swift"))
+        try fm.createDirectory(at: projectFolder.appendingPathComponent("build/no-art.app"), withIntermediateDirectories: true)
+
+        let project = Project(name: "no-art", kind: .menubar, path: projectFolder.path, created: Date())
+        let health = AppHealthChecker.check(project: project)
+
+        #expect(!health.isHealthy)
+        #expect(health.level == .warning)
+        #expect(health.badge == "Missing Art")
+        #expect(health.fixPrompt?.contains("summon-art") == true)
+    }
+
+    @Test func projectMissingScreenshotsReportsWarning() throws {
+        let temp = try makeTempHome()
+        let projectFolder = temp.appendingPathComponent("Apps/has-icon-only")
+        try fm.createDirectory(at: projectFolder, withIntermediateDirectories: true)
+        try writeFile("// swift-tools-version: 6.0\n", to: projectFolder.appendingPathComponent("Package.swift"))
+        try fm.createDirectory(at: projectFolder.appendingPathComponent("build/has-icon-only.app"), withIntermediateDirectories: true)
+        let resFolder = projectFolder.appendingPathComponent("Resources")
+        try fm.createDirectory(at: resFolder, withIntermediateDirectories: true)
+        try writeFile("fake icns", to: resFolder.appendingPathComponent("AppIcon.icns"))
+
+        let project = Project(name: "has-icon-only", kind: .menubar, path: projectFolder.path, created: Date())
+        let health = AppHealthChecker.check(project: project)
+
+        #expect(!health.isHealthy)
+        #expect(health.level == .warning)
+        #expect(health.badge == "No Screenshots")
+        #expect(health.fixPrompt?.contains("summon project shots") == true)
     }
 
     @Test func missingFolderReportsError() throws {
@@ -151,5 +192,50 @@ struct ItemHealthTests {
         #expect(health.level == .error)
         #expect(health.badge == "Missing Image")
         #expect(health.detail.contains("deleted-wallpaper.jpg"))
+    }
+
+    @Test func artJobEmptyReportsWarning() throws {
+        let job = ArtJob(name: "icon-test", path: "/fake/path", images: [], kind: .icon)
+        let health = AppHealthChecker.check(artJob: job)
+        #expect(!health.isHealthy)
+        #expect(health.level == .warning)
+        #expect(health.badge == "Empty Job")
+    }
+
+    @Test func artJobIconMissingIcnsReportsWarning() throws {
+        let job = ArtJob(name: "icon-test", path: "/fake/path", images: ["icon-v1.png", "icon-v2.png"], kind: .icon)
+        let health = AppHealthChecker.check(artJob: job)
+        #expect(!health.isHealthy)
+        #expect(health.level == .warning)
+        #expect(health.badge == "No ICNS")
+        #expect(health.fixPrompt?.contains("AppIcon.icns") == true)
+    }
+
+    @Test func artJobHealthyPasses() throws {
+        let iconJob = ArtJob(name: "icon-test", path: "/fake/path", images: ["icon-v1.png", "AppIcon.icns"], kind: .icon)
+        let iconHealth = AppHealthChecker.check(artJob: iconJob)
+        #expect(iconHealth.isHealthy)
+        #expect(iconHealth.badge == "2 images")
+
+        let wallJob = ArtJob(name: "wallpaper-lake", path: "/fake/path", images: ["lake-sunrise.jpg"], kind: .wallpaper)
+        let wallHealth = AppHealthChecker.check(artJob: wallJob)
+        #expect(wallHealth.isHealthy)
+        #expect(wallHealth.badge == "1 image")
+    }
+
+    @Test func scanArtJobsDiscoversDirectories() throws {
+        let temp = try makeTempHome()
+        let artFolder = temp.appendingPathComponent("Art")
+        try fm.createDirectory(at: artFolder.appendingPathComponent("icon-app"), withIntermediateDirectories: true)
+        try writeFile("img", to: artFolder.appendingPathComponent("icon-app/c1.png"))
+        try fm.createDirectory(at: artFolder.appendingPathComponent("wallpaper-mountains"), withIntermediateDirectories: true)
+        try writeFile("img", to: artFolder.appendingPathComponent("wallpaper-mountains/wall.jpg"))
+        // ignored directory:
+        try fm.createDirectory(at: artFolder.appendingPathComponent("antigravity-originals"), withIntermediateDirectories: true)
+
+        let jobs = AppHealthChecker.scanArtJobs(artFolder: artFolder)
+        #expect(jobs.count == 2)
+        #expect(jobs.contains { $0.name == "icon-app" && $0.kind == .icon })
+        #expect(jobs.contains { $0.name == "wallpaper-mountains" && $0.kind == .wallpaper })
     }
 }
