@@ -58,6 +58,9 @@ public final class SummonModel {
     /// Per-app and per-theme health status for instant indicators and AI fixes.
     public private(set) var appHealth: [String: ItemHealth] = [:]
     public private(set) var themeHealth: [String: ItemHealth] = [:]
+    /// Art jobs in ~/Summon/Art and their inspection health.
+    public private(set) var artJobs: [ArtJob] = []
+    public private(set) var artJobHealth: [String: ItemHealth] = [:]
 
     /// Shell guard results by item id. Missing means not evaluated yet (shown, unchecked).
     public private(set) var visibility: [String: Bool] = [:]
@@ -335,6 +338,20 @@ public final class SummonModel {
             newThemeHealth[theme.slug] = AppHealthChecker.check(theme: theme, themesFolder: paths.themes)
         }
         themeHealth = newThemeHealth
+
+        let scannedJobs = AppHealthChecker.scanArtJobs(artFolder: paths.art)
+        artJobs = scannedJobs
+        var newArtHealth: [String: ItemHealth] = [:]
+        for job in scannedJobs {
+            newArtHealth[job.name] = AppHealthChecker.check(artJob: job)
+        }
+        artJobHealth = newArtHealth
+    }
+
+    public func fixArtJobWithAI(_ job: ArtJob) {
+        let health = artJobHealth[job.name] ?? AppHealthChecker.check(artJob: job)
+        let prompt = health.fixPrompt ?? "Investigate and complete the art job in ~/Summon/Art/\(job.name) using summon-art skill."
+        askAgent(prompt: prompt)
     }
 
     public func fixAppWithAI(_ project: Project) {
