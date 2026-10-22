@@ -93,6 +93,7 @@ public struct SettingsView: View {
                 await model.checkAgent(id)
             }
             await model.loadCatalog()
+            await model.checkHealth()
         }
     }
 
@@ -302,6 +303,121 @@ struct GeneralSettings: View {
 
     var body: some View {
         Form {
+            Section("System Diagnostics & Health") {
+                if model.isCheckingHealth {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Running system diagnostics...")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                } else if let report = model.doctorReport {
+                    if report.hasIssues {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(alignment: .center, spacing: 10) {
+                                Image(systemName: report.status == .fail ? "xmark.octagon.fill" : "exclamationmark.triangle.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(report.status == .fail ? Color.red : Color.orange)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("\(report.issues.count) issue\(report.issues.count == 1 ? "" : "s") detected")
+                                        .font(.headline)
+                                    Text("Summon detected configuration or environment issues on this Mac.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Button {
+                                    model.fixWithAI()
+                                } label: {
+                                    HStack(spacing: 5) {
+                                        Image(systemName: "wrench.and.screwdriver.fill")
+                                        Text("Fix with AI")
+                                    }
+                                    .fontWeight(.semibold)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.purple)
+                                .help("Launch default agent to automatically repair these issues")
+                            }
+
+                            Divider()
+
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(report.issues, id: \.id) { check in
+                                    HStack(alignment: .top, spacing: 8) {
+                                        Text(check.status == .fail ? "FAIL" : "WARN")
+                                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                            .padding(.horizontal, 5)
+                                            .padding(.vertical, 2)
+                                            .background(check.status == .fail ? Color.red.opacity(0.15) : Color.orange.opacity(0.15))
+                                            .foregroundStyle(check.status == .fail ? Color.red : Color.orange)
+                                            .clipShape(RoundedRectangle(cornerRadius: 4))
+
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(check.detail)
+                                                .font(.subheadline)
+                                                .foregroundStyle(.primary)
+                                            if let fix = check.fix {
+                                                Text("Fix: \(fix)")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                                    .fontDesign(.monospaced)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            HStack {
+                                Spacer()
+                                Button("Re-check") {
+                                    Task { await model.checkHealth() }
+                                }
+                                .buttonStyle(.borderless)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    } else {
+                        HStack(spacing: 12) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.title3)
+                                .foregroundStyle(.green)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("System Healthy")
+                                    .font(.subheadline.weight(.medium))
+                                Text("All Summon diagnostics and macOS permissions pass.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button("Run Diagnostics") {
+                                Task { await model.checkHealth() }
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                } else {
+                    HStack {
+                        Text("Check your environment, permissions, and toolchain")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Run Diagnostics") {
+                            Task { await model.checkHealth() }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
             Section("System") {
                 Picker("Default agent", selection: Binding(
                     get: { model.defaultAgent?.id ?? "" },

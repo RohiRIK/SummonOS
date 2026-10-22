@@ -48,6 +48,16 @@ public struct DoctorReport: Sendable, Equatable, Codable {
     public func check(_ id: String) -> DoctorCheck? {
         checks.first { $0.id == id }
     }
+
+    /// Whether any check failed or warned.
+    public var hasIssues: Bool {
+        checks.contains { $0.status != .pass }
+    }
+
+    /// All checks that need attention (warn or fail).
+    public var issues: [DoctorCheck] {
+        checks.filter { $0.status != .pass }
+    }
 }
 
 /// What the menu app writes on launch so the CLI can see what only the app knows: whether it is running,

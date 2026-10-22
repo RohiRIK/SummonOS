@@ -51,6 +51,10 @@ public final class SummonModel {
     /// Hotkey labels whose registration failed at launch (another app owns them); Settings marks them (C4).
     public var unavailableHotKeys: Set<String> = []
 
+    /// System health report from summon doctor; loaded on demand.
+    public private(set) var doctorReport: DoctorReport? = nil
+    public private(set) var isCheckingHealth = false
+
     /// Shell guard results by item id. Missing means not evaluated yet (shown, unchecked).
     public private(set) var visibility: [String: Bool] = [:]
     public private(set) var checks: [String: Bool] = [:]
@@ -252,6 +256,35 @@ public final class SummonModel {
             } else {
                 await summon(["agent"])
             }
+        }
+    }
+
+    public func checkHealth() async {
+        guard !isCheckingHealth else { return }
+        isCheckingHealth = true
+        defer { isCheckingHealth = false }
+        let environment = ProcessInfo.processInfo.environment
+        let shellPath = (environment["PATH"] ?? "").split(separator: ":").map(String.init)
+        let home = paths.home
+        let doctor = Doctor(
+            paths: paths,
+            runner: runner,
+            tools: ToolLocator.live(),
+            shellTools: ToolLocator(searchPath: shellPath, isExecutable: ToolLocator.live().isExecutable),
+            share: URL(fileURLWithPath: SummonPaths.installPath(environment: environment), isDirectory: true),
+            appLocations: [
+                home.appendingPathComponent("Applications/Summon.app", isDirectory: true),
+                URL(fileURLWithPath: "/Applications/Summon.app", isDirectory: true),
+            ],
+            installedTerminals: TerminalApp.installed,
+            isProcessRunning: { pid in pid > 0 && kill(pid, 0) == 0 }
+        )
+        doctorReport = await doctor.run()
+    }
+
+    public func fixWithAI() {
+        Task {
+            await summon(["fix"])
         }
     }
 

@@ -228,6 +228,9 @@ struct DoctorTests {
             DoctorCheck("bb", .warn, "meh", fix: "do x"),
         ])
         #expect(report.status == .warn)
+        #expect(report.hasIssues)
+        #expect(report.issues.count == 1)
+        #expect(report.issues.first?.id == "bb")
         let text = Doctor.render(report)
         #expect(text.contains("ok    a   fine"))
         #expect(text.contains("warn  bb  meh"))
@@ -236,8 +239,22 @@ struct DoctorTests {
         #expect(Doctor.render(DoctorReport(checks: [DoctorCheck("a", .pass, "fine")])).hasSuffix("Summon is healthy."))
     }
 
-    @Test func doctorIsInTheCatalog() {
+    @Test func doctorAndFixAreInTheCatalog() {
         #expect(CommandCatalog.find("doctor")?.risk == "read")
+        #expect(CommandCatalog.find("fix")?.risk == "launch")
+    }
+
+    @Test func fixPromptFormatting() {
+        let issues = [
+            DoctorCheck("config.undo", .warn, "~/.config is not a git repo", fix: "git -C ~/.config init"),
+            DoctorCheck("install.app", .fail, "Summon.app missing", fix: "scripts/install.sh"),
+        ]
+        let prompt = FixPrompt.make(for: issues, skillPath: "/fake/skills/summon-mac/SKILL.md")
+        #expect(prompt.contains("Summon diagnosed issues on this Mac"))
+        #expect(prompt.contains("[WARN] config.undo: ~/.config is not a git repo"))
+        #expect(prompt.contains("Suggested fix: git -C ~/.config init"))
+        #expect(prompt.contains("[FAIL] install.app: Summon.app missing"))
+        #expect(prompt.contains("summon-mac"))
     }
 
     @Test func tasksNeedTheirLaunchAgentAndAnAgentThatRunsHeadless() async throws {
