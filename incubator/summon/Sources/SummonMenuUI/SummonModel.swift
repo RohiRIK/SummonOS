@@ -55,6 +55,10 @@ public final class SummonModel {
     public private(set) var doctorReport: DoctorReport? = nil
     public private(set) var isCheckingHealth = false
 
+    /// Per-app and per-theme health status for instant indicators and AI fixes.
+    public private(set) var appHealth: [String: ItemHealth] = [:]
+    public private(set) var themeHealth: [String: ItemHealth] = [:]
+
     /// Shell guard results by item id. Missing means not evaluated yet (shown, unchecked).
     public private(set) var visibility: [String: Bool] = [:]
     public private(set) var checks: [String: Bool] = [:]
@@ -176,7 +180,7 @@ public final class SummonModel {
 
     func loadMenu() {
         let loaded = MenuTree.load(from: paths.menuFile)
-        menu = loaded.tree.withProjects(projects, themes: themes)
+        menu = loaded.tree.withProjects(projects, themes: themes, appHealth: appHealth, themeHealth: themeHealth)
         menuError = loaded.problem
     }
 
@@ -314,10 +318,57 @@ public final class SummonModel {
 
     public func reloadProjects() {
         let loaded = (try? ProjectStore(paths: paths).load().projects) ?? []
-        if loaded != projects {
-            projects = loaded
-            loadMenu()
+        projects = loaded
+        checkAppsAndThemesHealth()
+        loadMenu()
+    }
+
+    public func checkAppsAndThemesHealth() {
+        var newAppHealth: [String: ItemHealth] = [:]
+        for project in projects {
+            newAppHealth[project.name] = AppHealthChecker.check(project: project, recentCrashes: recentCrashes)
         }
+        appHealth = newAppHealth
+
+        var newThemeHealth: [String: ItemHealth] = [:]
+        for theme in themes {
+            newThemeHealth[theme.slug] = AppHealthChecker.check(theme: theme, themesFolder: paths.themes)
+        }
+        themeHealth = newThemeHealth
+    }
+
+    public func fixAppWithAI(_ project: Project) {
+        let health = appHealth[project.name] ?? AppHealthChecker.check(project: project, recentCrashes: recentCrashes)
+        let prompt = health.fixPrompt ?? "Investigate and fix any issues in project '\(project.name)' at \(project.path)."
+        askAgent(prompt: prompt)
+    }
+
+    public func fixThemeWithAI(_ theme: Theme) {
+        let health = themeHealth[theme.slug] ?? AppHealthChecker.check(theme: theme, themesFolder: paths.themes)
+        let prompt = health.fixPrompt ?? "Investigate and fix any issues in theme '\(theme.name)' at ~/.config/summon/themes/\(theme.slug)."
+        askAgent(prompt: prompt)
+    }
+
+    public func health(for item: MenuItem) -> ItemHealth? {
+        if item.id == "apps" {
+            let all = Array(appHealth.values) + Array(themeHealth.values)
+            if all.contains(where: { $0.level == .error }) {
+                return ItemHealth(level: .error, badge: "Issues", detail: "Some apps or themes have errors")
+            }
+            if all.contains(where: { $0.level == .warning }) {
+                return ItemHealth(level: .warning, badge: "Warnings", detail: "Some apps or themes have warnings")
+            }
+            return all.isEmpty ? nil : .healthy
+        }
+        if item.id.hasPrefix("apps.panel.") || item.id.hasPrefix("apps.app.") || item.id.hasPrefix("apps.cli.") || item.id.hasPrefix("apps.screensaver.") {
+            let name = String(item.id.split(separator: ".").last ?? "")
+            return appHealth[name]
+        }
+        if item.id.hasPrefix("apps.theme.") || item.id.hasPrefix("style.theme.") {
+            let slug = String(item.id.split(separator: ".").last ?? "")
+            return themeHealth[slug]
+        }
+        return nil
     }
 
     /// Opens the project's built .app if present, else reveals its folder.
