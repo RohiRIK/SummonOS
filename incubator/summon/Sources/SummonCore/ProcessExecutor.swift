@@ -5,7 +5,7 @@ import Foundation
 public struct ProcessOptions: Sendable {
     public var timeout: TimeInterval = 60
     public var terminationGrace: TimeInterval = 0.5
-    public var maxOutputBytes = 1_048_576
+    public var maxOutputBytes = 16_777_216
     public var directory: URL?
     public var environment: [String: String]?
     public var includeStandardError = true

@@ -283,7 +283,17 @@ public struct PanelView: View {
                 .background(Circle().fill(Color.accentColor))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
-                Text("Summon").font(.headline)
+                HStack(spacing: 6) {
+                    Text("Summon").font(.headline)
+                    if let themeName = model.currentThemeName {
+                        Text(themeName)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1.5)
+                            .background(Color.secondary.opacity(0.12), in: Capsule())
+                    }
+                }
                 agentLine
                     .font(.subheadline)
                     .foregroundStyle(.secondary)

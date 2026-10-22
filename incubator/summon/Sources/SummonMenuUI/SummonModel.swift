@@ -16,6 +16,11 @@ public final class SummonModel {
     public private(set) var recentCrashes: [CrashReport] = []
     public private(set) var themes: [Theme] = []
     public private(set) var currentThemeSlug: String? = nil
+
+    public var currentThemeName: String? {
+        guard let currentThemeSlug else { return nil }
+        return themes.first { $0.slug == currentThemeSlug }?.name ?? currentThemeSlug
+    }
     /// The terminal agents open in, and the ones Settings can offer.
     public private(set) var terminal: TerminalApp = .terminal
     public private(set) var installedTerminals: [TerminalApp] = [.terminal]

@@ -98,11 +98,16 @@ public struct CheckpointService: Sendable {
                     checkpoint.configCommit = commit
                 } catch { problems.append("config capture failed: \(error)") }
             }
-            checkpoint.problems = problems.isEmpty ? nil : problems
+            let sanitizedProblems = problems.map { p in
+                p.count > 2000 ? String(p.prefix(2000)) + "… [truncated]" : p
+            }
+            checkpoint.problems = sanitizedProblems.isEmpty ? nil : sanitizedProblems
             all.append(checkpoint)
             try save(Array(all.suffix(100)))
         } catch {
-            problems.append("could not record checkpoint: \(error)")
+            let msg = "could not record checkpoint: \(error)"
+            let sanitizedMsg = msg.count > 2000 ? String(msg.prefix(2000)) + "… [truncated]" : msg
+            problems.append(sanitizedMsg)
             checkpoint.problems = problems
         }
         return (checkpoint, problems)
