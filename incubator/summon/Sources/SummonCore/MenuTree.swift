@@ -88,21 +88,41 @@ public struct MenuTree: Sendable, Equatable {
     ]
 
     /// Returns a new menu tree with registered projects and themes organized into template categories under "My Apps".
-    public func withProjects(_ projects: [Project], themes: [Theme] = []) -> MenuTree {
+    public func withProjects(
+        _ projects: [Project],
+        themes: [Theme] = [],
+        appHealth: [String: ItemHealth] = [:],
+        themeHealth: [String: ItemHealth] = [:]
+    ) -> MenuTree {
         guard (!projects.isEmpty || !themes.isEmpty), !items.contains(where: { $0.id == "apps" }) else { return self }
         var updated = items
         let appsParent = MenuItem(id: "apps", label: "My Apps", icon: "square.grid.2x2", aliases: ["apps"])
         var appsItems: [MenuItem] = [appsParent]
+
+        // If any app or theme needs attention, add a quick "Fix Issues with AI" entry
+        let unhealthyApps = projects.filter { appHealth[$0.name]?.isHealthy == false }
+        let unhealthyThemes = themes.filter { themeHealth[$0.slug]?.isHealthy == false }
+        let totalUnhealthy = unhealthyApps.count + unhealthyThemes.count
+        if totalUnhealthy > 0 {
+            appsItems.append(MenuItem(
+                id: "apps.fix",
+                label: "Fix \(totalUnhealthy) App/Theme Issue\(totalUnhealthy == 1 ? "" : "s") with AI",
+                icon: "wrench.and.screwdriver",
+                action: "summon fix"
+            ))
+        }
 
         // 1. Panel Apps (menubar template)
         let panelProjects = projects.filter { $0.kind == .menubar }
         if !panelProjects.isEmpty {
             appsItems.append(MenuItem(id: "apps.panel", label: "Panel Apps", icon: "menubar.rectangle", aliases: ["menubar", "panel"]))
             for proj in panelProjects {
+                let isUnhealthy = appHealth[proj.name]?.isHealthy == false
+                let badge = isUnhealthy ? " (\(appHealth[proj.name]?.badge ?? "Issue"))" : ""
                 appsItems.append(MenuItem(
                     id: "apps.panel.\(proj.name)",
-                    label: proj.name,
-                    icon: "menubar.rectangle",
+                    label: "\(proj.name)\(badge)",
+                    icon: isUnhealthy ? "exclamationmark.triangle" : "menubar.rectangle",
                     action: "summon project open \(proj.name)"
                 ))
             }
@@ -113,10 +133,12 @@ public struct MenuTree: Sendable, Equatable {
         if !appProjects.isEmpty {
             appsItems.append(MenuItem(id: "apps.app", label: "Window Apps", icon: "macwindow", aliases: ["apps", "window"]))
             for proj in appProjects {
+                let isUnhealthy = appHealth[proj.name]?.isHealthy == false
+                let badge = isUnhealthy ? " (\(appHealth[proj.name]?.badge ?? "Issue"))" : ""
                 appsItems.append(MenuItem(
                     id: "apps.app.\(proj.name)",
-                    label: proj.name,
-                    icon: "macwindow",
+                    label: "\(proj.name)\(badge)",
+                    icon: isUnhealthy ? "exclamationmark.triangle" : "macwindow",
                     action: "summon project open \(proj.name)"
                 ))
             }
@@ -128,10 +150,12 @@ public struct MenuTree: Sendable, Equatable {
         if !displayThemes.isEmpty {
             appsItems.append(MenuItem(id: "apps.theme", label: "Themes", icon: "paintbrush", aliases: ["theme", "style"]))
             for theme in displayThemes {
+                let isUnhealthy = themeHealth[theme.slug]?.isHealthy == false
+                let badge = isUnhealthy ? " (\(themeHealth[theme.slug]?.badge ?? "Issue"))" : ""
                 appsItems.append(MenuItem(
                     id: "apps.theme.\(theme.slug)",
-                    label: theme.name,
-                    icon: "paintbrush",
+                    label: "\(theme.name)\(badge)",
+                    icon: isUnhealthy ? "exclamationmark.triangle" : "paintbrush",
                     action: "summon theme set \(theme.slug)",
                     checked: "[ \"$(cat ~/.config/summon/current-theme 2>/dev/null)\" = '\(theme.slug)' ]"
                 ))
@@ -143,10 +167,12 @@ public struct MenuTree: Sendable, Equatable {
         if !cliProjects.isEmpty {
             appsItems.append(MenuItem(id: "apps.cli", label: "Command-Line Tools", icon: "terminal", aliases: ["cli", "tools"]))
             for proj in cliProjects {
+                let isUnhealthy = appHealth[proj.name]?.isHealthy == false
+                let badge = isUnhealthy ? " (\(appHealth[proj.name]?.badge ?? "Issue"))" : ""
                 appsItems.append(MenuItem(
                     id: "apps.cli.\(proj.name)",
-                    label: proj.name,
-                    icon: "terminal",
+                    label: "\(proj.name)\(badge)",
+                    icon: isUnhealthy ? "exclamationmark.triangle" : "terminal",
                     action: "summon project open \(proj.name)"
                 ))
             }
@@ -157,10 +183,12 @@ public struct MenuTree: Sendable, Equatable {
         if !screensaverProjects.isEmpty {
             appsItems.append(MenuItem(id: "apps.screensaver", label: "Screensavers", icon: "sparkles.tv", aliases: ["screensaver"]))
             for proj in screensaverProjects {
+                let isUnhealthy = appHealth[proj.name]?.isHealthy == false
+                let badge = isUnhealthy ? " (\(appHealth[proj.name]?.badge ?? "Issue"))" : ""
                 appsItems.append(MenuItem(
                     id: "apps.screensaver.\(proj.name)",
-                    label: proj.name,
-                    icon: "sparkles.tv",
+                    label: "\(proj.name)\(badge)",
+                    icon: isUnhealthy ? "exclamationmark.triangle" : "sparkles.tv",
                     action: "summon project open \(proj.name)"
                 ))
             }

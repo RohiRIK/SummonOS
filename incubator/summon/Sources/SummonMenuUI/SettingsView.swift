@@ -1381,6 +1381,24 @@ struct AppsSettings: View {
         !query.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    private var unhealthyApps: [Project] {
+        model.projects.filter { model.appHealth[$0.name]?.isHealthy == false }
+    }
+
+    private var unhealthyThemes: [Theme] {
+        displayThemes.filter { model.themeHealth[$0.slug]?.isHealthy == false }
+    }
+
+    private func categoryHasWarning(_ category: AppSectionCategory) -> Bool {
+        switch category {
+        case .panel: return panelProjects.contains { model.appHealth[$0.name]?.isHealthy == false }
+        case .themes: return displayThemes.contains { model.themeHealth[$0.slug]?.isHealthy == false }
+        case .app: return appProjects.contains { model.appHealth[$0.name]?.isHealthy == false }
+        case .cli: return cliProjects.contains { model.appHealth[$0.name]?.isHealthy == false }
+        case .screensaver: return screensaverProjects.contains { model.appHealth[$0.name]?.isHealthy == false }
+        }
+    }
+
     private func itemCount(for category: AppSectionCategory) -> Int {
         switch category {
         case .panel: return panelProjects.count
@@ -1398,6 +1416,33 @@ struct AppsSettings: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
                 .padding(.bottom, 12)
+
+            if !unhealthyApps.isEmpty || !unhealthyThemes.isEmpty {
+                let count = unhealthyApps.count + unhealthyThemes.count
+                HStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.orange)
+                    Text("\(count) item\(count == 1 ? "" : "s") need attention")
+                        .font(.system(size: 12, weight: .medium))
+                    Spacer()
+                    Button {
+                        model.fixWithAI()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "wrench.and.screwdriver.fill")
+                            Text("Fix All with AI")
+                        }
+                        .font(.system(size: 11, weight: .semibold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.purple)
+                    .controlSize(.small)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 8)
+                .background(Color.orange.opacity(0.1))
+            }
 
             Divider()
 
@@ -1523,7 +1568,7 @@ struct AppsSettings: View {
     private var categoriesListView: some View {
         VStack(spacing: 4) {
             ForEach(availableCategories) { cat in
-                CategoryNavigationRow(category: cat, count: itemCount(for: cat)) {
+                CategoryNavigationRow(category: cat, count: itemCount(for: cat), hasWarning: categoryHasWarning(cat)) {
                     selectedCategory = cat
                 }
             }
@@ -1638,6 +1683,7 @@ struct AppsSettings: View {
 struct CategoryNavigationRow: View {
     let category: AppSectionCategory
     let count: Int
+    var hasWarning: Bool = false
     let action: () -> Void
     @State private var isHovered = false
 
@@ -1654,6 +1700,12 @@ struct CategoryNavigationRow: View {
                     .foregroundStyle(.primary)
 
                 Spacer()
+
+                if hasWarning {
+                    Circle()
+                        .fill(Color.orange)
+                        .frame(width: 7, height: 7)
+                }
 
                 Text("\(count)")
                     .font(.system(size: 11, weight: .medium))
@@ -1686,11 +1738,15 @@ struct PanelAppItemRow: View {
     let model: SummonModel
     @State private var isHovered = false
 
+    private var health: ItemHealth {
+        model.appHealth[project.name] ?? AppHealthChecker.check(project: project, recentCrashes: model.recentCrashes)
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: kindIcon(project.kind))
                 .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.primary)
+                .foregroundStyle(health.level == .error ? Color.red : (health.level == .warning ? Color.orange : Color.primary))
                 .frame(width: 24, height: 24)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -1704,6 +1760,14 @@ struct PanelAppItemRow: View {
                         .padding(.horizontal, 5)
                         .padding(.vertical, 1.5)
                         .background(Color.secondary.opacity(0.12), in: Capsule())
+
+                    HealthBadge(health: health)
+                }
+
+                if !health.isHealthy {
+                    Text(health.detail)
+                        .font(.system(size: 11))
+                        .foregroundStyle(health.level == .error ? Color.red : Color.orange)
                 }
 
                 Text(project.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
@@ -1712,6 +1776,22 @@ struct PanelAppItemRow: View {
             }
 
             Spacer()
+
+            if !health.isHealthy {
+                Button {
+                    model.fixAppWithAI(project)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "wrench.and.screwdriver.fill")
+                        Text("Fix with AI")
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.purple)
+                .controlSize(.small)
+                .help("Ask default agent to fix issues in \(project.name)")
+            }
 
             if let repo = project.repo, !repo.isEmpty {
                 let cleanRepo = repo
@@ -1787,11 +1867,15 @@ struct ThemeItemRow: View {
     let model: SummonModel
     @State private var isHovered = false
 
+    private var health: ItemHealth {
+        model.themeHealth[theme.slug] ?? AppHealthChecker.check(theme: theme, themesFolder: model.paths.themes)
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "paintbrush")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.primary)
+                .foregroundStyle(health.level == .error ? Color.red : (health.level == .warning ? Color.orange : Color.primary))
                 .frame(width: 24, height: 24)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -1808,6 +1892,14 @@ struct ThemeItemRow: View {
                             .padding(.vertical, 1.5)
                             .background(Color.green.opacity(0.12), in: Capsule())
                     }
+
+                    HealthBadge(health: health)
+                }
+
+                if !health.isHealthy {
+                    Text(health.detail)
+                        .font(.system(size: 11))
+                        .foregroundStyle(health.level == .error ? Color.red : Color.orange)
                 }
 
                 HStack(spacing: 4) {
@@ -1818,6 +1910,22 @@ struct ThemeItemRow: View {
             }
 
             Spacer()
+
+            if !health.isHealthy {
+                Button {
+                    model.fixThemeWithAI(theme)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "wrench.and.screwdriver.fill")
+                        Text("Fix with AI")
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.purple)
+                .controlSize(.small)
+                .help("Ask default agent to fix or generate missing assets for \(theme.name)")
+            }
 
             if theme.slug != model.currentThemeSlug {
                 Button("Apply") {
@@ -1834,6 +1942,34 @@ struct ThemeItemRow: View {
                 .fill(isHovered ? Color.secondary.opacity(0.12) : Color.secondary.opacity(0.05))
         )
         .onHover { isHovered = $0 }
+    }
+}
+
+// MARK: Health Badge
+
+struct HealthBadge: View {
+    let health: ItemHealth
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(color)
+                .frame(width: 5, height: 5)
+            Text(health.badge)
+                .font(.system(size: 10, weight: .medium))
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 1.5)
+        .background(color.opacity(0.12), in: Capsule())
+        .foregroundStyle(color)
+    }
+
+    private var color: Color {
+        switch health.level {
+        case .healthy: return .green
+        case .warning: return .orange
+        case .error: return .red
+        }
     }
 }
 

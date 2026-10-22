@@ -97,7 +97,8 @@ public struct PanelView: View {
                             breadcrumb: query.isEmpty ? nil : model.menu.path(to: item.parentID ?? "").joined(separator: " › "),
                             isSelected: index == selection,
                             isChecked: model.checks[item.id] == true,
-                            hasChildren: model.hasChildren(item)) {
+                            hasChildren: model.hasChildren(item),
+                            health: model.health(for: item)) {
                     selection = index
                     activateSelection()
                 }
@@ -320,18 +321,24 @@ struct MenuTreeRow: View {
     let isSelected: Bool
     let isChecked: Bool
     let hasChildren: Bool
+    var health: ItemHealth? = nil
     let action: () -> Void
 
     var body: some View {
         PanelRow(isSelected: isSelected, hoverHighlights: false, action: action) {
             Image(systemName: item.icon ?? "circle")
                 .frame(width: 16)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(health?.level == .error ? Color.red : (health?.level == .warning ? Color.orange : Color.secondary))
             Text(item.label)
             if let breadcrumb, !breadcrumb.isEmpty {
                 Text(breadcrumb).foregroundStyle(.tertiary).lineLimit(1)
             }
             Spacer()
+            if let health {
+                Circle()
+                    .fill(health.level == .healthy ? Color.green : (health.level == .warning ? Color.orange : Color.red))
+                    .frame(width: 6, height: 6)
+            }
             if isChecked {
                 Image(systemName: "checkmark").foregroundStyle(.tint)
             }
