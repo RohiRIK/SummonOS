@@ -71,8 +71,8 @@ struct RecoveryRegressionTests {
     }
 
     @Test func shellCannotRetainUnboundedCommandOutput() throws {
-        #expect(throws: RunnerError.outputLimit(path: "/bin/sh", limit: 1_048_576)) {
-            _ = try Shell.runSync("/bin/sh", ["-c", "/usr/bin/head -c 2097152 /dev/zero"])
+        #expect(throws: RunnerError.outputLimit(path: "/bin/sh", limit: 16_777_216)) {
+            _ = try Shell.runSync("/bin/sh", ["-c", "/usr/bin/head -c 20000000 /dev/zero"])
         }
     }
 }
