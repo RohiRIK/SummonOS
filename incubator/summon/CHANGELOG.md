@@ -3,6 +3,46 @@
 All notable changes to Summon. Newest first. Summon is still incubating in the SummonOS workspace, so there are no
 version numbers yet; entries are grouped by day and point at the pull request.
 
+## 2026-10-22
+
+### Added
+- **Health Engine & "Fix with AI" for Apps, Themes, and Art:**
+  - `ItemHealth` engine automatically audits every app project, theme, and art job in real time.
+  - Per-item "Fix with AI" triggers dispatch targeted prompts directly to the user's default agent using `summon-art`, `summon-mac`, or `diagnose-crash-mac` skills.
+  - Comprehensive art inspection checks App Icons (`Resources/AppIcon.icns`), UI screenshots (`docs/screenshots/`), theme wallpapers (`~/.config/summon/themes/<slug>/`), and `~/Summon/Art` jobs.
+  - Added `summon fix` CLI command and interactive "Fix with AI" button in Settings › General diagnostics.
+- **My Apps in Settings:**
+  - Dedicated "My Apps" section in Settings with panel-matching drill-down navigation (Panel Apps, Window Apps, Themes, Art & Wallpapers, CLI Tools, Screensavers).
+  - Shows live health badges, status summaries, open in Finder/GitHub shortcuts, and instant theme preview dots.
+- **Active Theme Pill in Panel:**
+  - Header displays a pill badge with the name of the currently active theme alongside the Summon title.
+
+### Fixed
+- **Panel Back Navigation:**
+  - Replaced static chevron image with an interactive, hover-highlighted Back button in the panel search bar.
+  - `Escape` key inside submenus pops back to parent level instead of abruptly dismissing the panel.
+  - `Delete` / Backspace on empty search query navigates up one level.
+  - Robust dotted-ID popping prevents getting stuck in nested levels.
+- **Dedicated Windows for Settings and Activity:**
+  - Settings and Activity now open in standalone foreground `NSWindow`s centered on the active display, avoiding panel focus theft or background placement.
+- **Binary Precedence for Agent Tool Locators (#67):**
+  - User-installed binary directories (`~/.bun/bin`, `~/.local/bin`, `~/.cargo/bin`) strictly precede `/opt/homebrew/bin`, fixing conflicts where outdated Homebrew agent binaries (e.g., OpenCode 1.15) were invoked instead of modern Bun tools.
+- **Process Buffer & Checkpoint Protection:**
+  - Expanded child process execution output buffer from 1MB to 16MB.
+  - Sanitized and truncated checkpoint problem records to 2,000 characters to prevent checkpoint store bloat.
+
+## 2026-10-21
+
+### Added
+- **Command-Return / Option-Return Panel Agent Quick-Launch (#65):**
+  - Option-Enter / Command-Return from the menu bar panel opens the user's default agent in terminal directly from `~/Summon`.
+  - Added "My Apps" section organized by template categories to the menu bar tree.
+- **Theme Preview with Wallpaper and Undo (#66):**
+  - Settings › Appearance renders live 16:9 theme wallpaper previews with an Undo button to revert to the previous theme.
+  - Added one-click auto-installers for Ghostty and kitty terminals via Homebrew.
+- **Visual QA CI (#64):**
+  - Automated visual screenshot testing on macOS 26 and 15 runners.
+
 ## 2026-10-20
 
 ### Menu bar panel (draft)

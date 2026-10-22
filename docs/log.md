@@ -1,5 +1,12 @@
 # Docs update log
 
+## 2026-10-22
+* **Update**: [Features](features.md): added automated real-time health checks and "Fix with AI" triggers for all app projects, themes, and art assets (AppIcon.icns, UI screenshots, wallpapers, art jobs).
+* **Update**: [Features](features.md): added dedicated "My Apps" section in Settings with category drill-down navigation matching the menu bar panel.
+* **Update**: [Features](features.md): added interactive panel back button with keyboard Escape pop and Delete key navigation.
+* **Update**: [Features](features.md): Settings and Activity windows now open as dedicated, foreground NSWindows centered on the active display.
+* **Update**: [Security and recovery model](security-model.md): user bin directories (~/.bun/bin, ~/.local/bin) take strict precedence over Homebrew paths; child process output buffer expanded to 16MB; checkpoint error records sanitized to 2,000 chars.
+
 ## 2026-10-21
 * **Update**: [Features](features.md): added Appearance Theme Preview with 16:9 wallpaper thumbnail and Undo button; added one-click Homebrew installer for Ghostty and kitty terminals in Settings.
 * **Update**: [Features](features.md): added ⌘↵ quick-launch for default agent in `~/Summon` and "My Apps" section in the menu bar panel for Summon-built projects.
