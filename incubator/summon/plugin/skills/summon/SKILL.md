@@ -20,6 +20,7 @@ gets one route per job, in order.
 | Mac settings, Dock, Finder, keyboard, dark mode, menu bar, AeroSpace, Ghostty, kitty, borders, keybindings, hooks, login items, Brewfile, installing apps, "fix my Mac" | `summon-mac` |
 | A theme, palette, colors, a wallpaper, icon art, any generated image, "make it nice" | `summon-art` (it hands installing back to `summon-mac`) |
 | Building a native Mac app: menu bar app, window app, command-line tool, screensaver, packaging an icon | `mac-app` |
+| Migrating or importing an existing app into Summon, porting legacy macos-plugins | `summon-migrate` |
 | An app crashed, hung, quit unexpectedly, the Mac restarted, a `.ips` report | `diagnose-crash-mac` |
 | Logs, why something fails or keeps restarting, Wi-Fi/Bluetooth/sleep trouble | `mac-logs` |
 | Doing something on a schedule: "every morning…", "each Friday", "every 2 hours" | `summon-mac` (recurring tasks) |

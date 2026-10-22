@@ -5,10 +5,12 @@ import SummonCore
 enum ProjectCommands {
     static let kinds = ProjectKind.allCases.map(\.rawValue).joined(separator: "|")
 
-    /// `summon project new|list|path|forget|repo`.
+    /// `summon project new|register|import|list|path|forget|repo`.
     static func run(_ args: inout Arguments, _ context: Context) async throws {
         switch args.next() {
         case "new": try await new(&args, context)
+        case "register": try await register(&args, context)
+        case "import": try await importApp(&args, context)
         case nil, "list": try list(&args, context)
         case "path": try path(&args, context)
         case "forget": try forget(&args, context)
@@ -19,7 +21,41 @@ enum ProjectCommands {
             let images = try await ShotCommands.shots(name, context)
             print(images.isEmpty ? "README updated" : images.joined(separator: "\n"))
         default:
-            throw CLIError("Usage: summon project new <name> --kind \(kinds) | list [--json] | path <name> | forget <name> | repo <name> [--owner <login>]")
+            throw CLIError("Usage: summon project new <name> --kind \(kinds) | register <name> [--kind \(kinds)] | import <path> [--name <name>] [--kind \(kinds)] | list [--json] | path <name> | forget <name> | repo <name> [--owner <login>]")
+        }
+    }
+
+    static func register(_ args: inout Arguments, _ context: Context) async throws {
+        let json = args.flag("--json")
+        let kindName = args.option("--kind")
+        guard let name = args.next(), args.isEmpty else {
+            throw CLIError("Usage: summon project register <name> [--kind \(kinds)] [--json]")
+        }
+        let kind = kindName.flatMap { ProjectKind(rawValue: $0.lowercased()) }
+        let service = ProjectService(paths: context.paths, runner: context.runner, gitPath: context.git)
+        let project = try await service.register(name: name, kind: kind)
+        if json {
+            try ActivityCommands.printJSON(project)
+        } else {
+            print("Registered \(project.kind.rawValue) app '\(project.name)' at \(project.path)")
+        }
+    }
+
+    static func importApp(_ args: inout Arguments, _ context: Context) async throws {
+        let json = args.flag("--json")
+        let kindName = args.option("--kind")
+        let customName = args.option("--name")
+        guard let sourcePath = args.next(), args.isEmpty else {
+            throw CLIError("Usage: summon project import <path> [--name <name>] [--kind \(kinds)] [--json]")
+        }
+        let sourceURL = URL(fileURLWithPath: (sourcePath as NSString).expandingTildeInPath)
+        let kind = kindName.flatMap { ProjectKind(rawValue: $0.lowercased()) }
+        let service = ProjectService(paths: context.paths, runner: context.runner, gitPath: context.git)
+        let project = try await service.importProject(from: sourceURL, name: customName, kind: kind)
+        if json {
+            try ActivityCommands.printJSON(project)
+        } else {
+            print("Imported and registered \(project.kind.rawValue) app '\(project.name)' at \(project.path)")
         }
     }
 
