@@ -1200,147 +1200,423 @@ extension Color {
 
 // MARK: Apps
 
-/// Apps and widgets built in ~/Summon/Apps (from templates or agent builds).
-struct AppsSettings: View {
-    let model: SummonModel
-    @State private var query = ""
+enum AppSectionCategory: String, CaseIterable, Identifiable {
+    case panel = "Panel Apps"
+    case themes = "Themes"
+    case app = "Window Apps"
+    case cli = "Command-Line Tools"
+    case screensaver = "Screensavers"
 
-    private var filteredProjects: [Project] {
-        if query.trimmingCharacters(in: .whitespaces).isEmpty {
-            return model.projects
-        }
-        return model.projects.filter {
-            $0.name.localizedCaseInsensitiveContains(query) ||
-            $0.kind.rawValue.localizedCaseInsensitiveContains(query)
-        }
-    }
+    var id: String { rawValue }
 
-    var body: some View {
-        Form {
-            Section {
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Apps Home")
-                            .font(.headline)
-                        Text("~/Summon/Apps")
-                            .font(.system(.subheadline, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button("Open in Finder") {
-                        let url = URL(fileURLWithPath: model.paths.projects.path)
-                        NSWorkspace.shared.open(url)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-
-                    Button("View Showcase") {
-                        let showcaseURL = model.paths.summonHome.appendingPathComponent("Showcase/index.html")
-                        if FileManager.default.fileExists(atPath: showcaseURL.path) {
-                            NSWorkspace.shared.open(showcaseURL)
-                        } else {
-                            NSWorkspace.shared.open(model.paths.summonHome)
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                }
-                .padding(.vertical, 4)
-            }
-
-            Section {
-                if model.projects.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "square.grid.2x2")
-                            .font(.system(size: 36))
-                            .foregroundStyle(.secondary)
-                        Text("No Apps Yet")
-                            .font(.headline)
-                        Text("Create a new app by asking an agent (\"Make me an app\") or running 'summon project new <name>' in terminal.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-                } else {
-                    ForEach(filteredProjects) { project in
-                        AppProjectRow(project: project, model: model)
-                    }
-                }
-            } header: {
-                HStack {
-                    Text("Installed Projects")
-                    Spacer()
-                    Text("\(model.projects.count) \(model.projects.count == 1 ? "app" : "apps")")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            } footer: {
-                Text("New projects are scaffolded in ~/Summon/Apps and tracked in ~/.config/summon/projects.json.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .formStyle(.grouped)
-        .onAppear {
-            model.reloadProjects()
+    var systemImage: String {
+        switch self {
+        case .panel: return "menubar.rectangle"
+        case .themes: return "paintbrush"
+        case .app: return "macwindow"
+        case .cli: return "terminal"
+        case .screensaver: return "sparkles.tv"
         }
     }
 }
 
-struct AppProjectRow: View {
-    let project: Project
+/// Apps and widgets built in ~/Summon/Apps (from templates or agent builds),
+/// mirroring the Summon Menu's "My Apps" drill-down navigation.
+struct AppsSettings: View {
     let model: SummonModel
+    @State private var selectedCategory: AppSectionCategory? = nil
+    @State private var query = ""
+
+    private var panelProjects: [Project] {
+        model.projects.filter { $0.kind == .menubar }
+    }
+
+    private var appProjects: [Project] {
+        model.projects.filter { $0.kind == .app }
+    }
+
+    private var cliProjects: [Project] {
+        model.projects.filter { $0.kind == .cli }
+    }
+
+    private var screensaverProjects: [Project] {
+        model.projects.filter { $0.kind == .screensaver }
+    }
+
+    private var displayThemes: [Theme] {
+        let custom = model.themes.filter { $0.source == "summon-art" || !MenuTree.shippedThemeSlugs.contains($0.slug) }
+        return custom.isEmpty ? model.themes : custom
+    }
+
+    private var availableCategories: [AppSectionCategory] {
+        var list: [AppSectionCategory] = []
+        if !panelProjects.isEmpty { list.append(.panel) }
+        if !displayThemes.isEmpty { list.append(.themes) }
+        if !appProjects.isEmpty { list.append(.app) }
+        if !cliProjects.isEmpty { list.append(.cli) }
+        if !screensaverProjects.isEmpty { list.append(.screensaver) }
+        if list.isEmpty {
+            list = [.panel, .themes]
+        }
+        return list
+    }
+
+    private var isSearching: Bool {
+        !query.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private func itemCount(for category: AppSectionCategory) -> Int {
+        switch category {
+        case .panel: return panelProjects.count
+        case .themes: return displayThemes.count
+        case .app: return appProjects.count
+        case .cli: return cliProjects.count
+        case .screensaver: return screensaverProjects.count
+        }
+    }
 
     var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: kindIcon(project.kind))
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 32, height: 32)
-                .background(kindColor(project.kind), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        VStack(spacing: 0) {
+            // Panel-style search / navigation bar
+            navBar
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 12)
 
-            VStack(alignment: .leading, spacing: 3) {
+            Divider()
+
+            // Content area
+            ScrollView {
+                VStack(spacing: 6) {
+                    if isSearching {
+                        searchResultsView
+                    } else if let cat = selectedCategory {
+                        categoryDetailView(for: cat)
+                    } else {
+                        categoriesListView
+                    }
+                }
+                .padding(20)
+            }
+
+            Divider()
+
+            // Bottom footer with directory link and showcase
+            HStack(spacing: 12) {
+                Text("~/Summon/Apps")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button("Open in Finder") {
+                    let url = URL(fileURLWithPath: model.paths.projects.path)
+                    NSWorkspace.shared.open(url)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Button("View Showcase") {
+                    let showcaseURL = model.paths.summonHome.appendingPathComponent("Showcase/index.html")
+                    if FileManager.default.fileExists(atPath: showcaseURL.path) {
+                        NSWorkspace.shared.open(showcaseURL)
+                    } else {
+                        NSWorkspace.shared.open(model.paths.summonHome)
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .background(Color(nsColor: .windowBackgroundColor).opacity(0.8))
+        }
+        .onAppear {
+            model.reloadProjects()
+        }
+    }
+
+    // MARK: Navigation Bar
+
+    private var navBar: some View {
+        HStack(spacing: 8) {
+            if let selected = selectedCategory, !isSearching {
+                Button {
+                    selectedCategory = nil
+                    query = ""
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("My Apps")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundStyle(.primary)
+                }
+                .buttonStyle(.plain)
+
+                Text("›")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.tertiary)
+
+                Text(selected.rawValue)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+            } else {
+                HStack(spacing: 6) {
+                    Image(systemName: "square.grid.2x2")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    Text("My Apps")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+
+                Spacer()
+            }
+
+            // Search pill
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                TextField(selectedCategory == nil ? "Search My Apps…" : "Search \(selectedCategory?.rawValue ?? "")…", text: $query)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                if !query.isEmpty {
+                    Button {
+                        query = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .frame(maxWidth: 240)
+        }
+    }
+
+    // MARK: Category List (Root)
+
+    private var categoriesListView: some View {
+        VStack(spacing: 4) {
+            ForEach(availableCategories) { cat in
+                CategoryNavigationRow(category: cat, count: itemCount(for: cat)) {
+                    selectedCategory = cat
+                }
+            }
+        }
+    }
+
+    // MARK: Category Detail
+
+    @ViewBuilder
+    private func categoryDetailView(for category: AppSectionCategory) -> some View {
+        switch category {
+        case .panel:
+            if panelProjects.isEmpty {
+                emptyCategoryView(title: "No Panel Apps", subtitle: "Scaffold one with 'summon project new <name> --kind menubar'")
+            } else {
+                ForEach(panelProjects) { proj in
+                    PanelAppItemRow(project: proj, model: model)
+                }
+            }
+        case .themes:
+            if displayThemes.isEmpty {
+                emptyCategoryView(title: "No Themes", subtitle: "Ask an agent to create a new theme palette")
+            } else {
+                ForEach(displayThemes) { theme in
+                    ThemeItemRow(theme: theme, model: model)
+                }
+            }
+        case .app:
+            if appProjects.isEmpty {
+                emptyCategoryView(title: "No Window Apps", subtitle: "Scaffold one with 'summon project new <name> --kind app'")
+            } else {
+                ForEach(appProjects) { proj in
+                    PanelAppItemRow(project: proj, model: model)
+                }
+            }
+        case .cli:
+            if cliProjects.isEmpty {
+                emptyCategoryView(title: "No CLI Tools", subtitle: "Scaffold one with 'summon project new <name> --kind cli'")
+            } else {
+                ForEach(cliProjects) { proj in
+                    PanelAppItemRow(project: proj, model: model)
+                }
+            }
+        case .screensaver:
+            if screensaverProjects.isEmpty {
+                emptyCategoryView(title: "No Screensavers", subtitle: "Scaffold one with 'summon project new <name> --kind screensaver'")
+            } else {
+                ForEach(screensaverProjects) { proj in
+                    PanelAppItemRow(project: proj, model: model)
+                }
+            }
+        }
+    }
+
+    private func emptyCategoryView(title: String, subtitle: String) -> some View {
+        VStack(spacing: 8) {
+            Text(title)
+                .font(.headline)
+            Text(subtitle)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 36)
+    }
+
+    // MARK: Search Results
+
+    private var searchResultsView: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            let matches = model.projects.filter {
+                $0.name.localizedCaseInsensitiveContains(query) ||
+                $0.kind.rawValue.localizedCaseInsensitiveContains(query)
+            }
+            let matchingThemes = model.themes.filter {
+                $0.name.localizedCaseInsensitiveContains(query) ||
+                $0.slug.localizedCaseInsensitiveContains(query)
+            }
+
+            if matches.isEmpty && matchingThemes.isEmpty {
+                Text("No matching apps or themes for \"\(query)\"")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 32)
+            } else {
+                if !matches.isEmpty {
+                    Text("Apps")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    ForEach(matches) { proj in
+                        PanelAppItemRow(project: proj, model: model)
+                    }
+                }
+
+                if !matchingThemes.isEmpty {
+                    Text("Themes")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 8)
+                    ForEach(matchingThemes) { theme in
+                        ThemeItemRow(theme: theme, model: model)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: Category Navigation Row (Sleek Panel Look)
+
+struct CategoryNavigationRow: View {
+    let category: AppSectionCategory
+    let count: Int
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: category.systemImage)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .frame(width: 24, height: 24)
+
+                Text(category.rawValue)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Text("\(count)")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(Color.secondary.opacity(0.12), in: Capsule())
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(isHovered ? Color.secondary.opacity(0.12) : Color.secondary.opacity(0.05))
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+    }
+}
+
+// MARK: App Item Row
+
+struct PanelAppItemRow: View {
+    let project: Project
+    let model: SummonModel
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: kindIcon(project.kind))
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.primary)
+                .frame(width: 24, height: 24)
+
+            VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(project.name)
                         .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.primary)
 
                     Text(kindLabel(project.kind))
                         .font(.system(size: 10, weight: .medium))
-                        .padding(.horizontal, 6)
+                        .padding(.horizontal, 5)
                         .padding(.vertical, 1.5)
                         .background(Color.secondary.opacity(0.12), in: Capsule())
                 }
 
-                HStack(spacing: 6) {
-                    Text(project.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.secondary)
-
-                    if let repo = project.repo, !repo.isEmpty {
-                        Text("·")
-                            .foregroundStyle(.secondary)
-                        let cleanRepo = repo
-                            .replacingOccurrences(of: "git@github.com:", with: "https://github.com/")
-                            .replacingOccurrences(of: ".git", with: "")
-                        if let url = URL(string: cleanRepo) {
-                            Link(destination: url) {
-                                HStack(spacing: 3) {
-                                    Image(systemName: "link")
-                                        .font(.system(size: 9))
-                                    Text("GitHub")
-                                        .font(.system(size: 11))
-                                }
-                            }
-                        }
-                    }
-                }
+                Text(project.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.secondary)
             }
 
             Spacer()
 
-            HStack(spacing: 8) {
+            if let repo = project.repo, !repo.isEmpty {
+                let cleanRepo = repo
+                    .replacingOccurrences(of: "git@github.com:", with: "https://github.com/")
+                    .replacingOccurrences(of: ".git", with: "")
+                if let url = URL(string: cleanRepo) {
+                    Link(destination: url) {
+                        HStack(spacing: 3) {
+                            Image(systemName: "link")
+                                .font(.system(size: 9))
+                            Text("GitHub")
+                                .font(.system(size: 11))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.secondary.opacity(0.12), in: Capsule())
+                    }
+                }
+            }
+
+            HStack(spacing: 6) {
                 Button {
                     model.openProject(project)
                 } label: {
@@ -1360,7 +1636,13 @@ struct AppProjectRow: View {
                 .help("Reveal in Finder")
             }
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(isHovered ? Color.secondary.opacity(0.12) : Color.secondary.opacity(0.05))
+        )
+        .onHover { isHovered = $0 }
     }
 
     private func kindIcon(_ kind: ProjectKind) -> String {
@@ -1372,22 +1654,70 @@ struct AppProjectRow: View {
         }
     }
 
-    private func kindColor(_ kind: ProjectKind) -> Color {
-        switch kind {
-        case .menubar: return .indigo
-        case .app: return .blue
-        case .cli: return .teal
-        case .screensaver: return .purple
-        }
-    }
-
     private func kindLabel(_ kind: ProjectKind) -> String {
         switch kind {
-        case .menubar: return "Menu Bar App"
+        case .menubar: return "Panel App"
         case .app: return "Window App"
         case .cli: return "CLI Tool"
         case .screensaver: return "Screensaver"
         }
+    }
+}
+
+// MARK: Theme Item Row
+
+struct ThemeItemRow: View {
+    let theme: Theme
+    let model: SummonModel
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "paintbrush")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.primary)
+                .frame(width: 24, height: 24)
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(theme.name)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.primary)
+
+                    if theme.slug == model.currentThemeSlug {
+                        Text("Active")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.green)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1.5)
+                            .background(Color.green.opacity(0.12), in: Capsule())
+                    }
+                }
+
+                HStack(spacing: 4) {
+                    ColorDot(hex: theme.colors.accent, label: "Accent")
+                    ColorDot(hex: theme.colors.background, label: "Background")
+                    ColorDot(hex: theme.colors.foreground, label: "Foreground")
+                }
+            }
+
+            Spacer()
+
+            if theme.slug != model.currentThemeSlug {
+                Button("Apply") {
+                    model.setTheme(theme.slug)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(isHovered ? Color.secondary.opacity(0.12) : Color.secondary.opacity(0.05))
+        )
+        .onHover { isHovered = $0 }
     }
 }
 
