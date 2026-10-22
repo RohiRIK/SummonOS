@@ -55,6 +55,8 @@ public struct PanelActions {
     public var finish: () -> Void
     /// D1: Esc.
     public var escape: () -> Void
+    /// Close, then open Activity.
+    public var openActivity: () -> Void
     /// D6/B5: close, then open Settings.
     public var openSettings: () -> Void
     /// D6/B6: close, then quit.
@@ -65,17 +67,19 @@ public struct PanelActions {
     public var acceptsReturn: () -> Bool
 
     public init(finish: @escaping () -> Void, escape: @escaping () -> Void,
+                openActivity: @escaping () -> Void = {},
                 openSettings: @escaping () -> Void, quit: @escaping () -> Void,
                 resize: @escaping (CGFloat) -> Void = { _ in }, acceptsReturn: @escaping () -> Bool = { true }) {
         self.finish = finish
         self.escape = escape
+        self.openActivity = openActivity
         self.openSettings = openSettings
         self.quit = quit
         self.resize = resize
         self.acceptsReturn = acceptsReturn
     }
 
-    static var preview: PanelActions { PanelActions(finish: {}, escape: {}, openSettings: {}, quit: {}) }
+    static var preview: PanelActions { PanelActions(finish: {}, escape: {}, openActivity: {}, openSettings: {}, quit: {}) }
 }
 
 /// A borderless, nonactivating panel that can take keystrokes without activating Summon (A1, A2, A5, A6).
@@ -122,6 +126,7 @@ public final class PanelController: NSObject {
     public let state: PanelState
     private let statusItem: NSStatusItem
     private let panel: StatusPanel
+    private let openActivityHandler: () -> Void
     private let openSettingsHandler: () -> Void
     /// Loads the menu and sets its start level before every open (`summon://menu/<id>` passes an entry).
     private let prepare: (String?) -> Void
@@ -145,11 +150,14 @@ public final class PanelController: NSObject {
     public var isOpen: Bool { state.isOpen }
 
     /// `content` is the panel's single SwiftUI view; it is hosted once and kept for the app's lifetime.
-    public init<Content: View>(openSettings: @escaping () -> Void, prepare: @escaping (String?) -> Void,
+    public init<Content: View>(openActivity: @escaping () -> Void = {},
+                               openSettings: @escaping () -> Void,
+                               prepare: @escaping (String?) -> Void,
                                @ViewBuilder content: (PanelState, PanelActions) -> Content) {
         state = PanelState()
         panel = StatusPanel.make()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        openActivityHandler = openActivity
         openSettingsHandler = openSettings
         self.prepare = prepare
         super.init()
@@ -161,6 +169,7 @@ public final class PanelController: NSObject {
         let actions = PanelActions(
             finish: { [weak self] in self?.handle(.actionFinished) },
             escape: { [weak self] in self?.handle(.escapePressed) },
+            openActivity: { [weak self] in self?.handle(.activityChosen) },
             openSettings: { [weak self] in self?.handle(.settingsChosen) },
             quit: { [weak self] in self?.handle(.quitChosen) },
             resize: { [weak self] height in self?.contentHeightChanged(height) },
@@ -277,6 +286,7 @@ public final class PanelController: NSObject {
         case .close(let reason):
             hide(reason)
             switch reason {
+            case .activity: openActivityHandler()
             case .settings: openSettingsHandler()
             case .quit: NSApp.terminate(nil)
             default: break

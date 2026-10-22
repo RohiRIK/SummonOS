@@ -41,7 +41,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         try? ProjectsFolder.ensure(.live)
         let activity = self.activity
         let model = self.model
-        let panel = PanelController(openSettings: { activity.requestSettings() },
+        let panel = PanelController(openActivity: { activity.requestOpen() },
+                                    openSettings: { activity.requestSettings() },
                                     prepare: { model.prepareLauncher(startAt: $0) }) { state, actions in
             PanelView(model: model, activity: activity, panel: state, actions: actions)
         }

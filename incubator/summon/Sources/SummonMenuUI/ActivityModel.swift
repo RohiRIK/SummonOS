@@ -263,13 +263,12 @@ extension ActivityModel {
     }
 }
 
-/// Opens the Activity window when `ActivityModel.requestOpen()` is called from outside any view
-/// (`summon://activity`). Attach it to the menu bar label: the one view that is always alive.
+/// Opens the Activity and Settings windows when requested from outside any view.
 public struct ActivityOpener: ViewModifier {
     public static let windowID = "activity"
+    public static let settingsWindowID = "settings"
     let activity: ActivityModel
     @Environment(\.openWindow) private var openWindow
-    @Environment(\.openSettings) private var openSettings
 
     public init(activity: ActivityModel) {
         self.activity = activity
@@ -278,13 +277,42 @@ public struct ActivityOpener: ViewModifier {
     public func body(content: Content) -> some View {
         content
             .onChange(of: activity.openRequest) {
-                NSApp.activate()
-                openWindow(id: Self.windowID)
+                present(id: Self.windowID, title: "Summon Activity")
             }
             .onChange(of: activity.settingsRequest) {
-                NSApp.activate()
-                openSettings()
+                present(id: Self.settingsWindowID, title: "Summon Settings")
             }
+    }
+
+    private func present(id: String, title: String) {
+        openWindow(id: id)
+        bringToFront(title: title)
+    }
+
+    private func bringToFront(title: String) {
+        DispatchQueue.main.async {
+            NSApp.activate()
+            DispatchQueue.main.async {
+                guard let window = NSApp.windows.first(where: { $0.title == title || $0.title.contains(title) }) else {
+                    NSApp.activate()
+                    return
+                }
+                if window.isMiniaturized {
+                    window.deminiaturize(nil)
+                }
+                let mouse = NSEvent.mouseLocation
+                let pointerScreen = NSScreen.screens.first { NSMouseInRect(mouse, $0.frame, false) }
+                let targetScreen = pointerScreen ?? NSScreen.main ?? window.screen
+                if let targetScreen, !targetScreen.frame.intersects(window.frame) {
+                    let visible = targetScreen.visibleFrame
+                    let x = visible.midX - window.frame.width / 2
+                    let y = visible.midY - window.frame.height / 2
+                    window.setFrameOrigin(NSPoint(x: x, y: y))
+                }
+                window.makeKeyAndOrderFront(nil)
+                NSApp.activate()
+            }
+        }
     }
 }
 
