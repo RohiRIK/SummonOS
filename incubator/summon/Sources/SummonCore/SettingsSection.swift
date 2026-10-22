@@ -2,6 +2,7 @@
 public enum SettingsSection: String, Sendable, CaseIterable, Identifiable {
     case general
     case agents
+    case apps
     case terminal
     case notifications
     case appearance
@@ -13,6 +14,7 @@ public enum SettingsSection: String, Sendable, CaseIterable, Identifiable {
         switch self {
         case .general: return "General"
         case .agents: return "Agents"
+        case .apps: return "My Apps"
         case .terminal: return "Terminal"
         case .notifications: return "Notifications"
         case .appearance: return "Appearance"
@@ -25,6 +27,7 @@ public enum SettingsSection: String, Sendable, CaseIterable, Identifiable {
         switch self {
         case .general: return "gearshape"
         case .agents: return "sparkles"
+        case .apps: return "square.grid.2x2"
         case .terminal: return "terminal"
         case .notifications: return "bell.badge"
         case .appearance: return "paintpalette"
