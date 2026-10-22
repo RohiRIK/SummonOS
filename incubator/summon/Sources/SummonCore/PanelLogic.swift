@@ -19,6 +19,8 @@ public enum PanelCloseReason: String, Sendable, CaseIterable {
     case appSwitch
     /// D5, F3: the active Space changed.
     case spaceChange
+    /// Activity… was chosen.
+    case activity
     /// D6, B5: Settings… was chosen.
     case settings
     /// D6, B6: Quit was chosen.
@@ -43,6 +45,7 @@ public enum PanelEvent: Equatable, Sendable {
     case closeFromCode
     case escapePressed
     case actionFinished
+    case activityChosen
     case settingsChosen
     case quitChosen
     /// `NSWorkspace.didActivateApplicationNotification` with the new frontmost app's pid.
@@ -105,6 +108,8 @@ public enum PanelDismissal {
             return isOpen ? .ignore : .open
         case .closeFromCode:
             return isOpen ? .close(.programmatic) : .ignore
+        case .activityChosen:
+            return .close(.activity)
         case .settingsChosen:
             // The menu can be chosen while the panel is already closed (B4 closed it); Settings still opens.
             return .close(.settings)
@@ -143,7 +148,7 @@ public enum PanelDismissal {
         switch reason {
         case .escape, .toggle, .action, .programmatic, .contextMenu:
             return true
-        case .appSwitch, .spaceChange, .settings, .quit, .lockOrSleep, .crashAlert:
+        case .appSwitch, .spaceChange, .activity, .settings, .quit, .lockOrSleep, .crashAlert:
             return false
         }
     }
