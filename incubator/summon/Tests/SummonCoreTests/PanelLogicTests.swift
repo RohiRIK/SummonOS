@@ -35,8 +35,10 @@ struct PanelLogicTests {
     }
 
     @Test func settingsAndQuitClose() {
+        #expect(PanelDismissal.decide(.activityChosen, isOpen: true, session: session) == .close(.activity))
         #expect(PanelDismissal.decide(.settingsChosen, isOpen: true, session: session) == .close(.settings))
         #expect(PanelDismissal.decide(.quitChosen, isOpen: true, session: session) == .close(.quit))
+        #expect(PanelDismissal.decide(.activityChosen, isOpen: false, session: nil) == .close(.activity))
         #expect(PanelDismissal.decide(.settingsChosen, isOpen: false, session: nil) == .close(.settings))
     }
 
@@ -99,6 +101,7 @@ struct PanelLogicTests {
         #expect(PanelDismissal.focusAction(after: .escape, frontmostPID: textEdit, session: session) == .none)
         #expect(PanelDismissal.focusAction(after: .escape, frontmostPID: summon, session: session) == .activatePrevious)
         #expect(PanelDismissal.focusAction(after: .appSwitch, frontmostPID: summon, session: session) == .none)
+        #expect(PanelDismissal.focusAction(after: .activity, frontmostPID: summon, session: session) == .none)
         #expect(PanelDismissal.focusAction(after: .settings, frontmostPID: summon, session: session) == .none)
         #expect(PanelDismissal.focusAction(after: .escape, frontmostPID: summon, session: nil) == .none)
         let selfOpened = PanelSession(previousAppPID: summon, ownPID: summon)

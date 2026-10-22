@@ -124,10 +124,8 @@ public struct PanelView: View {
             .keyboardShortcut(model.panelAgentShortcut.keyEquivalent, modifiers: model.panelAgentShortcut.eventModifiers)
             .disabled(model.defaultAgent == nil || !model.agentInstalled)
             MenuRow(title: "Activity…", systemImage: "list.bullet.rectangle", shortcut: nil) {
-                actions.finish()
                 activity.selection = nil
-                // Hosted outside any SwiftUI scene: the always-alive opener window opens Activity.
-                activity.requestOpen()
+                actions.openActivity()
             }
             if panel.fixtureRows > 0 {
                 PanelDivider()
