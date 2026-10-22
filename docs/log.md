@@ -1,6 +1,7 @@
 # Docs update log
 
 ## 2026-10-22
+* **Creation**: [Skill: summon-migrate](skills/summon-migrate.md): guides migrating external apps and legacy plugins into `~/Summon/Apps`, adds `summon project import` and `summon project register` CLI commands, and migrated `mac-network`, `mac-calendar`, and `mac-breathe`.
 * **Update**: [Features](features.md): added automated real-time health checks and "Fix with AI" triggers for all app projects, themes, and art assets (AppIcon.icns, UI screenshots, wallpapers, art jobs).
 * **Update**: [Features](features.md): added dedicated "My Apps" section in Settings with category drill-down navigation matching the menu bar panel.
 * **Update**: [Features](features.md): added interactive panel back button with keyboard Escape pop and Delete key navigation.

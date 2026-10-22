@@ -6,6 +6,11 @@ version numbers yet; entries are grouped by day and point at the pull request.
 ## 2026-10-22
 
 ### Added
+- **`summon-migrate` Skill & Project Import Commands:**
+  - Added new `summon-migrate` skill to guide migrating external Mac apps and legacy plugins into `~/Summon/Apps/<name>`.
+  - Added `summon project import <path>` to copy and register external apps, auto-detecting app kind and Git remotes.
+  - Added `summon project register <name>` to register existing folders in `~/Summon/Apps/`.
+  - Migrated `mac-network`, `mac-calendar`, and `mac-breathe` into first-class Summon apps in `~/Summon/Apps/`.
 - **Health Engine & "Fix with AI" for Apps, Themes, and Art:**
   - `ItemHealth` engine automatically audits every app project, theme, and art job in real time.
   - Per-item "Fix with AI" triggers dispatch targeted prompts directly to the user's default agent using `summon-art`, `summon-mac`, or `diagnose-crash-mac` skills.

@@ -187,4 +187,36 @@ struct ProjectTests {
         }
         #expect(await approvals.requests.isEmpty)
     }
+
+    @Test func registerExistingFolder() async throws {
+        let temp = try makeTempHome()
+        let paths = SummonPaths(home: temp)
+        try ProjectsFolder.ensure(paths)
+        let appDir = paths.projects.appendingPathComponent("custom-widget", isDirectory: true)
+        try FileManager.default.createDirectory(at: appDir, withIntermediateDirectories: true)
+        try writeFile("// swift-tools-version: 6.0\nimport PackageDescription\nlet p = Package(name: \"CustomWidget\", targets: [.executableTarget(name: \"CustomWidget\")])\n",
+                       to: appDir.appendingPathComponent("Package.swift"))
+
+        let log = CallLog()
+        let service = ProjectService(paths: paths, runner: fakeRunner(log), gitPath: nil)
+        let project = try await service.register(name: "custom-widget")
+        #expect(project.name == "custom-widget")
+        #expect(project.path == appDir.path)
+        #expect(try ProjectStore(paths: paths).load().find("custom-widget") != nil)
+    }
+
+    @Test func importExternalFolder() async throws {
+        let temp = try makeTempHome()
+        let paths = SummonPaths(home: temp)
+        let external = temp.appendingPathComponent("external-tool")
+        try FileManager.default.createDirectory(at: external, withIntermediateDirectories: true)
+        try writeFile("// swift-tools-version: 6.0\n", to: external.appendingPathComponent("Package.swift"))
+
+        let log = CallLog()
+        let service = ProjectService(paths: paths, runner: fakeRunner(log), gitPath: nil)
+        let project = try await service.importProject(from: external, name: "imported-tool")
+        #expect(project.name == "imported-tool")
+        #expect(FileManager.default.fileExists(atPath: paths.projects.appendingPathComponent("imported-tool").path))
+        #expect(try ProjectStore(paths: paths).load().find("imported-tool") != nil)
+    }
 }

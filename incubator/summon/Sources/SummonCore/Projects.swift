@@ -255,6 +255,65 @@ public struct ProjectService: Sendable {
         try store.save(registry)
         return (project, problems)
     }
+
+    /// Registers an existing app directory in `~/Summon/Apps/<name>` into the private registry.
+    public func register(name: String, kind: ProjectKind? = nil, date: Date = Date()) async throws -> Project {
+        guard ProjectName.isValid(name) else { throw ProjectError.invalidName(name) }
+        let store = ProjectStore(paths: paths)
+        var registry = try store.load()
+        let destination = paths.projects.appendingPathComponent(name, isDirectory: true)
+        guard FileManager.default.fileExists(atPath: destination.path) else {
+            throw ProjectError.notRegistered("Folder does not exist at \(destination.path)")
+        }
+
+        let resolvedKind = kind ?? detectKind(in: destination)
+
+        var repoUrl: String? = nil
+        if let git = gitPath {
+            if let output = try? await runner(git, ["-C", destination.path, "remote", "get-url", "origin"]) {
+                let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty { repoUrl = trimmed }
+            }
+        }
+
+        let project = Project(name: name, kind: resolvedKind, path: destination.path, created: date, repo: repoUrl)
+        registry.upsert(project)
+        try store.save(registry)
+        return project
+    }
+
+    /// Imports an external app directory into `~/Summon/Apps/<name>` and registers it.
+    public func importProject(from source: URL, name: String? = nil, kind: ProjectKind? = nil, date: Date = Date()) async throws -> Project {
+        let appName = name ?? source.lastPathComponent
+        guard ProjectName.isValid(appName) else { throw ProjectError.invalidName(appName) }
+        try ProjectsFolder.ensure(paths)
+        let destination = paths.projects.appendingPathComponent(appName, isDirectory: true)
+
+        if destination.standardizedFileURL.path != source.standardizedFileURL.path && !FileManager.default.fileExists(atPath: destination.path) {
+            try FileManager.default.copyItem(at: source, to: destination)
+        }
+
+        return try await register(name: appName, kind: kind, date: date)
+    }
+
+    public func detectKind(in folder: URL) -> ProjectKind {
+        let pkg = folder.appendingPathComponent("Package.swift")
+        if let content = try? String(contentsOf: pkg, encoding: .utf8) {
+            if content.contains("ScreenSaver") { return .screensaver }
+            if content.contains("executableTarget") && !content.contains("MenuBarExtra") { return .cli }
+        }
+        let sources = folder.appendingPathComponent("Sources")
+        if let files = try? FileManager.default.subpathsOfDirectory(atPath: sources.path) {
+            for file in files {
+                if file.hasSuffix(".swift"), let code = try? String(contentsOf: sources.appendingPathComponent(file), encoding: .utf8) {
+                    if code.contains("MenuBarExtra") || code.contains("NSStatusItem") { return .menubar }
+                    if code.contains("ScreenSaverView") { return .screensaver }
+                    if code.contains("WindowGroup") { return .app }
+                }
+            }
+        }
+        return .menubar
+    }
 }
 
 /// What the approval dialog shows, and what gets created if the user approves.
