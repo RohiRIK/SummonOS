@@ -7,6 +7,7 @@ import SwiftUI
 public enum SettingsPanel: Hashable {
     case general
     case agents
+    case apps
     case terminal
     case notifications
     case appearance
@@ -117,6 +118,9 @@ public struct SettingsView: View {
             case .agents:
                 headerIcon(systemName: "sparkles", color: .purple)
                 headerText(title: "All Agents", subtitle: "Installed coding agents, model connections, and providers")
+            case .apps:
+                headerIcon(systemName: "square.grid.2x2.fill", color: .indigo)
+                headerText(title: "My Apps", subtitle: "Apps and menu bar widgets built in ~/Summon/Apps")
             case .terminal:
                 headerIcon(systemName: "terminal.fill", color: .black)
                 headerText(title: "Terminal", subtitle: "Default terminal emulator, launch behavior, and window styling")
@@ -170,6 +174,8 @@ public struct SettingsView: View {
             GeneralSettings(model: model)
         case .agents:
             AllAgentsDetail(model: model)
+        case .apps:
+            AppsSettings(model: model)
         case .terminal:
             TerminalSettings(model: model)
         case .notifications:
@@ -204,6 +210,7 @@ struct SettingsSectionView: View {
         switch section {
         case .general: GeneralSettings(model: model)
         case .agents: AllAgentsDetail(model: model)
+        case .apps: AppsSettings(model: model)
         case .terminal: TerminalSettings(model: model)
         case .notifications: NotificationSettings(model: model)
         case .appearance: AppearanceSettings(model: model)
@@ -217,6 +224,7 @@ extension SettingsSection {
         switch self {
         case .general: return .general
         case .agents: return .agents
+        case .apps: return .apps
         case .terminal: return .terminal
         case .notifications: return .notifications
         case .appearance: return .appearance
@@ -228,6 +236,7 @@ extension SettingsSection {
         switch self {
         case .general: return Color.blue
         case .agents: return Color.purple
+        case .apps: return Color.indigo
         case .terminal: return Color.cyan
         case .notifications: return Color.red
         case .appearance: return Color.pink
@@ -1186,6 +1195,199 @@ extension Color {
         let g = Double((int >> 8) & 0xFF) / 255.0
         let b = Double(int & 0xFF) / 255.0
         self.init(red: r, green: g, blue: b)
+    }
+}
+
+// MARK: Apps
+
+/// Apps and widgets built in ~/Summon/Apps (from templates or agent builds).
+struct AppsSettings: View {
+    let model: SummonModel
+    @State private var query = ""
+
+    private var filteredProjects: [Project] {
+        if query.trimmingCharacters(in: .whitespaces).isEmpty {
+            return model.projects
+        }
+        return model.projects.filter {
+            $0.name.localizedCaseInsensitiveContains(query) ||
+            $0.kind.rawValue.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Apps Home")
+                            .font(.headline)
+                        Text("~/Summon/Apps")
+                            .font(.system(.subheadline, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("Open in Finder") {
+                        let url = URL(fileURLWithPath: model.paths.projects.path)
+                        NSWorkspace.shared.open(url)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+
+                    Button("View Showcase") {
+                        let showcaseURL = model.paths.summonHome.appendingPathComponent("Showcase/index.html")
+                        if FileManager.default.fileExists(atPath: showcaseURL.path) {
+                            NSWorkspace.shared.open(showcaseURL)
+                        } else {
+                            NSWorkspace.shared.open(model.paths.summonHome)
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                .padding(.vertical, 4)
+            }
+
+            Section {
+                if model.projects.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "square.grid.2x2")
+                            .font(.system(size: 36))
+                            .foregroundStyle(.secondary)
+                        Text("No Apps Yet")
+                            .font(.headline)
+                        Text("Create a new app by asking an agent (\"Make me an app\") or running 'summon project new <name>' in terminal.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+                } else {
+                    ForEach(filteredProjects) { project in
+                        AppProjectRow(project: project, model: model)
+                    }
+                }
+            } header: {
+                HStack {
+                    Text("Installed Projects")
+                    Spacer()
+                    Text("\(model.projects.count) \(model.projects.count == 1 ? "app" : "apps")")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            } footer: {
+                Text("New projects are scaffolded in ~/Summon/Apps and tracked in ~/.config/summon/projects.json.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .onAppear {
+            model.reloadProjects()
+        }
+    }
+}
+
+struct AppProjectRow: View {
+    let project: Project
+    let model: SummonModel
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: kindIcon(project.kind))
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 32, height: 32)
+                .background(kindColor(project.kind), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(project.name)
+                        .font(.system(size: 13, weight: .semibold))
+
+                    Text(kindLabel(project.kind))
+                        .font(.system(size: 10, weight: .medium))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1.5)
+                        .background(Color.secondary.opacity(0.12), in: Capsule())
+                }
+
+                HStack(spacing: 6) {
+                    Text(project.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.secondary)
+
+                    if let repo = project.repo, !repo.isEmpty {
+                        Text("·")
+                            .foregroundStyle(.secondary)
+                        let cleanRepo = repo
+                            .replacingOccurrences(of: "git@github.com:", with: "https://github.com/")
+                            .replacingOccurrences(of: ".git", with: "")
+                        if let url = URL(string: cleanRepo) {
+                            Link(destination: url) {
+                                HStack(spacing: 3) {
+                                    Image(systemName: "link")
+                                        .font(.system(size: 9))
+                                    Text("GitHub")
+                                        .font(.system(size: 11))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                Button {
+                    model.openProject(project)
+                } label: {
+                    Label("Open", systemImage: "arrow.up.right")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+
+                Button {
+                    let folder = URL(fileURLWithPath: project.path)
+                    NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: folder.path)
+                } label: {
+                    Image(systemName: "folder")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Reveal in Finder")
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func kindIcon(_ kind: ProjectKind) -> String {
+        switch kind {
+        case .menubar: return "menubar.rectangle"
+        case .app: return "macwindow"
+        case .cli: return "terminal"
+        case .screensaver: return "sparkles.tv"
+        }
+    }
+
+    private func kindColor(_ kind: ProjectKind) -> Color {
+        switch kind {
+        case .menubar: return .indigo
+        case .app: return .blue
+        case .cli: return .teal
+        case .screensaver: return .purple
+        }
+    }
+
+    private func kindLabel(_ kind: ProjectKind) -> String {
+        switch kind {
+        case .menubar: return "Menu Bar App"
+        case .app: return "Window App"
+        case .cli: return "CLI Tool"
+        case .screensaver: return "Screensaver"
+        }
     }
 }
 

@@ -6,7 +6,7 @@ import Testing
 struct SettingsSectionTests {
     @Test func sidebarOrderAndTitles() {
         #expect(SettingsSection.allCases.map(\.title)
-            == ["General", "Agents", "Terminal", "Notifications", "Appearance", "Tasks"])
+            == ["General", "Agents", "My Apps", "Terminal", "Notifications", "Appearance", "Tasks"])
         #expect(SettingsSection.initial == .general)
         #expect(Set(SettingsSection.allCases.map(\.id)).count == SettingsSection.allCases.count)
         #expect(SettingsSection.allCases.allSatisfy { !$0.systemImage.isEmpty })

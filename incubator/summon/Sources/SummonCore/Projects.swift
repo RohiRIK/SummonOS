@@ -30,7 +30,8 @@ public enum ProjectKind: String, CaseIterable, Codable, Sendable {
 }
 
 /// One project in Summon's private registry.
-public struct Project: Codable, Sendable, Equatable {
+public struct Project: Codable, Sendable, Equatable, Identifiable {
+    public var id: String { name }
     public var name: String
     public var kind: ProjectKind
     public var path: String
