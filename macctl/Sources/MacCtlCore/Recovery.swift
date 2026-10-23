@@ -85,7 +85,10 @@ public struct OSVersion: Sendable, Hashable, Comparable {
         let pieces = text.trimmingCharacters(in: .whitespaces).split(separator: ".")
         let numbers = pieces.compactMap { Int($0) }
         guard !numbers.isEmpty, numbers.count == pieces.count else { return nil }
-        parts = numbers
+        // Trailing zeros dropped, so `27` and `27.0` are equal and hash alike.
+        var trimmed = numbers
+        while trimmed.count > 1, trimmed.last == 0 { trimmed.removeLast() }
+        parts = trimmed
     }
 
     public static func < (a: OSVersion, b: OSVersion) -> Bool {
