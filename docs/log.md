@@ -1,5 +1,9 @@
 # Docs update log
 
+## 2026-10-23
+* **Update**: [Features](features.md): macctl declares a recovery contract per setting, previews undo (`undo --dry-run`), gates settings by `minimumOS`, adds `discover start|diff`, and grows to 38 settings (macOS 26 menu icons, macOS 27 menu bar keyboard navigation).
+* **Update**: [ADR: macctl recovery](adr/ADR-macctl-recovery.md): addendum D4 (declared guarantees, undo preview, fault-schedule tests).
+
 ## 2026-10-22
 * **Creation**: [Skill: summon-migrate](skills/summon-migrate.md): guides migrating external apps and legacy plugins into `~/Summon/Apps`, adds `summon project import` and `summon project register` CLI commands, and migrated `mac-network`, `mac-calendar`, and `mac-breathe`.
 * **Update**: [Features](features.md): added automated real-time health checks and "Fix with AI" triggers for all app projects, themes, and art assets (AppIcon.icns, UI screenshots, wallpapers, art jobs).
