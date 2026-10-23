@@ -68,6 +68,7 @@ public struct Engine: MacCtlService {
     /// only when its effective value differs from the target.
     public func diff(_ profile: Profile) async throws -> [Change] {
         let targets = try resolve(profile)
+        try await requireAvailable(targets.map(\.setting))
         try await requirePermissions(targets.map(\.setting))
         return try await plan(targets).map(\.change)
     }
@@ -77,6 +78,7 @@ public struct Engine: MacCtlService {
         defer { transaction?.release() }
         if !dryRun { try prepareMutation() }
         let targets = try resolve(profile)
+        try await requireAvailable(targets.map(\.setting))
         try await requirePermissions(targets.map(\.setting))
         let planned = try await plan(targets)
 
@@ -98,7 +100,8 @@ public struct Engine: MacCtlService {
         }
         let notes = lost + shadows + Self.notes(for: planned.map(\.setting))
         guard !dryRun, !planned.isEmpty else {
-            return ApplyResult(snapshotID: nil, changes: changes, dryRun: dryRun, notes: notes)
+            return ApplyResult(snapshotID: nil, changes: changes, dryRun: dryRun,
+                               notes: notes + (dryRun ? Self.undoLimits(planned.map(\.setting)) : []))
         }
         let run = try await runSession(planned, undoes: nil)
         pruneJournals()
@@ -134,23 +137,136 @@ public struct Engine: MacCtlService {
         let transaction = try await snapshotStore.acquireTransaction()
         defer { transaction.release() }
         try prepareMutation()
-        let id: String
-        if let snapshotID {
-            guard FileSnapshotStore.isSafeID(snapshotID) else { throw MacCtlError.snapshotNotFound(snapshotID) }
-            id = snapshotID
-        } else {
-            let all = try snapshots()
-            let inEffect: (Snapshot) -> Bool = { $0.status == nil || $0.status == .completed }
-            let undone = Set(all.filter(inEffect).compactMap(\.undoes))
-            guard let newest = all.first(where: { inEffect($0) && $0.undoes == nil && !undone.contains($0.id) }) else {
-                throw MacCtlError.noSnapshots
-            }
-            id = newest.id
-        }
+        let id = try undoTarget(snapshotID)
         if try journals.contents(id) != nil {
             return try await undoJournaled(id, force: force)
         }
         return try await legacyUndo(try snapshotStore.load(id: id))
+    }
+
+    /// The session `undo` acts on: `snapshotID`, else the newest one still in effect.
+    private func undoTarget(_ snapshotID: String?) throws -> String {
+        if let snapshotID {
+            guard FileSnapshotStore.isSafeID(snapshotID) else { throw MacCtlError.snapshotNotFound(snapshotID) }
+            return snapshotID
+        }
+        let all = try snapshots()
+        let inEffect: (Snapshot) -> Bool = { $0.status == nil || $0.status == .completed }
+        let undone = Set(all.filter(inEffect).compactMap(\.undoes))
+        guard let newest = all.first(where: { inEffect($0) && $0.undoes == nil && !undone.contains($0.id) }) else {
+            throw MacCtlError.noSnapshots
+        }
+        return newest.id
+    }
+
+    /// `undo --dry-run`: what undo would do to each change, newest first, without the lock or any
+    /// write. It runs the real walk's checks in the same order (already at prior, hand edit, hash-only
+    /// prior, unrestorable value), so a preview with `wouldSucceed` false predicts `partial_restore`.
+    /// Refuses with `recovery_pending` exactly when undo would.
+    public func previewUndo(snapshotID: String?, force: Bool) async throws -> UndoPreview {
+        if let pending = try unresolvedIDs().first { throw MacCtlError.recoveryPending(snapshotID: pending) }
+        let id = try undoTarget(snapshotID)
+        guard try journals.contents(id) != nil else {
+            return try await previewLegacyUndo(try snapshotStore.load(id: id), force: force)
+        }
+        let session = try loadSession(id)
+        let status = session.status
+        let canForce = force && status != .pending && !session.flaggedSettings.isEmpty
+        guard status == .completed || canForce else {
+            return UndoPreview(snapshotID: id, force: force, items: [], notes: ["\(id) is \(status.rawValue); nothing to undo."])
+        }
+        try await requirePermissions(session.intents.compactMap { $0.settingID.flatMap { try? registry.setting($0) } })
+        let key = { try journals.hmacKey() }
+        let outcomes = session.outcomes
+        let reverts = session.reverts
+        let candidates = session.intents.filter { intent in
+            let wanted = outcomes[intent.seq] == .applied
+            switch reverts[intent.seq] {
+            case .reverted: return false
+            case .flagged: return wanted && force
+            case .open: return true
+            case nil: return wanted
+            }
+        }.sorted { $0.seq > $1.seq }
+
+        var items: [UndoPreview.Item] = []
+        var notes: [String] = []
+        for intent in candidates {
+            guard let settingID = intent.settingID, let setting = try? registry.setting(settingID),
+                  let prior = intent.prior else {
+                notes.append("Skipped \(intent.settingID ?? "?") in \(id): not in this catalog.")
+                continue
+            }
+            let current = try await backend.storedValue(setting)
+            let item = { (action: UndoPreview.Action, reason: String?) in
+                UndoPreview.Item(id: setting.id, action: action,
+                                 current: setting.sensitive ? nil : current?.value,
+                                 restoresTo: setting.sensitive ? nil : prior.displayValue, reason: reason)
+            }
+            if try prior.isCurrent(current, key: key), try await wallpapersAt(intent.wallpapers, setting) {
+                items.append(item(.alreadyRestored, nil))
+                continue
+            }
+            if case .open(let open) = reverts[intent.seq] {
+                guard try (open.expected ?? .missing).matches(current, key: key) else {
+                    items.append(item(.handEdited, "before-state not matched: the value is neither the expected nor the prior one"))
+                    continue
+                }
+            } else {
+                let handEdited = try !(intent.new ?? .missing).matches(current, key: key)
+                if handEdited && !force {
+                    items.append(item(.handEdited, "changed by hand after apply; undo --force overwrites it"))
+                    continue
+                }
+                if !prior.isRestorable {
+                    items.append(item(.cannotRestore, "sensitive prior is stored as a hash only"))
+                    continue
+                }
+                if let reason = (intent.wallpapers?.map { Value.string($0.path) } ?? prior.value.map { [$0.value] } ?? [])
+                    .compactMap({ unrestorable($0, for: setting) }).first {
+                    items.append(item(.cannotRestore, reason))
+                    continue
+                }
+            }
+            let deletes = prior.restoresByDeleting && !(intent.wallpapers.map { !$0.isEmpty } ?? false)
+            items.append(item(deletes ? .delete : .restore, nil))
+        }
+        return UndoPreview(snapshotID: id, force: force, items: items, notes: notes)
+    }
+
+    /// Preview of a pre-journal snapshot's undo: it restores `from` (or deletes an unset key) without
+    /// a hand-edit check, as the legacy path does.
+    private func previewLegacyUndo(_ snapshot: Snapshot, force: Bool) async throws -> UndoPreview {
+        var items: [UndoPreview.Item] = []
+        var seen: Set<String> = []
+        for change in snapshot.changes where seen.insert(change.id).inserted {
+            let setting = try registry.setting(change.id)
+            let current = try await backend.read(setting)
+            let item = { (action: UndoPreview.Action, reason: String?) in
+                UndoPreview.Item(id: setting.id, action: action, current: current, restoresTo: change.from, reason: reason)
+            }
+            if let saved = change.wallpaperBefore {
+                if try await backend.wallpapers(for: setting) == saved { items.append(item(.alreadyRestored, nil)); continue }
+                if let reason = saved.compactMap({ unrestorable(.string($0.path), for: setting) }).first {
+                    items.append(item(.cannotRestore, reason))
+                } else {
+                    items.append(item(.restore, nil))
+                }
+            } else if let restore = change.from {
+                let value = setting.type.normalize(restore)
+                if let current, current.sameValue(as: value) { items.append(item(.alreadyRestored, nil)); continue }
+                if let reason = unrestorable(value, for: setting) {
+                    items.append(item(.cannotRestore, reason))
+                } else {
+                    items.append(item(.restore, nil))
+                }
+            } else {
+                let prior = try await backend.priorState(setting)
+                items.append(item(prior.state == .explicit ? .delete : .alreadyRestored, nil))
+            }
+        }
+        return UndoPreview(snapshotID: snapshot.id, force: force, items: Array(items.reversed()),
+                           notes: ["\(snapshot.id) is a pre-journal snapshot: undo restores its old values without a hand-edit check."])
     }
 
     /// Rolls back every unresolved session (unfinished journal, or a header with no journal), newest
@@ -291,6 +407,16 @@ public struct Engine: MacCtlService {
             guard granted else {
                 throw MacCtlError.permissionMissing(permission, settingsURL: probe.settingsURL(for: permission))
             }
+        }
+    }
+
+    /// Refuses a setting newer than this macOS (`minimumOS`) before anything is read or written.
+    private func requireAvailable(_ settings: [Setting]) async throws {
+        guard settings.contains(where: { $0.minimumOS != nil }) else { return }
+        let version = await osVersion()
+        if let missing = settings.first(where: { !$0.isAvailable(on: version) }) {
+            throw MacCtlError.unsupported(id: missing.id,
+                                          reason: "needs macOS \(missing.minimumOS ?? "?") or later; this Mac runs \(version)")
         }
     }
 
@@ -458,6 +584,7 @@ public struct Engine: MacCtlService {
         switch effect {
         case .restart(let process): "restart:\(process)"
         case .logout: "logout"
+        case .relaunchApps: "relaunch-apps"
         }
     }
 
@@ -474,9 +601,28 @@ public struct Engine: MacCtlService {
     }
 
     private static func notes(for settings: [Setting]) -> [String] {
+        var notes: [String] = []
         let logoutIDs = settings.filter { $0.after.contains(.logout) }.map(\.id)
-        guard !logoutIDs.isEmpty else { return [] }
-        return ["Log out and back in for these changes to take effect: \(logoutIDs.joined(separator: ", "))"]
+        if !logoutIDs.isEmpty {
+            notes.append("Log out and back in for these changes to take effect: \(logoutIDs.joined(separator: ", "))")
+        }
+        let relaunchIDs = settings.filter { $0.after.contains(.relaunchApps) }.map(\.id)
+        if !relaunchIDs.isEmpty {
+            notes.append("Quit and reopen apps to see these changes: \(relaunchIDs.joined(separator: ", "))")
+        }
+        return notes
+    }
+
+    /// Dry-run notes for settings whose undo is weaker than exact, or that leave side effects behind
+    /// (the declared `RecoveryContract`), so the limits are known before the real run.
+    static func undoLimits(_ settings: [Setting]) -> [String] {
+        settings.compactMap { setting in
+            let contract = setting.recovery
+            var parts: [String] = []
+            if contract.restore != .exact { parts.append("undo is \(contract.restore.rawValue)") }
+            if !contract.notUndone.isEmpty { parts.append("not undone: \(contract.notUndone.joined(separator: "; "))") }
+            return parts.isEmpty ? nil : "\(setting.id): \(parts.joined(separator: ", "))."
+        }
     }
 
     private static func name(of permission: Permission) -> String {

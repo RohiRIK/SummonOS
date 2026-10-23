@@ -63,6 +63,10 @@ struct SettingInfo: Encodable {
     let verified: Bool
     let verifiedOn: [String]
     let systemDefault: Value?
+    /// Oldest macOS with this setting; nil = every supported macOS.
+    let minimumOS: String?
+    /// What undo can promise, declared before any write.
+    let recovery: RecoveryContract
     /// Effective value; nil when unset with no known default, or when reading failed.
     let current: Value?
     /// Why `current` could not be read (for example a missing permission).
@@ -80,6 +84,8 @@ struct SettingInfo: Encodable {
         verified = !setting.verifiedOn.isEmpty
         verifiedOn = setting.verifiedOn
         systemDefault = setting.systemDefault
+        minimumOS = setting.minimumOS
+        recovery = setting.recovery
         self.current = current
         self.currentError = currentError
     }
@@ -97,7 +103,7 @@ struct SettingInfo: Encodable {
 
     enum CodingKeys: String, CodingKey {
         case id, domain, summary, type, risk, permissions, sideEffects, backend
-        case verified, verifiedOn, systemDefault, current, currentError
+        case verified, verifiedOn, systemDefault, minimumOS, recovery, current, currentError
     }
 
     func encode(to encoder: Encoder) throws {
@@ -114,6 +120,8 @@ struct SettingInfo: Encodable {
         try c.encode(verifiedOn, forKey: .verifiedOn)
         // Always present, `null` when unknown, so agents can rely on the keys.
         try c.encode(systemDefault, forKey: .systemDefault)
+        try c.encode(minimumOS, forKey: .minimumOS)
+        try c.encode(recovery, forKey: .recovery)
         try c.encode(current, forKey: .current)
         try c.encodeIfPresent(currentError, forKey: .currentError)
     }
@@ -130,6 +138,7 @@ struct SettingInfo: Encodable {
         switch effect {
         case .restart(let process): "restart:\(process)"
         case .logout: "logout"
+        case .relaunchApps: "relaunch-apps"
         }
     }
 

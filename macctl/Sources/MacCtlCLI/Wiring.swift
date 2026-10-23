@@ -66,3 +66,20 @@ func macOSProductVersion() -> String {
         ? "\(v.majorVersion).\(v.minorVersion)"
         : "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)"
 }
+
+/// The preferences `macctl discover` reads: the test-mode fake when configured, else CFPreferences.
+/// The baseline lives next to the snapshot directory (test mode keeps it inside the test root).
+func makeDiscovery() -> (preferences: any PreferencesStore, store: DiscoveryStore) {
+    let test: TestMode.Configuration?
+    do {
+        test = try TestMode.configuration(ProcessInfo.processInfo.environment)
+    } catch {
+        FileHandle.standardError.write(Data("macctl: \(error)\n".utf8))
+        exit(64)
+    }
+    guard let test else { return (SystemBackend.livePreferences(), DiscoveryStore()) }
+    let preferences: any PreferencesStore = test.fakeDefaults.map { PlistFilePreferencesStore(directory: $0) }
+        ?? SystemBackend.livePreferences()
+    let file = test.snapshotDirectory.deletingLastPathComponent().appendingPathComponent("discover/baseline.json")
+    return (preferences, DiscoveryStore(file: file))
+}

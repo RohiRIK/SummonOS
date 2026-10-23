@@ -4,6 +4,7 @@ import Foundation
 /// `verifiedOn` stays empty until a human checks the setting on a real Mac.
 public enum Catalog {
     public static let all: [Setting] = dock + finder + keyboard + screenshots + appearance + desktop
+        + windows + menubar + documents
 
     // MARK: Dock
 
@@ -58,6 +59,44 @@ public enum Catalog {
             after: restartDock,
             systemDefault: .double(0.5)
         ),
+        Setting(
+            id: "dock.magnification",
+            summary: "Enlarge Dock icons under the pointer (true = magnify); the size is dock.magnified-size.",
+            type: .bool,
+            backend: .defaults(domain: "com.apple.dock", key: "magnification", type: .bool),
+            after: restartDock,
+            systemDefault: .bool(false)
+        ),
+        Setting(
+            id: "dock.magnified-size",
+            summary: "Icon size in points under the pointer when dock.magnification is on, 16 to 512.",
+            type: .int(min: 16, max: 512),
+            backend: .defaults(domain: "com.apple.dock", key: "largesize", type: .int),
+            after: restartDock
+        ),
+        Setting(
+            id: "dock.show-indicators",
+            summary: "Show a dot under apps that are open (false = no dots).",
+            type: .bool,
+            backend: .defaults(domain: "com.apple.dock", key: "show-process-indicators", type: .bool),
+            after: restartDock,
+            systemDefault: .bool(true)
+        ),
+        Setting(
+            id: "dock.only-open-apps",
+            summary: "Show only apps that are open in the Dock, hiding pinned apps that are not running (true = only open).",
+            type: .bool,
+            backend: .defaults(domain: "com.apple.dock", key: "static-only", type: .bool),
+            after: restartDock,
+            systemDefault: .bool(false)
+        ),
+        Setting(
+            id: "dock.autohide-speed",
+            summary: "Seconds the hidden Dock takes to slide in or out, 0 to 5 (0 = no animation); only matters with dock.autohide.",
+            type: .double(min: 0, max: 5),
+            backend: .defaults(domain: "com.apple.dock", key: "autohide-time-modifier", type: .float),
+            after: restartDock
+        ),
     ]
 
     // MARK: Finder
@@ -104,6 +143,30 @@ public enum Catalog {
             backend: .defaults(domain: "com.apple.finder", key: "AppleShowAllFiles", type: .bool),
             after: restartFinder,
             systemDefault: .bool(false)
+        ),
+        Setting(
+            id: "finder.folders-first",
+            summary: "Keep folders above files when Finder windows are sorted by name (true = folders first).",
+            type: .bool,
+            backend: .defaults(domain: "com.apple.finder", key: "_FXSortFoldersFirst", type: .bool),
+            after: restartFinder,
+            systemDefault: .bool(false)
+        ),
+        Setting(
+            id: "finder.warn-extension-change",
+            summary: "Ask before changing a file name extension in Finder (false = rename without asking).",
+            type: .bool,
+            backend: .defaults(domain: "com.apple.finder", key: "FXEnableExtensionChangeWarning", type: .bool),
+            after: restartFinder,
+            systemDefault: .bool(true)
+        ),
+        Setting(
+            id: "finder.search-scope",
+            summary: "Where a Finder window search looks, raw codes: SCev = this Mac, SCcf = the current folder, SCsp = the previous scope.",
+            type: .enumeration(["SCev", "SCcf", "SCsp"]),
+            backend: .defaults(domain: "com.apple.finder", key: "FXDefaultSearchScope", type: .string),
+            after: restartFinder,
+            systemDefault: .string("SCev")
         ),
     ]
 
@@ -165,6 +228,22 @@ public enum Catalog {
             after: restartUIServer,
             systemDefault: .bool(false)
         ),
+        Setting(
+            id: "screenshots.show-thumbnail",
+            summary: "Show the floating thumbnail after a capture (false = save at once, with no thumbnail delay).",
+            type: .bool,
+            backend: .defaults(domain: "com.apple.screencapture", key: "show-thumbnail", type: .bool),
+            after: restartUIServer,
+            systemDefault: .bool(true)
+        ),
+        Setting(
+            id: "screenshots.include-date",
+            summary: "Put the date and time in screenshot file names (false = \"Screenshot\" plus a number).",
+            type: .bool,
+            backend: .defaults(domain: "com.apple.screencapture", key: "include-date", type: .bool),
+            after: restartUIServer,
+            systemDefault: .bool(true)
+        ),
     ]
 
     // MARK: Appearance
@@ -187,6 +266,23 @@ public enum Catalog {
             ),
             systemDefault: .bool(false)
         ),
+        Setting(
+            id: "appearance.scroll-bars",
+            summary: "When scroll bars show: Automatic (by input device), WhenScrolling, or Always. Apps pick it up when reopened.",
+            type: .enumeration(["Automatic", "WhenScrolling", "Always"]),
+            backend: .defaults(domain: Backend.globalDomain, key: "AppleShowScrollBars", type: .string),
+            after: [.relaunchApps],
+            systemDefault: .string("Automatic")
+        ),
+        Setting(
+            id: "appearance.menu-icons",
+            summary: "Show the small icons next to menu items that macOS 26 added (false = text-only menus). Apps pick it up when reopened.",
+            type: .bool,
+            backend: .defaults(domain: Backend.globalDomain, key: "NSMenuEnableActionImages", type: .bool),
+            after: [.relaunchApps],
+            systemDefault: .bool(true),
+            minimumOS: "26.0"
+        ),
     ]
 
     // MARK: Desktop
@@ -197,6 +293,76 @@ public enum Catalog {
             summary: "Desktop picture for every screen: an absolute path (or ~) to an existing image file; reads the main screen's picture.",
             type: .path,
             backend: .wallpaper
+        ),
+    ]
+
+    // MARK: Windows (com.apple.WindowManager)
+
+    static let windows: [Setting] = [
+        Setting(
+            id: "windows.click-desktop-to-reveal",
+            summary: "Clicking the wallpaper moves every window aside to show the desktop (false = only in Stage Manager).",
+            type: .bool,
+            backend: .defaults(domain: "com.apple.WindowManager", key: "EnableStandardClickToShowDesktop", type: .bool),
+            systemDefault: .bool(true)
+        ),
+        Setting(
+            id: "windows.tile-by-edge-drag",
+            summary: "Dragging a window to a screen edge tiles it (false = edges do nothing).",
+            type: .bool,
+            backend: .defaults(domain: "com.apple.WindowManager", key: "EnableTilingByEdgeDrag", type: .bool),
+            systemDefault: .bool(true)
+        ),
+        Setting(
+            id: "windows.tile-margins",
+            summary: "Leave gaps between tiled windows (false = tiled windows touch edge to edge).",
+            type: .bool,
+            backend: .defaults(domain: "com.apple.WindowManager", key: "EnableTiledWindowMargins", type: .bool),
+            systemDefault: .bool(true)
+        ),
+    ]
+
+    // MARK: Menu bar
+
+    static let menubar: [Setting] = [
+        Setting(
+            id: "menubar.agent",
+            summary: "macOS 27's hidden menu bar agent, which menubar.keyboard-navigation needs (true = on). Takes effect after logout.",
+            type: .bool,
+            backend: .defaults(domain: Backend.globalDomain, key: "NSMenuEnableMenuBarAgent", type: .bool),
+            after: [.logout],
+            systemDefault: .bool(false),
+            minimumOS: "27.0"
+        ),
+        Setting(
+            id: "menubar.keyboard-navigation",
+            summary: "Arrow keys move from the app's last menu into the status menus and back (macOS 27, hidden; needs menubar.agent). Takes effect after logout.",
+            type: .bool,
+            backend: .defaults(domain: Backend.globalDomain, key: "NSMenuBarUseAgentNavigation", type: .bool),
+            after: [.logout],
+            systemDefault: .bool(false),
+            minimumOS: "27.0"
+        ),
+    ]
+
+    // MARK: Documents and text
+
+    static let documents: [Setting] = [
+        Setting(
+            id: "documents.save-to-icloud",
+            summary: "New documents save to iCloud Drive by default (false = save to this Mac). Apps pick it up when reopened.",
+            type: .bool,
+            backend: .defaults(domain: Backend.globalDomain, key: "NSDocumentSaveNewDocumentsToCloud", type: .bool),
+            after: [.relaunchApps],
+            systemDefault: .bool(true)
+        ),
+        Setting(
+            id: "documents.autocorrect",
+            summary: "Correct spelling automatically while typing (false = only underline mistakes). Apps pick it up when reopened.",
+            type: .bool,
+            backend: .defaults(domain: Backend.globalDomain, key: "NSAutomaticSpellingCorrectionEnabled", type: .bool),
+            after: [.relaunchApps],
+            systemDefault: .bool(true)
         ),
     ]
 }
