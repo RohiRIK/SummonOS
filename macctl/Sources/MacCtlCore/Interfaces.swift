@@ -131,6 +131,8 @@ public protocol MacCtlService: Sendable {
     func undo(snapshotID: String?) async throws -> ApplyResult
     /// Like `undo(snapshotID:)`; `force` also overwrites keys changed by hand (ADR Q1).
     func undo(snapshotID: String?, force: Bool) async throws -> ApplyResult
+    /// What `undo` would do to each change of a session, without writing (`undo --dry-run`).
+    func previewUndo(snapshotID: String?, force: Bool) async throws -> UndoPreview
     /// Rolls back every unfinished operation (ADR D2). `abandon` sets one corrupt journal aside.
     func recover(force: Bool, abandon: String?) async throws -> RecoverResult
     func doctor() async -> DoctorReport

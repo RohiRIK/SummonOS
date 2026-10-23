@@ -72,8 +72,9 @@ macctl undo                      # restores the newest change that was not undon
 | `macctl apply <profile.json> [--dry-run] [--yes] [--only <domain>]` | make the Mac match a profile |
 | `macctl snapshot list` | snapshots, newest first (`macctl snapshot` alone does the same) |
 | `macctl snapshot show <id>` | the old values one snapshot holds |
-| `macctl undo [<id>] [--force]` | roll back a change (the newest when no id is given); `--force` also overwrites keys changed by hand (needs an id) |
+| `macctl undo [<id>] [--force] [--dry-run]` | roll back a change (the newest when no id is given); `--force` also overwrites keys changed by hand (needs an id); `--dry-run` shows what undo would do to each change |
 | `macctl recover [--force] [--abandon <id>]` | roll back any operation that was interrupted or failed; safe to run again |
+| `macctl discover start [--domain <d>]...` / `discover diff` | find the key behind a System Settings control: save a baseline, change the control, list what changed. Read-only |
 
 Every command takes `--json`. Run `macctl <command> --help` for details. The full catalog is in
 [`docs/settings.md`](docs/settings.md).
@@ -165,6 +166,12 @@ Failure (the exit code matches the error):
 - `get`: an array of `{"id", "value"}`; `desktop.wallpaper` reads the main screen's picture path. `value` is `null` when the key is unset and has no known default.
 - `diff`: `{"profile", "changes": [{"id", "from", "to"}]}`. A missing `from` means the key is unset.
 - `set`, `apply`, `undo`: `{"snapshotID", "changes", "dryRun", "notes"}`.
+- `undo --dry-run`: `{"snapshotID", "force", "items": [{"id", "action", "current", "restoresTo", "reason"}], "wouldSucceed", "notes"}`;
+  `action` is `restore`, `delete`, `already_restored`, `hand_edited` or `cannot_restore`, newest change first.
+- `describe`/`list` settings also carry `minimumOS` (null = every supported macOS) and `recovery`:
+  `{"restore": "exact"|"value"|"conditional"|"compare_only", "priorStates", "verifiedByReadBack", "handEdits", "notUndone", "notes"}`.
+- `discover start`: `{"baseline", "domains", "keys"}`. `discover diff`: `{"baselineCreatedAt", "macOSVersion", "domains",
+  "changes": [{"appID", "host", "key", "kind", "before", "after", "suggestion"}]}`.
 - `recover`: `{"sessions": [{"id", "reverted", "notApplied", "flagged"}], "notes"}`; `sessions` is empty when nothing was unfinished.
 - `snapshot list`: an array of `{"id", "createdAt", "changeCount", "settings", "status"}`. `status` comes from the
   journal: `completed`, `rolled_back`, `undone`, `recovered`, `pending` (unfinished: run `macctl recover`), or

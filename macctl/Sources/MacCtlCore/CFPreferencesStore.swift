@@ -46,6 +46,18 @@ public struct CFPreferencesStore: PreferencesStore {
         }
     }
 
+    public func allValues(appID: String, host: PreferenceHost) throws -> [String: TypedValue] {
+        let app = Self.application(appID)
+        let cfHost = Self.host(host)
+        guard let keys = CFPreferencesCopyKeyList(app, kCFPreferencesCurrentUser, cfHost) as? [String],
+              !keys.isEmpty,
+              let values = CFPreferencesCopyMultiple(keys as CFArray, app, kCFPreferencesCurrentUser, cfHost)
+                as? [String: Any] else { return [:] }
+        var result: [String: TypedValue] = [:]
+        for (key, object) in values { result[key] = try? PlistBridge.typed(from: object) }
+        return result
+    }
+
     /// Rebuilds the exact CF type: `kCFBooleanTrue`/`False` for bools, SInt64 CFNumber for ints,
     /// Float64 CFNumber for reals.
     static func cfObject(_ value: Value) -> CFPropertyList {

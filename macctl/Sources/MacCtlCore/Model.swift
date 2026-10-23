@@ -120,6 +120,8 @@ public enum SideEffect: Sendable, Hashable {
     /// `killall <process>` (Dock, Finder, SystemUIServer).
     case restart(process: String)
     case logout
+    /// Read by apps at launch (for example menu and scroll bar styles): quit and reopen apps to see it.
+    case relaunchApps
 }
 
 /// How `defaults` stores the value (`-bool`, `-int`, `-float`, `-string`).
@@ -158,15 +160,19 @@ public struct Setting: Sendable, Hashable, Identifiable {
     public let scope: PreferenceHost
     /// Journals store only a keyed hash of this setting's values, never the value (ADR D2 Privacy).
     public let sensitive: Bool
+    /// Oldest macOS that has this setting (for example `"27.0"`); nil = every supported macOS.
+    /// `set` and `apply` refuse it with `unsupported` on an older macOS.
+    public let minimumOS: String?
 
     public init(
         id: String, summary: String, type: ValueType, risk: Risk = .user,
         permissions: [Permission] = [], backend: Backend, after: [SideEffect] = [],
         systemDefault: Value? = nil, verifiedOn: [String] = [],
-        scope: PreferenceHost = .anyHost, sensitive: Bool = false
+        scope: PreferenceHost = .anyHost, sensitive: Bool = false, minimumOS: String? = nil
     ) {
         self.scope = scope
         self.sensitive = sensitive
+        self.minimumOS = minimumOS
         self.id = id
         self.summary = summary
         self.type = type

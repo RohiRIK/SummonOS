@@ -193,6 +193,9 @@ public protocol PreferencesStore: Sendable {
     func setValue(_ value: TypedValue?, key: String, appID: String, host: PreferenceHost) throws
     /// `CFPreferencesAppSynchronize` (anyHost) / `CFPreferencesSynchronize` (currentHost).
     func synchronize(appID: String, host: PreferenceHost) throws
+    /// Every explicit key of one triple with its exact type (`CFPreferencesCopyMultiple`), read-only.
+    /// Used by `macctl discover`; a key whose type cannot be represented is left out.
+    func allValues(appID: String, host: PreferenceHost) throws -> [String: TypedValue]
 }
 
 extension PreferencesStore {
@@ -234,6 +237,8 @@ public final class MemoryPreferencesStore: LayeredPreferences, @unchecked Sendab
     private var managed: [String: TypedValue] = [:]
     private var failing: Set<String> = []
     private var substitutes: [String: TypedValue] = [:]
+    private var failingAttempts: Set<Int> = []
+    private var attempts = 0
     public private(set) var writes = 0
     public private(set) var syncs = 0
 
@@ -272,6 +277,11 @@ public final class MemoryPreferencesStore: LayeredPreferences, @unchecked Sendab
 
     public func setValue(_ value: TypedValue?, key: String, appID: String, host: PreferenceHost) throws {
         try lock.withLock {
+            attempts += 1
+            if failingAttempts.contains(attempts) {
+                throw MacCtlError.commandFailed(command: "CFPreferencesSetValue \(appID) \(key)", exitCode: 1,
+                                                stderr: "injected failure (attempt \(attempts))")
+            }
             if failing.contains("\(appID)/\(key)") {
                 throw MacCtlError.commandFailed(command: "CFPreferencesSetValue \(appID) \(key)", exitCode: 1, stderr: "injected failure")
             }
@@ -282,6 +292,33 @@ public final class MemoryPreferencesStore: LayeredPreferences, @unchecked Sendab
 
     public func synchronize(appID: String, host: PreferenceHost) throws {
         lock.withLock { syncs += 1 }
+    }
+
+    public func allValues(appID: String, host: PreferenceHost) throws -> [String: TypedValue] {
+        lock.withLock { values[appID]?[host] ?? [:] }
+    }
+
+    /// Every explicit value, keyed `appID|host|key`, with empty domains left out: the oracle the
+    /// fault-schedule tests compare before and after.
+    public var contents: [String: TypedValue] {
+        lock.withLock {
+            var flat: [String: TypedValue] = [:]
+            for (app, hosts) in values {
+                for (host, keys) in hosts {
+                    for (key, value) in keys { flat["\(app)|\(host.rawValue)|\(key)"] = value }
+                }
+            }
+            return flat
+        }
+    }
+
+    /// Fails the given write attempts, counted from 1 over every `setValue` call from now on (apply
+    /// writes, rollback and undo restores alike), so apply and restore can fail independently.
+    public func failAttempts(_ numbers: Set<Int>) {
+        lock.withLock {
+            failingAttempts = numbers
+            attempts = 0
+        }
     }
 }
 
@@ -356,6 +393,14 @@ public struct PlistFilePreferencesStore: LayeredPreferences {
 
     public func synchronize(appID: String, host: PreferenceHost) throws {}
 
+    public func allValues(appID: String, host: PreferenceHost) throws -> [String: TypedValue] {
+        var result: [String: TypedValue] = [:]
+        for (key, object) in try Self.load(file(appID: appID, host: host)) {
+            result[key] = try? PlistBridge.typed(from: object)
+        }
+        return result
+    }
+
     /// True (and removes the entry) when the knob file lists `id`.
     private func consumeListKnob(_ name: String, _ id: String) throws -> Bool {
         let url = directory.appendingPathComponent(name)
@@ -402,6 +447,7 @@ public struct UnavailablePreferencesStore: PreferencesStore {
     public func copyAppValue(_ key: String, appID: String) throws -> TypedValue? { throw fail() }
     public func setValue(_ value: TypedValue?, key: String, appID: String, host: PreferenceHost) throws { throw fail() }
     public func synchronize(appID: String, host: PreferenceHost) throws { throw fail() }
+    public func allValues(appID: String, host: PreferenceHost) throws -> [String: TypedValue] { throw fail() }
 }
 
 /// Small durable-file helpers shared by the snapshot store, the journal and the fake preferences.

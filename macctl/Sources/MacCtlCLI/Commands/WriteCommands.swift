@@ -109,6 +109,8 @@ struct UndoCommand: AsyncParsableCommand {
             discussion: """
             Keys changed by hand since macctl wrote them are left alone and reported (partial_restore).
             --force overwrites them too; it needs an explicit id.
+            --dry-run shows what undo would do to each change (restore, delete, already_restored,
+            hand_edited, cannot_restore) and writes nothing.
             """
         )
     }
@@ -121,6 +123,9 @@ struct UndoCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Also restore keys changed by hand since macctl wrote them (needs an id).")
     var force = false
 
+    @Flag(name: .long, help: "Show what undo would do to each change; write nothing.")
+    var dryRun = false
+
     func validate() throws {
         if force && id == nil { throw ValidationError("--force needs an explicit session id") }
     }
@@ -128,6 +133,12 @@ struct UndoCommand: AsyncParsableCommand {
     func run() async throws {
         let id = self.id
         let force = self.force
+        if dryRun {
+            try await Output.run("undo", global, text: Human.undoPreview) {
+                try await makeService().previewUndo(snapshotID: id, force: force)
+            }
+            return
+        }
         try await Output.run("undo", global, text: Human.restored) {
             try await makeService().undo(snapshotID: id, force: force)
         }

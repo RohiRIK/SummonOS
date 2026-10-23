@@ -10,7 +10,9 @@ in the workspace. Agent instructions: workspace skill `MacSetup`.
   `KillallRestarter`, `SystemPermissionProbe`, `ProcessRunner`), `MacCtlCLI` (`macctl`, swift-argument-parser),
   `MacCtlCoreTests` (swift-testing, fake runner).
 - Contracts between modules: `Sources/MacCtlCore/Interfaces.swift`.
-- Catalog: 19 settings (dock, finder, keyboard, screenshots, appearance, desktop), all `verifiedOn: []`.
+- Catalog: 38 settings (dock, finder, keyboard, screenshots, appearance, desktop, windows, menubar, documents),
+  all `verifiedOn: []`. `minimumOS` gates macOS 26/27-only keys.
+- Recovery contract per setting (`Recovery.swift`), `undo --dry-run` (`Engine.previewUndo`), `discover` (`Discovery.swift`).
 - Backends: `defaults`, AppleScript (argv only), and `.wallpaper` (`NSWorkspace` on the main actor, behind
   the injectable `WallpaperControlling`; tests use `FakeWallpaper`).
 - `SettingBackend.validate` runs live checks (wallpaper file exists) for every value before the first write.
@@ -25,6 +27,14 @@ in the workspace. Agent instructions: workspace skill `MacSetup`.
 - Lives in the workspace repo for now (`macctl/`); planned move to `mac-ctl-dev` / `mac-ctl`.
 
 ## Recent History
+### 2026-10-23 — Recovery contract, undo preview, macOS 27 settings, discover
+- `RecoveryContract` derived per backend (exact/value/conditional/compare_only + notUndone side effects), in describe,
+  list and dry-run notes. `undo --dry-run` mirrors the revert walk read-only. ADR addendum D4.
+- Fault-schedule property tests (`ContractTests`): failing write attempts in apply, rollback and undo independently;
+  recover must restore the exact starting store. Preview-vs-undo property test.
+- `Setting.minimumOS`; new `SideEffect.relaunchApps`; 19 new settings incl. macOS 27 `NSMenuBarUseAgentNavigation`
+  (+ `NSMenuEnableMenuBarAgent`, per MacG 2026-08) and macOS 26 `NSMenuEnableActionImages`. No public key for
+  macOS 27's Liquid Glass slider: find it on a Mac with `macctl discover`.
 ### 2026-10-20 — Recoverable serialized transactions
 - Cross-process cancellable lock covers planning/backup/write/outcome; snapshots publish without overwrite.
   Optional status/appliedSettings/failure distinguish pending/completed/failed; absent status is legacy completed.

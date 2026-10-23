@@ -43,6 +43,7 @@ struct MacCtl: AsyncParsableCommand {
                 SnapshotCommand.self,
                 UndoCommand.self,
                 RecoverCommand.self,
+                DiscoverCommand.self,
             ]
         )
     }

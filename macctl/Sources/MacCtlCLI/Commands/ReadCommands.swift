@@ -106,7 +106,15 @@ struct DescribeCommand: AsyncParsableCommand {
             ["permissions", info.permissions.isEmpty ? "none" : info.permissions.joined(separator: ", ")],
             ["after", info.sideEffects.isEmpty ? "none" : info.sideEffects.joined(separator: ", ")],
             ["verified", info.verified ? "macOS " + info.verifiedOn.joined(separator: ", ") : "no"],
+            ["macOS", info.minimumOS.map { "\($0) or later" } ?? "any supported"],
+            ["undo", "\(info.recovery.restore.rawValue) (prior states: \(info.recovery.priorStates.map(\.rawValue).joined(separator: ", ")))"],
         ]
+        if !info.recovery.notUndone.isEmpty {
+            rows.append(["not undone", info.recovery.notUndone.joined(separator: "; ")])
+        }
+        for note in info.recovery.notes {
+            rows.append(["undo note", note])
+        }
         if let error = info.currentError {
             rows.append(["error", error])
         }

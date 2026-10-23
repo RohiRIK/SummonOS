@@ -180,6 +180,24 @@ enum Human {
         return lines.joined(separator: "\n")
     }
 
+    static func undoPreview(_ preview: UndoPreview) -> String {
+        var lines: [String] = []
+        if preview.items.isEmpty {
+            lines.append("Dry run: undo of \(preview.snapshotID) would change nothing.")
+        } else {
+            lines.append("Dry run: undo of \(preview.snapshotID), newest change first (nothing written):")
+            lines.append(table(preview.items.map { item in
+                ["  " + item.id, item.action.rawValue, value(item.current), "->",
+                 item.action == .delete ? "(unset)" : value(item.restoresTo), item.reason ?? ""]
+            }))
+            lines.append(preview.wouldSucceed
+                ? "Undo would restore everything."
+                : "Undo would end in partial_restore: the hand_edited and cannot_restore keys stay as they are.")
+        }
+        for note in preview.notes { lines.append("Note: \(note)") }
+        return lines.joined(separator: "\n")
+    }
+
     static func recovered(_ result: RecoverResult) -> String {
         var lines: [String] = []
         if result.sessions.isEmpty {

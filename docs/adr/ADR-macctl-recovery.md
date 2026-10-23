@@ -227,6 +227,27 @@ The backend never writes without an intent `seq` from Engine.
    `sensitiveStoresHmacOnly` (grep the journal for the plaintext → absent); `lockBlocksSecondSession`;
    `legacySnapshotStillUndoes`.
 
+### D4. Declared guarantees, undo preview, fault schedules (addendum, 2026-10-23)
+The journal makes recovery correct; D4 makes its limits visible before a write and tests them as properties.
+- **`RecoveryContract`** (`Sources/MacCtlCore/Recovery.swift`), derived from the backend, never hand-written:
+  `restore` = `exact` (`.defaults`: absent / explicit / inherited told apart, exact type, read back), `value`
+  (AppleScript: no unset state), `conditional` (wallpaper: file and display must still exist), `compare_only`
+  (sensitive: hash only). `notUndone` lists side effects undo cannot take back: `restart:<Process>` (undo restarts
+  again), `logout`, `relaunch-apps`, `creates-folder`. Shown by `describe` / `list --json`; `--dry-run` adds one note per
+  setting whose undo is weaker than `exact` or that leaves a side effect.
+- **`undo --dry-run`** (`Engine.previewUndo`): the revert walk's checks in the same order, with no lock and no write:
+  `already_restored`, `hand_edited` (or `restore`/`delete` with `--force`), `cannot_restore`, else `restore`/`delete`.
+  It refuses with `recovery_pending` when undo would. `wouldSucceed == false` predicts `partial_restore`.
+- **Fault schedules** (`Tests/MacCtlCoreTests/ContractTests.swift`): `MemoryPreferencesStore.failAttempts` fails the
+  n-th `setValue` from now, so an apply write, its rollback restore and a later undo restore fail independently.
+  120 seeds cover every prior state (absent, explicit of another type, inherited from the global domain or the
+  other host) and random batches; oracle: after `recover` the whole store equals the starting state, no session is
+  pending, and a second `recover` writes nothing. 60 seeds with random hand edits check that the preview's
+  flagged set equals the keys undo leaves.
+- **`minimumOS`** on `Setting`: `set`/`apply`/`diff` refuse a newer setting with `unsupported` before planning.
+- **Out of scope by design:** `/Library/Preferences/FeatureFlags` (root, reboot) and TCC-protected domains are not
+  catalog targets; `discover` reads only the current user's domains and never writes.
+
 ## Consequences
 - Undo becomes exact for every type and scope; inherited and absent restore correctly; hand edits are preserved, not clobbered.
 - More fsyncs (two per change with F_FULLFSYNC, roughly milliseconds each). This is acceptable for at most 19 keys per batch.
