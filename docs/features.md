@@ -213,22 +213,35 @@ Code: [`macctl/`](../macctl). Overview: [its README](../macctl/README.md).
   unreadable journal aside. A key changed by hand since macctl wrote it is left as it is and flagged, and undo
   reports `partial_restore`; `undo <id> --force` (explicit user only, never passed by Summon) overwrites it.
   Wallpaper recovery retains distinct per-display images; legacy snapshots remain readable.
+- **Declared recovery contract:** `describe` (and `list --json`) states what undo can promise for each setting:
+  `exact` (presence, type and value), `value` (AppleScript), `conditional` (wallpaper: file and display must still
+  exist) or `compare_only` (sensitive keys), plus side effects undo cannot take back (restarts, logout, a created
+  folder). `--dry-run` repeats the limits for the settings it would change.
+- **Undo preview:** `undo [<id>] --dry-run` lists what undo would do to each change (`restore`, `delete`,
+  `already_restored`, `hand_edited`, `cannot_restore`) and whether it would end in `partial_restore`. Writes nothing.
+- **macOS version gate:** settings carry a `minimumOS`; on an older macOS `set`, `apply` and `diff` refuse them
+  with `unsupported` before anything is read or written.
+- **Key discovery:** `discover start` saves a private baseline of the usual System Settings domains,
+  `discover diff` lists the keys that changed since (exact types) with a draft catalog entry. Read-only.
 - **Built for agents:** `--json` (automatic in a pipe) prints one object per run with stable error codes
   and exit codes. `doctor` checks permissions without triggering a prompt and links to the right System
   Settings pane.
 - **Profiles:** JSON files of desired values. `apply` is idempotent and restarts Dock, Finder or
   SystemUIServer once at the end.
 
-Settings (19, full table in [`macctl/docs/settings.md`](../macctl/docs/settings.md)):
+Settings (38, full table in [`macctl/docs/settings.md`](../macctl/docs/settings.md)):
 
 | Domain | Settings |
 |---|---|
-| Dock | autohide, tile size, show recents, orientation, minimize effect, autohide delay |
-| Finder | show extensions, path bar, status bar, default view, hidden files |
+| Dock | autohide, tile size, show recents, orientation, minimize effect, autohide delay, magnification, magnified size, open-app dots, only open apps, autohide speed |
+| Finder | show extensions, path bar, status bar, default view, hidden files, folders first, extension-change warning, search scope |
 | Keyboard | key repeat, initial key repeat, press and hold |
-| Screenshots | location, format, disable shadow |
-| Appearance | dark mode |
+| Screenshots | location, format, disable shadow, floating thumbnail, date in file names |
+| Appearance | dark mode, scroll bars, menu icons (macOS 26+) |
 | Desktop | wallpaper (every screen) |
+| Windows | click wallpaper to reveal desktop, tile by edge drag, tile margins |
+| Menu bar | menu bar agent and keyboard navigation (macOS 27+, hidden) |
+| Documents | save new documents to iCloud, autocorrect |
 
 Agents use it through the workspace skill `MacSetup`.
 
