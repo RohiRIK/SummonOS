@@ -482,6 +482,15 @@ struct GeneralSettings: View {
             }
 
             Section {
+                Toggle(isOn: $model.menuBarShowsAgentTime) {
+                    Text("Show agent time in the menu bar")
+                    Text("While an agent runs, its elapsed time appears next to the Summon icon.")
+                }
+            } header: {
+                Text("Menu Bar")
+            }
+
+            Section {
                 ShortcutRecorderRow(
                     title: "Open Summon Panel (Global)",
                     shortcut: model.globalMenuShortcut,

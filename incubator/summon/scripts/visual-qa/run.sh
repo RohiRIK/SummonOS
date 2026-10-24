@@ -4,8 +4,10 @@
 # Needs Accessibility (osascript/System Events) and Screen Recording (screencapture) for bash and osascript,
 # which the GitHub runner images pre-grant.
 #   run.sh <out-dir> <Summon.app> <windows-helper> <tag>
-# For light and dark: captures the menu bar, opens the launcher with ⌃⌥Space (falling back to `summon menu summon`,
-# then `open -g summon://menu/`), opens the menu bar panel by clicking the status item, and captures each one.
+# Summon has one surface: the menu bar panel (NSStatusItem + nonactivating NSPanel, PANEL_W wide) holding the
+# Summon Menu. For light and dark: captures the menu bar, opens the panel with ⌃⌥Space (falling back to
+# `summon menu summon`, then `open -g summon://menu/`) and closes it with Esc, then opens it by clicking the status
+# item and closes it with a second click, capturing each open.
 # Then it runs `summon menu summon` once on its own. Every path tried goes to <out-dir>/<tag>-log.txt and the job
 # summary. Exits 1 if anything did not open, did not close, failed to capture, or looks like the wrong theme.
 set -uo pipefail
@@ -27,6 +29,7 @@ LOG="$OUT/$TAG-log.txt"
 SUMMARY=${GITHUB_STEP_SUMMARY:-/dev/null}
 PID=
 fail=0
+PANEL_W=360   # PanelConfig.width in StatusPanel.swift
 LIGHT_MIN=150 DARK_MAX=100   # mean luma of launcher and panel captures (spike: light 222-233, dark 29-46)
 
 ORIGINAL_STYLE=$(defaults read -g AppleInterfaceStyle 2>/dev/null || echo Light)
@@ -117,14 +120,14 @@ expect_one() {
   [ "$(echo "$opened" | grep -c .)" -le 1 ] || failed "$what: opened $(echo "$opened" | grep -c .) windows, expected 1"
 }
 
-close_launcher() {
+close_panel() {
   local id=$1
-  keystroke 53 ""   # Escape
-  launcher_gone() { ! is_open "$id"; }
-  if ! wait_for 3 launcher_gone; then
-    # On macOS 26 runner, retry Escape or send toggle hotkey if initial Escape did not dismiss
+  keystroke 53 ""   # Escape (D1)
+  panel_closed() { ! is_open "$id"; }
+  if ! wait_for 3 panel_closed; then
+    # ⌃⌥Space toggles an open panel closed (D2)
     keystroke 49 " using {control down, option down}"
-    wait_for 3 launcher_gone || failed "launcher window $id still open after Escape"
+    wait_for 3 panel_closed || failed "panel window $id still open after Escape and ⌃⌥Space"
   fi
 }
 
@@ -160,7 +163,7 @@ for theme in light dark; do
   shot -x "$OUT/$TAG-$theme-before-screen.png"
   log "windows before (id layer x y w h):"; "$WINDOWS" "$PID" | tee -a "$LOG"
 
-  # Launcher: the hotkey first, then the documented fallbacks.
+  # Panel from the keyboard: the hotkey first, then the documented fallbacks.
   path=none
   before=$(ids)
   log "try hotkey: osascript key code 49 using {control down, option down}"
@@ -186,12 +189,13 @@ for theme in light dark; do
   log "launcher path used ($theme): $path"
   echo "- $theme launcher: opened by **$path**" >>"$SUMMARY"
   [ "$path" = none ] && failed "$theme launcher did not open"
-  [ "$path" = hotkey ] && expect_one "$theme launcher" "$opened" 620
+  [ "$path" = hotkey ] && expect_one "$theme launcher" "$opened" "$PANEL_W"
   capture "$theme-launcher" "$opened"
   [ -s "$OUT/$TAG-$theme-launcher.png" ] && check_luma "$OUT/$TAG-$theme-launcher.png" "$theme"
-  for id in $opened; do [ "$(width "$id")" = 620 ] && close_launcher "$id"; done
+  # Closed before the click below, which would otherwise toggle this open panel shut.
+  for id in $opened; do [ "$(width "$id")" = "$PANEL_W" ] && close_panel "$id"; done
 
-  # Menu bar panel (MenuBarExtra): click the status item through Accessibility. There is no coordinate-click
+  # The same panel from a click on the status item, through Accessibility. There is no coordinate-click
   # fallback: on macOS 26 the status item is not a window of the app's pid, so there is nothing to aim at.
   before=$(ids)
   ppath=none opened=""
@@ -203,10 +207,10 @@ for theme in light dark; do
   log "panel path used ($theme): $ppath"
   echo "- $theme menu bar panel: opened by **$ppath**" >>"$SUMMARY"
   [ "$ppath" = none ] && failed "$theme panel did not open"
-  expect_one "$theme panel" "$opened" 300
+  expect_one "$theme panel" "$opened" "$PANEL_W"
   capture "$theme-panel" "$opened"
   [ -s "$OUT/$TAG-$theme-panel.png" ] && check_luma "$OUT/$TAG-$theme-panel.png" "$theme"
-  # Escape does not close a MenuBarExtra window; a second click on the status item does.
+  # A second click on the status item closes it (D2).
   for id in $opened; do
     click_status_item
     panel_gone() { ! is_open "$id"; }
@@ -229,16 +233,16 @@ echo "- fallback check: \`summon menu summon\` opened $(oneline "${opened:-nothi
 launcher="" activity=""
 for id in $opened; do
   case "$(width "$id")" in
-    620) launcher=$id ;;
+    "$PANEL_W") launcher=$id ;;
     980) activity=$id ;;
     *) failed "summon menu summon: unexpected window $id ($(geometry "$id"))" ;;
   esac
 done
-[ -n "$opened" ] && [ -z "$launcher" ] && failed "summon menu summon did not open the launcher"
+[ -n "$opened" ] && [ -z "$launcher" ] && failed "summon menu summon did not open the panel"
 # Known app bug (not fixed here): the summon:// URL also opens the Activity window. A warning until that lands.
 [ -n "$activity" ] && warned "known bug: summon menu summon also opened the Summon Activity window ($activity)"
 capture "light-fallback-cli" "$opened"
-[ -n "$launcher" ] && close_launcher "$launcher"
+[ -n "$launcher" ] && close_panel "$launcher"
 if [ -n "$activity" ]; then
   osascript -e "tell application \"System Events\" to tell process \"$OWNER\" to click (first button of window \"Summon Activity\" whose subrole is \"AXCloseButton\")" >>"$LOG" 2>&1
   activity_gone() { ! is_open "$activity"; }

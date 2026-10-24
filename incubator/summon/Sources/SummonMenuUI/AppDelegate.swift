@@ -10,6 +10,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
     public private(set) lazy var crashAlert = CrashAlertController(model: model)
     /// The menu bar status item and its panel (replaces MenuBarExtra). Created at launch.
     public private(set) var panel: PanelController?
+    /// Keeps the status item's label live (a running agent's elapsed time).
+    private var menuBarStatus: MenuBarStatusWatcher?
 
     static let crashCategory = "summon.crash"
     static let diagnoseAction = "summon.crash.diagnose"
@@ -47,6 +49,12 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
             PanelView(model: model, activity: activity, panel: state, actions: actions)
         }
         self.panel = panel
+        let menuBarStatus = MenuBarStatusWatcher(model: model) { [weak panel] title, label in
+            panel?.setStatusLabel(title: title, accessibilityLabel: label)
+        }
+        self.menuBarStatus = menuBarStatus
+        model.onMenuBarLabelChanged = { [weak menuBarStatus] in menuBarStatus?.redraw() }
+        menuBarStatus.start()
         let health = registerHotKeys() ?? AppHealth(pid: ProcessInfo.processInfo.processIdentifier, hotkeys: [:])
         model.onUpdateGlobalHotKeys = { [weak self] in
             self?.registerHotKeys()

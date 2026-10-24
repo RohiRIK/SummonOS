@@ -315,3 +315,38 @@ struct LaunchURLQueueTests {
         #expect(queue.markReady().isEmpty)
     }
 }
+
+@Suite("Menu bar: live status item label and VoiceOver announcements")
+struct MenuBarStatusTests {
+    let start = Date(timeIntervalSince1970: 1_000_000)
+    var session: LoggedEvent { LoggedEvent(time: start, kind: EventKind.sessionStart, title: "Claude started") }
+
+    @Test func noSessionShowsTheIconOnly() {
+        #expect(MenuBarStatus.title(session: nil, enabled: true, now: start) == nil)
+        #expect(MenuBarStatus.accessibilityLabel(agentName: "Claude", session: nil, now: start) == "Summon")
+    }
+
+    @Test func aRunningSessionShowsElapsedTime() {
+        #expect(MenuBarStatus.title(session: session, enabled: true, now: start.addingTimeInterval(125)) == "02:05")
+    }
+
+    @Test func theSettingHidesTheTimeButNotTheSpokenState() {
+        let later = start.addingTimeInterval(125)
+        #expect(MenuBarStatus.title(session: session, enabled: false, now: later) == nil)
+        #expect(MenuBarStatus.accessibilityLabel(agentName: "Claude", session: session, now: later)
+                == "Summon, Claude running for 2 minutes")
+    }
+
+    @Test func spokenStateUsesWholeMinutes() {
+        #expect(MenuBarStatus.accessibilityLabel(agentName: "Claude", session: session, now: start.addingTimeInterval(30))
+                == "Summon, Claude running, under a minute")
+        #expect(MenuBarStatus.accessibilityLabel(agentName: nil, session: session, now: start.addingTimeInterval(61))
+                == "Summon, Agent running for 1 minute")
+    }
+
+    @Test func onlyNonClickOpensAreAnnounced() {
+        #expect(PanelOpenGuard.announcement(.click, focusesSearch: true) == nil)
+        #expect(PanelOpenGuard.announcement(.hotKey, focusesSearch: true) == "Summon menu. Type to search.")
+        #expect(PanelOpenGuard.announcement(.code, focusesSearch: false) == "Summon menu opened.")
+    }
+}
