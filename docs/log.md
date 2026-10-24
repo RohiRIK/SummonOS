@@ -1,5 +1,9 @@
 # Docs update log
 
+## 2026-10-24
+* **Update**: [Features](features.md): Summon's menu bar icon shows a running agent's elapsed time and tells VoiceOver; keyboard and URL panel opens are announced. New `examples/menubar-panel-starter` (`tools/mp new <name> --panel`).
+* **Update**: [Menu bar and window mechanics](research/2026-10-18-mac-gui-design/03-menubar-and-window-mechanics.md): section 0, which requirement made SummonOS switch and what is still unverified.
+
 ## 2026-10-23
 * **Update**: [Features](features.md): macctl declares a recovery contract per setting, previews undo (`undo --dry-run`), gates settings by `minimumOS`, adds `discover start|diff`, and grows to 38 settings (macOS 26 menu icons, macOS 27 menu bar keyboard navigation).
 * **Update**: [ADR: macctl recovery](adr/ADR-macctl-recovery.md): addendum D4 (declared guarantees, undo preview, fault-schedule tests).

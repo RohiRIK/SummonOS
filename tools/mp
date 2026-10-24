@@ -2,7 +2,8 @@
 # shellcheck disable=SC2016 # jq programs use $vars inside single quotes on purpose
 # mp: the plugin home manager. plugins.json is the registry; plugins.md is generated from it.
 #
-#   mp new <name> [--kind menubar|app|screensaver]   scratch/<name> from examples/<kind>-starter, registered
+#   mp new <name> [--kind menubar|app|screensaver] [--panel]   scratch/<name> from examples/<kind>-starter
+#                                                    (--panel: menubar-panel-starter, NSStatusItem + NSPanel), registered
 #   mp promote <name> [--owner <login>] [--yes]      private <name>-dev + public <name> repos, move to plugins/
 #   mp clone (<name>... | --all)                     clone registered dev repos into plugins/<name>
 #   mp list [--json]                                 registered plugins
@@ -221,22 +222,27 @@ cmd_status() {
 
 cmd_new() {
   need_reg
-  local name="" kind="menubar"
+  local name="" kind="menubar" panel=""
   while [ $# -gt 0 ]; do
     case "$1" in
+      --panel) panel=1; shift ;;
       --kind) [ $# -ge 2 ] || die "--kind needs a value"; kind=$2; shift 2 ;;
       --kind=*) kind=${1#--kind=}; shift ;;
       -*) die "unknown option $1" ;;
       *) [ -z "$name" ] || die "one name only"; name=$1; shift ;;
     esac
   done
-  [ -n "$name" ] || die "usage: mp new <name> [--kind $(echo "$KINDS" | tr ' ' '|')]"
+  [ -n "$name" ] || die "usage: mp new <name> [--kind $(echo "$KINDS" | tr ' ' '|')] [--panel]"
   valid_name "$name" || die "name must be kebab-case (like mac-battery): $name"
   # shellcheck disable=SC2086
   in_list "$kind" $KINDS || die "kind must be one of: $KINDS"
   [ -z "$(entry "$name")" ] || die "$name is already registered (mp list)"
 
   local starter="$HOME_DIR/examples/$kind-starter"
+  if [ -n "$panel" ]; then
+    [ "$kind" = "menubar" ] || die "--panel is for --kind menubar"
+    starter="$HOME_DIR/examples/menubar-panel-starter"
+  fi
   if [ ! -d "$starter" ]; then
     case "$kind" in
       app | screensaver)

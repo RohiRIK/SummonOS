@@ -22,7 +22,7 @@ idea only when it fits, and credit it in `THIRD_PARTY_NOTICES.md` when code or a
 │   ├── research/            research notes behind the skills
 │   └── plans/               finished and long plans, one file each: YYYY-MM-DD-<name>.md
 ├── tools/                   workspace scripts: mp, check-workspace.sh, okf-index.py, readme-art.py, publish, release
-├── examples/                menubar-starter/ (CI-built skeleton that `tools/mp new` copies)
+├── examples/                menubar-starter/, menubar-panel-starter/ (CI-built skeletons that `tools/mp new` copies)
 ├── .claude/skills/          shared skills, used by every plugin (see below)
 ├── plugins/<name>/          one folder per plugin, each its own git repo (gitignored here)
 ├── scratch/<name>/          agent-made apps with no repo yet, from `tools/mp new` (gitignored)

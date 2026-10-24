@@ -14,6 +14,25 @@ Confidence: **[doc]** = Apple documentation, **[forum]** = Apple forums / DTS, *
 
 ---
 
+## 0. What SummonOS chose, and which requirement decided it (2026-10-24)
+
+Summon moved from `MenuBarExtra(.window)` to `NSStatusItem` + a nonactivating `NSPanel`
+(`incubator/summon/Sources/SummonMenuUI/StatusPanel.swift`, spec `incubator/summon/docs/menubar-panel.md`). Per
+requirement:
+
+| Requirement | What decided it |
+|---|---|
+| Keyboard access | ⌃⌥Space must open the panel. `MenuBarExtra` has no open/close API, so a hotkey can't show it. Inside the panel: arrows, Return, ←/→, Esc, ⌘, and ⌘Q. |
+| Focus while another app is active | Typing into the search field must not take the other app's menu bar or focus. `.nonactivatingPanel` + `canBecomeKey` makes the panel key without activating Summon. Because typing can then land by accident, Return is ignored for 300 ms after a non-click open (`PanelOpenGuard`). |
+| Window ordering | `.statusBar` level + `.fullScreenAuxiliary` + `.canJoinAllSpaces`: over fullscreen apps, on every Space. Settings and Activity are normal windows opened after `NSApp.activate()`, so they don't open behind other apps. |
+| Live content | The panel refreshes every second while open (agent clock, Activity) and resizes once per change with the top edge pinned. Since 2026-10-24 the status item label is live too, with the panel closed. |
+
+Not a reason: `MenuBarExtra` isn't broken. Workspace plugins whose panel is click-only keep it
+(`examples/menubar-starter`); `examples/menubar-panel-starter` is the AppKit version for the rest.
+
+Verified on macOS 26.x only. macOS 15 compiles but its runtime is unchecked; macOS 27 betas break the persistent
+button highlight (FB23330269, section 1.4).
+
 ## 1. MenuBarExtra(.window) vs NSStatusItem + custom NSPanel
 
 ### 1.1 What `MenuBarExtra(.window)` gives you and where it stops

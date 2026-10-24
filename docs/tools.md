@@ -28,7 +28,8 @@ Manages the plugin home: the registry `plugins.json` (source of truth), the gene
 the `plugins/` and `scratch/` folders. Needs `jq` and `git`; `gh` for `promote` and `clone`.
 
 ```bash
-tools/mp new <name> [--kind menubar|app|screensaver]   # scratch/<name> from examples/<kind>-starter, registered
+tools/mp new <name> [--kind menubar|app|screensaver] [--panel]   # scratch/<name> from examples/<kind>-starter, registered
+                                                       # --panel: examples/menubar-panel-starter (NSStatusItem + NSPanel)
 tools/mp promote <name> [--owner <login>] [--yes]      # private <name>-dev + public <name>, moves to plugins/
 tools/mp clone (<name>... | --all)                     # clones registered dev repos into plugins/<name>
 tools/mp list [--json]                                 # the registry
