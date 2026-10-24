@@ -190,10 +190,7 @@ enum TaskCommands {
         guard let path = context.tools.find(agent.command) else { throw CLIError("\(agent.name) is not installed: \(agent.installHint)") }
         let settings = try AgentSettingsStore(paths: context.paths).loadValidated()
         let execution = task.execution ?? .unattended // Legacy scheduled tasks retain their original execution choice.
-        let prompt = task.prompt + SkillCommands.promptFooter(agent: agent.id, settings: settings)
-        guard let argv = agent.headless(prompt: prompt, model: settings.model(for: agent.id), execution: execution) else {
-            throw CLIError("\(agent.name) cannot run unattended yet.")
-        }
+        guard agent.headlessPrefix != nil else { throw CLIError("\(agent.name) cannot run unattended yet.") }
         let service = CheckpointService(paths: context.paths, runner: context.runner, gitPath: context.git, macctlPath: context.macctl)
         let (checkpoint, problems) = await service.create(label: "task: \(task.name)")
         var refs = ["task": task.id, "agent": agent.id, "checkpoint": checkpoint.id, "execution": execution.rawValue]
@@ -205,6 +202,13 @@ enum TaskCommands {
         let folder = task.directory.map { URL(fileURLWithPath: $0) } ?? context.paths.summonHome
         refs["folder"] = folder.path
         if task.directory == nil { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700]) }
+        let brief = SessionBrief(mode: .scheduled(execution, limitMinutes: Int(runLimit / 60)), folder: folder.path,
+                                 checkpointID: checkpoint.id, configCaptured: checkpoint.configCommit != nil,
+                                 skillFiles: SkillCommands.skillFiles(agent: agent.id, settings: settings))
+        let prompt = SessionBrief.scheduledPreamble(name: task.name) + task.prompt + brief.render()
+        guard let argv = agent.headless(prompt: prompt, model: settings.model(for: agent.id), execution: execution) else {
+            throw CLIError("\(agent.name) cannot run unattended yet.")
+        }
         let logDir = context.paths.taskLogs.appendingPathComponent(task.id, isDirectory: true)
         try FileManager.default.createDirectory(at: logDir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         let log = logDir.appendingPathComponent(UUID().uuidString + ".log")
@@ -241,8 +245,10 @@ enum TaskCommands {
         return lines.isEmpty ? nil : lines
     }
 
-    /// A banner without the app: a fixed script, the texts as argv.
+    /// Summon.app announces task results from the event log (with Show Log and Ask Agent). Only when it is not
+    /// running does the CLI post a plain banner: a fixed script, the texts as argv.
     static func notify(title: String, text: String, _ context: Context) async {
+        guard !AppHealthStore(paths: context.paths).appIsRunning() else { return }
         _ = try? await context.runner("/usr/bin/osascript", [
             "-e", "on run argv", "-e", "display notification (item 2 of argv) with title (item 1 of argv)", "-e", "end run",
             "Summon · " + title, text,

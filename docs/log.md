@@ -1,6 +1,7 @@
 # Docs update log
 
 ## 2026-10-24
+* **Update**: [Features](features.md): every agent prompt carries a Summon session brief; crash alerts are one style (Summon alert or banner) and never take the keyboard; task results come from Summon.app with Show Log and Ask Agent.
 * **Update**: [Features](features.md): Summon's menu bar icon shows a running agent's elapsed time and tells VoiceOver; keyboard and URL panel opens are announced. New `examples/menubar-panel-starter` (`tools/mp new <name> --panel`).
 * **Update**: [Menu bar and window mechanics](research/2026-10-18-mac-gui-design/03-menubar-and-window-mechanics.md): section 0, which requirement made SummonOS switch and what is still unverified.
 

@@ -27,6 +27,9 @@ Code: [`incubator/summon/`](../incubator/summon). Overview: [its README](../incu
   how to install the rest.
 - **From anywhere:** ⌃⌥⌘A opens the agent in a new terminal window, the drop-down terminal (⌃⌥⌘\`, then
   `a`) runs it inline, and `summon agent prompt "<task>"` starts it straight into a task.
+- **Session brief:** every task Summon hands an agent (menu, crash, Fix with AI, Activity, scheduled task) ends
+  with a `## Summon session` block: the working folder, the checkpoint id and its undo command, whether tool calls
+  are approved for the agent or prompted, the skill files, and for scheduled runs that nobody is watching.
 - **Terminal of your choice:** Ghostty, kitty or Terminal (`summon default terminal`). Ghostty reuses
   its running process and opens one window.
 - **Per-agent settings:** a model and the set of Summon skills for each agent
@@ -50,8 +53,12 @@ Code: [`incubator/summon/`](../incubator/summon). Overview: [its README](../incu
 
 ### The Mac calls the agent
 
-- **Crash watcher:** the menu app notifies you about new crash, hang and panic reports. The notification
-  hands the report to the agent with the `diagnose-crash-mac` skill.
+- **Crash watcher:** the menu app announces new crash, hang and panic reports, as a Summon alert (default)
+  or a macOS banner (Settings › Notifications), never both. The alert never takes the keyboard from the app you
+  are typing in; a burst shows one alert ("N more"), banners group per program. Diagnose with AI hands the report
+  to the agent with the `diagnose-crash-mac` skill.
+- **Task results:** each scheduled run ends with a "Task done" or "Task failed" notification from Summon, with
+  Show Log and Ask Agent (a plain banner when the app is not running).
 - **Crash commands:** `summon crash list`, `crash show <file.ips>` (parsed facts), `crash diagnose
   --latest`, `crash mute <program>` (and `off`), with muted programs managed in Settings.
 - **Debug bundle:** `summon debug [--print] [--save] [--since 1h]` collects the macOS version, hardware,
@@ -102,7 +109,7 @@ sections:
     open (Ghostty, kitty or Terminal), the skills every agent gets, and shared plugins (OpenLTM: Install in All).
     Each agent's page has the same sections: Account (Connected, or Log In…), Model (from that agent's real model
     list, or Custom…), Skills (same as All Agents, or Custom), Plugins (installed, recommended, Add).
-  - Notifications: crash and hang alerts, muted programs with Unmute.
+  - Notifications: crash and hang alerts (Summon alert or macOS banner), task results, sound, muted programs with Unmute.
   - Appearance: the theme.
   - Tasks: each recurring task with its schedule, agent and last result (view only).
 

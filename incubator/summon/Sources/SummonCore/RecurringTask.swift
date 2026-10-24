@@ -189,6 +189,8 @@ public enum TaskSetup {
             1. Ask only what you cannot infer (when, which agent, what to report).
             2. Write the run prompt: it runs unattended later, with no chat and nobody to ask, so make it complete
                (what to check or do, where, what to leave alone, and a short summary of the result at the end).
+               Summon adds the unattended rules and the session facts (checkpoint, folder, skills) to every run
+               itself, so the prompt only needs the task.
             3. Create it: summon task add "<run prompt>" --at HH:MM [--weekdays] | --every <n>h [--agent <id>] --name "<short name>"
             4. Show me summon task list, and how to try it now: summon task run <id>
             """

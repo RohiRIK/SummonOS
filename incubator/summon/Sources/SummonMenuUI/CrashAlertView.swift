@@ -11,17 +11,21 @@ private final class CrashAlertPanel: NSPanel {
 /// Offers an immediate "✨ Diagnose with AI" action to hand the crash facts to the default agent.
 public struct CrashAlertView: View {
     let report: CrashReport
+    /// Other new reports from the same scan; they are listed in the panel's Problems.
+    let alsoNew: Int
     let onDiagnose: () -> Void
     let onMute: () -> Void
     let onDismiss: () -> Void
 
     public init(
         report: CrashReport,
+        alsoNew: Int = 0,
         onDiagnose: @escaping () -> Void,
         onMute: @escaping () -> Void,
         onDismiss: @escaping () -> Void
     ) {
         self.report = report
+        self.alsoNew = alsoNew
         self.onDiagnose = onDiagnose
         self.onMute = onMute
         self.onDismiss = onDismiss
@@ -139,6 +143,11 @@ public struct CrashAlertView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
+                    if alsoNew > 0 {
+                        Text(alsoNew == 1 ? "1 more new report in the Summon panel" : "\(alsoNew) more new reports in the Summon panel")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
             }
 
@@ -205,7 +214,10 @@ public final class CrashAlertController {
         self.model = model
     }
 
-    public func present(_ report: CrashReport) {
+    /// Shows the alert without taking keyboard focus: a crash in the background must never capture the Return key
+    /// the user is typing into another app (which would start an agent). A click makes it key, so Return and Esc
+    /// work once the user turns to it.
+    public func present(_ report: CrashReport, alsoNew: Int) {
         // Skip routine memory kills as defined by CrashReport
         guard !report.isRoutine else { return }
 
@@ -216,6 +228,7 @@ public final class CrashAlertController {
 
         let view = CrashAlertView(
             report: report,
+            alsoNew: alsoNew,
             onDiagnose: { [weak self] in
                 self?.dismiss()
                 self?.model.diagnose(file: report.file)
@@ -244,10 +257,10 @@ public final class CrashAlertController {
             panel.setFrameOrigin(origin)
         }
 
-        // D12: only one Summon panel is key at a time, and the crash alert wins.
+        // D12: the menu bar panel closes first, so two Summon panels never overlap.
         onWillPresent?()
         panel.alphaValue = 0
-        panel.makeKeyAndOrderFront(nil)
+        panel.orderFrontRegardless()
 
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.2
