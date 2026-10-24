@@ -40,10 +40,14 @@ enum AgentCommands {
         }
 
         var checkpointID: String?
+        var checkpointProblems: [String] = []
+        var configCaptured = false
         if checkpoint {
             let service = CheckpointService(paths: context.paths, runner: context.runner, gitPath: context.git, macctlPath: context.macctl)
             let (taken, problems) = await service.create(label: prompt.map { "agent: " + String($0.prefix(60)) } ?? "agent session")
             checkpointID = taken.id
+            checkpointProblems = problems
+            configCaptured = taken.configCommit != nil
             for problem in problems {
                 context.warn("checkpoint: \(problem)")
             }
@@ -74,7 +78,10 @@ enum AgentCommands {
 
         // argv[0] stays the command name; the absolute path is what actually runs, so a GUI PATH cannot miss it.
         let settings = try AgentSettingsStore(paths: context.paths).loadValidated()
-        let argv = agent.argv(prompt: prompt.map { $0 + SkillCommands.promptFooter(agent: agent.id, settings: settings) },
+        let brief = SessionBrief(mode: .interactive(execution), folder: directory, checkpointID: checkpointID,
+                                 checkpointProblems: checkpointProblems, configCaptured: configCaptured,
+                                 skillFiles: SkillCommands.skillFiles(agent: agent.id, settings: settings))
+        let argv = agent.argv(prompt: prompt.map { $0 + brief.render() },
                               model: settings.model(for: agent.id), execution: execution)
         if inline {
             _ = fileManager.changeCurrentDirectoryPath(directory)

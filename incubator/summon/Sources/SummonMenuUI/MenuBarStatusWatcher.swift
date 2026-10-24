@@ -4,6 +4,7 @@ import SummonCore
 /// Keeps the status item's label live while the panel is closed: Summon's icon alone, or the icon plus the running
 /// agent's elapsed `mm:ss`. It checks the event log's modification date every `MenuBarStatus.pollInterval` seconds
 /// and only re-reads the log when that date moves; the clock ticks once a second only while a session is open.
+/// The same read hands events newer than the app's launch to `onNewEvents` (task results become notifications).
 @MainActor
 final class MenuBarStatusWatcher {
     private let model: SummonModel
@@ -11,6 +12,11 @@ final class MenuBarStatusWatcher {
     private var task: Task<Void, Never>?
     private var logDate: Date?
     private var session: LoggedEvent?
+    /// Events up to this time were seen; starts at launch (whole seconds, as the log stores them), so older events
+    /// are never announced. `seenAtBoundary` holds the events of that last second already handed on.
+    private var seenUntil = Date(timeIntervalSince1970: Date().timeIntervalSince1970.rounded(.down))
+    private var seenAtBoundary: [LoggedEvent] = []
+    var onNewEvents: (([LoggedEvent]) -> Void)?
 
     init(model: SummonModel, apply: @escaping (_ title: String?, _ accessibilityLabel: String) -> Void) {
         self.model = model
@@ -54,6 +60,13 @@ final class MenuBarStatusWatcher {
         guard modified != logDate else { return }
         logDate = modified
         let paths = model.paths
-        session = await Task.detached { StatusProbe.openSession(in: EventLog(paths: paths).read()) }.value
+        let events = await Task.detached { EventLog(paths: paths).read() }.value
+        session = StatusProbe.openSession(in: events)
+        let fresh = events.filter { $0.time > seenUntil || ($0.time == seenUntil && !seenAtBoundary.contains($0)) }
+        let newest = max(seenUntil, EventAnnouncer.baseline(events))
+        if newest > seenUntil { seenAtBoundary = [] }
+        seenUntil = newest
+        seenAtBoundary += fresh.filter { $0.time == newest }
+        if !fresh.isEmpty { onNewEvents?(fresh) }
     }
 }

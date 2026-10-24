@@ -79,6 +79,21 @@ public final class SummonModel {
         didSet { UserDefaults.standard.set(crashCaptureEnabled, forKey: Self.crashCaptureKey) }
     }
 
+    /// Summon's floating alert or a macOS banner for new crashes; never both.
+    public var crashAlertStyle: CrashAlertStyle {
+        didSet { UserDefaults.standard.set(crashAlertStyle.rawValue, forKey: Self.crashAlertStyleKey) }
+    }
+
+    /// Banners for scheduled task results (posted by the app from the event log). On by default.
+    public var taskNotificationsEnabled: Bool {
+        didSet { UserDefaults.standard.set(taskNotificationsEnabled, forKey: Self.taskNotificationsKey) }
+    }
+
+    /// Play the system sound with Summon's banners. On by default.
+    public var notificationSound: Bool {
+        didSet { UserDefaults.standard.set(notificationSound, forKey: Self.notificationSoundKey) }
+    }
+
     /// Show a running agent's elapsed time next to the menu bar icon (`MenuBarStatus`). On by default.
     public var menuBarShowsAgentTime: Bool {
         didSet {
@@ -124,13 +139,16 @@ public final class SummonModel {
     /// Set by `AppDelegate`: redraw the status item after a menu bar setting changed.
     @ObservationIgnored public var onMenuBarLabelChanged: (() -> Void)? = nil
 
-    /// Set by the app delegate to post a notification for each new report.
-    @ObservationIgnored public var onNewCrash: ((CrashReport) -> Void)? = nil
+    /// Set by the app delegate to announce the new reports of one scan, all at once (oldest first).
+    @ObservationIgnored public var onNewCrashes: (([CrashReport]) -> Void)? = nil
     @ObservationIgnored private var recentKey: [String] = []
     @ObservationIgnored private var scanningCrashes = false
     @ObservationIgnored private var watchTask: Task<Void, Never>? = nil
 
     static let crashCaptureKey = "crashCaptureEnabled"
+    static let crashAlertStyleKey = "summon.notifications.crashStyle"
+    static let taskNotificationsKey = "summon.notifications.tasks"
+    static let notificationSoundKey = "summon.notifications.sound"
     static let menuBarShowsAgentTimeKey = "summon.menuBar.showsAgentTime"
     static let panelAgentShortcutKey = "summon.shortcut.panelAgent"
     static let globalMenuShortcutKey = "summon.shortcut.globalMenu"
@@ -142,6 +160,10 @@ public final class SummonModel {
         self.runner = runner
         self.menu = MenuTree.standard
         self.crashCaptureEnabled = UserDefaults.standard.object(forKey: Self.crashCaptureKey) as? Bool ?? true
+        self.crashAlertStyle = UserDefaults.standard.string(forKey: Self.crashAlertStyleKey)
+            .flatMap(CrashAlertStyle.init(rawValue:)) ?? .default
+        self.taskNotificationsEnabled = UserDefaults.standard.object(forKey: Self.taskNotificationsKey) as? Bool ?? true
+        self.notificationSound = UserDefaults.standard.object(forKey: Self.notificationSoundKey) as? Bool ?? true
         self.menuBarShowsAgentTime = UserDefaults.standard.object(forKey: Self.menuBarShowsAgentTimeKey) as? Bool ?? true
         self.previousThemeSlug = UserDefaults.standard.string(forKey: Self.previousThemeKey)
         if let data = UserDefaults.standard.data(forKey: Self.globalMenuShortcutKey),
@@ -227,6 +249,8 @@ public final class SummonModel {
         scanningCrashes = true
         defer { scanningCrashes = false }
         let watcher = CrashWatcher(paths: paths)
+        var found: [CrashReport] = []
+        defer { if !found.isEmpty { onNewCrashes?(found) } }
         do {
             var hasMore: Bool
             repeat {
@@ -240,7 +264,7 @@ public final class SummonModel {
                 if let recent = result.0 { recentCrashes = recent }
                 recentKey = result.2
                 if crashCaptureEnabled {
-                    for report in result.1.reports { onNewCrash?(report) }
+                    found += result.1.reports
                 }
                 hasMore = result.1.hasMore
                 if hasMore { await Task.yield() }

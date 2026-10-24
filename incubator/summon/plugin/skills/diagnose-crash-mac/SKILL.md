@@ -2,8 +2,8 @@
 name: diagnose-crash-mac
 description: >
   Diagnose why an app or process crashed, hung, or was killed on this Mac, from a macOS
-  diagnostic report (.ips, .crash, .hang, .panic). Use when a Summon "App crashed" notification
-  is acted on, when asked why an app quit unexpectedly, keeps crashing, beachballs, or the Mac
+  diagnostic report (.ips, .crash, .hang, .panic). Use when a Summon crash alert or notification
+  is acted on (Diagnose with AI), when asked why an app quit unexpectedly, keeps crashing, beachballs, or the Mac
   restarted on its own. Triggers: crash, quit unexpectedly, EXC_BAD_ACCESS, SIGSEGV, SIGABRT,
   hang, spin, kernel panic, jetsam, DiagnosticReports, "why did X crash".
 ---
@@ -78,6 +78,10 @@ shows which library each frame belongs to and whether the crash was on the main 
 
 **Leave the Mac as you found it.** Diagnosis reads; it does not fix or tidy. If a fix is
 clear and small, offer it and do it only when asked (Summon checkpoints every session, so it can be undone).
+
+**Exception: the user's own apps.** When the crashed program is an app in `~/Summon/Apps/<name>` (check
+`summon project list`) and the request asked for a fix (Summon's "Crashed" badge does), fix the code: reproduce
+with a Core test when the cause is logic, run `scripts/check.sh`, relaunch the app, and report what was wrong.
 
 ## Offer to mute this one app
 

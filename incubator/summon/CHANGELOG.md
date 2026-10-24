@@ -6,9 +6,22 @@ version numbers yet; entries are grouped by day and point at the pull request.
 ## 2026-10-24
 
 ### Added
+- Every prompt Summon gives an agent ends with a `## Summon session` block: working folder, checkpoint id and undo
+  command, approval mode, skill files; scheduled runs are also told nobody is watching and to end with a summary.
+- Settings › Notifications: show crashes as a Summon alert or a macOS banner, task result notifications, sound.
+- Task results are posted by Summon.app with Show Log and Ask Agent (a plain banner only when the app is not running).
 - The menu bar icon shows a running agent's elapsed time (`mm:ss`, monospaced) with the panel closed; Settings ›
   General › Menu Bar turns it off. Its VoiceOver label names the agent and how long it has run.
 - Opening the panel with ⌃⌥Space or a `summon://` URL is announced to VoiceOver.
+
+### Fixed
+- The crash alert took keyboard focus, so Return typed into another app could start Diagnose; it now appears
+  without focus. Each crash no longer shows both a banner and the alert; a burst shows one alert, banners group.
+- Banner sound never played (no sound was set on the content).
+- Prompts: Fix with AI lists failures first and asks before risky steps; item-health and Activity prompts mark logs
+  as evidence; the crashed-app prompt and `diagnose-crash-mac` agree that the user's own apps may be fixed.
+- Skills: `summon-mac` no longer names the owner, describes both approval modes, and has the right task log
+  folder (`~/Summon/Tasks/<id>`); undo commands are the same in every skill.
 
 ## 2026-10-22
 

@@ -93,6 +93,12 @@ public struct AppHealthStore: Sendable {
         return try? decoder.decode(AppHealth.self, from: data)
     }
 
+    /// Whether Summon.app is running now, so it (not the CLI) posts notifications for logged events.
+    public func appIsRunning(isProcessRunning: (Int32) -> Bool = { pid in pid > 0 && kill(pid, 0) == 0 }) -> Bool {
+        guard let health = load() else { return false }
+        return isProcessRunning(health.pid)
+    }
+
     public func save(_ health: AppHealth) throws {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601

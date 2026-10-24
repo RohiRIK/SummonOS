@@ -101,7 +101,7 @@ closes first.
 | D5 | Space change | `NSWorkspace.activeSpaceDidChangeNotification` |
 | D6 | Settings… or Quit | footer or right-click menu |
 | D7 | Lock, display sleep, system sleep, user switch | `com.apple.screenIsLocked` (distributed), `screensDidSleep`, `willSleep`, `sessionDidResignActive` |
-| D12 | The crash alert appears | `CrashAlertController.onWillPresent` → `PanelController.yieldToCrashAlert()`. The panel closes first, then the alert takes key; focus is not handed back (the alert wins). |
+| D12 | The crash alert appears | `CrashAlertController.onWillPresent` → `PanelController.yieldToCrashAlert()`. The panel closes first, then the alert orders front **without** taking key (a background crash must not catch the Return key typed into another app); a click makes it key. |
 
 - There's no global click monitor, and the panel doesn't close on `didResignKey`.
 - Every close removes all its observers and clears the highlight.
@@ -137,6 +137,11 @@ level. To watch them: `log stream --predicate 'subsystem == "local.macplugins.su
 3. Keyboard menu bar navigation: ⌃F8 (Keyboard › Keyboard navigation, "Move focus to status menus"), arrow to the
    Summon item, Space. Expected: the panel opens like a click (search focused). Then the same with Full Keyboard Access on.
 4. macOS 27 (`NSMenuBarUseAgentNavigation`, set with macctl): repeat check 3 and note what changes.
+5. Crash alert focus: type in TextEdit, then `open -g summon://test-crash` (debug build). Expected: the alert appears,
+   typing and Return keep going to TextEdit; clicking the alert makes Return run Diagnose. Settings › Notifications ›
+   "macOS notification": the same URL posts one banner instead, grouped per program, with sound when on.
+6. Task result: with the app running, `summon task run <id>`. Expected: one "Task done: <name>" banner from Summon
+   (not Script Editor) with Show Log and Ask Agent; with the app quit, one plain banner from the CLI.
 
 ## Deployment floor
 

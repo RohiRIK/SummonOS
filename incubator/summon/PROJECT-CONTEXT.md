@@ -40,6 +40,17 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-24 — Agent prompts, skills and notifications aligned
+- `SessionBrief` (Core, tested) ends every prompt Summon gives an agent (`summon agent prompt`, crash diagnose,
+  `summon fix`, item health, Activity, tasks): folder, checkpoint id + undo command, approval mode, skill files.
+  Scheduled runs get `scheduledPreamble` (unattended, never ask or wait, end with a summary). Replaces `promptFooter`.
+- Notifications: `CrashAnnouncementPlan` (Core) picks one channel per scan, Summon alert (default) or banner
+  (`summon.notifications.crashStyle`); the alert orders front without key (Return typed elsewhere ran Diagnose).
+  Task results: the CLI logs, the app posts them from the event log (`EventAnnouncer`, Show Log / Ask Agent);
+  the CLI's osascript banner only when the app is not running. Sound and task toggles in Settings › Notifications.
+- Prompts reworded (Fix with AI ordered and asks before risky steps; logs are evidence); skills: no owner name in
+  `summon-mac`, both approval modes, task logs in ~/Summon/Tasks, one undo command; `diagnose-crash-mac` may fix
+  the user's own ~/Summon apps. Mac checks 5–6 in `docs/menubar-panel.md` pending.
 ### 2026-10-24 — Live menu bar label and VoiceOver announcements
 - `MenuBarStatus` (Core, tested) + `MenuBarStatusWatcher` (UI): a running agent's `mm:ss` next to the icon while the
   panel is closed; checks the event log's date every 2 s, re-reads only when it moves. Setting

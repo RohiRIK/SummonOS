@@ -91,7 +91,7 @@ public enum AppHealthChecker {
                 level: .error,
                 badge: "Folder Missing",
                 detail: "Project folder does not exist at \(project.path).",
-                fixPrompt: "Project '\(project.name)' is registered in Summon but its folder \(project.path) is missing. Restore or recreate it."
+                fixPrompt: "Summon's project '\(project.name)' points at \(project.path), which no longer exists. Look for where it went (Trash, a rename, `summon project list`, its GitHub repo). Tell me what you found and ask before restoring it, cloning it again, or removing the entry with `summon project forget \(project.name)`."
             )
         }
 
@@ -101,7 +101,7 @@ public enum AppHealthChecker {
                 level: .error,
                 badge: "Missing Package.swift",
                 detail: "Package.swift is missing from \(project.name).",
-                fixPrompt: "Project '\(project.name)' at \(project.path) is missing Package.swift. Restore the Swift package configuration."
+                fixPrompt: "Project '\(project.name)' at \(project.path) has no Package.swift, so it cannot build. Check git first (`git status`, `git log -- Package.swift`) and restore it from history if it was deleted; only write a new one if it never existed, matching the layout in the mac-app skill. Finish when `scripts/check.sh` passes."
             )
         }
 
@@ -111,7 +111,7 @@ public enum AppHealthChecker {
                 level: .error,
                 badge: "Crashed",
                 detail: "Crashed recently (\(crash.signal ?? crash.exceptionType ?? "crash")).",
-                fixPrompt: "App '\(project.name)' at \(project.path) crashed recently (report: \(crash.file)). Diagnose the crash using diagnose-crash-mac skill and fix it."
+                fixPrompt: "My app '\(project.name)' (\(project.path), built with Summon) crashed (report: \(crash.file)). Find the cause with the diagnose-crash-mac skill. This is our own code, so fix it: change the code, add a Core test that reproduces it when the cause is logic, run `scripts/check.sh`, relaunch the app, and tell me what was wrong."
             )
         }
 
@@ -125,7 +125,7 @@ public enum AppHealthChecker {
                 level: .warning,
                 badge: "Needs Build",
                 detail: "App has not been built yet.",
-                fixPrompt: "Build project '\(project.name)' at \(project.path) using scripts/bundle.sh or swift build and make sure it builds cleanly."
+                fixPrompt: "Project '\(project.name)' at \(project.path) has not been built yet. Run `scripts/check.sh` there (then `scripts/bundle.sh` if it has one), fix whatever fails, and tell me what you changed."
             )
         }
 

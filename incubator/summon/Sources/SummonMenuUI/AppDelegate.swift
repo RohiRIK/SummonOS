@@ -16,6 +16,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
     static let crashCategory = "summon.crash"
     static let diagnoseAction = "summon.crash.diagnose"
     static let muteAction = "summon.crash.mute"
+    static let taskCategory = "summon.task"
+    static let showLogAction = "summon.task.log"
+    static let askAction = "summon.task.ask"
 
     /// `summon://` URLs that arrived before the panel existed; replayed at the end of applicationDidFinishLaunching.
     private var launchURLs = LaunchURLQueue()
@@ -54,6 +57,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         }
         self.menuBarStatus = menuBarStatus
         model.onMenuBarLabelChanged = { [weak menuBarStatus] in menuBarStatus?.redraw() }
+        menuBarStatus.onNewEvents = { [weak self] events in self?.announce(events) }
         menuBarStatus.start()
         let health = registerHotKeys() ?? AppHealth(pid: ProcessInfo.processInfo.processIdentifier, hotkeys: [:])
         model.onUpdateGlobalHotKeys = { [weak self] in
@@ -67,10 +71,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         if !queued.isEmpty {
             DispatchQueue.main.async { [weak self] in self?.application(NSApp, open: queued) }
         }
-        model.onNewCrash = { [weak self] report in
-            self?.notify(report)
-            self?.crashAlert.present(report)
-        }
+        model.onNewCrashes = { [weak self] reports in self?.announce(reports) }
         model.startWatching()
         // Every launch relinks the shipped skills, so an updated or moved app still reaches every agent.
         Task {
@@ -118,7 +119,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
                     signal: "SIGSEGV",
                     topFrames: ["0   libsystem_kernel.dylib   0x000000018a14b534 __pthread_kill + 8", "1   GhosttyApp               0x00000001048b2910 main + 420"]
                 )
-                crashAlert.present(sample)
+                // Through the same path as a real report, so it follows Settings › Notifications.
+                announce([sample])
             #endif
             default:
                 break
@@ -179,10 +181,13 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         guard canNotify else { return }
         let center = UNUserNotificationCenter.current()
         center.delegate = self
-        let diagnose = UNNotificationAction(identifier: Self.diagnoseAction, title: "Diagnose", options: [])
+        let diagnose = UNNotificationAction(identifier: Self.diagnoseAction, title: "Diagnose with AI", options: [])
         let mute = UNNotificationAction(identifier: Self.muteAction, title: "Mute This App", options: [])
-        let category = UNNotificationCategory(identifier: Self.crashCategory, actions: [diagnose, mute], intentIdentifiers: [], options: [])
-        center.setNotificationCategories([category])
+        let crash = UNNotificationCategory(identifier: Self.crashCategory, actions: [diagnose, mute], intentIdentifiers: [], options: [])
+        let showLog = UNNotificationAction(identifier: Self.showLogAction, title: "Show Log", options: [])
+        let ask = UNNotificationAction(identifier: Self.askAction, title: "Ask Agent", options: [])
+        let task = UNNotificationCategory(identifier: Self.taskCategory, actions: [showLog, ask], intentIdentifiers: [], options: [])
+        center.setNotificationCategories([crash, task])
         let store = AppHealthStore(paths: model.paths)
         center.requestAuthorization(options: [.alert, .sound]) { _, _ in
             UNUserNotificationCenter.current().getNotificationSettings { settings in
@@ -203,9 +208,14 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         }
     }
 
-    private func notify(_ report: CrashReport) {
-        // A process over its own memory cap, or stopped while idle, is normal macOS life: listed, not announced.
-        guard canNotify, !report.isRoutine else { return }
+    /// One scan's new reports: Summon's alert or banners, per Settings › Notifications, never both.
+    private func announce(_ reports: [CrashReport]) {
+        let plan = CrashAnnouncementPlan.make(reports, style: model.crashAlertStyle, canPostBanners: canNotify)
+        if let report = plan.alert { crashAlert.present(report, alsoNew: plan.alsoNew) }
+        for report in plan.banners { postBanner(report) }
+    }
+
+    private func postBanner(_ report: CrashReport) {
         let content = UNMutableNotificationContent()
         switch report.kind {
         case .crash: content.title = "\(report.program) crashed"
@@ -214,11 +224,34 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         case .memory: content.title = report.process == nil ? "Your Mac ran low on memory" : "macOS stopped \(report.program)"
         case .other: content.title = "\(report.program) wrote a diagnostic report"
         }
-        content.body = "Click Diagnose to hand it to your agent."
+        let what = [report.exceptionType, report.signal].compactMap { $0 }.joined(separator: " · ")
+        content.body = (what.isEmpty ? "" : what + ". ") + "Click to have your agent find out why."
         content.categoryIdentifier = Self.crashCategory
+        // Notification Center groups a program's reports together.
+        content.threadIdentifier = "summon.crash." + CrashWatcher.muteKey(report.program)
         content.userInfo = ["file": report.file, "program": report.program]
+        if model.notificationSound { content.sound = .default }
         let request = UNNotificationRequest(identifier: report.file, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request) { _ in }
+    }
+
+    /// Task results the CLI logged while this app runs (the CLI posts nothing itself then).
+    private func announce(_ events: [LoggedEvent]) {
+        guard canNotify, model.taskNotificationsEnabled else { return }
+        for announcement in EventAnnouncer.announcements(in: events, after: .distantPast) {
+            let content = UNMutableNotificationContent()
+            content.title = announcement.title
+            content.body = announcement.body
+            content.categoryIdentifier = Self.taskCategory
+            content.threadIdentifier = announcement.thread
+            var info = ["title": announcement.title, "category": announcement.category.rawValue]
+            info["log"] = announcement.logFile
+            info["task"] = announcement.taskID
+            content.userInfo = info
+            if model.notificationSound && announcement.category == .taskFailed { content.sound = .default }
+            let request = UNNotificationRequest(identifier: announcement.id, content: content, trigger: nil)
+            UNUserNotificationCenter.current().add(request) { _ in }
+        }
     }
 
     public nonisolated func userNotificationCenter(
@@ -227,12 +260,13 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let action = response.actionIdentifier
+        let category = response.notification.request.content.categoryIdentifier
         let info = response.notification.request.content.userInfo
-        let file = info["file"] as? String
-        let program = info["program"] as? String
+        var strings: [String: String] = [:]
+        for (key, value) in info { if let key = key as? String, let value = value as? String { strings[key] = value } }
         completionHandler()
         Task { @MainActor in
-            self.handle(action: action, file: file, program: program)
+            self.handle(action: action, category: category, info: strings)
         }
     }
 
@@ -244,13 +278,37 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         completionHandler([.banner, .sound])
     }
 
-    private func handle(action: String, file: String?, program: String?) {
+    private func handle(action: String, category: String, info: [String: String]) {
+        if category == Self.taskCategory {
+            handleTask(action: action, info: info)
+            return
+        }
         switch action {
         case Self.muteAction:
-            if let program { model.mute(program: program) }
+            if let program = info["program"] { model.mute(program: program) }
         case Self.diagnoseAction, UNNotificationDefaultActionIdentifier:
-            // Clicking the notification itself also diagnoses, like Omarchy's "Process crashed" toast.
-            if let file { model.diagnose(file: file) }
+            // Clicking the banner itself also diagnoses: that is what the banner offers.
+            if let file = info["file"] { model.diagnose(file: file) }
+        default:
+            break
+        }
+    }
+
+    private func handleTask(action: String, info: [String: String]) {
+        switch action {
+        case Self.showLogAction:
+            if let log = info["log"], FileManager.default.fileExists(atPath: log) {
+                NSWorkspace.shared.open(URL(fileURLWithPath: log))
+            } else {
+                activity.requestOpen()
+            }
+        case Self.askAction:
+            let announcement = EventAnnouncement(
+                id: "", category: EventAnnouncement.Category(rawValue: info["category"] ?? "") ?? .taskDone,
+                title: info["title"] ?? "Scheduled task", body: "", thread: "", logFile: info["log"], taskID: info["task"])
+            model.askAgent(prompt: EventAnnouncer.askPrompt(announcement))
+        case UNNotificationDefaultActionIdentifier:
+            activity.requestOpen()
         default:
             break
         }
