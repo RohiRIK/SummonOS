@@ -90,4 +90,5 @@ is the Summon subset and works without it.
 Look at every image yourself and regenerate any with: invented text or glyphs, a watermark, a frame or
 film-gate border, warped geometry, seams, banding, or colors drifted from the palette. Show the survivors side by
 side (`open <folder>` or `qlmanage -p <files>`), let the user pick, then install with the guide's last step.
-Report what you made, where the other candidates are, and how to undo (`summon checkpoint undo`).
+Report what you made, where the other candidates are, and how to undo (`summon checkpoint undo <id>`, the id
+from the `## Summon session` block).

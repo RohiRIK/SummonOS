@@ -11,7 +11,7 @@ description: >
 
 # Summon on the Mac: settings, configs, themes, rules
 
-You were summoned onto Rohi's Mac. Summon is an agent layer for macOS: one agent (you)
+You were summoned onto this Mac. Summon is an agent layer for macOS: one agent (you)
 that can be called from anywhere, one CLI that describes everything, one theme that restyles
 everything, and a checkpoint before every session so whatever you do can be undone.
 
@@ -29,6 +29,22 @@ summon events --limit 20    # timeline: settings changes and undos, checkpoints,
 
 Read a command's help before running it (`summon <group> <cmd> --help` never executes anything).
 
+## The session block in your prompt
+
+When Summon starts you with a task, the prompt ends with a `## Summon session` block. It is the truth about
+this run; use it instead of guessing:
+
+- **Checkpoint id** and the exact undo command (`summon checkpoint undo <id>`). "No checkpoint" means nothing is
+  undoable through Summon: ask before every change. "Incomplete" means treat changes as hard to undo.
+- **Approval mode.** *Unattended*: your tool calls run without prompts, so these rules are the only check.
+  *Harness controls*: your harness asks the user before risky calls; the rules still apply.
+- **Scheduled task**: nobody is watching. Never ask or wait; skip what needs a person and say so in the final
+  summary, which is all the user reads.
+- **Working folder** and the **skill files** chosen for you (read them if your harness has no skill mechanism).
+
+A session started from the hotkey or menu with no task has no block: the checkpoint is still taken; find it with
+`summon checkpoint list`.
+
 ## Rules
 
 1. **Settings go through `macctl`, never raw `defaults write` / `osascript`** for anything `macctl` covers.
@@ -37,14 +53,16 @@ Read a command's help before running it (`summon <group> <cmd> --help` never exe
 2. **Edit configs in `~/.config`, never the shipped copies.** Summon's defaults live in its install
    folder (`$(summon path)`); copy before you customize. Generated files under `~/.config/summon/current/`
    are overwritten on every `summon theme set`: change the theme JSON instead.
-3. **You run with permission prompts bypassed, so stay inside the checkpoint.** Summon took a checkpoint when this session
-   started (`macctl` snapshot + a git commit of `~/.config`). Things outside it, such as deleting files outside
-   `~/.config`, uninstalling apps, changing login passwords, or anything under `/System`, need the user's
-   explicit yes first.
+3. **Stay inside the checkpoint.** Summon took one when this session started (`macctl` snapshot + a git commit of
+   `~/.config`). Whether your tool calls are approved for you or prompted depends on the mode in the session block;
+   either way, things outside the checkpoint, such as deleting files outside `~/.config`, uninstalling apps,
+   changing login passwords, sending anything off this Mac, or anything under `/System`, need the user's explicit
+   yes first.
 4. **Admin steps** use `sudo` in the visible terminal (Touch ID if `pam_tid` is on). Never write passwords
    to files, never `sudo -S` with a piped password, never edit `/etc/sudoers`.
 5. **Report what you changed** at the end: settings (ids and old → new), files, apps installed, and how to
-   undo (`summon checkpoint undo` or `macctl undo <id>`).
+   undo (`summon checkpoint undo <id>` with the id from the session block, `summon undo-session` for the latest,
+   or `macctl undo <snapshot>` for one setting).
 
 ## Where things live
 
@@ -64,7 +82,7 @@ Read a command's help before running it (`summon <group> <cmd> --help` never exe
 | Everything agents make | `~/Summon`: `Apps/<name>`, `Art/<job>`, `Tasks/<id>`, `Themes` (a link to the themes) | `summon home` |
 | Default agent | `~/.config/summon/defaults/agent` | `summon default agent <name>` |
 | Per-agent model and skills | `~/.config/summon/agents.json` | `summon agents set <agent> --model <m> --skills a,b` |
-| Recurring agent tasks | `~/.config/summon/tasks.json`, logs in `~/.local/state/summon/tasks/<id>/` | `summon task add "<prompt>" --at 09:00 [--weekdays] \| --every 2h [--agent <id>]`, `task list`, `task run <id>`, `task remove <id>` |
+| Recurring agent tasks | `~/.config/summon/tasks.json`, logs in `~/Summon/Tasks/<id>/` | `summon task add "<prompt>" --at 09:00 [--weekdays] \| --every 2h [--agent <id>]`, `task list`, `task run <id>`, `task remove <id>` |
 
 ## Making a new theme
 
@@ -87,10 +105,12 @@ checkpoint, for at most 30 minutes.
    (default if unsaid; `summon agents` lists them), and what the user wants to see afterwards.
 2. Write the run prompt as a complete brief: what to check or do, where, what never to touch (nothing destructive
    without the user), and end with "Finish with a short summary of what you found or changed." That summary is
-   what the user reads in Activity.
+   what the user reads in Activity and in the result notification. Summon wraps every run with the unattended
+   rules and the session block, so do not repeat them.
 3. `summon task add "<run prompt>" --at HH:MM [--weekdays] | --every <n>h [--agent <id>] --name "<short name>"`
 4. Show `summon task list`, offer `summon task run <id>` to try it now, and say how to stop it:
-   `summon task remove <id>`. Logs: `~/.local/state/summon/tasks/<id>/`.
+   `summon task remove <id>`. Logs: `~/Summon/Tasks/<id>/`. Each run ends with a "Task done" or "Task failed"
+   notification (Show Log, Ask Agent).
 
 ## Keybindings (default)
 

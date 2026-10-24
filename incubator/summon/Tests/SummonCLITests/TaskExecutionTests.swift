@@ -86,6 +86,29 @@ struct TaskExecutionTests {
         #expect(!events.contains { $0.kind == EventKind.taskDone })
     }
 
+    @MainActor @Test func scheduledRunTellsTheAgentItIsUnattended() async throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: home) }
+        let paths = SummonPaths(home: home)
+        let bin = home.appendingPathComponent("bin")
+        try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+        let agent = bin.appendingPathComponent("claude")
+        let received = home.appendingPathComponent("argv.txt")
+        try Data("#!/bin/sh\nfor a in \"$@\"; do printf '%s\\n' \"$a\"; done > '\(received.path)'\nprintf 'All good'\n".utf8).write(to: agent)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: agent.path)
+        let locator = ToolLocator(searchPath: [bin.path], isExecutable: { $0 == agent.path })
+        let context = Context(paths: paths, runner: { _, _ in "" }, tools: locator)
+        let task = RecurringTask(id: "brief", name: "Brew check", prompt: "Check brew updates.", agent: "claude", schedule: .init(kind: .daily))
+        try TaskStore(paths: paths).save([task])
+        try await TaskCommands.runTask(task.id, context)
+        let argv = try String(contentsOf: received, encoding: .utf8)
+        #expect(argv.contains("scheduled Summon task \"Brew check\""))
+        #expect(argv.contains("Check brew updates."))
+        #expect(argv.contains(SessionBrief.heading))
+        #expect(argv.contains("Stopped after 30 minutes"))
+        #expect(EventLog(paths: paths).read().last?.kind == EventKind.taskDone)
+    }
+
     @MainActor @Test func checkpointFailurePreventsAgentExecution() async throws {
         let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: home) }

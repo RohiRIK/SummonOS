@@ -66,14 +66,11 @@ enum SkillCommands {
         }
     }
 
-    /// Appended to every agent prompt, as Omarchy does: agents without a skill mechanism read the files directly.
-    /// Lists only the skills chosen for this agent.
-    static func promptFooter(agent: String, settings: AgentSettings) -> String {
-        let chosen = settings.skills(for: agent, shipped: SkillLinker.skillNames(in: source))
-        let files = chosen.map { source.appendingPathComponent("\($0)/SKILL.md").path }
-        guard !files.isEmpty else { return "" }
-        return "\n\nSummon skills (use the one that fits; if your harness has no skill mechanism, read the file and follow it):\n"
-            + files.map { "  \($0)" }.joined(separator: "\n")
+    /// The SKILL.md files chosen for this agent, listed in every prompt's session brief: agents without a skill
+    /// mechanism read the files directly.
+    static func skillFiles(agent: String, settings: AgentSettings) -> [String] {
+        settings.skills(for: agent, shipped: SkillLinker.skillNames(in: source))
+            .map { source.appendingPathComponent("\($0)/SKILL.md").path }
     }
 }
 

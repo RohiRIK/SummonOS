@@ -41,5 +41,8 @@ screensavers start with `summon project new <name> --kind menubar|app|cli|screen
 - Changes to this Mac follow `summon-mac`'s rules even when another skill is driving: settings through
   `macctl`, edit `~/.config` copies, stay inside the session checkpoint, ask before anything outside it.
 - Unclear request: ask one question, then route. Never ask which skill to use; that is your job.
-- End with what you did, where it is, and how to undo it (`summon checkpoint undo`).
+- End with what you did, where it is, and how to undo it: `summon checkpoint undo <id>` with the id from the
+  `## Summon session` block at the end of your prompt (`summon undo-session` undoes the latest).
+- That block also says whether your tool calls are approved for you and whether anyone is watching (a scheduled
+  task: never ask, never wait). `summon-mac` explains each line.
 - Discover the rest yourself: `summon commands --json` lists every Summon command.

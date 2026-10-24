@@ -127,7 +127,7 @@ public struct SettingsView: View {
                 headerText(title: "Terminal", subtitle: "Default terminal emulator, launch behavior, and window styling")
             case .notifications:
                 headerIcon(systemName: "bell.badge.fill", color: .red)
-                headerText(title: "Notifications", subtitle: "Alert triggers, crash warnings, and sound effects")
+                headerText(title: "Notifications", subtitle: "Crash alerts, task results, and sound")
             case .appearance:
                 headerIcon(systemName: "paintpalette.fill", color: .blue)
                 headerText(title: "Appearance", subtitle: "Theme palettes, colors, and visual styling")
@@ -1104,6 +1104,22 @@ struct NotificationSettings: View {
         Form {
             Section {
                 Toggle("Crashes and hangs", isOn: $model.crashCaptureEnabled)
+                Picker("Show crashes as", selection: $model.crashAlertStyle) {
+                    ForEach(CrashAlertStyle.allCases) { style in
+                        Text(style.title).tag(style)
+                    }
+                }
+                .disabled(!model.crashCaptureEnabled)
+            } footer: {
+                Text(model.crashAlertStyle == .summon
+                     ? "A Summon alert with Diagnose with AI. It never takes the keyboard from the app you are typing in."
+                     : "A macOS banner that stays in Notification Center, grouped per app.")
+            }
+            Section {
+                Toggle("Scheduled task results", isOn: $model.taskNotificationsEnabled)
+                Toggle("Play sound", isOn: $model.notificationSound)
+            } footer: {
+                Text("Task banners offer Show Log and Ask Agent. Sound plays for crashes and failed tasks.")
             }
             if !model.mutedPrograms.isEmpty {
                 Section("Muted") {
