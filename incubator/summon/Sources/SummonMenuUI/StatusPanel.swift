@@ -270,6 +270,19 @@ public final class PanelController: NSObject {
         hotKeyFilter.release()
     }
 
+    /// The status item's live label (`MenuBarStatusWatcher`): icon only when `title` is nil, else icon and title.
+    /// Monospaced digits keep the item's width steady while the clock ticks.
+    public func setStatusLabel(title: String?, accessibilityLabel: String) {
+        guard let button = statusItem.button else { return }
+        let text = title ?? ""
+        if button.title != text {
+            button.title = text
+            button.imagePosition = title == nil ? .imageOnly : .imageLeading
+            button.font = .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        }
+        if button.accessibilityLabel() != accessibilityLabel { button.setAccessibilityLabel(accessibilityLabel) }
+    }
+
     /// D12: the crash alert is about to take key. Close without handing focus back; the alert gets it.
     public func yieldToCrashAlert() {
         handle(.crashAlertPresenting)
@@ -350,6 +363,13 @@ public final class PanelController: NSObject {
             guard let self, self.isOpen else { return }
             self.statusItem.button?.highlight(true)
             if focus { self.state.focusRequest += 1 }
+            // VoiceOver: a nonactivating panel opened from the keyboard or a URL doesn't move the VoiceOver cursor.
+            if let text = PanelOpenGuard.announcement(source, focusesSearch: focus) {
+                NSAccessibility.post(element: self.panel, notification: .announcementRequested, userInfo: [
+                    .announcement: text,
+                    .priority: NSAccessibilityPriorityLevel.high.rawValue,
+                ])
+            }
         }
     }
 

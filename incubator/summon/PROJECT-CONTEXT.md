@@ -40,6 +40,11 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-24 — Live menu bar label and VoiceOver announcements
+- `MenuBarStatus` (Core, tested) + `MenuBarStatusWatcher` (UI): a running agent's `mm:ss` next to the icon while the
+  panel is closed; checks the event log's date every 2 s, re-reads only when it moves. Setting
+  `summon.menuBar.showsAgentTime` (default on, Settings › General › Menu Bar).
+- Hotkey and URL/CLI opens post a VoiceOver announcement (`PanelOpenGuard.announcement`). Mac checks pending.
 ### 2026-10-20 — Design skills and public preview preparation
 - Six workspace design skills retested: modern LiquidGlass and optional Aqua, Classic, Linen, NeXT, Yosemite styles.
   CI validates routes/references and Swift 6 examples against macOS 15.

@@ -98,7 +98,7 @@ tools/check-workspace.sh         # the checks a pull request must pass
 | [`.claude/skills/`](.claude/skills) | Agent skills for building Mac apps |
 | [`docs/`](docs/index.md) | An [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md) bundle: [features](docs/features.md), [app lifecycle](docs/workflow.md), [tools](docs/tools.md), [plans](docs/plans/index.md), [research](docs/research/index.md), [update log](docs/log.md) |
 | [`tools/`](tools) | Workspace scripts: checks, plugin registry (`mp`), publish, release, previews, README art, docs index ([docs/tools.md](docs/tools.md)) |
-| [`examples/`](examples) | `menubar-starter`, the skeleton new workspace apps start from |
+| [`examples/`](examples) | `menubar-starter` (MenuBarExtra) and `menubar-panel-starter` (NSStatusItem + NSPanel), the skeletons new workspace apps start from |
 | [`plugins.json`](plugins.json) | Registry of the workspace apps; [`plugins.md`](plugins.md) is generated from it |
 | [`AGENTS.md`](AGENTS.md) | Rules for agents and people: stack, workflow, conventions, publishing. `CLAUDE.md` points to it. |
 | [`tasks/`](tasks) | `todo.md` (current plan only) and `lessons.md` (rules learned from corrections) |

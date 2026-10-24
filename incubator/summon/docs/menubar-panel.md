@@ -36,6 +36,24 @@ Behavior follows the interaction spec v1.5 (IDs A1–G3, 47 checklist lines). Th
 - **Live updates.** While open, the view refreshes Activity every 1 s, and the agent row shows elapsed `mm:ss`
   (`PanelClock`). There's no menu-tracking run loop, so updates draw as they happen.
 
+## Status item label
+
+- **Icon only** normally. While an agent session is open (a `session.start` in the event log with no later end,
+  under 12 h old), the icon is followed by its elapsed `mm:ss` in monospaced digits, so the width doesn't jitter.
+- `MenuBarStatusWatcher` checks the event log's modification date every 2 s and re-reads the log only when it
+  moved; the clock redraws once a second. It runs with the panel closed, which is the point: the panel already shows
+  the same clock when open.
+- **Setting:** Settings › General › Menu Bar › Show agent time in the menu bar (`summon.menuBar.showsAgentTime`, on by default).
+- **VoiceOver (G3):** the item's label is `Summon`, or `Summon, Claude running for 4 minutes` while a session is
+  open, with the time setting on or off (`MenuBarStatus.accessibilityLabel`).
+
+## VoiceOver on open
+
+A click moves the VoiceOver cursor to the status item, so it's silent. A hotkey or URL/CLI open doesn't move the
+cursor: the panel is nonactivating, so VoiceOver stays in the other app. Those opens post an
+`announcementRequested` notification at high priority (`PanelOpenGuard.announcement`): "Summon menu. Type to
+search." after ⌃⌥Space, "Summon menu opened." after a URL or CLI open (no search focus there).
+
 ## Keys in the panel
 
 | Key | Does |
@@ -109,6 +127,16 @@ level. To watch them: `log stream --predicate 'subsystem == "local.macplugins.su
 - **A1/A2/G1 focus:** for click and hotkey opens, the search field is focused one run-loop turn after
   `makeKeyAndOrderFront` (`PanelState.focusRequest`), because focus set before the window is key is dropped. URL/CLI
   opens don't request focus.
+
+## Mac checks (not run yet)
+
+1. Agent running: the icon shows `00:0N` within 2 s of a session start and counts up; it goes back to the icon within
+   2 s of the session end. Turning the setting off hides the time at once.
+2. VoiceOver on (⌘F5): ⌃⌥Space announces "Summon menu. Type to search."; `open -g summon://panel` announces
+   "Summon menu opened."; a click announces nothing extra. VO-hovering the icon reads the running state.
+3. Keyboard menu bar navigation: ⌃F8 (Keyboard › Keyboard navigation, "Move focus to status menus"), arrow to the
+   Summon item, Space. Expected: the panel opens like a click (search focused). Then the same with Full Keyboard Access on.
+4. macOS 27 (`NSMenuBarUseAgentNavigation`, set with macctl): repeat check 3 and note what changes.
 
 ## Deployment floor
 

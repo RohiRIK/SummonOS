@@ -63,6 +63,10 @@ The menu bar panel (⌃⌥Space) with the Summon Menu opens under the Summon ico
 `open -g summon://panel` (`summon panel --close` closes it). It takes typing without taking focus from the app
 you're in, and Esc returns you there. Right-click the icon for Settings… and Quit. Pressing ⌘↵ anywhere in the
 panel immediately launches the default agent in your preferred terminal in `~/Summon`.
+While an agent runs, its elapsed time (`mm:ss`) shows next to the Summon icon even with the panel closed (Settings ›
+General › Menu Bar turns it off), and VoiceOver reads the agent and how long it has run on the icon. Opening the
+panel from ⌃⌥Space or a URL is announced to VoiceOver, since a panel that doesn't activate Summon doesn't move the
+VoiceOver cursor.
 
 At the top of the panel is the Summon Menu: a searchable, keyboard-first menu tree defined in
 `~/.config/summon/menu.jsonc` (`summon menu init`, `menu list`, `menu summon [id]`, which opens the panel at that
@@ -312,7 +316,7 @@ What this repo gives you for building more apps ([`README.md`](../README.md), [`
 | `swiftui-expert-skill`, `swift-concurrency-pro` | Vendored (MIT): SwiftUI and Swift concurrency depth |
 
 CI ([`.github/workflows/swift.yml`](../.github/workflows/swift.yml)) builds and tests every Swift package
-on macOS on every push, including Summon's templates and `examples/menubar-starter`.
+on macOS on every push, including Summon's templates, `examples/menubar-starter` and `examples/menubar-panel-starter`.
 It also validates design skill structure, typechecks their Swift examples, and runs tooling regressions.
 A second workflow, [`visual-qa.yml`](../.github/workflows/visual-qa.yml) (Visual QA (macOS)), runs on PRs that touch
 `incubator/summon/**` and on demand: on GitHub-hosted `macos-26` and `macos-15` runners it opens Summon's launcher

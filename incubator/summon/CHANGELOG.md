@@ -3,6 +3,13 @@
 All notable changes to Summon. Newest first. Summon is still incubating in the SummonOS workspace, so there are no
 version numbers yet; entries are grouped by day and point at the pull request.
 
+## 2026-10-24
+
+### Added
+- The menu bar icon shows a running agent's elapsed time (`mm:ss`, monospaced) with the panel closed; Settings ›
+  General › Menu Bar turns it off. Its VoiceOver label names the agent and how long it has run.
+- Opening the panel with ⌃⌥Space or a `summon://` URL is announced to VoiceOver.
+
 ## 2026-10-22
 
 ### Added
