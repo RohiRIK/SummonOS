@@ -3,7 +3,7 @@
 Start every new plugin with `mp new` from the workspace root:
 
 ```bash
-tools/mp new <name> --kind menubar        # or menubar-panel, app, cli, screensaver
+tools/mp new <name> --kind menubar        # or menubar-panel, launcher, hud, notch, app, cli, screensaver
 ```
 
 It copies Summon's template for that kind (`incubator/summon/templates/<kind>/`, the one set of templates, built
@@ -13,7 +13,7 @@ and `<kind>-starter` to the kebab-case name (`mac-battery`), switches the bundle
 else. Repos come later, with the owner's OK: `tools/mp promote <name> --yes` (see `docs/tools.md`).
 
 This is for plugins of this workspace. Apps a user makes through Summon do not go here: they start with
-`summon project new <name> --kind menubar|menubar-panel|app|cli|screensaver` in `~/Summon/Apps/<name>` from the
+`summon project new <name> --kind menubar|menubar-panel|launcher|hud|notch|app|cli|screensaver` in `~/Summon/Apps/<name>` from the
 same templates, are listed only in Summon's private `~/.config/summon/projects.json`, and get a private repo only
 through `summon project repo`.
 
