@@ -313,6 +313,16 @@ public final class SummonModel {
         reload()
     }
 
+    /// The hotkey and the panel's Ask Agent: the agent starts with what is on screen as its first message.
+    /// Captured before anything else runs, while the person's app is still in front (the panel never activates).
+    public func askAgentAboutScreen() {
+        let hidden = agentSettings.hiddenContext
+        Task {
+            let screen = await ScreenContext.capture(hidden: hidden, runner: runner)
+            askAgent(prompt: screen.prompt())
+        }
+    }
+
     public func askAgent(prompt: String? = nil) {
         Task {
             if let prompt {
