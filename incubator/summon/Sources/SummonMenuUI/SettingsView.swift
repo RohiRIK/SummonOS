@@ -95,6 +95,11 @@ public struct SettingsView: View {
             await model.loadCatalog()
             await model.checkHealth()
         }
+        .onChange(of: model.requestedSettingsSection, initial: true) { _, section in
+            guard let section else { return }
+            selection = section.panel
+            model.requestedSettingsSection = nil
+        }
     }
 
     @ViewBuilder private var detailView: some View {

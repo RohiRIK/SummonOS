@@ -164,6 +164,113 @@ number in `summon` or `macctl`, and `install.sh` needs Xcode because it builds f
       summon with context, and the same Mac diagnosed by Claude, Codex and Gemini side by side.
 - [ ] `docs/features.md`, `PROJECT-CONTEXT.md`, `plugins.json` and `docs/log.md` updated after each phase.
 
+## Phase 5: UX/UI overhaul (owner, 2026-10-25). Draft, awaiting approval
+
+Goal: every surface more efficient and slicker; macOS 26 Liquid Glass with a macOS 15 fallback; less clutter;
+things easy to find; smooth flows. The templates are the only way apps get built, and the `mac-app` skill drives
+agents through them step by step.
+
+Sources: two read-only audits (2026-10-25) of the Summon app, the templates, the skill and the three reference
+plugins, with Visual QA screenshots and a real scaffold of every template kind in a temp HOME.
+Standing rules still apply:
+- The panel holds actions and problems only.
+- Settings live only in the Settings window, with one control per row and no explanatory text.
+- Everything should look like the system menus.
+
+### U0: See every surface (first, so every UI PR is checked with screenshots)
+- [x] Extend `scripts/visual-qa/run.sh` (PR U0) with:
+  - `summon://settings/<section>` routes and a loop over the sections
+  - `summon://activity`
+  - the crash alert (allowed when `SUMMON_VISUAL_QA=1`)
+  - seeded panel states: a problem, the undo row, a running agent
+
+  It runs light and dark on macOS 15 and 26.
+
+### U1: Summon quick wins (high impact, small effort)
+- [ ] Only the `Settings` scene: drop the duplicate `Window("Summon Settings")`, which can open two copies.
+- [ ] Delete the per-page `detailHeader` and use `.navigationTitle`. Cut every explanatory string: page subtitles,
+      footers, skill descriptions, the "System Healthy" card, "Powered by caffeine", the second Quit button.
+- [ ] **"Needs attention" block in the panel** (crashes, one row per program with a count and Diagnose…; health
+      "N problems · Fix…"), shown only when something is wrong. It replaces the health card in Settings › General.
+      The docs and the crash alert already promise it.
+- [ ] No default agent: the panel header becomes an inline menu of installed agents. Auto-pick when there is only one.
+- [ ] Undo: a sheet with the change count, what is not covered, a "Restore N Changes" button and Cancel as the
+      default. It doesn't steal focus, and the copy is fixed for themes (created files are removed now). Activity uses the same sheet.
+- [ ] Menu bar icon: a small dot when there are problems.
+
+### U2: Panel look
+- [ ] Liquid Glass on macOS 26 (`NSGlassEffectView` behind the panel, none on rows) and `.menu` material on 15.
+      Drop the hand-drawn stroke. 320 pt wide, a 22 pt search field, 13 pt rows like the system menus.
+- [ ] Ask Agent is the first row, then Needs attention, then the tree. Remove the duplicates (Ask Agent and Undo in
+      Agent ›). Merge Install and Update into Setup, for 6 submenus. Drop the theme chip; errors become rows with Retry.
+
+### U3: Settings layout
+- [ ] 5 sections:
+  - **General:** login, Accessibility, execution, repos, tidy ~/Summon, agent time
+  - **Agents:** one list with status plus one action per row; at the top: default agent, terminal, context
+    fields; skills; plugins; detail per agent
+  - **Appearance:** theme grid, click to apply
+  - **Notifications**
+  - **Shortcuts**
+
+  The Terminal tab and duplicate pickers go (default agent appears 4 times today, terminal 3 times). My Apps and
+  Tasks move to the Activity window's sidebar.
+- [ ] Settings search matches row labels ("login", "shortcut", "theme"), not only section names.
+
+### U4: First run
+- [ ] A welcome window shown once: Accessibility (live state), default agent (auto-picked), connect an agent
+      (Log In…), then Continue. Settings › General reuses the same rows.
+
+### U5: Activity window and alerts
+- [ ] Activity: Needs attention, then a pinned Live row (elapsed time, Stop, Open), then history newest first with
+      sticky day headers. `.inspector` for details, the filter in a toolbar menu, the title "Activity", system background.
+- [ ] Crash alert: notification-banner layout (icon, title, one line, Diagnose, an overflow menu with Mute), glass on
+      26. Remove the duplicate logo, the duplicate dismiss and the "SUMMON DIAGNOSTIC" header.
+
+### T1: One canonical template set
+- [ ] Canonical templates: `incubator/summon/templates/{menubar,menubar-panel,app,cli,screensaver}`. The panel
+      starter moves in, and `examples/*-starter` is deleted. `tools/mp new` copies from them (bundle prefix rewritten);
+      today it silently copies the menubar starter for `app`/`screensaver` and fails for `cli`.
+- [ ] A shared kit in every UI template (from the mac-network reference):
+  - `Components.swift`: menu rows with hover, module tile
+  - `SummonTheme.swift`: reads the Summon theme
+  - `Glass.swift`: gated glass, material fallback
+  - an Open at Login toggle in Settings
+  - `Screenshots.swift` for every kind
+  - `scripts/test.sh`, so the gate passes on a Mac with only Command Line Tools
+  - a placeholder `AppIcon.icns` plus `CFBundleIconFile` (today every new app shows as "unhealthy")
+  - skip the icon check for CLIs
+- [ ] Panel in the templates: menu rows, 300 to 320 pt, one control per row, a Settings… row that closes the
+      panel, footer rows with key hints.
+- [ ] CI: create every kind with the real `summon project new` in a temp folder and run its `scripts/check.sh`.
+
+### T2: The agent knows how to use the templates
+- [ ] Rewrite `mac-app/SKILL.md` as exact steps:
+  1. Name and shape; say whether a repo will be pushed.
+  2. `summon project new <name> --kind <kind>`, never hand-scaffold.
+  3. Core test first.
+  4. `scripts/check.sh` must be green.
+  5. Bundle, open, `pgrep`, `log show`.
+  6. `summon project shots` and a check against the panel checklist.
+  7. Icon through `summon-art`.
+  8. PROJECT-CONTEXT, repo, menu entry, Open at Login.
+- [ ] Fix the wrong facts:
+  - the theme path (`summon theme current` plus `themes/<slug>/theme.json`)
+  - `~/Summon/Apps/<name>` in 5 places
+  - the repo-policy text
+  - the garbled router sentence
+  - `summon-migrate` says macOS 14
+  - one Settings standard (grouped Form under 3 sections, sidebar from 3 up)
+
+### P1: Reference plugins (separate repos, later)
+- [ ] Align mac-network, mac-calendar and mac-breathe with the template kit (glass, panel rows, Settings standard).
+
+### Decisions (owner, 2026-10-25)
+1. Repo policy default becomes **`ask`**: no repo until approved in Summon's dialog. Existing installs that chose
+   `always` keep it.
+2. Built apps: a **grouped Form for under 3 sections, a sidebar from 3 up**.
+3. Order approved: U0 → U1 → T1+T2 (in parallel, agents) → U2 → U3 → U4 → U5 → P1.
+
 ## Out of scope
 
 A tiling window manager, restyling system chrome (blocked by SIP), an ISO or full-OS install, cloud services.

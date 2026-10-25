@@ -36,6 +36,8 @@ public final class SummonModel {
     public private(set) var accessibilityGranted = AXIsProcessTrusted()
     /// Allow… was clicked; if the permission is still off, the switch in the list belongs to an older build.
     public private(set) var accessibilityRequested = false
+    /// Set by `summon://settings/<section>`; the Settings window switches to it and clears it.
+    public var requestedSettingsSection: SettingsSection?
     /// The panel's "Undo <agent> Session" row; nil hides it.
     public private(set) var undoOffer: UndoOffer?
     /// Skills Summon ships, from `summon skills`; empty until `loadShippedSkills()` runs.

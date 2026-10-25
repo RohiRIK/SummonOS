@@ -418,5 +418,7 @@ It also validates design skill structure, typechecks their Swift examples, runs 
 `summon`, Summon.app and `macctl` carry the version in `VERSION`.
 A second workflow, [`visual-qa.yml`](../.github/workflows/visual-qa.yml) (Visual QA (macOS)), runs on PRs that touch
 `incubator/summon/**` and on demand: on GitHub-hosted `macos-26` and `macos-15` runners it opens the Summon panel
-(⌃⌥Space) and menu bar panel in light and dark and uploads screenshots as 14-day artifacts. It fails when a surface
+(⌃⌥Space) and menu bar panel, every Settings page (`summon://settings/<section>`), the Activity window and a sample
+crash alert (`summon://test-crash`, allowed in release builds only when the `VisualQA` default is set) in light and
+dark, and uploads screenshots as 14-day artifacts. It fails when a surface
 does not open or a capture is missing or the wrong theme. It is not a merge gate.
