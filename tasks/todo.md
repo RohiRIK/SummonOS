@@ -98,11 +98,11 @@ One read-only, fast (<300 ms), redacted snapshot of the Mac that any agent can a
       `additionalContext`. Add the same for the other targets where they support a start hook.
 - [x] Add Hermes and OpenClaw to the agent registry (`Agent.swift`). Drop the "gemini"/"gemini-cli" aliases'
       Gemini wording, since `agy` is the agent. Give copilot, cursor-agent and grok skill folders where they support them.
-- [ ] `install.sh` asks to run `summon connect --all` at the end.
+- [x] `install.sh` offers `summon connect` at the end (PR #77; only with `--connect` when non-interactive).
 
 ## Phase 3: Features worth showing
 
-- [ ] **Undo timeline:** the panel lists what agents changed on this Mac (macctl journal + checkpoints, grouped by
+- [x] **Undo timeline** (owner chose: MCP session checkpoints + one contextual panel row, no list): the panel lists what agents changed on this Mac (macctl journal + checkpoints, grouped by
       agent session), with one-click undo. The demo is: an agent changes Dock, Finder and dark mode through MCP, then one
       click puts everything back.
 - [ ] **Summon with context:** the hotkey captures the frontmost app, its selected text, the Finder selection and the
@@ -132,7 +132,7 @@ number in `summon` or `macctl`, and `install.sh` needs Xcode because it builds f
   - A `paths` filter, so a docs-only change skips the Swift jobs.
 - [x] **Version stamping:** (PR #73; typed in by hand and guarded by `check-workspace.sh`, not generated from the tag) one SummonOS version (`vX.Y.Z`) generated into Core at build time from the tag.
   `summon --version` and `macctl --version` print it, and `summon doctor` shows it.
-- [ ] **Release workflow `release.yml`,** run on a `v*` tag or by hand:
+- [x] **Release workflow `release.yml`,** (PR #77; v0.1.0 published 2026-10-25) run on a `v*` tag or by hand:
   - Release-mode universal (arm64 + x86_64) builds of `summon`, `macctl` and `Summon.app`.
   - A zip plus `SHA256SUMS`.
   - GitHub artifact attestation (`actions/attest-build-provenance`), so anyone can verify a binary came from this repo.
@@ -144,7 +144,7 @@ number in `summon` or `macctl`, and `install.sh` needs Xcode because it builds f
   - `edge` is a rolling prerelease rebuilt from every green `main`.
   - `summon update [--channel stable|edge]` downloads, verifies the checksum, swaps in the new version with rollback,
     then runs `summon doctor`.
-- [ ] **Binary install:** `install.sh` downloads the latest release by default, so no Xcode is needed. `--from-source`
+- [x] **Binary install:** (PR #77) `install.sh` downloads the latest release by default, so no Xcode is needed. `--from-source`
   keeps today's path.
 - [ ] **Homebrew:** a tap `RohiRIK/homebrew-summonos` with a formula for the CLIs and a cask for Summon.app. The release
   workflow bumps it automatically.

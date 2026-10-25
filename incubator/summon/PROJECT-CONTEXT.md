@@ -40,6 +40,13 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — Undo any agent's session (MCP checkpoints + panel row)
+- `MCPSession` (actor): the agent name comes from `initialize` `clientInfo.name` (`SummonMCP.agentName`). The first
+  non-dry-run `settings_set` creates a checkpoint "<Agent> via MCP" and logs `session.start` with `checkpoint` and
+  `agent` refs. `summon mcp` logs `session.end` when stdin closes, and only when something changed.
+- `UndoOffer.latest(ActivitySources)` (Core, tested): the newest checkpoint under 12 h old with live settings changes
+  (rolled-back ones excluded) and no `session.undo`. `SummonModel.undoOffer` shows it as a panel row with an NSAlert
+  confirmation. Owner's rule: actions and problems only, so this is one row and never a list.
 ### 2026-10-25 — Session-start hooks: agents start knowing this Mac
 - `ConnectTarget.Hook`: Claude Code and Codex (`SessionStart` groups), Cursor (`version`/`sessionStart`) and agy (a
   named `summon-context` entry). Summon's entry is the one whose command ends in `context --hook <id>`; others stay.

@@ -119,6 +119,8 @@ public struct MCPServer: Sendable {
     public var instructions: String
     public var tools: [Tool]
     public var resources: [Resource]
+    /// Called with the client's `initialize` params (its `clientInfo` names the agent).
+    public var onInitialize: (@Sendable (JSONValue) async -> Void)? = nil
 
     public init(name: String, version: String, instructions: String, tools: [Tool], resources: [Resource]) {
         self.name = name
@@ -143,6 +145,7 @@ public struct MCPServer: Sendable {
     func respond(id: JSONValue, method: String, params: JSONValue) async -> JSONValue {
         switch method {
         case "initialize":
+            await onInitialize?(params)
             let asked = params["protocolVersion"]?.string ?? ""
             return Self.success(id: id, .object([
                 "protocolVersion": .string(Self.protocolVersions.contains(asked) ? asked : Self.protocolVersions[0]),
