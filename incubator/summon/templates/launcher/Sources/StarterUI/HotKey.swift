@@ -58,7 +58,7 @@ public final class HotKey {
 private func hotKeyPressed(_ call: EventHandlerCallRef?, _ event: EventRef?, _ data: UnsafeMutableRawPointer?) -> OSStatus {
     var hotKeyID = EventHotKeyID()
     let status = GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
-                                   nil, ByteCount(MemoryLayout<EventHotKeyID>.size), nil, &hotKeyID)
+                                   nil, MemoryLayout<EventHotKeyID>.size, nil, &hotKeyID)
     guard status == noErr else { return status }
     let id = hotKeyID.id
     MainActor.assumeIsolated { HotKey.fire(id) }
