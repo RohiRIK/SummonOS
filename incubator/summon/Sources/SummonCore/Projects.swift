@@ -27,18 +27,23 @@ public enum ProjectKind: String, CaseIterable, Codable, Sendable {
 
 }
 
-/// The templates `summon project new --kind` starts from (`templates/<rawValue>` in the app's shared files). Each
-/// records a `ProjectKind`: `menubar-panel` is a menu bar app whose item is an `NSStatusItem` + `NSPanel`.
+/// The templates `summon project new --kind` starts from (`templates/<rawValue>` in the app's shared files), one per
+/// surface in the SummonOS surface rules (`docs/ux-surfaces/`). Each records a `ProjectKind`: `menubar-panel` is a
+/// menu bar app whose item is an `NSStatusItem` + `NSPanel`; `launcher` (a hotkey command bar), `hud` (a floating
+/// always-on-top panel) and `notch` (a panel out of the camera housing) are agent apps with a menu bar menu.
 public enum ProjectStarter: String, CaseIterable, Sendable {
     case menubar
     case menubarPanel = "menubar-panel"
+    case launcher
+    case hud
+    case notch
     case app
     case cli
     case screensaver
 
     public var kind: ProjectKind {
         switch self {
-        case .menubar, .menubarPanel: .menubar
+        case .menubar, .menubarPanel, .launcher, .hud, .notch: .menubar
         case .app: .app
         case .cli: .cli
         case .screensaver: .screensaver

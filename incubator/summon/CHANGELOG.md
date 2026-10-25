@@ -3,6 +3,15 @@
 All notable changes to Summon. Newest first. Summon is still incubating in the SummonOS workspace, so there are no
 version numbers yet; entries are grouped by day and point at the pull request.
 
+## 2026-10-25
+
+### Added
+- Three new project templates, one per UX surface: `summon project new <name> --kind launcher` (a ⌥Space command
+  bar over any app: pre-warmed panel, fuzzy app search, ⌘1–9, ⌘K actions, file drop), `--kind hud` (an
+  always-on-top stopwatch pill that never takes focus, thrown to the nearest corner), `--kind notch` (a drop shelf
+  that grows out of the camera housing, with a fallback on screens without one). Make Something has a menu item
+  for each.
+
 ## 2026-10-24
 
 ### Added
