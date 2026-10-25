@@ -371,5 +371,4 @@ public enum PanelLayout {
     public static let homeItems: Set<String> = ["make", "apps"]
     /// Default Summon Menu groups that Settings › Setup lists instead of the panel.
     public static let setupGroups = ["agent", "style", "setup", "trigger", "install", "update", "system"]
-    public static let recentCount = 3
 }

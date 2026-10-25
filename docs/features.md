@@ -128,14 +128,14 @@ sections:
 
 ### Menu bar app
 
-- **Panel** (320 pt, Liquid Glass on macOS 26): minimal by design. **Needs attention** (only when something is
-  wrong: one row per crashed program with Diagnose…, "N setup problems · Fix…"), **Now** (the running agent session
-  and its clock), **Recent** (the last 3 events, each opens Activity at that line; Show All Activity…), then Ask
-  Agent, Make Something ›, My Apps ›, the undo row when there is something to undo, Settings… (⌘,) and Quit (⌘Q).
-  Everything else in the Summon Menu (Style, Setup, Trigger, Install, Update, System, Agent) is found by typing in
-  the search field or run from Settings › Setup. With no default agent, the header offers "Choose an agent";
-  with exactly one installed it is chosen automatically. The menu bar shows Summon's icon only (the agent clock is an
-  option in Settings › General), and it turns orange while Needs attention has something.
+- **Panel** (320 pt, Liquid Glass on macOS 26), calm by design (owner, 2026-10-25): the header (Summon, the default
+  agent, "running 3h" while a session runs), then **Ask Agent**, **Make Something ›**, **My Apps ›**, one status line
+  only when something is wrong ("Ghostty crashed · Review…" opens Activity's problems; "N setup problems · Fix…" asks
+  the agent; crashes of helpers and test runners don't count), the undo row when there is something to undo, then
+  Activity…, Settings… (⌘,) and Quit (⌘Q). There is no search box: typing anywhere in the panel searches the whole
+  Summon Menu (Style, Setup, Trigger, Install, Update, System, Agent), and Settings › Setup lists those groups with
+  Run buttons. With no default agent, the header offers "Choose an agent". The menu bar shows Summon's icon only (the
+  agent clock is an option in Settings › General), and it turns orange while the status line has something.
 - **Undo confirmation:** "Restore N Changes" names what it does; Cancel is the default button.
 - **Activity window:** a plain, oldest-first log of settings changes, undos, agent sessions, themes and
   crashes and recurring tasks, opened at the newest line (also `summon://activity`). Select lines and ask the agent about them
