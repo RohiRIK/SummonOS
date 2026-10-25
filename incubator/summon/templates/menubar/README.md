@@ -11,6 +11,7 @@ A menu bar app: a status item with a panel (`MenuBarExtra`, `.window` style), `L
 | `Sources/StarterUI/Components.swift` | Menu rows with hover and key hints, the module tile, headers, dividers |
 | `Sources/StarterUI/SummonTheme.swift` | `.themed()`: the Summon theme's accent on every window root, live |
 | `Sources/StarterUI/Glass.swift` | `.glassControl()`: Liquid Glass on macOS 26, a material on 15; controls only |
+| `Sources/StarterUI/CloseOnlyWindow.swift` | `.closeOnlyWindow()` on Settings: minimize and zoom dimmed, no full screen |
 | `Sources/StarterUI/Screenshots.swift` | `--screenshot <folder>`: light and dark PNGs, used by `summon project shots` |
 | `Sources/StarterCore/` | Logic, Foundation only, tested (`SummonThemeFile` reads the Summon theme) |
 | `Resources/` | `Info.plist`: Bundle id `local.summon.menubar-starter`, `LSUIElement`; `AppIcon.icns` (a placeholder: replace it with the summon-art skill) |

@@ -22,7 +22,7 @@ public enum Screenshots {
     public static func write(to folder: URL) throws {
         try render(name: "window", to: folder) {
             ContentView(model: .preview)
-                .frame(width: 720, height: 440)
+                .frame(width: 900, height: 560)
                 .background(Color(nsColor: .windowBackgroundColor))
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.separator))

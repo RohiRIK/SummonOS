@@ -217,6 +217,10 @@ sections:
   also used by `tools/mp new` for workspace plugins. Each follows its page in [UX surfaces](ux-surfaces/index.md).
   The launcher and HUD record their global shortcut in Settings (Carbon `RegisterEventHotKey`, no permission
   prompt, system shortcuts refused); the agent apps keep a small menu bar menu that Settings can hide.
+  Every template's Settings window is close only (minimize and zoom dimmed, no full screen) and 480 pt wide. The
+  window app has an inspector (⌥⌘I), ⌘F search, row context menus and undoable deletes, from 800 × 550; the
+  `NSPanel` menu bar app has a right-click menu and "Show in menu bar". Both have a first-run welcome window
+  (640 × 440, once, closing skips, Settings shows it again) with permission cards that check live status.
   Each builds on its own and has a tested Core, README, MIT LICENSE, `PROJECT-CONTEXT.md`, `scripts/check.sh` and
   `scripts/test.sh` (runs the tests with only the Command Line Tools). The app kinds also share a kit: system-menu
   rows for panels, the Summon theme's accent (follows `summon theme set` live), Liquid Glass controls on macOS 26

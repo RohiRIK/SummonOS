@@ -22,6 +22,17 @@ struct StarterApp: App {
         .restorationBehavior(.disabled)
         .windowResizability(.contentSize)
 
+        // First-run setup: opened once by `showsOnboardingOnFirstLaunch()`, again from Settings.
+        Window("Welcome to Starter", id: OnboardingView.windowID) {
+            OnboardingView(readyTitle: "Starter Lives in the Menu Bar",
+                           readyText: "Click its icon at the top of the screen, or right-click it for Settings.",
+                           readySymbol: "arrow.up").themed()
+        }
+        .windowResizability(.contentSize)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
+        .defaultWindowPlacement { _, _ in WindowPlacement(.center) }
+
         Settings {
             SettingsView().themed()
         }
