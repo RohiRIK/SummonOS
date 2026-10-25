@@ -10,122 +10,164 @@ description: >
 
 # Building a Mac app with Summon
 
-Summon's apps are small on purpose: one job, keyboard first, themed by the current Summon theme,
-and they launch instantly. Ask what the app should do if it is unclear and settle the one job.
+Summon's apps are small on purpose: one job, keyboard first, themed by the current Summon theme, and they launch
+instantly. Follow the steps in order. Do not skip one, and do not call the app done before step 8.
 
-## The full guides
+Every project lives in `~/Summon/Apps/<name>` and starts from Summon's template. Never hand-scaffold a project,
+copy another app's folder, or start one anywhere else. If the `MacAppArchitecture`, `MacUX` or `LiquidGlass` skills
+are installed, use them for depth; this skill is enough on its own.
 
-This skill is the entry point. The detailed rules live in the SummonOS workspace skills (`RohiRIK/SummonOS`);
-use them when you are working inside that workspace (or have them installed):
+## The steps
 
-- `MacAppArchitecture`: pick the shape (menu, panel, window, NSPanel), layers, state, system tools, storage.
-- `MacAppBuild`: scaffold, build, bundle, previews, verify, release.
-- `MacUX`: panel and window design, HIG, Liquid Glass, settings window.
+### 1. Agree the name, the kind and the repo
 
-If they are not installed, follow the summary below.
+- Settle the app's one job with the user. Ask if it is unclear.
+- Agree a short kebab-case name (`a-z`, `0-9`, `-`; for example `mac-battery`). It becomes the folder, the
+  bundle id `local.summon.<name>`, and the PascalCase type name (`MacBattery`).
+- Pick the kind. The kinds this Summon knows are the ones `summon project new` prints when run with no arguments
+  (also `summon commands`). Today: `menubar`, `app`, `cli`, `screensaver`, and `menubar-panel` when it is listed.
 
-## Pick the shape
+  | Ask | Kind |
+  |---|---|
+  | Show something in the menu bar, a status, a few actions | `menubar` (or `menubar-panel` when listed, for a bigger panel) |
+  | A tool with its own window, documents, a sidebar | `app` |
+  | Something to run in a terminal, from scripts or agents | `cli` |
+  | Something to look at when the Mac is idle | `screensaver` |
+  | Only an icon for an app, file or folder | no project: go to step 7 |
 
-| Ask | Shape |
-|---|---|
-| "show X in the menu bar", a status, a few actions | **Menu bar app**: `MenuBarExtra` (`.window` style panel), `LSUIElement = true` |
-| A tool with its own window, documents, sidebars | **Full app**: `WindowGroup` + `NavigationSplitView`, Dock icon, menus with ⌘ shortcuts |
-| Something to run in a terminal or from scripts and agents | **CLI tool**: one executable, no UI |
-| Something to look at when idle | **Screensaver**: `.saver` bundle, `ScreenSaverView` subclass |
-| An icon for an app, file, or folder | **Icon**: see below |
+- Run `summon default repos` and tell the user what it prints:
+  - `ask` (the default): no GitHub repo is made. A repo comes only from step 8, if the user wants one.
+  - `always`: `summon project new` also creates a private GitHub repo and pushes to it right away.
 
-Every app gets a separate **Settings window** (`Settings` scene, `.formStyle(.grouped)`), opened with ⌘,.
-Settings never go inside the menu bar panel; the panel footer has `Settings…` and `Quit` only.
-
-## Where new apps go: `~/Summon/Apps/<name>`
-
-Every project starts from Summon's template for its kind and lives in its own folder under `~/Summon/Apps`
-(Summon creates it on install and on every launch; agents start there). Agree a short kebab-case name with the
-user, then:
+### 2. Create the project
 
 ```bash
-summon project new <name> --kind menubar      # or app, cli, screensaver
+summon project new <name> --kind <kind>
 cd "$(summon project path <name>)"
 ```
 
-That copies the template, renames `Starter` to the PascalCase name, makes a git repo with a first commit, and
-records the project in Summon's private list (`~/.config/summon/projects.json`, `summon project list`). The list
-stays on this Mac: never add a Summon project to the workspace's `plugins.json` or anything public, and never use
-the workspace's `mp new` / `mp promote` for it.
+This copies the template to `~/Summon/Apps/<name>`, renames `Starter` to `<App>` (the PascalCase name), makes a
+git repo with a first commit, and records the project in Summon's private list (`summon project list`). Read the
+output. With `always`, if it says the app has no repo yet (gh missing or not logged in), tell the user. Never run
+`gh repo create` or push to a new remote yourself.
 
-| Kind | Template gives you |
-|---|---|
-| `menubar` | `MenuBarExtra` panel with `Settings…`/`Quit` footer, Settings window, `LSUIElement` |
-| `app` | `WindowGroup` + `NavigationSplitView`, menu commands with ⌘ shortcuts, Settings window |
-| `cli` | One executable, argument parsing in a tested Core, `scripts/install.sh` into `~/.local/bin` |
-| `screensaver` | `ScreenSaverView` subclass, tested animation Core, `scripts/bundle.sh` → `.saver`, `scripts/install.sh` |
+Layout (SwiftPM, no `.xcodeproj`): `Sources/<App>/` holds `@main` only, `Sources/<App>UI/` the views, the
+`@Observable` model and `#Preview`s, `Sources/<App>Core/` the logic (Foundation only, tested),
+`Tests/<App>CoreTests/` swift-testing, `Resources/Info.plist`, and `scripts/`.
 
-Every template has `README.md`, `LICENSE` (MIT), `PROJECT-CONTEXT.md` (keep it current after each change) and
-`scripts/check.sh` (the gate). No CI until the project has a repo.
+### 3. Write a Core test first, then the code
 
-**GitHub: every app gets a private repo.** `summon project new` creates it right away (screenshots, CI that runs
-`scripts/check.sh`, first push) when Settings › General › "Create a private GitHub repo for every new app" is on (the
-default; `summon default repos`); with it off, Summon asks in a dialog. Check its output: if it says the app has no
-repo yet (gh missing or not logged in), fix that and run `summon project repo <name>` before you call the app done.
-Never run `gh repo create` or push to a new remote yourself, and never make a repo public; publishing is the user's
-separate choice, made only with the SummonOS workspace's `tools/publish-public.sh` (noreply identity).
+- New logic starts as a failing test in `Tests/<App>CoreTests/`, then the code in `Sources/<App>Core/` that makes
+  it pass. The UI only calls Core.
+- Rules: Swift 6 strict concurrency, `@MainActor` UI, no third-party dependencies, shell tools by absolute path
+  with argv arrays (never a shell string), minimum macOS 15.
+- The panel (or main window) is the app's job: live data, lists, and actions on them. Its footer has `Settings…`
+  (⌘,) and `Quit` (⌘Q) rows and nothing else.
+- Every preference lives in `SettingsView` (the `Settings` scene, opened from `Settings…`), never in the panel.
+  Fewer than 3 sections: one `Form` with `.formStyle(.grouped)`. 3 sections or more: a sidebar
+  (`NavigationSplitView`) with one grouped `Form` per section.
+- Glass only on controls, never on content, and only behind `if #available(macOS 26, *)`.
+- Follow the Summon theme (see "The Summon theme" below).
+- Log with `Logger(subsystem: "local.summon.<name>", category: "<area>")`, the app's bundle id as the subsystem.
 
-## Layout (SwiftPM, no .xcodeproj)
+### 4. Run the gate
 
-```
-~/Summon/Apps/<name>/
-├── Package.swift            swift-tools-version 6.0, platforms [.macOS(.v15)]
-├── Sources/<App>/           @main only (main.swift for a CLI, the ScreenSaverView for a saver)
-├── Sources/<App>UI/         views, @Observable model, #Previews (library product, so previews run)
-├── Sources/<App>Core/       logic and tool wrappers, Foundation only, tested
-├── Tests/<App>CoreTests/    swift-testing
-├── Resources/Info.plist     bundle id local.summon.<name>
-├── scripts/                 check.sh (the gate), bundle.sh (.app / .saver), install.sh (cli, saver)
-├── README.md, LICENSE, PROJECT-CONTEXT.md
+```bash
+scripts/check.sh
 ```
 
-Rules: Swift 6 strict concurrency, `@MainActor` UI, no third-party dependencies, shell tools by
-absolute path with argv arrays (never a shell string), Core logic test-first.
+It must be green. It builds, runs the tests, lints the plist, bundles, and writes `build/check-report.md`; a
+failing step names its log in `build/`. When `scripts/test.sh` is present, `check.sh` uses it to run the tests,
+so the gate also works with only the Command Line Tools (no Xcode). Fix the cause; never skip a step.
 
-## Follow the Summon theme
+### 5. Run it and read its logs
 
-Read `~/.config/summon/current/theme.json` at launch and when the file changes (a
-`DispatchSource` file watcher), and apply `accent` as `.tint`, `appearance` as `preferredColorScheme`.
-Colors: `background`, `foreground`, `accent`, `accent2`, `muted`, `selection`.
+For `menubar`, `menubar-panel` and `app`:
+
+```bash
+scripts/bundle.sh && open build/<App>.app
+pgrep -fl <App>
+log show --last 5m --predicate 'subsystem == "local.summon.<name>"'
+log show --last 5m --predicate 'process == "<App>"'
+```
+
+`pgrep` must show the process. The first `log show` shows the app's own `Logger` lines, the second also system
+messages about it. Then click through every screen, action and setting: each must be reachable.
+For `cli`: run the built tool with real arguments and `--help`; `scripts/install.sh` puts it in `~/.local/bin`.
+For `screensaver`: `scripts/install.sh` copies it to `~/Library/Screen Savers/`; check the preview pane in
+System Settings › Screen Saver and the real saver (a Hot Corner).
+
+### 6. Take the screenshots and look at them
+
+```bash
+summon project shots <name>
+```
+
+It builds the app and writes `docs/screenshots/` (menu bar apps: `panel-light.png` and `panel-dark.png`, drawn
+by `<App> --screenshot <folder>`; window apps: `window.png`; a CLI: its `--help` in the README), adds them to the
+README and commits. Screensavers are not captured: take the picture in System Settings. Open every PNG and check:
+
+- The panel is 300–320 pt wide, and nothing is clipped.
+- One control per row, labels aligned, real-looking data (keep `Screenshots.swift` working when the panel changes).
+- The footer is the `Settings…` and `Quit` rows, and no setting appears in the panel.
+- Glass only on controls, behind `if #available(macOS 26, *)`. Light and dark both read well.
+
+Fix what fails, then run steps 4 and 6 again.
+
+### 7. Make the icon
+
+Use the `summon-art` skill (its `icons.md`) for the art: three concepts in the theme's colors, the user picks
+one. Then turn the 1024×1024 PNG into `Resources/AppIcon.icns`:
+
+```bash
+mkdir -p build/AppIcon.iconset
+for s in 16 32 128 256 512; do
+  sips -z $s $s icon.png --out build/AppIcon.iconset/icon_${s}x${s}.png
+  sips -z $((s*2)) $((s*2)) icon.png --out build/AppIcon.iconset/icon_${s}x${s}@2x.png
+done
+iconutil -c icns build/AppIcon.iconset -o Resources/AppIcon.icns
+```
+
+If `scripts/bundle.sh` does not copy it yet, add `cp Resources/AppIcon.icns "$APP/Contents/Resources/"` before
+its `codesign` line, and `<key>CFBundleIconFile</key><string>AppIcon</string>` to `Resources/Info.plist`.
+Run step 4 again. For light, dark and tinted variants on macOS 26, also export an Icon Composer `.icon` from the
+same art. A menu bar icon is different: an SF Symbol, or a template image (black on transparent, 18 pt
+with @2x, `isTemplate = true`).
+
+### 8. Finish
+
+- Update `PROJECT-CONTEXT.md`: what the app does, its key files, its constraints, and a dated Recent History entry.
+  Commit the change.
+- Repo: only if the user wants one (and `summon default repos` is `ask`), run `summon project repo <name>`. The user
+  approves it in Summon's dialog; the repo is private, with CI that runs `scripts/check.sh`. Never make a repo
+  public; a public copy is the user's separate choice.
+- Show the user the running app. Then offer two things:
+  - The Summon Menu: registered menu bar and window apps already appear under My Apps
+    (`summon project open <name>`). For a custom entry, add an item with an `action` to
+    `~/.config/summon/menu.jsonc` (see the `summon-mac` skill).
+  - Open at Login: a toggle in the Settings window with `SMAppService.mainApp.register()` /
+    `.unregister()`, or System Settings › General › Login Items.
+
+## The Summon theme
+
+The current theme's slug is in `~/.config/summon/current-theme` (`summon theme current` prints it). Its colors are
+in `~/.config/summon/themes/<slug>/theme.json`: `appearance` (`dark` or `light`) and `colors.background`,
+`foreground`, `accent`, `accent2`, `muted`, `selection` (`#RRGGBB`). Read them at launch and when
+`current-theme` changes (a `DispatchSource` file watcher). Apply `colors.accent` as `.tint` and `appearance` as
+`preferredColorScheme`. With no current theme, use the system look.
 
 ## Screensaver specifics
 
 - A `.saver` is a bundle with `NSPrincipalClass` = your `ScreenSaverView` subclass (the template fixes its
-  Objective-C name with `@objc(<Name>View)`). SwiftPM builds a dynamic library; `scripts/bundle.sh` assembles
-  `<Name>.saver/Contents/{Info.plist,MacOS/<Name>}`.
-- macOS 14+ hosts third-party savers in `legacyScreenSaver`. Known traps: the process outlives the saver,
-  so stop timers and display links in `stopAnimation()` and on `NSNotification.Name("com.apple.screensaver.willstop")`;
-  `isPreview` views are tiny; never block `animateOneFrame()`.
-- Draw with Core Animation or Metal, or host SwiftUI with `NSHostingView`. Respect the theme colors.
-- Install: copy to `~/Library/Screen Savers/`, then let the user pick it in System Settings › Screen Saver.
-  macctl has no screen saver setting yet, so selecting it from the shell is a raw `defaults -currentHost`
-  write (Summon rule 1: only with the user's yes, and report the command).
+  Objective-C name with `@objc(<App>View)`). `scripts/bundle.sh` assembles `<App>.saver/Contents/{Info.plist,MacOS/<App>}`.
+- macOS hosts third-party savers in `legacyScreenSaver`, and that process outlives the saver: stop timers and
+  display links in `stopAnimation()` and on `NSNotification.Name("com.apple.screensaver.willstop")`. `isPreview`
+  views are tiny. Never block `animateOneFrame()`.
+- Draw with Core Animation or Metal, or host SwiftUI with `NSHostingView`, in the theme's colors.
+- macctl has no screen saver setting yet: the user picks it in System Settings › Screen Saver. Selecting it from
+  the shell is a raw `defaults -currentHost` write: only with the user's yes, and report the command.
 
-## Icons
+## Icons on other things
 
-- App icon: a 1024×1024 master on Apple's grid (content inside the 824×824 rounded square), then
-  `iconutil -c icns <Name>.iconset` from a `.iconset` folder with 16, 32, 128, 256, 512 at @1x and @2x.
-  On macOS 26 also export an Icon Composer `.icon` for light, dark, and tinted variants.
-- Menu bar icon: a template image (black on transparent, 18 pt with @2x), `isTemplate = true`.
-- Put an icon on any file, folder, or app: `NSWorkspace.shared.setIcon(image, forFile: path, options: [])`
-  (apps in `/Applications` may need admin and lose it on update; `summon` re-applies after updates).
-- Summon's own mark and generator are in `design/` of the Summon repo; reuse its look for a family feel.
-
-## Screenshots
-
-`summon project shots <name>` builds the app and puts light and dark pictures in `docs/screenshots/` plus a
-Screenshots section in the README, and commits them; `summon project repo` runs it before the first push. Menu bar
-apps from the template draw their own panel (`<App> --screenshot <folder>`): keep `Screenshots.swift` working when
-you change the panel (show real-looking data in it). `summon showcase` collects every app into
-`~/Summon/Showcase/index.html`.
-
-## Verify before calling it done
-
-`scripts/check.sh` passes, the app launches from the bundle, every screen and setting is reachable,
-`PROJECT-CONTEXT.md` says what changed, and the user saw it run. Then add it to the Summon Menu (`~/.config/summon/menu.jsonc`) if it
-has an action worth summoning.
+Put an icon on any file, folder or app with `NSWorkspace.shared.setIcon(image, forFile: path, options: [])`.
+Undo: Get Info, select the icon, Delete. Apps in `/Applications` may need admin and lose the icon on update.

@@ -9,5 +9,7 @@ Agree a short kebab-case name with the user, then start it from Summon's templat
 `summon project new <name> --kind app`. It lands in `~/Summon/Apps/<name>` with a `WindowGroup` + `NavigationSplitView`,
 menu commands and a Settings window already wired; work in that folder. Use the `mac-app` skill (shape: full app):
 menus and ⌘ shortcuts for every action, the Summon theme, Core logic test-first, `PROJECT-CONTEXT.md` kept current.
-Done when `scripts/check.sh` passes and the bundled app launches. It also gets its private GitHub repo (screenshots, CI): if `summon project new` says there is no repo yet, fix the
-cause and run `summon project repo <name>`. Never create or publish a repo yourself.
+Follow the skill's steps 1–8:
+done when `scripts/check.sh` passes, the bundled app runs and the screenshots look right.
+A private GitHub repo comes only with `summon default repos always` or when the user asks for one
+(`summon project repo <name>`, approved in Summon's dialog). Never create or publish a repo yourself.

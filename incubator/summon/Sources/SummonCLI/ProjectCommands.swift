@@ -80,8 +80,8 @@ enum ProjectCommands {
         }
         ActivityCommands.record(LoggedEvent(kind: EventKind.projectNew, title: "New \(kind.title.lowercased()) \(name)",
                                             refs: ["folder": project.path, "kind": kind.rawValue]), context)
-        // Every new app gets its private repo right away when the owner's standing approval is on (Settings ›
-        // General; `summon default repos`). A missing gh or login never undoes the project: it says how to finish.
+        // A new app gets its private repo right away only when the owner turned the standing approval on (Settings ›
+        // General; `summon default repos always`; the default is `ask`). A missing gh or login never undoes the project: it says how to finish.
         var made = project
         if RepoPolicyStore(paths: context.paths).load() == .always {
             do {

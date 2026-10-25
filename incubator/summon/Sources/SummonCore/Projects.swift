@@ -424,7 +424,8 @@ public enum RepoPolicy: String, Sendable, CaseIterable {
     case always, ask
 }
 
-/// `~/.config/summon/defaults/repos`; missing means `always` (owner, 2026-10-19).
+/// `~/.config/summon/defaults/repos`; missing means `ask` (owner, 2026-10-25: no repo is pushed until someone chooses).
+/// A saved `always` is kept.
 public struct RepoPolicyStore: Sendable {
     public let paths: SummonPaths
 
@@ -435,7 +436,7 @@ public struct RepoPolicyStore: Sendable {
     var file: URL { paths.config.appendingPathComponent("defaults/repos") }
 
     public func load() -> RepoPolicy {
-        TextFile.firstLine(file).flatMap(RepoPolicy.init(rawValue:)) ?? .always
+        TextFile.firstLine(file).flatMap(RepoPolicy.init(rawValue:)) ?? .ask
     }
 
     public func save(_ policy: RepoPolicy) throws {

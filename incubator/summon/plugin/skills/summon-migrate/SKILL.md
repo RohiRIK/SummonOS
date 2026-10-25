@@ -47,7 +47,7 @@ This ensures:
 Every Summon app requires:
 1. **`Package.swift`**:
    - Swift tools version: `// swift-tools-version: 6.0`
-   - Platform: `.macOS(.v14)` (or `.v15`)
+   - Platform: `.macOS(.v15)` (the minimum; Liquid Glass behind `if #available(macOS 26, *)`)
 2. **`Resources/`**:
    - `Resources/AppIcon.icns` (custom icon)
    - `Resources/Info.plist` (with `LSUIElement = true` for menu bar apps)
