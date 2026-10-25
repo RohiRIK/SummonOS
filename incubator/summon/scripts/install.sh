@@ -1,10 +1,11 @@
 #!/bin/bash
 # Stage and verify the app and optional macctl before replacing any live executable.
 # SUMMONOS_MACCTL_SOURCE is passed by the workspace installer after both builds finish.
+# SUMMONOS_APP_SOURCE (default build/Summon.app) is the unpacked release app when installing a release.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-APP="build/Summon.app"
+APP="${SUMMONOS_APP_SOURCE:-build/Summon.app}"
 DEST="$HOME/Applications/Summon.app"
 BIN="$HOME/.local/bin"
 [[ -d $APP && -x $APP/Contents/MacOS/summon && -x $APP/Contents/MacOS/SummonMenu ]] || {
@@ -89,7 +90,7 @@ if [[ -n ${SUMMONOS_MACCTL_SOURCE:-} ]]; then
 fi
 
 mkdir -p "$HOME/.config/summon/themes" "$HOME/Summon"
-for dir in themes/*/; do
+for dir in "$APP"/Contents/share/summon/themes/*/; do
   [[ -d $dir ]] || continue
   slug=$(basename "$dir")
   [[ -e "$HOME/.config/summon/themes/$slug" ]] || cp -R "$dir" "$HOME/.config/summon/themes/$slug"

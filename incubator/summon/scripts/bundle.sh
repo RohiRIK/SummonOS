@@ -1,25 +1,29 @@
 #!/bin/bash
 # Release build of the menu app and the CLI, wrapped in build/Summon.app and ad-hoc signed.
 # `--debug` builds the debug configuration instead (DEBUG-only aids such as the panel's PanelFixture, spec E4).
+# `--universal` builds arm64 + x86_64 (the release workflow, .github/workflows/release.yml).
 # The CLI ships inside the app (Contents/MacOS/summon) next to its shared files (Contents/share/summon),
 # which is where `summon path` finds them.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 CONFIG=release
-case "${1:-}" in
-  --debug) CONFIG=debug ;;
-  "") ;;
-  *) echo "usage: $0 [--debug]" >&2; exit 2 ;;
-esac
+ARCHS=()
+for arg in "$@"; do
+  case "$arg" in
+    --debug) CONFIG=debug ;;
+    --universal) ARCHS=(--arch arm64 --arch x86_64) ;;
+    *) echo "usage: $0 [--debug] [--universal]" >&2; exit 2 ;;
+  esac
+done
 
 CACHE="$HOME/Library/Caches/macplugins/summon"
 APP="build/Summon.app"
 
 echo "Building the $CONFIG configuration"
-swift build -c "$CONFIG" --scratch-path "$CACHE/build" --product SummonMenu
-swift build -c "$CONFIG" --scratch-path "$CACHE/build" --product summon
-BIN="$(swift build -c "$CONFIG" --scratch-path "$CACHE/build" --show-bin-path)"
+swift build -c "$CONFIG" ${ARCHS[@]+"${ARCHS[@]}"} --scratch-path "$CACHE/build" --product SummonMenu
+swift build -c "$CONFIG" ${ARCHS[@]+"${ARCHS[@]}"} --scratch-path "$CACHE/build" --product summon
+BIN="$(swift build -c "$CONFIG" ${ARCHS[@]+"${ARCHS[@]}"} --scratch-path "$CACHE/build" --show-bin-path)"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/share/summon"

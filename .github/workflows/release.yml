@@ -1,0 +1,192 @@
+# Builds the SummonOS release: universal (arm64 + x86_64) summon, macctl and Summon.app in one zip plus SHA256SUMS.
+# - A `v*` tag builds, attests and publishes a GitHub prerelease. The tag must equal v$(cat VERSION).
+# - workflow_dispatch, and a PR that touches the release or install path, run the same build as a dry run:
+#   the zip and SHA256SUMS are uploaded as a workflow artifact only, with no attestation and no Release.
+# Builds are ad-hoc signed previews. Developer ID signing and notarization (tools/notarize-app.sh) run only when
+# the DEVELOPER_ID_P12, DEVELOPER_ID_P12_PASSWORD, SUMMON_SIGN_IDENTITY, NOTARY_APPLE_ID, NOTARY_TEAM_ID and
+# NOTARY_PASSWORD secrets are all set.
+# The zip mirrors what install.sh installs: summonos-<version>/{Summon.app, bin/macctl, bin/summon, scripts/}.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - install.sh
+      - incubator/summon/scripts/bundle.sh
+      - incubator/summon/scripts/install.sh
+      - incubator/summon/scripts/install-state.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 45
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      notarized: ${{ steps.notarize.outputs.notarized || 'false' }}
+    env:
+      HAS_SIGNING: ${{ secrets.DEVELOPER_ID_P12 != '' && secrets.DEVELOPER_ID_P12_PASSWORD != '' && secrets.SUMMON_SIGN_IDENTITY != '' && secrets.NOTARY_APPLE_ID != '' && secrets.NOTARY_TEAM_ID != '' && secrets.NOTARY_PASSWORD != '' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Version
+        id: version
+        run: |
+          version=$(tr -d '[:space:]' < VERSION)
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match VERSION ($version); expected v$version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "SummonOS $version ($GITHUB_EVENT_NAME, $GITHUB_REF_NAME)"
+      - name: Toolchain
+        run: |
+          # Same selection as swift.yml: the code needs Xcode 26.
+          version=$(xcodebuild -version)
+          if ! grep -q '^Xcode 26' <<<"$version"; then
+            xcode=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+            [ -n "$xcode" ] || { echo "::error::no Xcode 26 on this image"; exit 1; }
+            sudo xcode-select -s "$xcode"
+          fi
+          xcodebuild -version
+          swift --version
+      - name: Build macctl (universal)
+        run: |
+          swift build --package-path macctl -c release --arch arm64 --arch x86_64 --product macctl
+          echo "MACCTL_BIN=$(swift build --package-path macctl -c release --arch arm64 --arch x86_64 --show-bin-path)/macctl" >> "$GITHUB_ENV"
+      - name: Build Summon.app (universal)
+        run: incubator/summon/scripts/bundle.sh --universal
+      - name: Stage the install layout
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          stage="$RUNNER_TEMP/stage/summonos-$VERSION"
+          mkdir -p "$stage/bin" "$stage/scripts"
+          cp -R incubator/summon/build/Summon.app "$stage/Summon.app"
+          cp "$MACCTL_BIN" "$stage/bin/macctl"
+          codesign --force --sign - "$stage/bin/macctl"
+          ln -s ../Summon.app/Contents/MacOS/summon "$stage/bin/summon"
+          cp incubator/summon/scripts/install.sh incubator/summon/scripts/install-state.py "$stage/scripts/"
+          cp VERSION LICENSE "$stage/"
+          echo "STAGE=$stage" >> "$GITHUB_ENV"
+      - name: Developer ID signing and notarization (only when the signing secrets are set)
+        id: notarize
+        if: env.HAS_SIGNING == 'true'
+        env:
+          P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          SUMMON_SIGN_IDENTITY: ${{ secrets.SUMMON_SIGN_IDENTITY }}
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          keychain_password=$(uuidgen)
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          base64 --decode <<<"$P12" > "$RUNNER_TEMP/id.p12"
+          security import "$RUNNER_TEMP/id.p12" -k "$keychain" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          /bin/rm -f "$RUNNER_TEMP/id.p12"
+          security set-key-partition-list -S apple-tool:,apple: -k "$keychain_password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          xcrun notarytool store-credentials summonos-release --apple-id "$NOTARY_APPLE_ID" \
+            --team-id "$NOTARY_TEAM_ID" --password "$NOTARY_PASSWORD" --keychain "$keychain"
+          codesign --force --sign "$SUMMON_SIGN_IDENTITY" --options runtime --timestamp "$STAGE/bin/macctl"
+          SUMMON_NOTARY_PROFILE=summonos-release bash tools/notarize-app.sh "$STAGE/Summon.app" "$RUNNER_TEMP/notarized"
+          /bin/rm -rf "$STAGE/Summon.app"
+          ditto -x -k "$RUNNER_TEMP/notarized/Summon.zip" "$STAGE"
+          echo "notarized=true" >> "$GITHUB_OUTPUT"
+      - name: Verify signatures, architectures and versions
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          codesign --verify --deep --strict --verbose=2 "$STAGE/Summon.app"
+          codesign --verify --strict --verbose=2 "$STAGE/bin/macctl"
+          for binary in bin/macctl Summon.app/Contents/MacOS/summon Summon.app/Contents/MacOS/SummonMenu; do
+            archs=$(lipo -archs "$STAGE/$binary")
+            echo "$binary: $archs"
+            for arch in arm64 x86_64; do
+              grep -qw "$arch" <<<"$archs" || { echo "::error::$binary is missing $arch"; exit 1; }
+            done
+          done
+          "$STAGE/bin/summon" --version | grep -qx "summon $VERSION" || { echo "::error::summon does not report $VERSION"; exit 1; }
+          "$STAGE/bin/macctl" --version | grep -qx "macctl $VERSION" || { echo "::error::macctl does not report $VERSION"; exit 1; }
+          "$STAGE/bin/summon" commands --json >/dev/null
+      - name: Package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p dist
+          ditto -c -k --keepParent "$STAGE" "dist/summonos-$VERSION-macos-universal.zip"
+          (cd dist && shasum -a 256 "summonos-$VERSION-macos-universal.zip" > SHA256SUMS && cat SHA256SUMS)
+          unzip -l "dist/summonos-$VERSION-macos-universal.zip" | grep -v 'Summon.app/Contents/share/' | head -40
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: summonos-${{ steps.version.outputs.version }}
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: summonos-${{ needs.build.outputs.version }}
+          path: dist
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/summonos-*.zip
+      - name: Create the GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.build.outputs.version }}
+          NOTARIZED: ${{ needs.build.outputs.notarized }}
+        run: |
+          if [ "$NOTARIZED" = true ]; then
+            signing="Summon.app is signed with Developer ID, notarized by Apple and stapled; macctl is signed with Developer ID."
+          else
+            signing="These preview builds are ad-hoc signed and are not notarized by Apple. macOS may block the first launch;
+          review the source and publisher before choosing **Open Anyway** in System Settings › Privacy & Security.
+          The installer downloads with curl, which does not quarantine the files. If you unzip a browser download by hand,
+          clear the quarantine flag after reviewing it: \`xattr -dr com.apple.quarantine ~/Applications/Summon.app\`."
+          fi
+          cat > notes.md <<EOF
+          Preview build of SummonOS $VERSION: universal (Apple silicon and Intel) \`summon\`, \`macctl\` and Summon.app.
+
+          ## Install
+
+          \`\`\`sh
+          curl -fsSL https://raw.githubusercontent.com/RohiRIK/SummonOS/main/install.sh | bash
+          \`\`\`
+
+          The installer downloads \`summonos-$VERSION-macos-universal.zip\`, checks it against \`SHA256SUMS\`, installs it
+          with rollback and runs \`summon doctor\`. Needs macOS 15 or newer.
+
+          $signing
+
+          ## Verify
+
+          \`shasum -a 256 -c SHA256SUMS\`, and the build provenance:
+          \`gh attestation verify summonos-$VERSION-macos-universal.zip -R $GITHUB_REPOSITORY\`.
+          EOF
+          gh release create "$GITHUB_REF_NAME" dist/* -R "$GITHUB_REPOSITORY" --verify-tag --prerelease \
+            --title "SummonOS $VERSION" --notes-file notes.md --generate-notes
