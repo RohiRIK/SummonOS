@@ -142,6 +142,12 @@ level. To watch them: `log stream --predicate 'subsystem == "local.macplugins.su
    "macOS notification": the same URL posts one banner instead, grouped per program, with sound when on.
 6. Task result: with the app running, `summon task run <id>`. Expected: one "Task done: <name>" banner from Summon
    (not Script Editor) with Show Log and Ask Agent; with the app quit, one plain banner from the CLI.
+7. Focus survival (Rohi's text-field test). With TextEdit frontmost, ⌃⌥Space and type `the`.
+   - Click into TextEdit, type there, click the panel's search field, keep typing. Expected: the panel stays open
+     (D4 ignores the previous app), TextEdit gets its letters, the search field gets the rest, nothing is lost.
+   - ⌘Tab to another app. Expected: the panel closes (D4, by design) and focus stays in that app.
+   - Repeat with an agent running and the Activity rows refreshing (1 s). Expected: no dropped or duplicated
+     letters, the selection doesn't jump, the top edge doesn't move.
 
 ## Deployment floor
 
