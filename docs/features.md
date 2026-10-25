@@ -50,6 +50,13 @@ Code: [`incubator/summon/`](../incubator/summon). Overview: [its README](../incu
 - **Undo:** `summon undo-session` (or `summon checkpoint undo [id]`) restores successfully captured config files
   and supported macctl settings changed since. New files and external actions are excluded. `--dry-run` shows
   the plan first. `summon checkpoint list` includes capture problems.
+- **Any agent's session can be undone, not only the ones Summon starts:** before an agent's first real
+  `settings_set` through `summon mcp`, Summon takes a checkpoint labelled "<Agent> via MCP", such as "Codex via MCP".
+  It logs the session under the agent's name from MCP `clientInfo`. The tool reply ends with the one command that
+  undoes the whole session, and Activity shows it as that agent's session with **Undo This Session…**.
+- **Panel:** after an agent session from the last 12 hours that changed settings, the panel shows one row, "Undo
+  <Agent> Session (N changes)…". Choosing it asks first, then runs `summon checkpoint undo`. The row disappears
+  when there is nothing to undo.
 
 ### The Mac calls the agent
 
