@@ -52,13 +52,26 @@ final class StatusPanel: NSPanel {
 
 /// Shows and hides the panel under the status item. Opens from a click or from code (`open()`, `toggle()`, for
 /// a hotkey or URL); closes on Esc, a click elsewhere (the panel loses key), a Space change, or an action.
+/// A right-click (or ⌃-click) opens a plain menu with Settings… and Quit instead.
 @MainActor
 public final class PanelController: NSObject {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let panel = StatusPanel.make()
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
+    private let contextMenu = NSMenu()
 
     public var isOpen: Bool { panel.isVisible }
+    private var settingsAction: @MainActor () -> Void = {}
+
+    /// "Show in menu bar" (Settings): people decide whether the icon is there (HIG Menu bar extras). Hidden, the
+    /// app is still reachable from code (a hotkey, a URL) and by opening it again in the Finder, which shows Settings.
+    public var isStatusItemVisible: Bool {
+        get { statusItem.isVisible }
+        set {
+            if !newValue { close() }
+            statusItem.isVisible = newValue
+        }
+    }
 
     public init<Content: View>(image: NSImage?, openSettings: @escaping @MainActor () -> Void,
                                @ViewBuilder content: (PanelActions) -> Content) {
@@ -71,6 +84,12 @@ public final class PanelController: NSObject {
             },
             quit: { NSApp.terminate(nil) }
         )
+        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(menuSettings), keyEquivalent: ",")
+        settingsItem.target = self
+        contextMenu.addItem(settingsItem)
+        contextMenu.addItem(.separator())
+        contextMenu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        settingsAction = actions.openSettings
         let host = NSHostingView(rootView: content(actions)
             .background(.regularMaterial, in: .rect(cornerRadius: 12)))
         host.sizingOptions = [.preferredContentSize] // the panel follows SwiftUI's ideal size
@@ -83,6 +102,7 @@ public final class PanelController: NSObject {
             button.imagePosition = .imageOnly
             button.target = self
             button.action = #selector(statusItemClicked)
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
     }
 
@@ -122,7 +142,19 @@ public final class PanelController: NSObject {
         button.setAccessibilityLabel(accessibilityLabel)
     }
 
-    @objc private func statusItemClicked() { toggle() }
+    @objc private func statusItemClicked() {
+        let event = NSApp.currentEvent
+        if event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true {
+            close()
+            statusItem.menu = contextMenu // shown for this click only, so a left click still opens the panel
+            statusItem.button?.performClick(nil)
+            statusItem.menu = nil
+        } else {
+            toggle()
+        }
+    }
+
+    @objc private func menuSettings() { settingsAction() }
 
     /// Under the status item on the screen whose menu bar was clicked, clamped 8 pt inside the visible frame.
     private func place(under button: NSStatusBarButton) {
@@ -158,6 +190,7 @@ public struct SettingsOpener: View {
         Color.clear
             .frame(width: 1, height: 1)
             .background(InvisibleWindow())
+            .showsOnboardingOnFirstLaunch() // this window is open from launch
             .onChange(of: model.settingsRequest) {
                 NSApp.activate()
                 openSettings()

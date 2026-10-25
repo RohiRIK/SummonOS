@@ -2,6 +2,7 @@ import ServiceManagement
 import SwiftUI
 
 /// The Settings window (⌘,): every app preference lives here. One control per row, no explanatory text.
+/// Changes apply at once (no Save). Close only: minimize and zoom are dimmed (HIG Settings).
 /// Layout rule: a grouped Form while there are fewer than 3 sections; from 3 sections up, a NavigationSplitView
 /// with a sidebar of sections, each a grouped Form (about 760-820 pt wide, LiquidGlass/SidebarSettings.md).
 public struct SettingsView: View {
@@ -13,14 +14,16 @@ public struct SettingsView: View {
         Form {
             Section("General") {
                 OpenAtLoginToggle()
+                ShowWelcomeButton()
             }
             Section("Sidebar") {
                 Toggle("Show item count", isOn: $showCount)
             }
         }
         .formStyle(.grouped)
-        .frame(width: 380)
+        .frame(width: 480)
         .fixedSize(horizontal: false, vertical: true)
+        .closeOnlyWindow()
     }
 }
 

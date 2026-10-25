@@ -2,11 +2,12 @@ import ServiceManagement
 import SwiftUI
 
 /// The Settings window (⌘,): every app preference lives here, never in the panel. One control per row, no
-/// explanatory text.
+/// explanatory text. Changes apply at once (no Save). Close only: minimize and zoom are dimmed (HIG Settings).
 /// Layout rule: a grouped Form while there are fewer than 3 sections; from 3 sections up, a NavigationSplitView
 /// with a sidebar of sections, each a grouped Form (about 760-820 pt wide, LiquidGlass/SidebarSettings.md).
 public struct SettingsView: View {
     @AppStorage(StarterSettings.showCountKey) private var showCount = false
+    @AppStorage(StarterSettings.showInMenuBarKey) private var showInMenuBar = true
 
     public init() {}
 
@@ -14,14 +15,18 @@ public struct SettingsView: View {
         Form {
             Section("General") {
                 OpenAtLoginToggle()
+                ShowWelcomeButton()
             }
             Section("Menu Bar") {
+                Toggle("Show in menu bar", isOn: $showInMenuBar)
                 Toggle("Show count in the menu bar", isOn: $showCount)
+                    .disabled(!showInMenuBar)
             }
         }
         .formStyle(.grouped)
-        .frame(width: 380)
+        .frame(width: 480)
         .fixedSize(horizontal: false, vertical: true)
+        .closeOnlyWindow()
     }
 }
 

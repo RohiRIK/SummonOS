@@ -18,6 +18,16 @@ struct StarterApp: App {
             StarterCommands(model: model)
         }
 
+        // First-run setup: opened once by `showsOnboardingOnFirstLaunch()`, again from Settings.
+        Window("Welcome to Starter", id: OnboardingView.windowID) {
+            OnboardingView(readyTitle: "You're Set", readyText: "Press ⌘N for your first item.",
+                           readySymbol: "checkmark.circle").themed()
+        }
+        .windowResizability(.contentSize)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
+        .defaultWindowPlacement { _, _ in WindowPlacement(.center) }
+
         Settings {
             SettingsView().themed()
         }

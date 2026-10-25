@@ -46,6 +46,13 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — Existing templates brought to the surface rules
+- Kit: `CloseOnlyWindow.swift` (`.closeOnlyWindow()`, the probe Summon's Settings uses) in all six UI templates;
+  `OnboardingFlow` (Core) + `Onboarding.swift` (window, permission cards, `showsOnboardingOnFirstLaunch()`,
+  `ShowWelcomeButton`) in `app` and `menubar-panel`. Starter permissions list is empty on purpose (HIG Privacy).
+- `app`: 800 × 550 min, `.inspector`, `.searchable` + ⌘F, context menu, undo via the window's UndoManager.
+- `menubar-panel`: right-click menu on the status item, `isStatusItemVisible`, reopen shows Settings. `menubar`
+  (MenuBarExtra) has no hide toggle: it has no way back once hidden.
 ### 2026-10-25 — Templates for the UX surfaces
 - New templates `launcher`, `hud`, `notch` (ProjectStarter cases, all recorded as `.menubar`), built to
   `docs/ux-surfaces/04`, `05` and `07`. They share a small kit: `KeyCombo` (Core, refuses ⌘Space and other system

@@ -24,7 +24,7 @@ public struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 480)
         .fixedSize(horizontal: false, vertical: true)
-        .windowMinimizeBehavior(.disabled)
+        .closeOnlyWindow()
     }
 }
 

@@ -37,6 +37,7 @@ workspace): Apple reserves ⌘Space for Spotlight, so the default is ⌥Space an
 | `Sources/StarterUI/StatusMenu.swift` | A template SF Symbol in the menu bar with a plain `NSMenu` |
 | `Sources/StarterUI/SettingsOpener.swift` | Opens the Settings window from AppKit code |
 | `Sources/StarterUI/SummonTheme.swift`, `Glass.swift` | `.themed()` (the Summon theme's accent) and `.glassControl()` |
+| `Sources/StarterUI/CloseOnlyWindow.swift` | `.closeOnlyWindow()` on Settings: minimize and zoom dimmed, no full screen |
 | `Sources/StarterUI/Screenshots.swift` | `--screenshot <folder>`: the launcher and Settings to PNGs, for `summon project shots` |
 | `Sources/StarterCore/` | `AppCatalog`, `FuzzyMatch`, `KeyCombo` (reserved shortcuts), `SummonThemeFile`; Foundation only, tested |
 | `Resources/` | `Info.plist` (bundle id `local.summon.launcher-starter`, `LSUIElement`), `AppIcon.icns` |

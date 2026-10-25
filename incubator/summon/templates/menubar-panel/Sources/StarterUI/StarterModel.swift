@@ -27,4 +27,5 @@ public final class StarterModel {
 /// UserDefaults keys shared by the Settings window and the menu bar label.
 public enum StarterSettings {
     public static let showCountKey = "showCountInMenuBar"
+    public static let showInMenuBarKey = "showInMenuBar"
 }
