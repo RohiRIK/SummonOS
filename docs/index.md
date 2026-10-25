@@ -13,6 +13,7 @@ Everything written down about SummonOS: features, how to install and build, tool
 * [Architecture decisions](adr/index.md) - Accepted and proposed design decisions, one per file.
 * [Plans and reports](plans/index.md) - Finished and long plans, one per file. A plan records what was decided at the time; when it disagrees with a project's README or PROJECT-CONTEXT.md, those win.
 * [Research](research/index.md) - Research notes behind the skills and the design of SummonOS apps.
+* [macOS UX surfaces](ux-surfaces/index.md) - The seven kinds of Mac app surface across 14 UX dimensions, and each one checked against Apple's HIG and API docs (2026-10-25).
 
 # Reference
 
