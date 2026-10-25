@@ -266,9 +266,9 @@ extension ActivityModel {
 /// Opens the Activity and Settings windows when requested from outside any view.
 public struct ActivityOpener: ViewModifier {
     public static let windowID = "activity"
-    public static let settingsWindowID = "settings"
     let activity: ActivityModel
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
 
     public init(activity: ActivityModel) {
         self.activity = activity
@@ -277,23 +277,21 @@ public struct ActivityOpener: ViewModifier {
     public func body(content: Content) -> some View {
         content
             .onChange(of: activity.openRequest) {
-                present(id: Self.windowID, title: "Summon Activity")
+                openWindow(id: Self.windowID)
+                bringToFront { $0.title.contains("Activity") }
             }
             .onChange(of: activity.settingsRequest) {
-                present(id: Self.settingsWindowID, title: "Summon Settings")
+                openSettings()
+                // The Settings scene's window is titled after the page shown, so it is found by its identifier.
+                bringToFront { $0.identifier?.rawValue.contains("Settings") == true }
             }
     }
 
-    private func present(id: String, title: String) {
-        openWindow(id: id)
-        bringToFront(title: title)
-    }
-
-    private func bringToFront(title: String) {
+    private func bringToFront(_ matches: @escaping (NSWindow) -> Bool) {
         DispatchQueue.main.async {
             NSApp.activate()
             DispatchQueue.main.async {
-                guard let window = NSApp.windows.first(where: { $0.title == title || $0.title.contains(title) }) else {
+                guard let window = NSApp.windows.first(where: matches) else {
                     NSApp.activate()
                     return
                 }

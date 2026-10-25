@@ -205,6 +205,10 @@ public final class SummonModel {
         catch { lastError = String(describing: error) }
         let locator = ToolLocator.live()
         installedAgentIDs = AgentRegistry.all.filter { locator.find($0.command) != nil }.map(\.id)
+        // With exactly one agent installed there is nothing to choose: make it the default.
+        if defaultAgent == nil, installedAgentIDs.count == 1, let only = installedAgentIDs.first {
+            setDefaultAgent(only)
+        }
         if let agent = defaultAgent {
             agentInstalled = ToolLocator.live().find(agent.command) != nil
         } else {
@@ -251,11 +255,14 @@ public final class SummonModel {
     public func confirmUndo(_ offer: UndoOffer) {
         NSApp.activate()
         let alert = NSAlert()
+        let changes = "\(offer.changes) Change\(offer.changes == 1 ? "" : "s")"
         alert.messageText = "Undo \(offer.label)?"
-        alert.informativeText = "Puts back the \(offer.changes) setting change\(offer.changes == 1 ? "" : "s") and the ~/.config files from before it. Files created since stay."
-        alert.addButton(withTitle: "Undo")
-        alert.addButton(withTitle: "Cancel")
-        alert.buttons.first?.hasDestructiveAction = true
+        alert.informativeText = "Restores the settings and ~/.config files from before it and removes the files it created. Other new files stay."
+        // The button names what it does; Cancel is the default (Return), so a stray keypress restores nothing.
+        let restore = alert.addButton(withTitle: "Restore \(changes)")
+        restore.hasDestructiveAction = true
+        restore.keyEquivalent = ""
+        alert.addButton(withTitle: "Cancel").keyEquivalent = "\r"
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         Task { await summon(["checkpoint", "undo", offer.checkpoint]) }
     }
@@ -282,10 +289,14 @@ public final class SummonModel {
     public func startWatching(interval: Duration = .seconds(30)) {
         guard watchTask == nil else { return }
         watchTask = Task { [weak self] in
+            var round = 0
             while !Task.isCancelled {
                 guard let model = self else { return }
                 await model.scanCrashes()
                 model.checkMac()
+                // Summon's own setup (`summon doctor`) for the panel's Needs attention: at launch, then every 10 min.
+                if round % 20 == 0 { await model.checkHealth() }
+                round += 1
                 try? await Task.sleep(for: interval)
             }
         }

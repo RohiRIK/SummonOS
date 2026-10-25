@@ -1,6 +1,7 @@
 # Docs update log
 
 ## 2026-10-25
+* **Update**: [Features](features.md): the panel shows Needs attention (crashes, setup problems) and lets you choose an agent; one Settings window without header blocks or explanatory text; undo asks with "Restore N Changes" (Cancel default); orange menu bar icon for problems.
 * **Update**: [Features](features.md): Visual QA screenshots every Settings page, Activity and the crash alert; `summon://settings/<section>` opens a Settings page. Phase 5 (UX/UI overhaul) plan approved.
 * **Update**: SummonOS 0.1.1 (VERSION, summon, macctl, Summon.app): undo any agent session, hotkey with screen context, one-click Accessibility, `summon connect` hooks, whole-Mac themes with one undo, macOS 27 wallpaper fix, live Mac events.
 * **Update**: [README](../README.md) rewritten around "the agentic layer for the Mac": what you get (context, MCP + connect, hotkey, undo, themes), install flags and what ad-hoc preview builds mean, a 60-second tour, demo placeholders, status and credits (Omarchy).

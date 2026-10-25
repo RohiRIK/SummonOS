@@ -187,16 +187,16 @@ Standing rules still apply:
   It runs light and dark on macOS 15 and 26.
 
 ### U1: Summon quick wins (high impact, small effort)
-- [ ] Only the `Settings` scene: drop the duplicate `Window("Summon Settings")`, which can open two copies.
-- [ ] Delete the per-page `detailHeader` and use `.navigationTitle`. Cut every explanatory string: page subtitles,
+- [x] Only the `Settings` scene: drop the duplicate `Window("Summon Settings")`, which can open two copies.
+- [x] Delete the per-page `detailHeader` and use `.navigationTitle`. Cut every explanatory string: page subtitles,
       footers, skill descriptions, the "System Healthy" card, "Powered by caffeine", the second Quit button.
-- [ ] **"Needs attention" block in the panel** (crashes, one row per program with a count and Diagnose…; health
+- [x] **"Needs attention" block in the panel** (crashes, one row per program with a count and Diagnose…; health
       "N problems · Fix…"), shown only when something is wrong. It replaces the health card in Settings › General.
       The docs and the crash alert already promise it.
-- [ ] No default agent: the panel header becomes an inline menu of installed agents. Auto-pick when there is only one.
-- [ ] Undo: a sheet with the change count, what is not covered, a "Restore N Changes" button and Cancel as the
+- [x] No default agent: the panel header becomes an inline menu of installed agents. Auto-pick when there is only one.
+- [x] Undo (as an NSAlert: the panel is closed, so there is no window for a sheet): a sheet with the change count, what is not covered, a "Restore N Changes" button and Cancel as the
       default. It doesn't steal focus, and the copy is fixed for themes (created files are removed now). Activity uses the same sheet.
-- [ ] Menu bar icon: a small dot when there are problems.
+- [x] Menu bar icon: a small dot when there are problems.
 
 ### U2: Panel look
 - [ ] Liquid Glass on macOS 26 (`NSGlassEffectView` behind the panel, none on rows) and `.menu` material on 15.

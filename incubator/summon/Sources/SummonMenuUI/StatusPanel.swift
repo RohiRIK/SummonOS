@@ -272,8 +272,13 @@ public final class PanelController: NSObject {
 
     /// The status item's live label (`MenuBarStatusWatcher`): icon only when `title` is nil, else icon and title.
     /// Monospaced digits keep the item's width steady while the clock ticks.
-    public func setStatusLabel(title: String?, accessibilityLabel: String) {
+    /// `attention`: the panel has something in Needs attention; the icon turns orange, as macOS marks a status item
+    /// that wants a look, and VoiceOver hears it.
+    public func setStatusLabel(title: String?, accessibilityLabel: String, attention: Bool = false) {
         guard let button = statusItem.button else { return }
+        let tint: NSColor? = attention ? .systemOrange : nil
+        if button.contentTintColor != tint { button.contentTintColor = tint }
+        let accessibilityLabel = attention ? accessibilityLabel + ", needs attention" : accessibilityLabel
         let text = title ?? ""
         if button.title != text {
             button.title = text

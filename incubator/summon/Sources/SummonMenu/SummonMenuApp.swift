@@ -17,13 +17,6 @@ struct SummonMenuApp: App {
         // first scene and shows this window (`summon panel`, `summon menu summon`).
         .handlesExternalEvents(matching: [])
 
-        Window("Summon Settings", id: ActivityOpener.settingsWindowID) {
-            SettingsView(model: delegate.model)
-        }
-        .defaultSize(width: 900, height: 620)
-        .defaultLaunchBehavior(.suppressed)
-        .handlesExternalEvents(matching: [])
-
         // Invisible and always open: it hosts the openers for summon://activity and summon://settings.
         Window("Summon", id: "summon-opener") {
             OpenerHost(activity: delegate.activity)
@@ -34,6 +27,7 @@ struct SummonMenuApp: App {
         // The invisible, always-open opener claims summon:// so SwiftUI reuses it instead of opening a window.
         .handlesExternalEvents(matching: ["summon"])
 
+        // The one Settings window (⌘, from the app menu, Settings… in the panel, summon://settings).
         Settings {
             SettingsView(model: delegate.model)
         }
