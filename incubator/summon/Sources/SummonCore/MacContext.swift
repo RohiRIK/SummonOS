@@ -195,6 +195,17 @@ public struct MacContext: Sendable, Equatable, Codable {
         return lines.joined(separator: "\n")
     }
 
+    /// What `summon context --hook <agent>` prints: plain text where the agent adds a start hook's stdout to the
+    /// session (Claude Code, Codex), and the JSON shape Cursor and the Antigravity CLI read.
+    public func hookOutput(for agent: String) -> String {
+        let text = render()
+        switch agent {
+        case "cursor": return MCPServer.encode(.object(["additional_context": .string(text)]))
+        case "agy": return MCPServer.encode(.object(["injectSteps": .array([.object(["systemMessage": .object(["systemMessage": .string(text)])])])]))
+        default: return text
+        }
+    }
+
     /// `AppleAccentColor` from the global domain; absent means the multicolor default.
     public static func accentName(_ value: Int?) -> String {
         switch value {

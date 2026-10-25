@@ -111,4 +111,40 @@ struct AgentConnectTests {
                                      fileExists: { $0 == "/Applications/Cursor.app" })
         #expect(withApp.isPresent(cursor))
     }
+
+    @Test func startHooksKeepTheUsersHooksAndComeOffCleanly() async throws {
+        let home = try makeTempHome()
+        let settings = home.appendingPathComponent(".claude/settings.json")
+        let mine = #"{"model":"opus","hooks":{"SessionStart":[{"matcher":"startup","hooks":[{"type":"command","command":"echo mine"}]}]}}"#
+        try writeFile(mine, to: settings)
+        let cursorHooks = home.appendingPathComponent(".cursor/hooks.json")
+        try writeFile(#"{"version":1,"hooks":{"sessionStart":[{"command":"./mine.sh"}]}}"#, to: cursorHooks)
+        // claude's `mcp get` succeeds (already connected), so only the files change.
+        let connector = Self.connector(home: home, installed: ["claude", "cursor-agent", "agy"], log: CallLog())
+        let targets = [try Self.target("claude"), try Self.target("cursor"), try Self.target("agy")]
+        let results = await connector.connect(targets, dryRun: false)
+        #expect(results.allSatisfy { $0.status == .connected })
+
+        let root = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: settings)) as? [String: Any])
+        #expect(root["model"] as? String == "opus")
+        let groups = try #require((root["hooks"] as? [String: Any])?["SessionStart"] as? [[String: Any]])
+        #expect(groups.count == 2)
+        let command = try #require((groups.last?["hooks"] as? [[String: Any]])?.first?["command"] as? String)
+        #expect(command == #""/opt/summon/bin/summon" context --hook claude"#)
+        let cursor = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: cursorHooks)) as? [String: Any])
+        #expect(((cursor["hooks"] as? [String: Any])?["sessionStart"] as? [Any])?.count == 2)
+        let agy = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: home.appendingPathComponent(".gemini/config/hooks.json"))) as? [String: Any])
+        #expect(agy["summon-context"] != nil)
+
+        // A second connect adds no duplicate hook.
+        _ = await connector.connect(targets, dryRun: false)
+        let again = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: settings)) as? [String: Any])
+        #expect(((again["hooks"] as? [String: Any])?["SessionStart"] as? [Any])?.count == 2)
+
+        _ = await connector.disconnect(targets, dryRun: false)
+        let restored = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: settings)) as? NSDictionary)
+        #expect(restored == (try JSONSerialization.jsonObject(with: Data(mine.utf8)) as? NSDictionary))
+        let cursorAfter = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: cursorHooks)) as? [String: Any])
+        #expect(((cursorAfter["hooks"] as? [String: Any])?["sessionStart"] as? [Any])?.count == 1)
+    }
 }

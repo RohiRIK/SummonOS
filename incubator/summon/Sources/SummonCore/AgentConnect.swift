@@ -11,6 +11,16 @@ public struct ConnectTarget: Sendable, Equatable {
         case jsonFile(String)
     }
 
+    /// A session-start hook that runs `summon context --hook <id>`, so every new session starts with the snapshot.
+    public enum Hook: Sendable, Equatable {
+        /// `{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": …}]}]}}` (Claude Code, Codex).
+        case sessionStart(String)
+        /// `{"version": 1, "hooks": {"sessionStart": [{"command": …}]}}` (Cursor).
+        case cursor(String)
+        /// `{"<name>": {"SessionStart": [{"type": "command", "command": …}]}}` (Antigravity CLI).
+        case named(String)
+    }
+
     public var id: String
     public var name: String
     /// Binary on PATH; the agent counts as present when it exists.
@@ -20,18 +30,20 @@ public struct ConnectTarget: Sendable, Equatable {
     public var method: Method
     /// Markdown file loaded into every session, home-relative; nil when the agent has none Summon should touch.
     public var instructions: String?
+    /// nil when the agent has no start hook Summon can add (its instructions file and the MCP server cover it).
+    public var hook: Hook? = nil
 
     public static let all: [ConnectTarget] = [
         ConnectTarget(id: "claude", name: "Claude Code", command: "claude", markers: [],
                       method: .cli(add: ["mcp", "add", "--scope", "user", "summon", "--", "{summon}", "mcp"],
                                    remove: ["mcp", "remove", "--scope", "user", "summon"], check: ["mcp", "get", "summon"]),
-                      instructions: ".claude/CLAUDE.md"),
+                      instructions: ".claude/CLAUDE.md", hook: .sessionStart(".claude/settings.json")),
         ConnectTarget(id: "codex", name: "Codex", command: "codex", markers: [],
                       method: .cli(add: ["mcp", "add", "summon", "--", "{summon}", "mcp"],
                                    remove: ["mcp", "remove", "summon"], check: ["mcp", "get", "summon"]),
-                      instructions: ".codex/AGENTS.md"),
+                      instructions: ".codex/AGENTS.md", hook: .sessionStart(".codex/hooks.json")),
         ConnectTarget(id: "cursor", name: "Cursor", command: "cursor-agent", markers: [".cursor", "/Applications/Cursor.app"],
-                      method: .jsonFile(".cursor/mcp.json"), instructions: nil),
+                      method: .jsonFile(".cursor/mcp.json"), instructions: nil, hook: .cursor(".cursor/hooks.json")),
         ConnectTarget(id: "opencode", name: "OpenCode", command: "opencode", markers: [],
                       method: .cli(add: ["mcp", "add", "--global", "summon", "--", "{summon}", "mcp"], remove: nil, check: nil),
                       instructions: ".config/opencode/AGENTS.md"),
@@ -46,7 +58,8 @@ public struct ConnectTarget: Sendable, Equatable {
                                    remove: ["mcp", "remove", "summon"], check: nil),
                       instructions: ".openclaw/workspace/AGENTS.md"),
         ConnectTarget(id: "agy", name: "Antigravity CLI", command: "agy", markers: [],
-                      method: .jsonFile(".gemini/config/mcp_config.json"), instructions: ".gemini/GEMINI.md"),
+                      method: .jsonFile(".gemini/config/mcp_config.json"), instructions: ".gemini/GEMINI.md",
+                      hook: .named(".gemini/config/hooks.json")),
         ConnectTarget(id: "pi", name: "Pi", command: "pi", markers: [".pi/agent"],
                       method: .jsonFile(".pi/agent/mcp.json"), instructions: ".pi/agent/AGENTS.md"),
     ]
@@ -55,6 +68,14 @@ public struct ConnectTarget: Sendable, Equatable {
         let key = name.lowercased()
         // Registry names and aliases work too ("gemini" is agy, "cursor-agent" is Cursor).
         return all.first { $0.id == key } ?? AgentRegistry.find(key).flatMap { agent in all.first { $0.command == agent.command } }
+    }
+}
+
+extension ConnectTarget.Hook {
+    public var file: String {
+        switch self {
+        case .sessionStart(let file), .cursor(let file), .named(let file): file
+        }
     }
 }
 
@@ -120,6 +141,13 @@ public struct AgentConnector: Sendable {
                     outcome = result(target, .failed, "instructions ~/\(file): \(error)", files: outcome.files)
                 }
             }
+            if outcome.status != .failed, let file = target.hook?.file {
+                do {
+                    if try editHook(target, install: true, dryRun: dryRun, now: now) { outcome.files.append("~/" + file) }
+                } catch {
+                    outcome = result(target, .failed, "start hook ~/\(file): \(error)", files: outcome.files)
+                }
+            }
             if outcome.status == .alreadyConnected, !outcome.files.isEmpty { outcome.status = .connected }
             results.append(outcome)
         }
@@ -166,6 +194,14 @@ public struct AgentConnector: Sendable {
                     notes.append("instructions ~/\(file): \(error)")
                 }
             }
+            if let file = target.hook?.file {
+                do {
+                    if try editHook(target, install: false, dryRun: dryRun, now: now) { files.append("~/" + file) }
+                } catch {
+                    status = .failed
+                    notes.append("start hook ~/\(file): \(error)")
+                }
+            }
             results.append(result(target, status, notes.joined(separator: "; "), files: files))
         }
         return results
@@ -207,9 +243,51 @@ public struct AgentConnector: Sendable {
         }
     }
 
-    /// Changes the `mcpServers` map of a JSON file, keeping every other key. A file that is not a JSON object
-    /// is left alone (never overwritten). Returns whether anything changed.
+    /// Changes the `mcpServers` map of a JSON file, keeping every other key.
     func editJSON(_ file: String, dryRun: Bool, now: Date, change: (inout [String: Any]) -> Bool) throws -> Bool {
+        try editRoot(file, dryRun: dryRun, now: now) { root in
+            var servers = root["mcpServers"] as? [String: Any] ?? [:]
+            guard change(&servers) else { return false }
+            root["mcpServers"] = servers
+            return true
+        }
+    }
+
+    /// Adds or removes Summon's start hook, recognized by its `context --hook <id>` command; other hooks stay.
+    func editHook(_ target: ConnectTarget, install: Bool, dryRun: Bool, now: Date) throws -> Bool {
+        guard let hook = target.hook else { return false }
+        let command = "\"\(summonPath)\" context --hook \(target.id)"
+        let isOurs: (Any) -> Bool = { ($0 as? String)?.hasSuffix(" context --hook \(target.id)") == true }
+        return try editRoot(hook.file, dryRun: dryRun, now: now) { root in
+            let before = NSDictionary(dictionary: root)
+            switch hook {
+            case .sessionStart:
+                var hooks = root["hooks"] as? [String: Any] ?? [:]
+                var groups = (hooks["SessionStart"] as? [Any] ?? []).filter { group in
+                    !((group as? [String: Any])?["hooks"] as? [Any] ?? []).contains { isOurs(($0 as? [String: Any])?["command"] as Any) }
+                }
+                if install { groups.append(["hooks": [["type": "command", "command": command]]]) }
+                hooks["SessionStart"] = groups.isEmpty ? nil : groups
+                root["hooks"] = hooks.isEmpty ? nil : hooks
+            case .cursor:
+                var hooks = root["hooks"] as? [String: Any] ?? [:]
+                var entries = (hooks["sessionStart"] as? [Any] ?? []).filter { !isOurs(($0 as? [String: Any])?["command"] as Any) }
+                if install {
+                    entries.append(["command": command])
+                    if root["version"] == nil { root["version"] = 1 }
+                }
+                hooks["sessionStart"] = entries.isEmpty ? nil : entries
+                root["hooks"] = hooks.isEmpty ? nil : hooks
+            case .named:
+                root["summon-context"] = install ? ["SessionStart": [["type": "command", "command": command]]] : nil
+            }
+            return !before.isEqual(to: root)
+        }
+    }
+
+    /// Edits a JSON object file, keeping every key `change` leaves alone. A file that is not a JSON object is left
+    /// alone (never overwritten). Returns whether anything changed.
+    func editRoot(_ file: String, dryRun: Bool, now: Date, change: (inout [String: Any]) -> Bool) throws -> Bool {
         let target = url(file)
         var root: [String: Any] = [:]
         if let data = try? Data(contentsOf: target), !data.isEmpty {
@@ -218,9 +296,7 @@ public struct AgentConnector: Sendable {
             }
             root = object
         }
-        var servers = root["mcpServers"] as? [String: Any] ?? [:]
-        guard change(&servers) else { return false }
-        root["mcpServers"] = servers
+        guard change(&root) else { return false }
         if dryRun { return true }
         try backup(target, now: now)
         let data = try JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])

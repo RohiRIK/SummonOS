@@ -40,6 +40,11 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — Session-start hooks: agents start knowing this Mac
+- `ConnectTarget.Hook`: Claude Code and Codex (`SessionStart` groups), Cursor (`version`/`sessionStart`) and agy (a
+  named `summon-context` entry). Summon's entry is the one whose command ends in `context --hook <id>`; others stay.
+- `MacContext.hookOutput(for:)`: plain text for claude/codex, `additional_context` for Cursor, `injectSteps` for agy.
+- Verified: `claude -p --settings <hook> --tools ""` answered chip, RAM and battery with no tool call.
 ### 2026-10-25 — `summon connect`: every agent gets the server and a This Mac note
 - `ConnectTarget` + `AgentConnector` (Core, tested): 8 targets (owner's list; Gemini CLI excluded, `agy` replaces it).
   Each target uses its own CLI's `mcp add/remove/get` (claude, codex, opencode, hermes, openclaw) or edits the

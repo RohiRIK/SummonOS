@@ -57,6 +57,16 @@ struct MacContextTests {
         #expect(throws: ContextError.unknownSection("powr")) { try Self.sample.only(["powr"]) }
     }
 
+    @Test func hookOutputMatchesEachAgentsFormat() throws {
+        let text = Self.sample.render()
+        #expect(Self.sample.hookOutput(for: "claude") == text)
+        #expect(Self.sample.hookOutput(for: "codex") == text)
+        let cursor = try JSONDecoder().decode(JSONValue.self, from: Data(Self.sample.hookOutput(for: "cursor").utf8))
+        #expect(cursor["additional_context"]?.string == text)
+        let agy = try JSONDecoder().decode(JSONValue.self, from: Data(Self.sample.hookOutput(for: "agy").utf8))
+        #expect(agy["injectSteps"]?.array?.first?["systemMessage"]?["systemMessage"]?.string == text)
+    }
+
     @Test func accentNamesFollowTheGlobalDomainValues() {
         #expect(MacContext.accentName(nil) == "multicolor")
         #expect(MacContext.accentName(-1) == "graphite")
