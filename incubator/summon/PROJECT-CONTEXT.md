@@ -40,6 +40,11 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — One SummonOS version
+- Root `VERSION` (0.1.0) is the source. `SummonVersion.current` (Core/Version.swift) feeds `summon version`/`--version`
+  and the first line + `version` key of `summon doctor`; macctl's ArgumentParser `version:` and Summon.app's
+  `CFBundleShortVersionString` carry the same value. `tools/check-workspace.sh` fails when any of them drifts.
+- CI: push to `main` + PRs only, PR runs cancel older ones, `macos-15` leg, informational Xcode 27 leg, docs-only skip.
 ### 2026-10-25 — `summon context`: the Mac snapshot for agents
 - `MacContext` (Core, tested) + `MacContextProbe` (live: sysctl, IOKit power, SystemConfiguration, CoreGraphics,
   NSWorkspace, Accessibility only when already trusted; never prompts). `summon context [--json] [--only]`,

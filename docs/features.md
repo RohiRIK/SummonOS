@@ -119,6 +119,8 @@ sections:
 ### Activity and status from the command line
 
 - `summon status`: agent, macctl, last change, last checkpoint and recent problems at a glance.
+- `summon version` (or `--version`): prints the SummonOS version (`summon 0.1.0`); `summon doctor` shows it on its
+  first line and in `--json`. One version for `summon`, Summon.app and `macctl`, kept in the root `VERSION` file.
 - `summon context [--json] [--only a,b]`: this Mac for agents in one read-only snapshot (about 60 ms): model,
   chip, RAM, macOS, power and thermal state, free space per volume, network and VPN, displays, frontmost app and
   window, running apps, appearance, what the asking process may do (Accessibility, Screen Recording, Full Disk
@@ -216,7 +218,7 @@ Changes, newest first: [`incubator/summon/CHANGELOG.md`](../incubator/summon/CHA
 
 ## macctl
 
-Code: [`macctl/`](../macctl). Overview: [its README](../macctl/README.md).
+Code: [`macctl/`](../macctl). Overview: [its README](../macctl/README.md). `macctl --version` prints the SummonOS version.
 
 - **Typed catalog:** every setting has an id, a type, a risk tier, the permissions it needs and its side
   effects. Use `list [--domain]`, `describe <id>` and `get <id>...`.
@@ -330,9 +332,14 @@ What this repo gives you for building more apps ([`README.md`](../README.md), [`
 | `PortLinuxWidget` | Port a Linux widget or script to a native Mac app |
 | `swiftui-expert-skill`, `swift-concurrency-pro` | Vendored (MIT): SwiftUI and Swift concurrency depth |
 
-CI ([`.github/workflows/swift.yml`](../.github/workflows/swift.yml)) builds and tests every Swift package
-on macOS on every push, including Summon's templates, `examples/menubar-starter` and `examples/menubar-panel-starter`.
-It also validates design skill structure, typechecks their Swift examples, and runs tooling regressions.
+CI ([`.github/workflows/swift.yml`](../.github/workflows/swift.yml)) runs once per PR and once per push to `main`
+(a newer commit on a PR cancels its older run). It builds and tests every Swift package, including Summon's templates,
+`examples/menubar-starter` and `examples/menubar-panel-starter`, on `macos-26` and on `macos-15` (the minimum OS,
+built with Xcode 26). An informational Xcode 27 leg (public preview on `macos-26`) builds and tests `summon` and
+`macctl` to catch macOS 27 SDK breaks; it never blocks a merge and skips when the image has no Xcode 27.
+A docs-only change (`docs/**`, or `*.md` outside a Swift package and `.claude/`) skips the Swift jobs.
+It also validates design skill structure, typechecks their Swift examples, runs tooling regressions, and checks that
+`summon`, Summon.app and `macctl` carry the version in `VERSION`.
 A second workflow, [`visual-qa.yml`](../.github/workflows/visual-qa.yml) (Visual QA (macOS)), runs on PRs that touch
 `incubator/summon/**` and on demand: on GitHub-hosted `macos-26` and `macos-15` runners it opens the Summon panel
 (⌃⌥Space) and menu bar panel in light and dark and uploads screenshots as 14-day artifacts. It fails when a surface

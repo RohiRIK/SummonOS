@@ -151,6 +151,8 @@ public enum CommandCatalog {
                     args: "[--json]", examples: ["summon menu list --json"], risk: "read"),
         CommandInfo(route: "commands", summary: "List every command",
                     args: "[--json]", examples: ["summon commands --json"], risk: "read"),
+        CommandInfo(route: "version", summary: "Print the SummonOS version (also --version)",
+                    args: "", examples: ["summon version", "summon --version"], risk: "read"),
     ]
 
     public static func json() throws -> String {
