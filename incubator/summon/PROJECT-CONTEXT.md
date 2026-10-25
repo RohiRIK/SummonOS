@@ -41,6 +41,15 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — Agent installer and updater
+- Core `AgentInstall.swift`: per-agent `AgentInstall` (npm package, vendor script, verified self-update),
+  `DetectedInstall.detect` (Caskroom, Cellar, ~/.bun, node_modules/nvm/fnm/volta, home folder = vendor),
+  `AgentInstallPlan` (install/update steps, never sudo), `AgentVersion`, and `AgentUpdates` (check with a 24 h
+  cache in `~/.local/state/summon/agent-updates.json`, `cachedUpdateCount`, `markUpdated`). Tested with fakes.
+- CLI `summon agents install <agent> [--yes]` and `summon agents update [<agent>|--all] [--check] [--refresh]
+  [--yes] [--json]`; `summon agents` shows the method. bun installs pass `--trust`: without it bun skips
+  postinstall and opencode-ai's binary is missing. Grok's install hint is now xAI's script.
+- The app still has no UI for it; the main thread wires `AgentUpdates` into Settings later.
 ### 2026-10-25 — Repos default to ask; mac-app skill as exact steps
 - `RepoPolicyStore.load()` falls back to `ask`, so an agent's `summon project new` no longer pushes a repo on an
   install that never chose; a saved `always` stays. Catalog and `summon default repos` wording follow; test updated.

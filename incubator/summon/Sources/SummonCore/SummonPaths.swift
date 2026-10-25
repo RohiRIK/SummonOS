@@ -41,6 +41,8 @@ public struct SummonPaths: Sendable, Equatable {
     public var eventLogFile: URL { state.appendingPathComponent("events.jsonl") }
     /// Written by the menu app on launch (pid, hotkeys, notification permission) for `summon doctor`.
     public var appHealthFile: URL { state.appendingPathComponent("app.json") }
+    /// The last agent update check (`summon agents update --check`), so the app can show a count offline.
+    public var agentUpdatesFile: URL { state.appendingPathComponent("agent-updates.json") }
 
     /// Where macctl keeps the snapshot it saves before every change, one `<id>.json` each.
     public var macctlSnapshots: URL {

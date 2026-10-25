@@ -146,6 +146,8 @@ enum AgentCommands {
         let path: String?
         let isDefault: Bool
         let installHint: String
+        /// How it was installed (brew, brew-cask, bun, npm, vendor, unknown), read from its binary's real path.
+        let method: String?
         let model: String?
         let skills: [String]
     }
@@ -203,6 +205,7 @@ enum AgentCommands {
             let path = context.tools.find(agent.command)
             return AgentRow(id: agent.id, name: agent.name, installed: path != nil, path: path,
                             isDefault: agent.id == current, installHint: agent.installHint,
+                            method: path.map { DetectedInstall.detect(binaryPath: $0, home: context.paths.home.path).method.rawValue },
                             model: settings.model(for: agent.id), skills: settings.skills(for: agent.id, shipped: shipped))
         }
         if json {
@@ -211,7 +214,7 @@ enum AgentCommands {
         }
         for row in rows {
             let mark = row.isDefault ? "*" : " "
-            let state = row.installed ? "installed" : "not installed (\(row.installHint))"
+            let state = row.installed ? "installed (\(row.method ?? "unknown"))" : "not installed (summon agents install \(row.id))"
             let model = row.model.map { " · model \($0)" } ?? ""
             print("\(mark) \(row.id.padding(toLength: 13, withPad: " ", startingAt: 0)) \(row.name): \(state)\(model) · skills \(row.skills.joined(separator: ","))")
         }
