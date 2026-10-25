@@ -3,21 +3,25 @@
 Start every new plugin with `mp new` from the workspace root:
 
 ```bash
-tools/mp new <name> --kind menubar
+tools/mp new <name> --kind menubar        # or menubar-panel, app, cli, screensaver
 ```
 
-It copies `examples/menubar-starter/` (this layout, CI-built) to `$MACPLUGINS_HOME/scratch/<name>/`,
-renames `Starter` to the PascalCase name (`MacBattery`) and `menubar-starter` to the kebab-case name
-(`mac-battery`), runs `git init`, and registers it in `plugins.json`. Never write a new plugin anywhere
+It copies Summon's template for that kind (`incubator/summon/templates/<kind>/`, the one set of templates, built
+and checked in CI) to `$MACPLUGINS_HOME/scratch/<name>/`, renames `Starter` to the PascalCase name (`MacBattery`)
+and `<kind>-starter` to the kebab-case name (`mac-battery`), switches the bundle prefix `local.summon.` to
+`local.macplugins.`, runs `git init`, and registers it in `plugins.json`. Never write a new plugin anywhere
 else. Repos come later, with the owner's OK: `tools/mp promote <name> --yes` (see `docs/tools.md`).
 
 This is for plugins of this workspace. Apps a user makes through Summon do not go here: they start with
-`summon project new <name> --kind menubar|app|cli|screensaver` in `~/Summon/Apps/<name>` from Summon's own templates
-(`incubator/summon/templates/`, each with `scripts/check.sh`, `LICENSE` and `PROJECT-CONTEXT.md`), are listed only
-in Summon's private `~/.config/summon/projects.json`, and get a private repo only through `summon project repo`.
+`summon project new <name> --kind menubar|menubar-panel|app|cli|screensaver` in `~/Summon/Apps/<name>` from the
+same templates, are listed only in Summon's private `~/.config/summon/projects.json`, and get a private repo only
+through `summon project repo`.
 
-The starter has no `scripts/` yet: copy them from `plugins/mac-network/` (below). In the snippets on
-this page, `App` stands for the PascalCase name and `<name>` for the kebab-case name.
+Every template ships with `scripts/check.sh` (the gate), `scripts/test.sh` (works with the Command Line Tools
+only), `LICENSE`, `PROJECT-CONTEXT.md`, and, for the UI kinds, the shared kit: `Components.swift` (menu rows),
+`SummonTheme.swift` (`.themed()`), `Glass.swift` (`.glassControl()`), `Screenshots.swift` (`--screenshot`), an
+Open at Login toggle in Settings, and a placeholder `Resources/AppIcon.icns`. In the snippets on this page, `App`
+stands for the PascalCase name and `<name>` for the kebab-case name.
 
 ## Layout
 
@@ -29,8 +33,8 @@ scratch/<name>/                 plugins/<name>/ after mp promote
 │   ├── AppUI/          views, @Observable model, #Previews (library product)
 │   └── AppCore/        logic, services, tool wrappers (tested)
 ├── Tests/AppCoreTests/
-├── Resources/Info.plist
-├── scripts/            test.sh, bundle.sh, check.sh, pr-report.sh (copy from mac-network)
+├── Resources/          Info.plist (CFBundleIconFile AppIcon), AppIcon.icns
+├── scripts/            check.sh, test.sh, bundle.sh (from the template; pr-report.sh from mac-network)
 ├── docs/previews/      rendered previews (tracked; README + PR comments embed them)
 ├── .gitignore          .build/ build/ .DS_Store .swiftpm/ graphify-out/
 ├── LICENSE             MIT only (upstream notices in THIRD_PARTY_NOTICES.md)
@@ -104,10 +108,14 @@ struct AppMain: App {
 
 Add usage strings (`NSLocationUsageDescription`, …) when a feature needs them.
 
-## Scripts (copy from mac-network, change `APP=`)
+## Scripts (from the template)
 
 - `scripts/test.sh`: `swift test` with the build cache in `~/Library/Caches/macplugins/<name>` and
   the Command Line Tools `Testing.framework` flags when Xcode is not selected.
-- `scripts/bundle.sh`: release build, wrap in `build/App.app`, ad-hoc sign.
-- `scripts/check.sh`: tests + bundle + plist lint, writes `build/check-report.md`.
-- `scripts/pr-report.sh`: runs the gate and comments the report plus `docs/previews/*.png` on the PR.
+- `scripts/bundle.sh`: release build, wrap in `build/App.app` with `AppIcon.icns`, ad-hoc sign.
+- `scripts/check.sh`: build + `scripts/test.sh` + plist lint + bundle, writes `build/check-report.md`.
+- `scripts/pr-report.sh` (copy from the public `mac-network` repo): runs the gate and comments the report plus
+  `docs/previews/*.png` on the PR.
+
+With only the Command Line Tools, the Core tests pass but a UI target does not compile (`#Preview`, `@State` and
+other SwiftUI macros need Xcode's plugins): build UI kinds with Xcode selected, or in CI.

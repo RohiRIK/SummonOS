@@ -19,7 +19,7 @@ struct DoctorTests {
             try writeFile("---\nname: \(name)\n---\n", to: share.appendingPathComponent("skills/\(name)/SKILL.md"))
         }
         try writeFile(sampleThemeJSON, to: share.appendingPathComponent("themes/summon-night/theme.json"))
-        for kind in ProjectKind.allCases {
+        for kind in ProjectStarter.allCases {
             try writeFile("// swift-tools-version: 6.0\n", to: share.appendingPathComponent("templates/\(kind.rawValue)/Package.swift"))
         }
         let installed = tools

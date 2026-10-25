@@ -28,7 +28,8 @@ requirement:
 | Live content | The panel refreshes every second while open (agent clock, Activity) and resizes once per change with the top edge pinned. Since 2026-10-24 the status item label is live too, with the panel closed. |
 
 Not a reason: `MenuBarExtra` isn't broken. Workspace plugins whose panel is click-only keep it
-(`examples/menubar-starter`); `examples/menubar-panel-starter` is the AppKit version for the rest.
+(Summon's `menubar` template, `incubator/summon/templates/menubar`); the `menubar-panel` template is the AppKit
+version for the rest.
 
 Verified on macOS 26.x only. macOS 15 compiles but its runtime is unchecked; macOS 27 betas break the persistent
 button highlight (FB23330269, section 1.4).

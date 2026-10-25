@@ -43,6 +43,16 @@ struct ItemHealthTests {
         #expect(health.fixPrompt?.contains("summon-art") == true)
     }
 
+    @Test func builtToolNeedsNoIconOrScreenshots() throws {
+        let temp = try makeTempHome()
+        let projectFolder = temp.appendingPathComponent("Apps/my-tool")
+        try fm.createDirectory(at: projectFolder.appendingPathComponent(".build"), withIntermediateDirectories: true)
+        try writeFile("// swift-tools-version: 6.0\n", to: projectFolder.appendingPathComponent("Package.swift"))
+
+        let project = Project(name: "my-tool", kind: .cli, path: projectFolder.path, created: Date())
+        #expect(AppHealthChecker.check(project: project).isHealthy)
+    }
+
     @Test func projectMissingScreenshotsReportsWarning() throws {
         let temp = try makeTempHome()
         let projectFolder = temp.appendingPathComponent("Apps/has-icon-only")

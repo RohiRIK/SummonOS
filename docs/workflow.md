@@ -17,8 +17,8 @@ There are two ways to start an app, and they do not mix:
 | | Workspace plugin | Summon project |
 |---|---|---|
 | For | Apps that belong to this workspace and get a `<name>-dev` / `<name>` repo pair | Anything a user asks Summon's agent to make on their Mac |
-| Start | `tools/mp new <name> --kind menubar` | `summon project new <name> --kind menubar\|app\|cli\|screensaver` |
-| Template | `examples/menubar-starter` | `incubator/summon/templates/<kind>` |
+| Start | `tools/mp new <name> --kind <kind>` | `summon project new <name> --kind menubar\|menubar-panel\|app\|cli\|screensaver` |
+| Template | `incubator/summon/templates/<kind>` (bundle id `local.macplugins.<name>`) | `incubator/summon/templates/<kind>` (bundle id `local.summon.<name>`) |
 | Folder | `scratch/<name>/`, then `plugins/<name>/` after `tools/mp promote` | `~/Summon/Apps/<name>` |
 | Listed in | `plugins.json` / `plugins.md` | `~/.config/summon/projects.json` (private to the Mac) |
 | GitHub | `tools/mp promote --yes`, owner's OK each time | `summon project repo <name>`, after a native dialog; always private |
@@ -33,7 +33,7 @@ The rest of this page is the workspace-plugin path.
 
 ## 2. Scaffold
 
-- `tools/mp new <name> --kind menubar`: copies `examples/menubar-starter` to `scratch/<name>/`, renames it,
+- `tools/mp new <name> --kind menubar`: copies `incubator/summon/templates/menubar` to `scratch/<name>/`, renames it,
   and registers it in `plugins.json` (kebab-case, bundle id `local.macplugins.<name>`). Commit
   `plugins.json` and `plugins.md`.
 - Package layout, `Info.plist`, scripts: `MacAppBuild/Scaffold.md`. Three targets: `<App>Core`

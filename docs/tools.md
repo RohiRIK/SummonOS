@@ -32,8 +32,7 @@ Manages the plugin home: the registry `plugins.json` (source of truth), the gene
 the `plugins/` and `scratch/` folders. Needs `jq` and `git`; `gh` for `promote` and `clone`.
 
 ```bash
-tools/mp new <name> [--kind menubar|app|screensaver] [--panel]   # scratch/<name> from examples/<kind>-starter, registered
-                                                       # --panel: examples/menubar-panel-starter (NSStatusItem + NSPanel)
+tools/mp new <name> [--kind menubar|menubar-panel|app|cli|screensaver]   # scratch/<name> from Summon's template, registered
 tools/mp promote <name> [--owner <login>] [--yes]      # private <name>-dev + public <name>, moves to plugins/
 tools/mp clone (<name>... | --all)                     # clones registered dev repos into plugins/<name>
 tools/mp list [--json]                                 # the registry
@@ -44,9 +43,10 @@ tools/mp adopt <path> [--name n] [--kind k] [--status s]   # registers an existi
 
 - Home: `$MACPLUGINS_HOME`, else the repo that holds `mp`, else `~/Developer/macplugins`. Symlink `mp` into
   `~/.local/bin` to call it from anywhere.
-- `new` copies the starter, renames `Starter` to the PascalCase name and `menubar-starter` to the kebab-case
-  name, runs `git init`, registers it as `scratch`, and rewrites `plugins.md`. `app` and `screensaver` start
-  from the menu bar starter until they have their own.
+- `new` copies `incubator/summon/templates/<kind>` (the templates `summon project new` uses; `menubar` is the
+  default), renames `Starter` to the PascalCase name and `<kind>-starter` to the kebab-case name, switches the
+  bundle prefix to `local.macplugins.`, runs `git init`, registers it as `scratch` (a `menubar-panel` app is
+  kind `menubar`), and rewrites `plugins.md`. A `claude-plugin` has no template: make the folder, then `adopt`.
 - `promote` prints the `gh repo create` commands and the move, and runs nothing without `--yes`. It creates
   GitHub repos, so it needs the owner's OK every time.
 - Edit `plugins.json` by hand for notes (`statusNote`, `devRepoNote`, `summary`, `where`, `title`), then run
@@ -79,7 +79,7 @@ The reusable job snippet for other workspaces is in `tools/ci/check-workspace.ym
 tools/check-workspace.sh
 ```
 
-- Fails on a `Package.swift` outside the allowed roots (`macctl/`, `incubator/`, `examples/`, listed once
+- Fails on a `Package.swift` outside the allowed roots (`macctl/`, `incubator/`, listed once
   at the top of the script).
 - Fails on a tracked file over 2 MB, except the Summon wallpaper and brand allowlist, which it prints.
 - Runs `tools/mp index --check` when `jq` is installed.

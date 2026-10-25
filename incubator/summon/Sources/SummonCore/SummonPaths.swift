@@ -13,7 +13,16 @@ public struct SummonPaths: Sendable, Equatable {
     }
 
     public static var live: SummonPaths {
-        SummonPaths(home: FileManager.default.homeDirectoryForCurrentUser, includeSystemReports: true)
+        SummonPaths(home: liveHome(), includeSystemReports: true)
+    }
+
+    /// `$HOME` when set, so a run in a temporary home (CI, `scripts/check-templates.sh`) never touches the real one;
+    /// else the account's home (`homeDirectoryForCurrentUser` ignores `$HOME`).
+    public static func liveHome(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL {
+        if let home = environment["HOME"], home.hasPrefix("/") {
+            return URL(fileURLWithPath: home, isDirectory: true)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser
     }
 
     /// `~/.config`, which the agent may edit and which checkpoints commit when it is a git repo.
