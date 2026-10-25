@@ -3,7 +3,7 @@ import Foundation
 /// One entry of the Activity timeline, whatever record it came from.
 public struct ActivityEvent: Sendable, Equatable, Identifiable, Encodable {
     public enum Category: String, Sendable, Codable, CaseIterable {
-        case settings, agent, checkpoint, theme, problem
+        case settings, agent, checkpoint, theme, problem, mac
     }
 
     /// `<source>:<record id>`, stable across reloads.
@@ -219,6 +219,7 @@ public enum ActivityFeed {
         switch entry.kind {
         case EventKind.themeSet: category = .theme
         case EventKind.sessionUndo: category = .checkpoint
+        case let kind where kind.hasPrefix("mac."): category = .mac
         default: category = .agent
         }
         // Not the line number: trimming the log would shift it and lose the selection.

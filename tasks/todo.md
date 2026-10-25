@@ -110,7 +110,7 @@ One read-only, fast (<300 ms), redacted snapshot of the Mac that any agent can a
       shown before the agent sends it.
 - [x] **System-wide theme:** (accent via new macctl setting; VS Code/Cursor theme extension; Neovim colorscheme; one checkpoint) `summon theme <name>` sets wallpaper, accent, dark mode, Terminal/Ghostty, VS Code and nvim
       in one step, undoable. Build it on the existing theme work.
-- [ ] **Live Mac events for agents:** `summon events --follow` and MCP notifications for network change, low disk,
+- [x] **Live Mac events for agents:** (30 s snapshot diff in Summon.app, `mac_events` tool, `events --follow`; MCP push notifications not added, most clients ignore them) `summon events --follow` and MCP notifications for network change, low disk,
       thermal pressure, crashes and app launches.
 
 ## Phase R: CI and releases (can run alongside Phases 2–3; owner request 2026-10-25)
