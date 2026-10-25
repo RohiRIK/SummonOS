@@ -34,10 +34,11 @@ enum DoctorCommand {
         let report = await doctor.run()
         if json {
             struct Output: Encodable {
+                let version: String
                 let status: DoctorCheck.Status
                 let checks: [DoctorCheck]
             }
-            try context.printJSON(Output(status: report.status, checks: report.checks))
+            try context.printJSON(Output(version: SummonVersion.current, status: report.status, checks: report.checks))
         } else {
             print(Doctor.render(report))
         }

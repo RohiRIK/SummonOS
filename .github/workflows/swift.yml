@@ -1,18 +1,22 @@
-# Builds and tests every Swift package in this repo on a macOS runner.
+# Builds and tests every Swift package in this repo on macOS runners.
 # A package is any Package.swift outside .build/ and plugins/ (plugins are their own repos).
+# Runs once per PR and once per push to main. A docs-only change skips the Swift jobs through a job-level `if`
+# (not a workflow `paths` filter), so they report "skipped" instead of a check that never arrives.
 name: Swift (macOS)
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# One group per PR (or ref): a new commit on a PR cancels its older run; pushes to main are never cancelled.
 concurrency:
-  group: swift-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   workspace:
@@ -32,6 +36,8 @@ jobs:
           shellcheck install.sh tools/private-scan.sh tools/publish-public.sh tools/release.sh tools/notarize-app.sh tools/uninstall.sh incubator/summon/scripts/install.sh
 
   design-skills:
+    needs: discover
+    if: needs.discover.outputs.code == 'true'
     runs-on: macos-26
     timeout-minutes: 10
     steps:
@@ -45,25 +51,61 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       packages: ${{ steps.find.outputs.packages }}
+      code: ${{ steps.changes.outputs.code }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+          # A PR checks out its merge commit: HEAD^1 is the base it merges into.
+          fetch-depth: 2
       - id: find
         run: |
           packages=$(find . -name Package.swift -not -path '*/.build/*' -not -path './plugins/*' \
             -exec dirname {} \; | sed 's|^\./||' | sort | jq -R . | jq -sc .)
           echo "packages=$packages" >> "$GITHUB_OUTPUT"
           echo "Packages: $packages"
+      - id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          PACKAGES: ${{ steps.find.outputs.packages }}
+        run: |
+          # code=false only when every changed file is docs: docs/** or a *.md outside a Swift package and .claude/
+          # (package and skill markdown can be read by builds and tests). Anything unclear runs the Swift jobs.
+          files=""
+          if [ "$EVENT" = pull_request ]; then
+            files=$(git diff --name-only HEAD^1 HEAD) || files=""
+          elif [ "$EVENT" = push ] && git fetch --no-tags --depth=1 origin "$BEFORE" 2>/dev/null; then
+            files=$(git diff --name-only "$BEFORE" HEAD) || files=""
+          fi
+          code=true
+          if [ -n "$files" ]; then
+            code=false
+            while read -r f; do
+              case "$f" in
+                docs/*) continue ;;
+                .claude/*) code=true ;;
+                *.md)
+                  for p in $(jq -r '.[]' <<<"$PACKAGES"); do
+                    case "$f" in "$p"/*) code=true ;; esac
+                  done ;;
+                *) code=true ;;
+              esac
+            done <<<"$files"
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "Changed files:"; echo "${files:-(unknown)}"; echo "code=$code"
 
   build-and-test:
     needs: discover
-    if: needs.discover.outputs.packages != '[]'
-    runs-on: macos-26
+    if: needs.discover.outputs.packages != '[]' && needs.discover.outputs.code == 'true'
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
+        # macos-15 is the minimum OS: tests run on its runtime, built with the macOS 26 SDK.
+        os: [macos-26, macos-15]
         package: ${{ fromJSON(needs.discover.outputs.packages) }}
     defaults:
       run:
@@ -74,6 +116,15 @@ jobs:
           persist-credentials: false
       - name: Toolchain
         run: |
+          # The code calls macOS 26 APIs behind #available, so it needs Xcode 26 even on macos-15 (as visual-qa.yml).
+          # Read the version into a variable first: piping xcodebuild into `grep -q` breaks its pipe and it aborts.
+          version=$(xcodebuild -version)
+          if ! grep -q '^Xcode 26' <<<"$version"; then
+            xcode=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+            echo "Default is $(head -1 <<<"$version"); available: $(ls -d /Applications/Xcode_*.app | xargs -n1 basename | tr '\n' ' ')"
+            [ -n "$xcode" ] || { echo "::error::no Xcode 26 on this image"; exit 1; }
+            sudo xcode-select -s "$xcode"
+          fi
           sw_vers
           xcodebuild -version
           swift --version
@@ -85,11 +136,51 @@ jobs:
             ${{ matrix.package }}/.build/repositories
             ${{ matrix.package }}/.build/checkouts
             ${{ matrix.package }}/.build/artifacts
-          key: spm-sources-v2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.package }}-${{ hashFiles(format('{0}/Package.resolved', matrix.package), format('{0}/Package.swift', matrix.package)) }}
-          restore-keys: spm-sources-v2-${{ runner.os }}-${{ runner.arch }}-${{ matrix.package }}-
+          key: spm-sources-v2-${{ matrix.os }}-${{ runner.arch }}-${{ matrix.package }}-${{ hashFiles(format('{0}/Package.resolved', matrix.package), format('{0}/Package.swift', matrix.package)) }}
+          restore-keys: spm-sources-v2-${{ matrix.os }}-${{ runner.arch }}-${{ matrix.package }}-
       - name: Build
         run: swift build --build-tests
       - name: Test
+        run: swift test --skip-build
+
+  # Xcode 27 is a public preview on macos-26 (actions/runner-images#14404): this catches macOS 27 SDK and
+  # compiler breaks early. Informational only: it never blocks a merge, and it skips when the image has no Xcode 27.
+  # Switch to a macos-27 runner when GitHub ships one.
+  xcode-27:
+    needs: discover
+    if: needs.discover.outputs.code == 'true'
+    runs-on: macos-26
+    continue-on-error: true
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [incubator/summon, macctl]
+    defaults:
+      run:
+        working-directory: ${{ matrix.package }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Select Xcode 27
+        id: xcode
+        run: |
+          xcode=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$xcode" ]; then
+            echo "::notice::No Xcode 27 on this image; skipped. Available: $(ls -d /Applications/Xcode_*.app | xargs -n1 basename | tr '\n' ' ')"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          sudo xcode-select -s "$xcode"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          xcodebuild -version
+          swift --version
+      - name: Build
+        if: steps.xcode.outputs.found == 'true'
+        run: swift build --build-tests
+      - name: Test
+        if: steps.xcode.outputs.found == 'true'
         run: swift test --skip-build
 
   # kill -9 crash matrix for macctl (QA plan v3 §3b): every failpoint of every op, recover's own
@@ -97,6 +188,8 @@ jobs:
   # Only com.summonos.test.<uuid> domains are written (TestMode refuses anything else); each case
   # has its own temp root and HOME; real domains are fingerprinted before and after.
   macctl-crash-matrix:
+    needs: discover
+    if: needs.discover.outputs.code == 'true'
     runs-on: macos-26
     # One group per PR (or ref) and shard: a new commit on a PR cancels that PR's older matrix;
     # push runs are never cancelled.

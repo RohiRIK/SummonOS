@@ -580,7 +580,7 @@ public struct Doctor: Sendable {
     /// Plain text for a terminal: one line per check, with its fix underneath.
     public static func render(_ report: DoctorReport) -> String {
         let width = report.checks.map(\.id.count).max() ?? 0
-        var lines: [String] = []
+        var lines = ["summon \(SummonVersion.current)", ""]
         for check in report.checks {
             let mark: String
             switch check.status {

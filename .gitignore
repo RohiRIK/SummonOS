@@ -20,6 +20,7 @@
 !/examples/
 !/tasks/
 !/tools/
+!/VERSION
 
 # Still in this repo until they move to their own repos (needs the owner's OK).
 # Remove these two lines when macctl/ and incubator/summon/ have moved out.

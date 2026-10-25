@@ -76,6 +76,16 @@ else
   echo "note: python3 is not installed; skipped the docs bundle check"
 fi
 
+# 5. One SummonOS version: VERSION is the source; summon, Summon.app and macctl carry it as a literal.
+version=$(tr -d '[:space:]' < "$root/VERSION")
+for pair in \
+  "incubator/summon/Sources/SummonCore/Version.swift:public static let current = \"$version\"" \
+  "incubator/summon/Resources/Info.plist:<key>CFBundleShortVersionString</key><string>$version</string>" \
+  "macctl/Sources/MacCtlCLI/MacCtl.swift:version: \"macctl $version\","; do
+  file=${pair%%:*}
+  grep -qF "${pair#*:}" "$root/$file" || { echo "error: $file does not carry version $version from VERSION" >&2; fail=1; }
+done
+
 if [ "$fail" -ne 0 ]; then
   echo "check-workspace: FAILED" >&2
   exit 1
