@@ -49,9 +49,12 @@ enum ThemeCommands {
             let service = CheckpointService(paths: context.paths, runner: context.runner, gitPath: context.git, macctlPath: context.macctl)
             let (checkpoint, problems) = await service.create(label: "Theme \(theme.name)")
             for problem in problems { context.warn("  checkpoint: \(problem)") }
+            let candidates = createdCandidates(context)
+            let before = CreatedFiles.existing(candidates)
             try await apply(theme, store: store, wallpaper: !skipWallpaper, context)
-            ActivityCommands.record(LoggedEvent(kind: EventKind.themeSet, title: "Theme: \(theme.name)",
-                                                refs: ["theme": theme.slug, "checkpoint": checkpoint.id, "agent": "Theme \(theme.name)"]), context)
+            var refs = ["theme": theme.slug, "checkpoint": checkpoint.id, "agent": "Theme \(theme.name)"]
+            refs[CreatedFiles.ref] = CreatedFiles.ref(candidates, before: before)
+            ActivityCommands.record(LoggedEvent(kind: EventKind.themeSet, title: "Theme: \(theme.name)", refs: refs), context)
             print("Undo the whole look: summon checkpoint undo \(checkpoint.id)")
         default:
             throw CLIError("Usage: summon theme list|current|set <slug>")
@@ -158,6 +161,23 @@ enum ThemeCommands {
         for failure in failures { context.warn("  hook failed: \(failure)") }
         print("Ghostty picks up the new colors on its next config reload (⌘⇧,) when its config has:")
         print("  config-file = \(context.paths.generated.appendingPathComponent("ghostty.conf").path)")
+    }
+
+    /// Everything `apply` may create, folders included, so undo can remove what was new.
+    static func createdCandidates(_ context: Context) -> [URL] {
+        let home = context.paths.home
+        let generated = ["ghostty.conf", "kitty.conf", "bordersrc", "claude-theme.json"].map { context.paths.generated.appendingPathComponent($0) }
+        var urls = generated + [context.paths.generated, context.paths.currentThemeFile,
+                    home.appendingPathComponent(".claude/themes"), home.appendingPathComponent(".claude/themes/summon.json"),
+                    context.paths.userConfig.appendingPathComponent("nvim"),
+                    context.paths.userConfig.appendingPathComponent("nvim/colors"),
+                    context.paths.userConfig.appendingPathComponent("nvim/colors/summon.lua")]
+        for folder in [".vscode", ".cursor"] {
+            let ext = home.appendingPathComponent("\(folder)/extensions/summon.summon-theme-0.0.1")
+            urls += [ext, ext.appendingPathComponent("package.json"), ext.appendingPathComponent("themes"),
+                     ext.appendingPathComponent("themes/summon.json")]
+        }
+        return urls
     }
 
     static func write(_ text: String, to url: URL) throws {
