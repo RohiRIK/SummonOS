@@ -160,11 +160,11 @@ number in `summon` or `macctl`, and `install.sh` needs Xcode because it builds f
 - [ ] Finish release qualification from `docs/plans/2026-10-20-production-readiness.md`:
   - real install, upgrade and uninstall (the Phase R smoke job covers part of it)
   - recovery and the OS/CPU matrix
-- [ ] Rewrite the README around "the agentic layer for the Mac". Add 3 GIFs (`tools/record-demos.sh`): undo timeline,
+- [x] (PR #87; GIFs still placeholders) Rewrite the README around "the agentic layer for the Mac". Add 3 GIFs (`tools/record-demos.sh`): undo timeline,
       summon with context, and the same Mac diagnosed by Claude, Codex and Gemini side by side.
 - [ ] `docs/features.md`, `PROJECT-CONTEXT.md`, `plugins.json` and `docs/log.md` updated after each phase.
 
-## Phase 5: UX/UI overhaul (owner, 2026-10-25). Draft, awaiting approval
+## Phase 5: UX/UI overhaul (owner, 2026-10-25). Approved; U0, U1, U2, T1, T2 done
 
 Goal: every surface more efficient and slicker; macOS 26 Liquid Glass with a macOS 15 fallback; less clutter;
 things easy to find; smooth flows. The templates are the only way apps get built, and the `mac-app` skill drives
@@ -199,9 +199,9 @@ Standing rules still apply:
 - [x] Menu bar icon: a small dot when there are problems.
 
 ### U2: Panel look
-- [ ] Liquid Glass on macOS 26 (`NSGlassEffectView` behind the panel, none on rows) and `.menu` material on 15.
+- [x] (PR #96) Liquid Glass on macOS 26 (`NSGlassEffectView` behind the panel, none on rows) and `.menu` material on 15.
       Drop the hand-drawn stroke. 320 pt wide, a 22 pt search field, 13 pt rows like the system menus.
-- [ ] Ask Agent is the first row, then Needs attention, then the tree. Remove the duplicates (Ask Agent and Undo in
+- [x] (PR #96, replaced by panel v3: Ask Agent, Make Something, My Apps, one status line, type to search) Ask Agent is the first row, then Needs attention, then the tree. Remove the duplicates (Ask Agent and Undo in
       Agent ›). Merge Install and Update into Setup, for 6 submenus. Drop the theme chip; errors become rows with Retry.
 
 ### U3: Settings layout
@@ -227,11 +227,11 @@ Standing rules still apply:
 - [ ] Crash alert: notification-banner layout (icon, title, one line, Diagnose, an overflow menu with Mute), glass on
       26. Remove the duplicate logo, the duplicate dismiss and the "SUMMON DIAGNOSTIC" header.
 
-### T1: One canonical template set
-- [ ] Canonical templates: `incubator/summon/templates/{menubar,menubar-panel,app,cli,screensaver}`. The panel
+### T1: One canonical template set (PR #95)
+- [x] Canonical templates: `incubator/summon/templates/{menubar,menubar-panel,app,cli,screensaver}`. The panel
       starter moves in, and `examples/*-starter` is deleted. `tools/mp new` copies from them (bundle prefix rewritten);
       today it silently copies the menubar starter for `app`/`screensaver` and fails for `cli`.
-- [ ] A shared kit in every UI template (from the mac-network reference):
+- [x] A shared kit in every UI template (from the mac-network reference):
   - `Components.swift`: menu rows with hover, module tile
   - `SummonTheme.swift`: reads the Summon theme
   - `Glass.swift`: gated glass, material fallback
@@ -240,12 +240,12 @@ Standing rules still apply:
   - `scripts/test.sh`, so the gate passes on a Mac with only Command Line Tools
   - a placeholder `AppIcon.icns` plus `CFBundleIconFile` (today every new app shows as "unhealthy")
   - skip the icon check for CLIs
-- [ ] Panel in the templates: menu rows, 300 to 320 pt, one control per row, a Settings… row that closes the
+- [x] Panel in the templates: menu rows, 300 to 320 pt, one control per row, a Settings… row that closes the
       panel, footer rows with key hints.
-- [ ] CI: create every kind with the real `summon project new` in a temp folder and run its `scripts/check.sh`.
+- [x] CI: create every kind with the real `summon project new` in a temp folder and run its `scripts/check.sh`.
 
-### T2: The agent knows how to use the templates
-- [ ] Rewrite `mac-app/SKILL.md` as exact steps:
+### T2: The agent knows how to use the templates (PR #92)
+- [x] Rewrite `mac-app/SKILL.md` as exact steps:
   1. Name and shape; say whether a repo will be pushed.
   2. `summon project new <name> --kind <kind>`, never hand-scaffold.
   3. Core test first.
@@ -254,13 +254,24 @@ Standing rules still apply:
   6. `summon project shots` and a check against the panel checklist.
   7. Icon through `summon-art`.
   8. PROJECT-CONTEXT, repo, menu entry, Open at Login.
-- [ ] Fix the wrong facts:
+- [x] Fix the wrong facts:
   - the theme path (`summon theme current` plus `themes/<slug>/theme.json`)
   - `~/Summon/Apps/<name>` in 5 places
   - the repo-policy text
   - the garbled router sentence
   - `summon-migrate` says macOS 14
   - one Settings standard (grouped Form under 3 sections, sidebar from 3 up)
+
+### A1: Agent installer and updater (owner, 2026-10-25)
+- [x] (PR #94) Detect how each agent CLI was installed: Homebrew (formula or cask), bun (`~/.bun/bin`), npm global, or its
+      own curl script (cursor, agy, hermes, openclaw). Update it the same way it was installed.
+- [x] (PR #94) New installs of agents published on npm use **bun** (`bun add -g <pkg>`): codex, opencode, pi, copilot, grok,
+      and claude if published there. Agents that are brew-only or curl-only keep their own installer. Existing
+      installs keep their method; brew stays brew.
+- [ ] Surfaces:
+  - done (PR #94): `summon agents install <agent>`, `summon agents update [<agent>|--all]`, and the detected method shown per agent
+  - an Install / Update button on each row in Settings › Agents
+  - a "N agent updates · Update…" row in the panel's Needs attention
 
 ### P1: Reference plugins (separate repos, later)
 - [ ] Align mac-network, mac-calendar and mac-breathe with the template kit (glass, panel rows, Settings standard).
