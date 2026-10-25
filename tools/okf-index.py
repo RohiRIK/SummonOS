@@ -31,6 +31,8 @@ DIRS = {
     "research": ("Research", "Research notes behind the skills and the design of SummonOS apps."),
     "research/2026-10-18-mac-gui-design": ("macOS GUI design research", "Four reports on menu bar apps, Apple's design "
                                            "language, window mechanics and activity UI (2026-10-18)."),
+    "ux-surfaces": ("macOS UX surfaces", "The seven kinds of Mac app surface across 14 UX dimensions, and each one "
+                    "checked against Apple's HIG and API docs (2026-10-25)."),
     "assets": None,  # README art, no markdown
 }
 # Section order for concept types; unknown types follow alphabetically.
