@@ -33,8 +33,8 @@ Every item below is described command by command in [`docs/features.md`](docs/fe
 - **`summon context`** gives agents one read-only snapshot of this Mac in about 60 ms. It covers the model and
   chip, power and thermal state, free disk space, network and VPN, displays, the frontmost app, appearance,
   permissions, installed agents and recent crashes.
-- **`summon mcp` plus `summon connect`.** `summon mcp` is an MCP server with 10 tools: Mac context,
-  macctl settings with snapshots and undo, checkpoints and crash reports. One `summon connect` registers it
+- **`summon mcp` plus `summon connect`.** `summon mcp` is an MCP server with 11 tools: Mac context,
+  macctl settings with snapshots and undo, checkpoints, crash reports and recent Mac changes. One `summon connect` registers it
   in every installed agent. It also adds a short "This Mac" note to each agent's instructions and, for Claude
   Code, Codex, Cursor and Antigravity CLI, a session-start hook that hands over the context.
 - **⌃⌥⌘A starts your agent with what is on screen.** The agent receives the frontmost app and window, the
@@ -149,8 +149,8 @@ How an app is made, step by step: [`docs/workflow.md`](docs/workflow.md).
 
 SummonOS is a preview (`0.1.0`). What is designed but not built yet is listed under "Planned" in
 [`docs/features.md`](docs/features.md). Finished and long-running plans are in [`docs/plans/`](docs/plans/index.md).
-Live Mac events for agents (network, disk, battery, thermal and display changes) are in review in
-[#86](https://github.com/RohiRIK/SummonOS/pull/86).
+While Summon.app runs it logs Mac changes for agents (network, VPN, low disk, battery, thermal, displays):
+`summon events --kind mac --follow` or the MCP tool `mac_events`.
 
 - **Security:** [`docs/security-model.md`](docs/security-model.md) describes what agents may do and what undo can
   and cannot restore. Report problems privately through [`SECURITY.md`](SECURITY.md).
