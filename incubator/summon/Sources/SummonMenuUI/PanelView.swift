@@ -434,6 +434,8 @@ struct MenuTreeRow: View {
                     .foregroundStyle(.tertiary)
             }
         }
+        // The health dot is color only; VoiceOver hears its badge ("Healthy", "2 warnings") instead.
+        .accessibilityValue(health?.badge ?? "")
     }
 }
 

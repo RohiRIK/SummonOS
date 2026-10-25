@@ -148,6 +148,13 @@ level. To watch them: `log stream --predicate 'subsystem == "local.macplugins.su
    - ⌘Tab to another app. Expected: the panel closes (D4, by design) and focus stays in that app.
    - Repeat with an agent running and the Activity rows refreshing (1 s). Expected: no dropped or duplicated
      letters, the selection doesn't jump, the top edge doesn't move.
+8. Settings chrome ([ux-audit.md](ux-audit.md)): open Settings (⌘,). Expected: only the red button works, yellow and
+   green are dimmed, ⌘M does nothing, ⌃⌘F doesn't go full screen, the window is 780–820 pt wide and can only grow taller.
+   Switch pages and resize: the buttons stay dimmed.
+9. Over full-screen apps: put Safari in full screen, then ⌃⌥Space. Expected: the panel opens over it on the same
+   Space, takes typing, and Esc returns focus to Safari. Then `open -g summon://test-crash` (debug build): the crash
+   alert shows over the full-screen app without taking key, and it isn't listed in Mission Control or ⌘`.
+10. VoiceOver on a menu entry with a health dot (My Apps): VO reads the label and then its badge ("Healthy", or the problem).
 
 ## Deployment floor
 
