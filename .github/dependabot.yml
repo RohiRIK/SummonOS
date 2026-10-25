@@ -1,0 +1,13 @@
+# Keeps the SHA-pinned actions in .github/workflows current: one weekly PR, the new tag in each pin's comment.
+# No SwiftPM entry: the packages have no third-party dependencies.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci

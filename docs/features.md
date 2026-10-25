@@ -421,7 +421,14 @@ built with Xcode 26). An informational Xcode 27 leg (public preview on `macos-26
 `macctl` to catch macOS 27 SDK breaks; it never blocks a merge and skips when the image has no Xcode 27.
 A docs-only change (`docs/**`, or `*.md` outside a Swift package and `.claude/`) skips the Swift jobs.
 It also validates design skill structure, typechecks their Swift examples, runs tooling regressions, and checks that
-`summon`, Summon.app and `macctl` carry the version in `VERSION`.
+`summon`, Summon.app and `macctl` carry the version in `VERSION`, and scans every tracked file for private values
+(`tools/private-scan.sh` with the generic `tools/public-patterns.txt`: private IPv4 ranges, non-documentation MACs,
+personal mail domains).
+[`codeql.yml`](../.github/workflows/codeql.yml) runs CodeQL on the Swift in `summon` and `macctl` (PRs that touch
+Swift, pushes to `main`, weekly); Dependabot (`.github/dependabot.yml`) bumps the SHA-pinned actions weekly.
+[`release-smoke.yml`](../.github/workflows/release-smoke.yml) installs each published release on a clean `macos-26`
+runner with the public one-line installer, then runs `summon --version`, `summon doctor`, `summon context --json`,
+`macctl --version` and `macctl doctor`; it also runs by hand for any tag.
 A second workflow, [`visual-qa.yml`](../.github/workflows/visual-qa.yml) (Visual QA (macOS)), runs on PRs that touch
 `incubator/summon/**` and on demand: on GitHub-hosted `macos-26` and `macos-15` runners it opens the Summon panel
 (⌃⌥Space) and menu bar panel, every Settings page (`summon://settings/<section>`), the Activity window and a sample
