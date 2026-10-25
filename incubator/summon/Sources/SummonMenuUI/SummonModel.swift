@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import Foundation
 import Observation
 import SummonCore
@@ -31,6 +32,8 @@ public final class SummonModel {
     public private(set) var taskResults: [String: String] = [:]
     /// Per-agent model and skill choices (`~/.config/summon/agents.json`), read here, changed through the CLI.
     public private(set) var agentSettings = AgentSettings()
+    /// Accessibility lets the agent hotkey read the selected text and window title.
+    public private(set) var accessibilityGranted = AXIsProcessTrusted()
     /// The panel's "Undo <agent> Session" row; nil hides it.
     public private(set) var undoOffer: UndoOffer?
     /// Skills Summon ships, from `summon skills`; empty until `loadShippedSkills()` runs.
@@ -219,8 +222,24 @@ public final class SummonModel {
         do { agentSettings = try AgentSettingsStore(paths: paths).loadValidated() }
         catch { lastError = String(describing: error) }
         undoOffer = UndoOffer.latest(ActivitySources.load(paths: paths, crashLimit: 0))
+        accessibilityGranted = AXIsProcessTrusted()
         reloadProjects()
         loadMenu()
+    }
+
+    /// macOS's own request: it adds Summon to Privacy & Security › Accessibility (switched off) and offers to open
+    /// it, so the person only flips the switch. The page is opened too, in case the request was dismissed before.
+    public func requestAccessibility() {
+        // The key's value is "AXTrustedCheckOptionPrompt"; the global constant is not concurrency-safe in Swift 6.
+        let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+        accessibilityGranted = AXIsProcessTrustedWithOptions(options)
+        guard !accessibilityGranted,
+              let url = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Accessibility") else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    public func refreshPermissions() {
+        accessibilityGranted = AXIsProcessTrusted()
     }
 
     /// Asks first (the undo restores settings and ~/.config files), then runs `summon checkpoint undo <id>`.

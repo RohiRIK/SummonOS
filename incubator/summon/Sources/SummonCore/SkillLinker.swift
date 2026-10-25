@@ -18,6 +18,8 @@ public struct SkillLinker: Sendable {
 
     public struct Result: Sendable, Equatable {
         public var linked: [String] = []
+        /// Agent skill folders (home-relative) that were linked into.
+        public var folders: [String] = []
         /// The user's own folders with a shipped skill's name, left in place.
         public var kept: [String] = []
     }
@@ -28,15 +30,17 @@ public struct SkillLinker: Sendable {
         self.home = home
     }
 
-    public func link(from source: URL, settings: AgentSettings) throws -> Result {
+    /// `isInstalled` keeps folders of agents that are not on this Mac from being created.
+    public func link(from source: URL, settings: AgentSettings, isInstalled: (Agent) -> Bool = { _ in true }) throws -> Result {
         let fm = FileManager.default
         let lease = try FileLease.acquireSync(home.appendingPathComponent(".local/state/summon/locks/skills.lock"))
         defer { lease.hold() }
         var result = Result()
         var owned = try loadOwnership()
         let shipped = Self.skillNames(in: source)
-        for agent in AgentRegistry.all {
+        for agent in AgentRegistry.all where isInstalled(agent) {
             guard let folder = agent.skillFolder else { continue }
+            result.folders.append(folder)
             let dir = home.appendingPathComponent(folder, isDirectory: true)
             try fm.createDirectory(at: dir, withIntermediateDirectories: true)
             let chosen = Set(settings.skills(for: agent.id, shipped: shipped))

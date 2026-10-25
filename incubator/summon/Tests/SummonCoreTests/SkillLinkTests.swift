@@ -32,6 +32,15 @@ struct SkillLinkTests {
         #expect(!SkillLinker.agentFolders.contains(".agents/skills"))
     }
 
+    @Test func agentsThatAreNotInstalledGetNoFolder() throws {
+        let (home, source) = try makeSource()
+        let result = try SkillLinker(home: home).link(from: source, settings: AgentSettings()) { $0.id == "claude" }
+        #expect(result.folders == [".claude/skills"])
+        #expect(result.linked.count == 2)
+        #expect(!fm.fileExists(atPath: home.appendingPathComponent(".hermes").path))
+        #expect(!fm.fileExists(atPath: home.appendingPathComponent(".pi").path))
+    }
+
     @Test func relinkingIsIdempotentAndRepointsOldLinks() throws {
         let (home, source) = try makeSource()
         let linker = SkillLinker(home: home)
