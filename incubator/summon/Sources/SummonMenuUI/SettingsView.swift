@@ -83,10 +83,13 @@ public struct SettingsView: View {
             .searchable(text: $query, placement: .sidebar, prompt: "Search settings...")
             .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 280)
         } detail: {
+            // No painted background: the system draws the detail pane and the title bar over it (LiquidGlass
+            // SidebarSettings). A solid color here showed up as an empty band under the traffic lights.
             detailView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(nsColor: .windowBackgroundColor))
         }
+        // Like System Settings: the sidebar is always there, so no toggle floating in its own toolbar row.
+        .toolbar(removing: .sidebarToggle)
         .frame(minWidth: 860, idealWidth: 900, minHeight: 560, idealHeight: 620)
         .task {
             await model.loadShippedSkills()
