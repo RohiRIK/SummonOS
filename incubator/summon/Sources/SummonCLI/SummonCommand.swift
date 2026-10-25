@@ -115,6 +115,8 @@ struct SummonCommand {
             try await DoctorCommand.run(&args, context)
         case "fix":
             try await DoctorCommand.fix(&args, context)
+        case "update":
+            try await UpdateCommand.run(&args, context)
         case "crash":
             try await CrashCommands.run(&args, context)
         case "theme":

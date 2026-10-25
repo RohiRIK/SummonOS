@@ -171,6 +171,11 @@ sections:
   the same ones the panel shows, so pressing it again never repeats the same reports.
 - `summon doctor`: checks Summon's own install (app, CLI, config, macctl, event log, hotkeys,
   permissions, skill links) with a fix for each failure.
+- `summon update [--channel stable|edge] [--check] [--yes]`: updates Summon and macctl from GitHub. `stable` is the
+  newest release tag; `edge` is a rolling prerelease rebuilt from every green `main` (`summon --version` then reads
+  `0.1.0-edge.<sha>`). It downloads the zip and `SHA256SUMS`, refuses on a mismatch, installs with the release's own
+  staged installer (rollback on failure) and runs `summon doctor`. `--check` only reports. A `--channel` is
+  remembered in `~/.config/summon/defaults/channel`.
 
 ### Themes and look
 
@@ -392,8 +397,8 @@ What this repo gives you for building more apps ([`README.md`](../README.md), [`
 | Tool | Does |
 |---|---|
 | `tools/okf-index.py` | Checks `docs/` is an Open Knowledge Format bundle and writes its `index.md` files |
-| `install.sh` | One-line SummonOS install (Summon + macctl) from the newest release, checksum-verified, or `--from-source`; offers `summon connect`; [`docs/install-ai.md`](install-ai.md) is the same for agents |
-| `.github/workflows/release.yml` | On a `v*` tag: universal `summon`, `macctl` and Summon.app in one zip, `SHA256SUMS`, build attestation, a GitHub prerelease (ad-hoc signed preview) |
+| `install.sh` | One-line SummonOS install (Summon + macctl) from the newest release (never `edge` unless `--channel edge`), checksum-verified, or `--from-source`; offers `summon connect`; [`docs/install-ai.md`](install-ai.md) is the same for agents |
+| `.github/workflows/release.yml` | On a `v*` tag: universal `summon`, `macctl` and Summon.app in one zip, `SHA256SUMS`, build attestation, a GitHub prerelease (ad-hoc signed preview). After every green Swift CI run on `main`: the same zip as the rolling `edge` prerelease |
 | `tools/mp` | Plugin registry: `new`, `promote`, `clone`, `list`, `status`, `index`, `adopt` |
 | `tools/publish-public.sh` | Clean snapshot of a dev repo to its public repo; refuses on private values |
 | `tools/release.sh` | Zipped `.app` on the public repo's Releases |
