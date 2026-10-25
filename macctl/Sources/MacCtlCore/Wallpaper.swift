@@ -71,6 +71,28 @@ public struct LiveWallpaper: WallpaperControlling {
                                                 options: workspace.desktopImageOptions(for: screen) ?? [:])
             }
         }
+        await Self.waitUntilShown { screen in
+            let id = try? Self.displayID(screen)
+            return wallpapers.first { $0.displayID == id }?.path
+        }
+    }
+
+    /// macOS 27 reports a new desktop picture through `desktopImageURL` about half a second after the write
+    /// (System Events sees it at once), so an immediate read-back saw the old picture and rolled back a change
+    /// that had already happened. Waits until every screen reports its target, up to 3 seconds.
+    static func waitUntilShown(_ target: @MainActor @escaping (NSScreen) -> String?) async {
+        for _ in 0..<30 {
+            let shown = await MainActor.run {
+                NSScreen.screens.allSatisfy { screen in
+                    guard let want = target(screen) else { return true }
+                    let have = NSWorkspace.shared.desktopImageURL(for: screen)?.path(percentEncoded: false)
+                    return have.map { URL(fileURLWithPath: $0).resolvingSymlinksInPath().path }
+                        == URL(fileURLWithPath: want).resolvingSymlinksInPath().path
+                }
+            }
+            if shown { return }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
     }
 
     public func currentWallpaper() async throws -> String? {
@@ -101,6 +123,7 @@ public struct LiveWallpaper: WallpaperControlling {
                 }
             }
         }
+        await Self.waitUntilShown { _ in path }
     }
 }
 #else
