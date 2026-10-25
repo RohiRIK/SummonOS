@@ -46,6 +46,15 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — Templates for the UX surfaces
+- New templates `launcher`, `hud`, `notch` (ProjectStarter cases, all recorded as `.menubar`), built to
+  `docs/ux-surfaces/04`, `05` and `07`. They share a small kit: `KeyCombo` (Core, refuses ⌘Space and other system
+  shortcuts), `HotKey` (Carbon `RegisterEventHotKey`), `ShortcutRecorder`, `ActionMenu`/`StatusMenu` (a hideable
+  menu bar menu), `SettingsOpener`. Settings windows in them dim minimize (`windowMinimizeBehavior(.disabled)`).
+- `templates.yml` can't be edited from a Claude session: its matrix still lists only the first five kinds;
+  swift.yml builds and tests the three new templates as packages, and `scripts/check-templates.sh` covers all eight.
+- Not run on a Mac yet: the HUD focus combination, the launcher over full-screen apps, notch geometry on real
+  hardware, hover in an inactive app.
 ### 2026-10-25 — One canonical template set
 - `examples/menubar-starter` deleted, `examples/menubar-panel-starter` moved in as `templates/menubar-panel`;
   `tools/mp new --kind menubar|menubar-panel|app|cli|screensaver` copies `templates/<kind>` (no more silent fallback).
