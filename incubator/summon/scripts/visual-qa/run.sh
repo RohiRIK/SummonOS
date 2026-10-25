@@ -296,11 +296,11 @@ for id in $opened; do
 done
 [ -n "$opened" ] && [ -z "$launcher" ] && failed "summon menu summon did not open the panel"
 # Known app bug (not fixed here): the summon:// URL also opens the Activity window. A warning until that lands.
-[ -n "$activity" ] && warned "known bug: summon menu summon also opened the Summon Activity window ($activity)"
+[ -n "$activity" ] && warned "known bug: summon menu summon also opened the Activity window ($activity)"
 capture "light-fallback-cli" "$opened"
 [ -n "$launcher" ] && close_panel "$launcher"
 if [ -n "$activity" ]; then
-  osascript -e "tell application \"System Events\" to tell process \"$OWNER\" to click (first button of window \"Summon Activity\" whose subrole is \"AXCloseButton\")" >>"$LOG" 2>&1
+  osascript -e "tell application \"System Events\" to tell process \"$OWNER\" to click (first button of window \"Activity\" whose subrole is \"AXCloseButton\")" >>"$LOG" 2>&1
   activity_gone() { ! is_open "$activity"; }
   if wait_for 3 activity_gone; then log "  Activity window closed"; else warned "Activity window $activity still open (the exit trap quits Summon)"; fi
 fi

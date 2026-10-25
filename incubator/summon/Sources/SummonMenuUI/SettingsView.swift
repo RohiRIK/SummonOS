@@ -108,13 +108,40 @@ public struct SettingsView: View {
 
     @ViewBuilder private var detailView: some View {
         if let selection {
-            // The page title is the window title, as in System Settings; no header block or subtitle.
-            detailContent(for: selection)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .navigationTitle(title(for: selection))
+            // A large page title like System Settings' panes (the owner found the title-bar title too small);
+            // icon and name only, no subtitle or explanatory text.
+            VStack(alignment: .leading, spacing: 0) {
+                pageTitle(for: selection)
+                detailContent(for: selection)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .navigationTitle(title(for: selection))
         } else {
             ContentUnavailableView("Select a Section", systemImage: "gearshape")
         }
+    }
+
+    private func pageTitle(for panel: SettingsPanel) -> some View {
+        HStack(spacing: 12) {
+            if case .agent(let id) = panel {
+                AgentBrandIcon(agentId: id, size: 22)
+                    .frame(width: 34, height: 34)
+                    .background(Color.secondary.opacity(0.15), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            } else if let section = SettingsSection.allCases.first(where: { $0.panel == panel }) {
+                Image(systemName: section.systemImage)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 34, height: 34)
+                    .background(section.badgeColor, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+            Text(title(for: panel))
+                .font(.largeTitle.weight(.bold))
+        }
+        .padding(.horizontal, 28)
+        .padding(.top, 18)
+        .padding(.bottom, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 
     private func title(for panel: SettingsPanel) -> String {
