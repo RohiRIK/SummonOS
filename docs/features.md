@@ -198,17 +198,17 @@ sections:
 
 ### Make things: projects from templates
 
-- `summon project new <name> --kind menubar|app|cli|screensaver` copies a template to `~/Summon/<name>`,
+- `summon project new <name> --kind menubar|app|cli|screensaver` copies a template to `~/Summon/Apps/<name>`,
   runs `git init` with a first commit, and records it in a private list (`~/.config/summon/projects.json`).
   Also `project list`, `project path`, `project forget`.
 - **Templates:** menu bar app, window app, CLI tool, screensaver. Each builds on its own and has a tested
   Core, README, MIT LICENSE, `PROJECT-CONTEXT.md` and `scripts/check.sh`
   ([`templates/`](../incubator/summon/templates)).
-- **GitHub only when you say so:** `summon project repo <name>` creates a private repo with CI only after
-  you click Create in a native dialog. Cancel is the default button, and no flag skips the dialog.
-- Every new app gets a **private GitHub repo** right away (screenshots, CI, first push), unless Settings › General
-  › "Create a private GitHub repo for every new app" is off (`summon default repos ask`): then Summon's dialog asks.
-  Never public.
+- **GitHub only when you say so:** by default (`summon default repos` is `ask`) a new app gets no repo.
+  `summon project repo <name>` creates a private repo (screenshots, CI, first push) only after you click Create in
+  a native dialog; Cancel is the default button, and no flag skips the dialog. Turning on Settings › General ›
+  "Create a private GitHub repo for every new app" (`summon default repos always`) makes every new app get one
+  right away, without the dialog. Never public.
 
 ### Every agent: the MCP server
 

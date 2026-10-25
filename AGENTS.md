@@ -33,7 +33,7 @@ idea only when it fits, and credit it in `THIRD_PARTY_NOTICES.md` when code or a
 `.gitignore` is a root allowlist: anything new at the top level is ignored until it is added there.
 New plugins start with `tools/mp new <name>` in `scratch/`; `tools/mp promote` (owner's OK each time)
 creates the repo pair. Tool details: `docs/tools.md`. Apps made through Summon are separate: they live in
-`~/Summon/<name>` (from `incubator/summon/templates/`), in Summon's private project list, never in `plugins.json`.
+`~/Summon/Apps/<name>` (from `incubator/summon/templates/`), in Summon's private project list, never in `plugins.json`.
 
 ## Skills: which one when
 

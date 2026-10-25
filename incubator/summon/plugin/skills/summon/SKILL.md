@@ -33,8 +33,11 @@ Skill files, for harnesses without a skill mechanism: `summon skills` prints eve
 Look at the skills you have (your harness lists them; on disk: `~/.agents/skills`, `~/.claude/skills`,
 `~/.codex/skills`, `~/.gemini/config/skills`, `~/.pi/agent/skills`). Use the one whose description matches best
 (for a web app: a frontend or web skill). If none fits, say so in one line and do the task with the project's
-own conventions. Everything you make goes in `~/Summon` unless the user names a place: apps in `~/Summon/Apps/<name>`, art in `~/Summon/Art/<job>`, other projects (a web app, a script) in `~/Summon/Apps/<name>` too; native Mac apps, CLI tools and
-screensavers start with `summon project new <name> --kind menubar|app|cli|screensaver` (see `mac-app`).
+own conventions. Everything you make goes in `~/Summon` unless the user names a place: projects in
+`~/Summon/Apps/<name>`, art in `~/Summon/Art/<job>`. Native Mac apps, CLI tools and screensavers always start with
+`summon project new <name> --kind <kind>` (see `mac-app`), which also registers them. Other projects (a web app, a
+script) get their own folder in `~/Summon/Apps/<name>` with `git init`, and are not registered: `summon project`
+only knows the native kinds, so tell the user the folder instead.
 
 ## Always
 
