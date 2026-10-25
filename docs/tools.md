@@ -13,9 +13,13 @@ described in `MacAppBuild/Scaffold.md`.
 
 ## install.sh (repo root)
 
-The SummonOS installer. Piped from curl it clones into `~/.summonos` (`SUMMONOS_HOME`, branch `SUMMONOS_REF`);
-run from a checkout it installs that checkout. It checks macOS 15+ and Swift 6, builds `macctl` into
-`~/.local/bin`, runs Summon's `scripts/bundle.sh` and `scripts/install.sh`, then `summon doctor`.
+The SummonOS installer. Piped from curl it downloads the newest GitHub release (prereleases included, or
+`--version vX.Y.Z`), checks the zip against `SHA256SUMS` (a mismatch refuses), unpacks it and runs the bundled
+Summon `scripts/install.sh`, which stages and rolls back like a source install. With no release published it
+builds from source instead. `--from-source` clones into `~/.summonos` (`SUMMONOS_HOME`, branch `SUMMONOS_REF`);
+run from a checkout it installs that checkout. A source build checks Swift 6, builds `macctl` into
+`~/.local/bin` and runs Summon's `scripts/bundle.sh` and `scripts/install.sh`. Both end with `summon doctor`,
+then offer `summon connect` on a terminal (default No); `--connect` runs it, `--yes` never prompts.
 Agents follow [`docs/install-ai.md`](install-ai.md) instead, which wraps the same script with checks and a report.
 
 ```bash
@@ -125,6 +129,16 @@ tools/publish-public.sh plugins/<name> [branch] "<commit message>"
   and must contain usable patterns. Invalid patterns, read errors, binary matches and private symlink targets block publishing.
 - Commits with your GitHub noreply address, so the author email never reaches the public history.
 - Needs `gh` signed in and the public repo `<login>/<name>` to exist.
+
+## release.yml (GitHub Actions)
+
+`.github/workflows/release.yml` builds the SummonOS release on `macos-26`: universal (arm64 + x86_64) `summon`,
+`macctl` and `Summon.app` (`bundle.sh --universal`), ad-hoc signed and verified (`codesign`, `lipo -archs`,
+`--version`), in `summonos-<version>-macos-universal.zip` (`Summon.app`, `bin/`, `scripts/install.sh`) plus
+`SHA256SUMS`. A `v*` tag that equals `v$(cat VERSION)` also attests the zip (`actions/attest-build-provenance`) and
+publishes a GitHub prerelease with generated notes. `workflow_dispatch`, and a PR that touches the release or install
+path, is a dry run: the files are a workflow artifact only. Developer ID signing and notarization
+(`tools/notarize-app.sh`) run only when the signing secrets are set.
 
 ## release.sh
 

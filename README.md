@@ -22,7 +22,7 @@ Read the [security and recovery model](docs/security-model.md) before enabling u
 
 ## Install
 
-On a Mac with macOS 15+ and Xcode (or the Command Line Tools) with Swift 6:
+On a Mac with macOS 15+:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/RohiRIK/SummonOS/main/install.sh | bash
@@ -34,8 +34,11 @@ Or let your agent do it. Paste this into Claude Code, Codex or any coding agent 
 Install SummonOS by following https://raw.githubusercontent.com/RohiRIK/SummonOS/main/docs/install-ai.md
 ```
 
-The installer builds Summon and macctl from source, puts `Summon.app` in `~/Applications` and `summon` and
-`macctl` in `~/.local/bin`, then runs `summon doctor`. Run it again to update. Then:
+The installer downloads the newest release (universal, ad-hoc signed preview builds), checks it against
+`SHA256SUMS`, puts `Summon.app` in `~/Applications` and `summon` and `macctl` in `~/.local/bin`, then runs
+`summon doctor` and offers `summon connect` to hook up your agents. No release yet, or `--from-source`
+(`curl ... | bash -s -- --from-source`): it builds from source, which needs Xcode or the Command Line Tools with
+Swift 6. `--version vX.Y.Z` picks a release. Run it again to update. Then:
 
 ```sh
 summon default agent claude                               # or codex, opencode, agy, pi, ...

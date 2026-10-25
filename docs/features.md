@@ -344,7 +344,8 @@ What this repo gives you for building more apps ([`README.md`](../README.md), [`
 | Tool | Does |
 |---|---|
 | `tools/okf-index.py` | Checks `docs/` is an Open Knowledge Format bundle and writes its `index.md` files |
-| `install.sh` | One-line SummonOS install (Summon + macctl) from source; [`docs/install-ai.md`](install-ai.md) is the same for agents |
+| `install.sh` | One-line SummonOS install (Summon + macctl) from the newest release, checksum-verified, or `--from-source`; offers `summon connect`; [`docs/install-ai.md`](install-ai.md) is the same for agents |
+| `.github/workflows/release.yml` | On a `v*` tag: universal `summon`, `macctl` and Summon.app in one zip, `SHA256SUMS`, build attestation, a GitHub prerelease (ad-hoc signed preview) |
 | `tools/mp` | Plugin registry: `new`, `promote`, `clone`, `list`, `status`, `index`, `adopt` |
 | `tools/publish-public.sh` | Clean snapshot of a dev repo to its public repo; refuses on private values |
 | `tools/release.sh` | Zipped `.app` on the public repo's Releases |

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Distribution regressions: only temporary files, local Git repos and mocked tools."""
+import hashlib
 import os
 import json
 from pathlib import Path
@@ -7,6 +8,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
 REAL_GIT = shutil.which("git")
@@ -106,8 +108,9 @@ exec /usr/bin/grep "$@"
 if [[ ${1:-} == menu && ${FAIL_INIT:-0} == 1 ]]; then exit 4; fi
 echo new-summon
 ''')
-        (package / "themes/test").mkdir(parents=True)
-        (package / "themes/test/theme.json").write_text("{}")
+        themes = package / "build/Summon.app/Contents/share/summon/themes"
+        (themes / "test").mkdir(parents=True)
+        (themes / "test/theme.json").write_text("{}")
         old = self.home / "Applications/Summon.app"
         old.mkdir(parents=True)
         (old / "old-version").write_text("previous")
@@ -219,6 +222,136 @@ if [[ ${1:-} == doctor ]]; then echo 'fixture doctor failure' >&2; exit 1; fi
         result = self.run_script(script)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("SummonOS is installed.", result.stdout)
+
+    # Binary install: install.sh run outside a checkout (as under `curl | bash`), against a fake GitHub.
+    def binary_install_fixture(self, tag="v0.1.0", checksum_ok=True):
+        script, package = self.root_install_fixture()
+        remote = self.work / "remote"
+        remote.mkdir()
+        shutil.copy2(script, remote / "install.sh")
+        releases = self.work / "releases"
+        version = tag[1:]
+        name = f"summonos-{version}-macos-universal.zip"
+        (releases / tag).mkdir(parents=True)
+        top = f"summonos-{version}/"
+        with zipfile.ZipFile(releases / tag / name, "w") as archive:
+            def add(path, text, mode=0o644):
+                info = zipfile.ZipInfo(top + path)
+                info.external_attr = (0o100000 | mode) << 16
+                archive.writestr(info, text)
+            add("Summon.app/Contents/MacOS/SummonMenu", "#!/bin/bash\nexit 0\n", 0o755)
+            add("Summon.app/Contents/MacOS/summon", '''#!/bin/bash
+case ${1:-} in
+  commands) echo '[{"route":"doctor"},{"route":"connect"}]' ;;
+  connect) touch "$HOME/connected" ;;
+  *) echo release-summon ;;
+esac
+''', 0o755)
+            add("Summon.app/Contents/share/summon/themes/test/theme.json", "{}")
+            add("bin/macctl", "#!/bin/bash\necho release-macctl\n", 0o755)
+            for helper in ("install.sh", "install-state.py"):
+                add("scripts/" + helper, (ROOT / "incubator/summon/scripts" / helper).read_text(), 0o755)
+        digest = hashlib.sha256((releases / tag / name).read_bytes()).hexdigest()
+        (releases / tag / "SHA256SUMS").write_text(f"{digest if checksum_ok else '0' * 64}  {name}\n")
+        (releases / "api.json").write_text(json.dumps([{"tag_name": tag, "prerelease": True}], indent=2))
+        self.env["FAKE_RELEASES"] = str(releases)
+        self.env["CURL_LOG"] = str(self.work / "curl.log")
+        self.executable(self.bin / "curl", '''
+out="" url=""
+while (( $# )); do
+  case $1 in -o|--retry) [[ $1 == -o ]] && out=$2; shift ;; -*) ;; *) url=$1 ;; esac
+  shift
+done
+echo "$url" >> "$CURL_LOG"
+case $url in
+  https://api.github.com/repos/RohiRIK/SummonOS/releases*) cat "$FAKE_RELEASES/api.json" ;;
+  https://github.com/RohiRIK/SummonOS/releases/download/*)
+    file="$FAKE_RELEASES/${url#*/releases/download/}"; [[ -f $file ]] || exit 22; cp "$file" "$out" ;;
+  *) exit 22 ;;
+esac
+''')
+        # ditto is macOS-only; the CI tooling job runs on Linux, so unpack with Python keeping file modes.
+        self.executable(self.bin / "ditto", '''
+[[ $1 == -x && $2 == -k ]] || exit 64
+exec python3 -c '
+import sys, zipfile, os
+with zipfile.ZipFile(sys.argv[1]) as z:
+    for i in z.infolist():
+        p = z.extract(i, sys.argv[2])
+        if i.external_attr >> 16: os.chmod(p, (i.external_attr >> 16) & 0o777)
+' "$3" "$4"
+''')
+        return remote / "install.sh", package
+
+    def curl_calls(self):
+        log = Path(self.env["CURL_LOG"])
+        return log.read_text() if log.exists() else ""
+
+    def test_binary_install_downloads_verifies_and_installs_newest_release(self):
+        script, _ = self.binary_install_fixture()
+        result = self.run_script(script)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Checksum verified", result.stdout)
+        self.assertIn("releases?per_page=1", self.curl_calls())
+        self.assertIn("release-macctl", (self.home / ".local/bin/macctl").read_text())
+        self.assertTrue((self.home / ".local/bin/summon").is_symlink())
+        self.assertTrue((self.home / ".config/summon/themes/test/theme.json").exists())
+        self.assertIn("SummonOS is installed.", result.stdout)
+
+    def test_binary_install_refuses_checksum_mismatch(self):
+        script, _ = self.binary_install_fixture(checksum_ok=False)
+        result = self.run_script(script)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Checksum mismatch", result.stderr)
+        self.assert_old_install()
+
+    def test_binary_install_specific_version(self):
+        script, _ = self.binary_install_fixture(tag="v0.2.0")
+        result = self.run_script(script, "--version", "v0.2.0")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("api.github.com", self.curl_calls())
+        self.assertIn("releases/download/v0.2.0/summonos-0.2.0-macos-universal.zip", self.curl_calls())
+        result = self.run_script(script, "--version", "v9.9.9")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Could not download", result.stderr)
+        self.assertNotEqual(self.run_script(script, "--version", "../evil").returncode, 0)
+
+    def source_fallback_ready(self, package):
+        workspace = package.parent.parent
+        (workspace / ".git").mkdir()
+        self.env["SUMMONOS_HOME"] = str(workspace)
+        self.executable(self.bin / "git", "exit 0")
+
+    def test_binary_install_falls_back_to_source_without_a_release(self):
+        script, package = self.binary_install_fixture()
+        self.source_fallback_ready(package)
+        (self.work / "releases/api.json").write_text("[]")
+        result = self.run_script(script)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("building from source instead", result.stdout)
+        self.assertIn("Building macctl", result.stdout)
+        self.assertIn("new-macctl", (self.home / ".local/bin/macctl").read_text())
+
+    def test_from_source_skips_release_lookup(self):
+        script, package = self.binary_install_fixture()
+        self.source_fallback_ready(package)
+        result = self.run_script(script, "--from-source")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.curl_calls(), "")
+        self.assertIn("new-macctl", (self.home / ".local/bin/macctl").read_text())
+
+    def test_connect_runs_only_when_asked(self):
+        script, _ = self.binary_install_fixture()
+        result = self.run_script(script)  # no terminal: never prompts, never connects
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("[y/N]", result.stdout)
+        self.assertIn("summon connect", result.stdout)
+        self.assertFalse((self.home / "connected").exists())
+        result = self.run_script(script, "--yes")
+        self.assertFalse((self.home / "connected").exists())
+        result = self.run_script(script, "--yes", "--connect")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue((self.home / "connected").exists())
 
     def manifest(self):
         return self.home / "Library/Application Support/Summon/install-manifest.json"
