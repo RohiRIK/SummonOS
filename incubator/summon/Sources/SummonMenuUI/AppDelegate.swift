@@ -155,7 +155,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
             keyCode: agentShortcut.keyCode,
             modifiers: agentShortcut.carbonModifiers
         ) { [weak self] in
-            self?.model.askAgent()
+            self?.model.askAgentAboutScreen()
         }
 
         let taken = [

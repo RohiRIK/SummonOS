@@ -40,6 +40,13 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — Summon with what is on screen
+- `ScreenContext` (Core, tested): reads the frontmost app, its window title and selected text (AX, only if already
+  trusted), and the browser front tab or Finder selection (`/usr/bin/osascript` through the runner, Safari plus a
+  list of Chromium bundle ids). `prompt()` is the agent's first message and ends with "wait for my question".
+- `SummonModel.askAgentAboutScreen()` is used by the agent hotkey and the panel's Ask Agent (row and key). The URL
+  route and crash/Activity prompts are unchanged. New `ContextField`s are `selected-text`, `browser-page` and
+  `finder-selection`, on by default; `inSnapshot` keeps them out of `summon context`'s hidden list.
 ### 2026-10-25 — Undo any agent's session (MCP checkpoints + panel row)
 - `MCPSession` (actor): the agent name comes from `initialize` `clientInfo.name` (`SummonMCP.agentName`). The first
   non-dry-run `settings_set` creates a checkpoint "<Agent> via MCP" and logs `session.start` with `checkpoint` and

@@ -122,9 +122,11 @@ public struct MacContext: Sendable, Equatable, Codable {
             case .paths:
                 result.appearance?.wallpaper = nil
                 result.storage = result.storage?.map { var volume = $0; volume.path = nil; return volume }
+            case .selectedText, .browserPage, .finderSelection:
+                break
             }
         }
-        result.hidden = fields.map(\.rawValue).sorted()
+        result.hidden = fields.filter(\.inSnapshot).map(\.rawValue).sorted()
         return result
     }
 
@@ -235,6 +237,13 @@ public enum ContextField: String, Sendable, CaseIterable, Codable {
     case windowTitle = "window-title"
     case runningApps = "running-apps"
     case paths
+    /// The hotkey's capture (`ScreenContext`), not part of `summon context`.
+    case selectedText = "selected-text"
+    case browserPage = "browser-page"
+    case finderSelection = "finder-selection"
+
+    /// Part of `summon context`; the rest belong to the agent hotkey's capture.
+    public var inSnapshot: Bool { ![.selectedText, .browserPage, .finderSelection].contains(self) }
 
     public var title: String {
         switch self {
@@ -242,6 +251,9 @@ public enum ContextField: String, Sendable, CaseIterable, Codable {
         case .windowTitle: "Frontmost window title"
         case .runningApps: "Running apps"
         case .paths: "File paths (wallpaper, volumes)"
+        case .selectedText: "Selected text (agent hotkey)"
+        case .browserPage: "Browser page title and URL (agent hotkey)"
+        case .finderSelection: "Finder selection (agent hotkey)"
         }
     }
 }

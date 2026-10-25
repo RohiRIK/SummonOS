@@ -38,6 +38,23 @@ Code: [`incubator/summon/`](../incubator/summon). Overview: [its README](../incu
   folder and preserves foreign folders and symlinks. Install and every app launch run it.
 - **Starts in `~/Summon`:** an agent launched from `~` or `/` starts in the projects folder.
 
+### Summon with what is on screen
+
+The agent hotkey (⌃⌥⌘A) and the panel's Ask Agent start the agent with what you were looking at as its first
+message, so "fix this" or "explain this" works on whatever is on screen. It includes:
+- the frontmost app and window title
+- the selected text, cut at 2,000 characters
+- the front tab's title and URL, in Safari, Chrome, Arc, Edge, Brave and Helium
+- the files selected in Finder
+
+The message ends by telling the agent to wait for your question. Summon reads this in the moment you press the
+hotkey, while your app is still in front.
+
+Selected text and window title use Accessibility only when Summon already has it, and never ask for it. The browser
+and Finder fields use AppleScript, so macOS asks once for Automation permission per app. If you say no, that field
+is just left out. Every field is on by default; Settings › Agents (or `summon context hide selected-text|browser-page|finder-selection|window-title`)
+turns each one off. Crash diagnosis, Activity and tasks keep their own prompts.
+
 ### Safety: checkpoints and undo
 
 - **Execution policy:** Settings › General › Agent execution or `summon default execution normal|unattended`.
