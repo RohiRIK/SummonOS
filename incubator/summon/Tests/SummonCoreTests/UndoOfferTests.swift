@@ -21,7 +21,7 @@ struct UndoOfferTests {
             snapshots: [Self.change("s1", minutesAgo: 50), Self.change("s2", minutesAgo: 20, count: 2), Self.change("s3", minutesAgo: 10)],
             checkpoints: [Self.checkpoint("a", minutesAgo: 60), Self.checkpoint("b", minutesAgo: 30)])
         let offer = UndoOffer.latest(sources, now: Self.now)
-        #expect(offer == UndoOffer(checkpoint: "b", agent: "Codex", changes: 3))
+        #expect(offer == UndoOffer(checkpoint: "b", label: "Codex Session", changes: 3))
         #expect(offer?.title == "Undo Codex Session (3 changes)…")
     }
 
@@ -42,7 +42,13 @@ struct UndoOfferTests {
     @Test func summonLaunchedSessionsShowTheAgentsName() {
         let sources = ActivitySources(log: [LoggedEvent(kind: EventKind.agentLaunch, title: "Started Claude Code", refs: ["checkpoint": "a", "agent": "claude"])],
                                       snapshots: [Self.change("s", minutesAgo: 5)], checkpoints: [Self.checkpoint("a", minutesAgo: 30)])
-        #expect(UndoOffer.latest(sources, now: Self.now)?.agent == "Claude Code")
+        #expect(UndoOffer.latest(sources, now: Self.now)?.label == "Claude Code Session")
+    }
+
+    @Test func aThemeChangeIsOfferedByName() {
+        let sources = ActivitySources(log: [LoggedEvent(kind: EventKind.themeSet, title: "Theme: Tokyo Night", refs: ["checkpoint": "a", "agent": "Theme Tokyo Night"])],
+                                      snapshots: [Self.change("s", minutesAgo: 5, count: 3)], checkpoints: [Self.checkpoint("a", minutesAgo: 6)])
+        #expect(UndoOffer.latest(sources, now: Self.now)?.title == "Undo Theme Tokyo Night (3 changes)…")
     }
 
     @Test func mcpClientNamesBecomeAgentNames() {

@@ -1,6 +1,7 @@
 # Docs update log
 
 ## 2026-10-25
+* **Update**: [Features](features.md): `summon theme set` also sets the macOS accent (new macctl setting `appearance.accent-color`, 39 settings), VS Code/Cursor and Neovim, and takes one checkpoint so the whole look undoes at once.
 * **Update**: [Features](features.md): `summon connect` records Claude Code and Codex sessions in Activity (start and end hooks), so the plugin is optional and no longer declares the MCP server; doctor asks for `summon connect claude`; Fix with AI skips crashes already handed to an agent.
 * **Update**: [Features](features.md): Settings › General › Permissions asks for Accessibility in one click; `summon skills link` links only into agents that are installed.
 * **Update**: [Features](features.md): the agent hotkey and Ask Agent start the agent with what is on screen (app, window, selected text, browser page, Finder selection), each field can be turned off.

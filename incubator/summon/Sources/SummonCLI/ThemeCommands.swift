@@ -45,8 +45,14 @@ enum ThemeCommands {
             guard let theme = store.theme(slug) else {
                 throw CLIError("No theme \"\(slug)\". See: summon theme list")
             }
+            // One checkpoint first, so the whole look (settings and ~/.config) comes back with one undo.
+            let service = CheckpointService(paths: context.paths, runner: context.runner, gitPath: context.git, macctlPath: context.macctl)
+            let (checkpoint, problems) = await service.create(label: "Theme \(theme.name)")
+            for problem in problems { context.warn("  checkpoint: \(problem)") }
             try await apply(theme, store: store, wallpaper: !skipWallpaper, context)
-            ActivityCommands.record(LoggedEvent(kind: EventKind.themeSet, title: "Theme: \(theme.name)", refs: ["theme": theme.slug]), context)
+            ActivityCommands.record(LoggedEvent(kind: EventKind.themeSet, title: "Theme: \(theme.name)",
+                                                refs: ["theme": theme.slug, "checkpoint": checkpoint.id, "agent": "Theme \(theme.name)"]), context)
+            print("Undo the whole look: summon checkpoint undo \(checkpoint.id)")
         default:
             throw CLIError("Usage: summon theme list|current|set <slug>")
         }
@@ -90,6 +96,41 @@ enum ThemeCommands {
             }
         }
 
+        // The accent too, through macctl (snapshotted); open apps show it when reopened.
+        if let macctl = context.macctl {
+            do {
+                _ = try await context.runner(macctl, ["set", "appearance.accent-color", String(ThemeCompiler.accentIndex(theme)), "--json"])
+                print("  accent: \(MacContext.accentName(ThemeCompiler.accentIndex(theme)))")
+            } catch {
+                context.warn("  accent not changed: \(error)")
+            }
+        }
+
+        // VS Code and Cursor: a "Summon" color theme extension, rewritten on every change; choosing it is the user's call.
+        for folder in [".vscode", ".cursor"] {
+            let root = context.paths.home.appendingPathComponent(folder, isDirectory: true)
+            guard FileManager.default.fileExists(atPath: root.path) else { continue }
+            let extensionDir = root.appendingPathComponent("extensions/summon.summon-theme-0.0.1", isDirectory: true)
+            do {
+                try write(ThemeCompiler.vscodePackage(theme), to: extensionDir.appendingPathComponent("package.json"))
+                try write(ThemeCompiler.vscodeTheme(theme), to: extensionDir.appendingPathComponent("themes/summon.json"))
+                print("  \(folder == ".vscode" ? "VS Code" : "Cursor") theme: \"Summon\" (choose it once in Preferences › Color Theme)")
+            } catch {
+                context.warn("  \(folder) theme not written: \(error)")
+            }
+        }
+
+        // Neovim: `:colorscheme summon`.
+        if context.tools.find("nvim") != nil {
+            let target = context.paths.userConfig.appendingPathComponent("nvim/colors/summon.lua")
+            do {
+                try write(ThemeCompiler.nvim(theme), to: target)
+                print("  Neovim: \(target.path) (:colorscheme summon)")
+            } catch {
+                context.warn("  Neovim colors not written: \(error)")
+            }
+        }
+
         // JankyBorders: calling `borders` with arguments updates a running instance; only do it when one runs.
         if let borders = context.tools.find("borders"), (try? await context.runner("/usr/bin/pgrep", ["-x", "borders"])) != nil {
             do {
@@ -117,5 +158,10 @@ enum ThemeCommands {
         for failure in failures { context.warn("  hook failed: \(failure)") }
         print("Ghostty picks up the new colors on its next config reload (⌘⇧,) when its config has:")
         print("  config-file = \(context.paths.generated.appendingPathComponent("ghostty.conf").path)")
+    }
+
+    static func write(_ text: String, to url: URL) throws {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data(text.utf8).write(to: url, options: .atomic)
     }
 }

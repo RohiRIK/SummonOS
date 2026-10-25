@@ -108,7 +108,7 @@ One read-only, fast (<300 ms), redacted snapshot of the Mac that any agent can a
 - [x] **Summon with context:** (on by default like the other context fields, owner 2026-10-25; each can be turned off) the hotkey captures the frontmost app, its selected text, the Finder selection and the
       browser URL, and hands them to the agent so "fix this" works on whatever is on screen. Each capture is opt-in and
       shown before the agent sends it.
-- [ ] **System-wide theme:** `summon theme <name>` sets wallpaper, accent, dark mode, Terminal/Ghostty, VS Code and nvim
+- [x] **System-wide theme:** (accent via new macctl setting; VS Code/Cursor theme extension; Neovim colorscheme; one checkpoint) `summon theme <name>` sets wallpaper, accent, dark mode, Terminal/Ghostty, VS Code and nvim
       in one step, undoable. Build it on the existing theme work.
 - [ ] **Live Mac events for agents:** `summon events --follow` and MCP notifications for network change, low disk,
       thermal pressure, crashes and app launches.
