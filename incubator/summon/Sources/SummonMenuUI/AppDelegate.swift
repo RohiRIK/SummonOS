@@ -52,8 +52,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
             PanelView(model: model, activity: activity, panel: state, actions: actions)
         }
         self.panel = panel
-        let menuBarStatus = MenuBarStatusWatcher(model: model) { [weak panel] title, label in
-            panel?.setStatusLabel(title: title, accessibilityLabel: label)
+        let menuBarStatus = MenuBarStatusWatcher(model: model) { [weak panel] title, label, attention in
+            panel?.setStatusLabel(title: title, accessibilityLabel: label, attention: attention)
         }
         self.menuBarStatus = menuBarStatus
         model.onMenuBarLabelChanged = { [weak menuBarStatus] in menuBarStatus?.redraw() }

@@ -122,13 +122,19 @@ sections:
 
 ### Menu bar app
 
-- **Panel:** Ask Agent, Open Summon Menu, Activity…, Recent Problems (only when there are some, one row
-  per program with a count and Diagnose…; a report leaves after 24 hours, once diagnosed, or with Clear), then Settings… (⌘,) and Quit (⌘Q).
+- **Panel:** **Needs attention** at the top, only when something is wrong: one row per program that crashed
+  (with a count; Diagnose… hands the newest report to the agent and the program leaves the panel; a report also
+  leaves after 24 hours) and "N setup problems · Fix…" (Summon's own `summon doctor`, checked at launch and every 10
+  minutes). Then the Summon Menu, Ask Agent, Activity…, the undo row when there is something to undo, Settings… (⌘,)
+  and Quit (⌘Q). With no default agent, the header offers "Choose an agent" (the installed ones); with exactly one
+  installed, it is chosen automatically. The menu bar icon turns orange while Needs attention has something.
+- **Undo confirmation:** "Restore N Changes" names what it does; Cancel is the default button.
 - **Activity window:** a plain, oldest-first log of settings changes, undos, agent sessions, themes and
   crashes and recurring tasks, opened at the newest line (also `summon://activity`). Select lines and ask the agent about them
   from the bar at the bottom. Right-click a line to Ask, Copy, Diagnose, Show in Finder, or Undo This
   Change / Session.
-- **Settings window** (⌘, or `summon://settings`), one toolbar tab per part:
+- **Settings window** (⌘, or `summon://settings[/<section>]`; one window, the page name is its title, no header
+  blocks or explanatory text), one sidebar entry per part:
   - General: Permissions (Accessibility: On, or **Allow…**, which asks macOS to add Summon to Privacy & Security ›
     Accessibility and opens that page, so only the switch is left; the row re-checks every 2 seconds and says to
     turn the switch off and on when an older build's entry is in the way), Open at Login.
