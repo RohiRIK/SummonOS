@@ -224,13 +224,13 @@ if [[ ${1:-} == doctor ]]; then echo 'fixture doctor failure' >&2; exit 1; fi
         self.assertIn("SummonOS is installed.", result.stdout)
 
     # Binary install: install.sh run outside a checkout (as under `curl | bash`), against a fake GitHub.
-    def binary_install_fixture(self, tag="v0.1.0", checksum_ok=True):
+    def binary_install_fixture(self, tag="v0.1.0", checksum_ok=True, version=None, listed=None):
         script, package = self.root_install_fixture()
         remote = self.work / "remote"
         remote.mkdir()
         shutil.copy2(script, remote / "install.sh")
         releases = self.work / "releases"
-        version = tag[1:]
+        version = version or tag[1:]
         name = f"summonos-{version}-macos-universal.zip"
         (releases / tag).mkdir(parents=True)
         top = f"summonos-{version}/"
@@ -253,7 +253,8 @@ esac
                 add("scripts/" + helper, (ROOT / "incubator/summon/scripts" / helper).read_text(), 0o755)
         digest = hashlib.sha256((releases / tag / name).read_bytes()).hexdigest()
         (releases / tag / "SHA256SUMS").write_text(f"{digest if checksum_ok else '0' * 64}  {name}\n")
-        (releases / "api.json").write_text(json.dumps([{"tag_name": tag, "prerelease": True}], indent=2))
+        listed = listed or [tag]
+        (releases / "api.json").write_text(json.dumps([{"tag_name": t, "prerelease": True} for t in listed], indent=2))
         self.env["FAKE_RELEASES"] = str(releases)
         self.env["CURL_LOG"] = str(self.work / "curl.log")
         self.executable(self.bin / "curl", '''
@@ -292,7 +293,7 @@ with zipfile.ZipFile(sys.argv[1]) as z:
         result = self.run_script(script)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Checksum verified", result.stdout)
-        self.assertIn("releases?per_page=1", self.curl_calls())
+        self.assertIn("releases?per_page=30", self.curl_calls())
         self.assertIn("release-macctl", (self.home / ".local/bin/macctl").read_text())
         self.assertTrue((self.home / ".local/bin/summon").is_symlink())
         self.assertTrue((self.home / ".config/summon/themes/test/theme.json").exists())
@@ -315,6 +316,33 @@ with zipfile.ZipFile(sys.argv[1]) as z:
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Could not download", result.stderr)
         self.assertNotEqual(self.run_script(script, "--version", "../evil").returncode, 0)
+
+    def test_binary_install_never_picks_edge_by_default(self):
+        script, _ = self.binary_install_fixture(listed=["edge", "v0.1.0"])
+        result = self.run_script(script)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("releases/download/v0.1.0/summonos-0.1.0-macos-universal.zip", self.curl_calls())
+        self.assertNotIn("/download/edge/", self.curl_calls())
+
+    def test_binary_install_edge_channel_reads_the_build_from_sha256sums(self):
+        script, _ = self.binary_install_fixture(tag="edge", version="0.2.0-edge.abc1234")
+        result = self.run_script(script, "--channel", "edge")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Checksum verified", result.stdout)
+        self.assertNotIn("api.github.com", self.curl_calls())
+        self.assertIn("releases/download/edge/summonos-0.2.0-edge.abc1234-macos-universal.zip", self.curl_calls())
+        self.assertIn("release-macctl", (self.home / ".local/bin/macctl").read_text())
+
+    def test_binary_install_edge_refuses_unexpected_names_and_conflicts(self):
+        script, _ = self.binary_install_fixture(tag="edge", version="0.2.0-edge.abc1234")
+        sums = self.work / "releases/edge/SHA256SUMS"
+        sums.write_text(sums.read_text().replace("0.2.0-edge.abc1234", "../../evil"))
+        result = self.run_script(script, "--channel", "edge")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("does not list a SummonOS build", result.stderr)
+        for args in (["--channel", "edge", "--version", "v0.1.0"], ["--channel", "edge", "--from-source"],
+                     ["--channel", "nightly"]):
+            self.assertNotEqual(self.run_script(script, *args).returncode, 0, args)
 
     def source_fallback_ready(self, package):
         workspace = package.parent.parent

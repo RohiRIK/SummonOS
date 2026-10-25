@@ -29,6 +29,15 @@ public enum Shell {
         try checked(try await ProcessExecutor.run(path, arguments), path: path, options: .init())
     }
 
+    /// `live` with a longer deadline, for downloads and installs that can outlast the default 60 seconds.
+    public static func live(timeout: TimeInterval) -> Runner {
+        { path, arguments in
+            var options = ProcessOptions()
+            options.timeout = timeout
+            return try checked(try await ProcessExecutor.run(path, arguments, options: options), path: path, options: options)
+        }
+    }
+
     public static func runSync(_ path: String, _ arguments: [String], options: ProcessOptions = .init()) throws -> String {
         try checked(ProcessExecutor.runSync(path, arguments, options: options), path: path, options: options)
     }

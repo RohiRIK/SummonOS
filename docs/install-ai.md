@@ -36,11 +36,17 @@ previews, not notarized), checks it against the release's `SHA256SUMS` and refus
 `Summon.app` into `~/Applications`, links `summon` and `macctl` into `~/.local/bin`, and links Summon's skills into
 each agent's skill folder while preserving foreign links. If no release is published yet, it says so and builds
 from source instead: it clones SummonOS into `~/.summonos` and builds `macctl` and Summon (a few minutes the first
-time). Options go after `bash -s --`: `--from-source` always builds, `--version vX.Y.Z` installs that release. Both executables
+time). Options go after `bash -s --`: `--from-source` always builds, `--version vX.Y.Z` installs that release,
+`--channel edge` installs the rolling build of the newest green `main` (only when the user asks for it). Both executables
 are staged before replacement, with rollback on initialization failure. Configuration added during a
 failed upgrade is retained. A nonzero health check means setup still needs attention.
 
 If the user already has a checkout, run `./install.sh` from its root instead (it builds that checkout).
+
+**Already installed?** Update instead: `summon update --check` reports whether a newer build exists, and
+`summon update --yes` downloads it, verifies the checksum, installs it with rollback and runs `summon doctor`.
+`summon update --channel edge --yes` switches to the edge channel (remembered for later updates); `--channel stable`
+switches back.
 
 Run this way the script has no terminal to ask on, so it does not run `summon connect`; step 3 covers it.
 

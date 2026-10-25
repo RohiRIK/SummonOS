@@ -92,6 +92,8 @@ public enum CommandCatalog {
                     args: "[--json]", examples: ["summon status", "summon status --json"], risk: "read"),
         CommandInfo(route: "doctor", summary: "Check Summon's own install and setup: app, CLI, config, macctl, event log, hotkeys, permissions, skill links",
                     args: "[--json] [--fix]", examples: ["summon doctor", "summon doctor --json", "summon doctor --fix"], risk: "read"),
+        CommandInfo(route: "update", summary: "Update Summon and macctl from GitHub releases: stable (release tags) or edge (every green main); checksum-verified, rolls back on failure, then runs summon doctor. The channel is remembered",
+                    args: "[--channel stable|edge] [--check] [--yes]", examples: ["summon update --check", "summon update --yes", "summon update --channel edge"], risk: "user"),
         CommandInfo(route: "fix", summary: "Launch default agent to fix issues detected by summon doctor or crash reports",
                     args: "[--inline]", examples: ["summon fix", "summon fix --inline"], risk: "launch"),
         CommandInfo(route: "events", summary: "The activity timeline: settings changes, undos, checkpoints, agent sessions, themes, crashes, and Mac changes (offline, low disk, hot, battery, displays); --follow keeps printing new ones",

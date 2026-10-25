@@ -1,5 +1,9 @@
 # Builds the SummonOS release: universal (arm64 + x86_64) summon, macctl and Summon.app in one zip plus SHA256SUMS.
 # - A `v*` tag builds, attests and publishes a GitHub prerelease. The tag must equal v$(cat VERSION).
+# - A green "Swift (macOS)" run on a push to main rebuilds the rolling `edge` prerelease (the edge channel): same zip,
+#   named summonos-<VERSION>-edge.<short sha>-..., and `summon --version` reports that edge version. It is triggered by
+#   workflow_run rather than a push, so edge only ever ships a commit whose full Swift CI passed, without running the
+#   tests twice. install.sh never picks `edge` unless asked (--channel edge).
 # - workflow_dispatch, and a PR that touches the release or install path, run the same build as a dry run:
 #   the zip and SHA256SUMS are uploaded as a workflow artifact only, with no attestation and no Release.
 # Builds are ad-hoc signed previews. Developer ID signing and notarization (tools/notarize-app.sh) run only when
@@ -11,6 +15,10 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_run:
+    workflows: ['Swift (macOS)']
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
   pull_request:
     paths:
@@ -29,10 +37,17 @@ concurrency:
 
 jobs:
   build:
+    # workflow_run: only a successful push run on main in this repo (never a PR run, a fork, or a failed run).
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: macos-26
     timeout-minutes: 45
     outputs:
       version: ${{ steps.version.outputs.version }}
+      asset_version: ${{ steps.version.outputs.asset_version }}
+      sha: ${{ steps.version.outputs.sha }}
       notarized: ${{ steps.notarize.outputs.notarized || 'false' }}
     env:
       HAS_SIGNING: ${{ secrets.DEVELOPER_ID_P12 != '' && secrets.DEVELOPER_ID_P12_PASSWORD != '' && secrets.SUMMON_SIGN_IDENTITY != '' && secrets.NOTARY_APPLE_ID != '' && secrets.NOTARY_TEAM_ID != '' && secrets.NOTARY_PASSWORD != '' }}
@@ -40,16 +55,27 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+          # workflow_run builds the exact commit the Swift CI passed, not whatever main is now.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - name: Version
         id: version
         run: |
           version=$(tr -d '[:space:]' < VERSION)
+          sha=$(git rev-parse HEAD)
+          asset_version=$version
           if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
             echo "::error::tag $GITHUB_REF_NAME does not match VERSION ($version); expected v$version"
             exit 1
           fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "SummonOS $version ($GITHUB_EVENT_NAME, $GITHUB_REF_NAME)"
+          if [ "$GITHUB_EVENT_NAME" = workflow_run ]; then
+            asset_version="$version-edge.${sha:0:7}"
+            # Stamp the edge version into summon so `summon update --channel edge` can tell builds apart.
+            file=incubator/summon/Sources/SummonCore/Version.swift
+            sed -i '' "s/current = \"$version\"/current = \"$asset_version\"/" "$file"
+            grep -q "current = \"$asset_version\"" "$file" || { echo "::error::could not stamp $asset_version"; exit 1; }
+          fi
+          { echo "version=$version"; echo "asset_version=$asset_version"; echo "sha=$sha"; } >> "$GITHUB_OUTPUT"
+          echo "SummonOS $asset_version ($GITHUB_EVENT_NAME, $GITHUB_REF_NAME, $sha)"
       - name: Toolchain
         run: |
           # Same selection as swift.yml: the code needs Xcode 26.
@@ -69,7 +95,7 @@ jobs:
         run: incubator/summon/scripts/bundle.sh --universal
       - name: Stage the install layout
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ steps.version.outputs.asset_version }}
         run: |
           stage="$RUNNER_TEMP/stage/summonos-$VERSION"
           mkdir -p "$stage/bin" "$stage/scripts"
@@ -111,6 +137,7 @@ jobs:
       - name: Verify signatures, architectures and versions
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          ASSET_VERSION: ${{ steps.version.outputs.asset_version }}
         run: |
           codesign --verify --deep --strict --verbose=2 "$STAGE/Summon.app"
           codesign --verify --strict --verbose=2 "$STAGE/bin/macctl"
@@ -121,12 +148,12 @@ jobs:
               grep -qw "$arch" <<<"$archs" || { echo "::error::$binary is missing $arch"; exit 1; }
             done
           done
-          "$STAGE/bin/summon" --version | grep -qx "summon $VERSION" || { echo "::error::summon does not report $VERSION"; exit 1; }
+          "$STAGE/bin/summon" --version | grep -qx "summon $ASSET_VERSION" || { echo "::error::summon does not report $ASSET_VERSION"; exit 1; }
           "$STAGE/bin/macctl" --version | grep -qx "macctl $VERSION" || { echo "::error::macctl does not report $VERSION"; exit 1; }
           "$STAGE/bin/summon" commands --json >/dev/null
       - name: Package
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ steps.version.outputs.asset_version }}
         run: |
           mkdir -p dist
           ditto -c -k --keepParent "$STAGE" "dist/summonos-$VERSION-macos-universal.zip"
@@ -134,7 +161,7 @@ jobs:
           unzip -l "dist/summonos-$VERSION-macos-universal.zip" | grep -v 'Summon.app/Contents/share/' | head -40
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: summonos-${{ steps.version.outputs.version }}
+          name: summonos-${{ steps.version.outputs.asset_version }}
           path: dist/
           if-no-files-found: error
 
@@ -190,3 +217,58 @@ jobs:
           EOF
           gh release create "$GITHUB_REF_NAME" dist/* -R "$GITHUB_REPOSITORY" --verify-tag --prerelease \
             --title "SummonOS $VERSION" --notes-file notes.md --generate-notes
+
+  # The rolling edge prerelease: the `edge` tag moves to the built commit and its assets are replaced in place.
+  edge:
+    needs: build
+    if: github.event_name == 'workflow_run'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: release-edge
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: summonos-${{ needs.build.outputs.asset_version }}
+          path: dist
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/summonos-*.zip
+      - name: Replace the edge prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASSET_VERSION: ${{ needs.build.outputs.asset_version }}
+          SHA: ${{ needs.build.outputs.sha }}
+        run: |
+          repo=$GITHUB_REPOSITORY
+          zip="summonos-$ASSET_VERSION-macos-universal.zip"
+          cat > notes.md <<EOF
+          Rolling preview build of \`main\` at $SHA ($ASSET_VERSION), rebuilt after every green Swift CI run.
+          It is ad-hoc signed and not notarized, and may break: use the tagged releases unless you want the newest code.
+
+          \`\`\`sh
+          curl -fsSL https://raw.githubusercontent.com/RohiRIK/SummonOS/main/install.sh | bash -s -- --channel edge
+          summon update --channel edge     # an installed Summon follows edge from now on
+          \`\`\`
+
+          Verify: \`shasum -a 256 -c SHA256SUMS\` and \`gh attestation verify $zip -R $repo\`.
+          EOF
+          if gh release view edge -R "$repo" >/dev/null 2>&1; then
+            gh api -X PATCH "repos/$repo/git/refs/tags/edge" -f sha="$SHA" -F force=true >/dev/null
+            stale=$(gh release view edge -R "$repo" --json assets -q '.assets[].name' | grep -vx -e "$zip" -e SHA256SUMS || true)
+            # The zip goes up before SHA256SUMS, so an installer that reads SHA256SUMS always finds the zip it names.
+            gh release upload edge "dist/$zip" -R "$repo" --clobber
+            gh release upload edge dist/SHA256SUMS -R "$repo" --clobber
+            for asset in $stale; do gh release delete-asset edge "$asset" -R "$repo" -y; done
+            gh release edit edge -R "$repo" --prerelease --title "SummonOS edge ($ASSET_VERSION)" --notes-file notes.md
+          else
+            # A leftover tag without its release would pin the new release to the old commit.
+            gh api -X DELETE "repos/$repo/git/refs/tags/edge" >/dev/null 2>&1 || true
+            gh release create edge dist/* -R "$repo" --target "$SHA" --prerelease \
+              --title "SummonOS edge ($ASSET_VERSION)" --notes-file notes.md
+          fi
