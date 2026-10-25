@@ -11,6 +11,9 @@ version numbers yet; entries are grouped by day and point at the pull request.
   always-on-top stopwatch pill that never takes focus, thrown to the nearest corner), `--kind notch` (a drop shelf
   that grows out of the camera housing, with a fallback on screens without one). Make Something has a menu item
   for each.
+- Templates follow the UX surface rules: every Settings window is close only and 480 pt; the window app has an
+  inspector, ⌘F search, context menus and undoable deletes from 800 × 550; `menubar-panel` has a right-click menu
+  and "Show in menu bar"; `app` and `menubar-panel` open a first-run welcome window once (Settings shows it again).
 
 ### Fixed
 - Settings: only the close button works (minimize and zoom dimmed, no full screen, per the HIG), and the window is

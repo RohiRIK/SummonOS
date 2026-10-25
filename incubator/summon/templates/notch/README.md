@@ -37,6 +37,7 @@ from `NSScreen.auxiliaryTopLeftArea` and `auxiliaryTopRightArea`, with a fallbac
 | `Sources/StarterUI/StatusMenu.swift` | `ActionMenu` (an `NSMenu` built from closures) and the menu bar item |
 | `Sources/StarterUI/SettingsOpener.swift` | Opens the Settings window from AppKit code |
 | `Sources/StarterUI/SummonTheme.swift`, `Glass.swift` | `.themed()` (the Summon theme's accent) and `.glassControl()` |
+| `Sources/StarterUI/CloseOnlyWindow.swift` | `.closeOnlyWindow()` on Settings: minimize and zoom dimmed, no full screen |
 | `Sources/StarterUI/Screenshots.swift` | `--screenshot <folder>`: the open panel and Settings to PNGs, for `summon project shots` |
 | `Sources/StarterCore/` | `NotchGeometry`, `Shelf`, `SummonThemeFile`; Foundation only, tested |
 | `Resources/` | `Info.plist` (bundle id `local.summon.notch-starter`, `LSUIElement`), `AppIcon.icns` |

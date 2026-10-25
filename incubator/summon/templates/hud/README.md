@@ -37,6 +37,7 @@ Apple's rule first: prefer a standard panel; a HUD is for a few controls over co
 | `Sources/StarterUI/StatusMenu.swift` | `ActionMenu` (an `NSMenu` built from closures) and the menu bar item |
 | `Sources/StarterUI/SettingsOpener.swift` | Opens the Settings window from AppKit code |
 | `Sources/StarterUI/SummonTheme.swift`, `Glass.swift` | `.themed()` (the Summon theme's accent) and `.glassControl()` |
+| `Sources/StarterUI/CloseOnlyWindow.swift` | `.closeOnlyWindow()` on Settings: minimize and zoom dimmed, no full screen |
 | `Sources/StarterUI/Screenshots.swift` | `--screenshot <folder>`: the HUD and Settings to PNGs, for `summon project shots` |
 | `Sources/StarterCore/` | `Stopwatch`, `CornerSnap` (throw and corner math), `HUDSize`, `KeyCombo`, `SummonThemeFile`; tested |
 | `Resources/` | `Info.plist` (bundle id `local.summon.hud-starter`, `LSUIElement`), `AppIcon.icns` |
