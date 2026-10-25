@@ -40,6 +40,13 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — `summon connect`: every agent gets the server and a This Mac note
+- `ConnectTarget` + `AgentConnector` (Core, tested): 8 targets (owner's list; Gemini CLI excluded, `agy` replaces it).
+  Each target uses its own CLI's `mcp add/remove/get` (claude, codex, opencode, hermes, openclaw) or edits the
+  `mcpServers` map of a JSON file (cursor, agy, pi). A marked block goes in each instructions file. Backups go to
+  `~/.local/state/summon/backups/connect/<stamp>/`. Symlinks are resolved before writing, and non-object JSON is refused.
+- Hermes and OpenClaw were added to `AgentRegistry`; agy's install hint is the official curl installer.
+- Verified with the real claude/codex/opencode CLIs in a temp HOME: connect, idempotent rerun, disconnect back to the original bytes.
 ### 2026-10-25 — `summon mcp`: MCP server for every agent
 - `MCPServer` (Core): transport-free JSON-RPC 2.0 (initialize, ping, tools, resources), `JSONValue` wire type.
   `SummonMCP`: 10 tools (`mac_context`, `settings_*` through the macctl binary with `--json`, checkpoints, crashes)

@@ -77,19 +77,27 @@ One read-only, fast (<300 ms), redacted snapshot of the Mac that any agent can a
     - `checkpoint_create` and `checkpoint_undo`
   - Resource: `mac://context`.
   - Tests: protocol tests with JSON fixtures, plus one end-to-end run that pipes stdin into the server.
-- [ ] **`summon connect [agent|--all] [--dry-run]`.** Registers the MCP server in each agent's config:
-  - Claude Code: `claude mcp add`, or `~/.claude.json`.
-  - Codex: `~/.codex/config.toml`.
-  - Gemini CLI: `~/.gemini/settings.json`.
-  - Cursor: `~/.cursor/mcp.json`.
-  - opencode.
+- [x] **`summon connect [agent...] [--dry-run]`.** (PR 2b) Registers the MCP server with each agent the user has. The
+      targets (owner, 2026-10-25) are:
+  - Claude Code
+  - Codex
+  - Cursor (editor and `cursor-agent`)
+  - opencode
+  - Hermes (Nous Research)
+  - OpenClaw
+  - Antigravity CLI (`agy`)
+  - pi. If pi has no MCP support, reach it through its skill and instructions file instead.
 
-  It also writes a marked block into each agent's always-loaded instructions file (`~/.claude/CLAUDE.md`,
-  `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`). The block tells the agent "On this Mac, call `summon context` /
-  the `summon` MCP". Back up each file first, and make `summon disconnect` restore it.
+  Not Gemini CLI: it is deprecated and replaced by `agy`. Paths: `docs/research/2026-10-25-agent-mcp-configs.md`.
+  Use an agent's own `mcp add` CLI where it has one, and otherwise edit its config file.
+
+  It also writes a marked block into each agent's always-loaded instructions file. The block tells the agent "On
+  this Mac, call `summon context` / the `summon` MCP". Back up each file first. `summon disconnect` removes only
+  Summon's entry and block, keeping any changes the user made since.
 - [ ] Start hooks: the Claude Code plugin's SessionStart hook injects `summon context` (compact) through
-      `additionalContext`. Add the same hook for Codex and Gemini where they support one.
-- [ ] Add a real `gemini` agent entry and give copilot, cursor-agent and grok skill folders where they support them.
+      `additionalContext`. Add the same for the other targets where they support a start hook.
+- [x] Add Hermes and OpenClaw to the agent registry (`Agent.swift`). Drop the "gemini"/"gemini-cli" aliases'
+      Gemini wording, since `agy` is the agent. Give copilot, cursor-agent and grok skill folders where they support them.
 - [ ] `install.sh` asks to run `summon connect --all` at the end.
 
 ## Phase 3: Features worth showing
