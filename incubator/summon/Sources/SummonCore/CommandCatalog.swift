@@ -76,6 +76,8 @@ public enum CommandCatalog {
         CommandInfo(route: "context", summary: "This Mac for agents: hardware, power, storage, network, displays, apps, appearance, permissions, agents, recent crashes",
                     args: "[--json] [--only system,power,storage,network,displays,apps,appearance,permissions,agents,crashes]",
                     examples: ["summon context", "summon context --json --only power,storage"], risk: "read"),
+        CommandInfo(route: "mcp", summary: "MCP server on stdio for any agent: mac_context, settings list/get/set/undo/history (macctl), checkpoints, crash reports",
+                    args: "", examples: ["claude mcp add summon -- summon mcp"], risk: "user"),
         CommandInfo(route: "context fields", summary: "Which context fields agents see (all on unless turned off)", args: "",
                     examples: ["summon context fields"], risk: "read"),
         CommandInfo(route: "context hide", summary: "Hide a context field from agents (hostname, window-title, running-apps, paths)",
