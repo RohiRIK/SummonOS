@@ -28,6 +28,13 @@ jobs:
           persist-credentials: false
       - name: Workspace hygiene
         run: tools/check-workspace.sh
+      - name: Privacy scan (public patterns)
+        run: |
+          # The owner's tools/private-patterns.txt is gitignored, so CI scans every tracked file with the generic
+          # checks in tools/public-patterns.txt: private IPv4 ranges, non-documentation MACs, personal mail domains.
+          tree=$(mktemp -d)
+          git archive HEAD | tar -x -C "$tree"
+          tools/private-scan.sh tools/public-patterns.txt "$tree"
       - name: Tooling regression tests (isolated fixtures)
         run: python3 -m unittest discover -s tools/tests -p 'test_*.py'
       - name: Shell syntax and lint
