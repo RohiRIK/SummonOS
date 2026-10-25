@@ -154,6 +154,8 @@ sections:
 - `summon events [--kind settings|agent|checkpoint|theme|problem] [--limit N]`: the same timeline as the
   Activity window. `summon event add` and `event hook start|end` let tools write to it. The Claude Code
   plugin's session hooks use them.
+- **Fix with AI** (`summon fix`) hands the agent only crashes from the last 24 hours that no agent has seen yet,
+  the same ones the panel shows, so pressing it again never repeats the same reports.
 - `summon doctor`: checks Summon's own install (app, CLI, config, macctl, event log, hotkeys,
   permissions, skill links) with a fix for each failure.
 
@@ -211,7 +213,9 @@ step is printed for the user.
 Claude Code, Codex, Cursor and the Antigravity CLI also get a session-start hook that runs `summon context --hook
 <agent>`. It goes in `~/.claude/settings.json`, `~/.codex/hooks.json`, `~/.cursor/hooks.json` or
 `~/.gemini/config/hooks.json`. Every new session then starts knowing this Mac's state without calling a tool. The hook
-prints plain text for Claude Code and Codex, and the JSON shape Cursor and `agy` read. The user's own hooks stay, and
+prints plain text for Claude Code and Codex, and the JSON shape Cursor and `agy` read. For Claude Code and Codex
+the start hook also records the session in Activity, and a `SessionEnd` hook (`summon event hook end --agent <id>`)
+closes it. The user's own hooks stay, and
 disconnect removes only Summon's. Paths per agent: [research note](research/2026-10-25-agent-mcp-configs.md).
 
 It also serves the resource `mac://context`. Setting ids are checked before they reach macctl, so an id that looks
@@ -220,8 +224,9 @@ args in any client's MCP config. The Claude Code plugin declares it already.
 
 ### Claude Code plugin
 
-[`plugin/`](../incubator/summon/plugin), loaded with `claude --plugin-dir incubator/summon/plugin`. It declares the
-`summon mcp` server (`summon` must be on PATH).
+[`plugin/`](../incubator/summon/plugin), loaded with `claude --plugin-dir incubator/summon/plugin`. It is optional now:
+`summon connect claude` gives Claude Code the MCP server, the This Mac note and session hooks that record sessions
+in Activity. The plugin no longer declares the server, so its tools never appear twice.
 
 | Skill | Use |
 |---|---|

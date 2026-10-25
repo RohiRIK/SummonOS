@@ -495,11 +495,15 @@ public struct Doctor: Sendable {
             return DoctorCheck("plugin", .pass, "Claude Code is not installed; the Summon plugin is only for Claude Code")
         }
         let registry = paths.home.appendingPathComponent(".claude/plugins/installed_plugins.json")
+        let settings = TextFile.read(paths.home.appendingPathComponent(".claude/settings.json")) ?? ""
+        if settings.contains(" context --hook claude") {
+            return DoctorCheck("plugin", .pass, "Claude Code is connected: Mac context at session start, sessions in Activity")
+        }
         if let text = TextFile.read(registry), text.contains("\"summon@") || text.contains("\"summon\"") {
             return DoctorCheck("plugin", .pass, "Summon plugin installed in Claude Code")
         }
-        return DoctorCheck("plugin", .warn, "The Summon plugin is not installed in Claude Code, so its sessions are not recorded in Activity",
-                           fix: "claude --plugin-dir <repo>/incubator/summon/plugin (a marketplace install comes later)")
+        return DoctorCheck("plugin", .warn, "Claude Code is not connected, so it starts without this Mac's context and its sessions are not in Activity",
+                           fix: "summon connect claude")
     }
 
     // MARK: Menu app

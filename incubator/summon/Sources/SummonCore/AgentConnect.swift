@@ -257,17 +257,24 @@ public struct AgentConnector: Sendable {
     func editHook(_ target: ConnectTarget, install: Bool, dryRun: Bool, now: Date) throws -> Bool {
         guard let hook = target.hook else { return false }
         let command = "\"\(summonPath)\" context --hook \(target.id)"
-        let isOurs: (Any) -> Bool = { ($0 as? String)?.hasSuffix(" context --hook \(target.id)") == true }
+        let endCommand = "\"\(summonPath)\" event hook end --agent \(target.id)"
+        let isOurs: (Any) -> Bool = { value in
+            guard let text = value as? String else { return false }
+            return text.hasSuffix(" context --hook \(target.id)") || text.hasSuffix(" event hook end --agent \(target.id)")
+        }
         return try editRoot(hook.file, dryRun: dryRun, now: now) { root in
             let before = NSDictionary(dictionary: root)
             switch hook {
             case .sessionStart:
+                // The start hook also records the session in Activity; the end hook closes it.
                 var hooks = root["hooks"] as? [String: Any] ?? [:]
-                var groups = (hooks["SessionStart"] as? [Any] ?? []).filter { group in
-                    !((group as? [String: Any])?["hooks"] as? [Any] ?? []).contains { isOurs(($0 as? [String: Any])?["command"] as Any) }
+                for (event, ours) in [("SessionStart", command), ("SessionEnd", endCommand)] {
+                    var groups = (hooks[event] as? [Any] ?? []).filter { group in
+                        !((group as? [String: Any])?["hooks"] as? [Any] ?? []).contains { isOurs(($0 as? [String: Any])?["command"] as Any) }
+                    }
+                    if install { groups.append(["hooks": [["type": "command", "command": ours]]]) }
+                    hooks[event] = groups.isEmpty ? nil : groups
                 }
-                if install { groups.append(["hooks": [["type": "command", "command": command]]]) }
-                hooks["SessionStart"] = groups.isEmpty ? nil : groups
                 root["hooks"] = hooks.isEmpty ? nil : hooks
             case .cursor:
                 var hooks = root["hooks"] as? [String: Any] ?? [:]
