@@ -18,7 +18,7 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   and `summon://menu/<id>`; there's no launcher window. Spec and proof hooks: `docs/menubar-panel.md`.
   Debug build for the E4 fixture: `scripts/bundle.sh --debug`. Builds on CI; installed and used on Rohi's Mac 2026-10-18.
 - Projects: `templates/{menubar,app,cli,screensaver}` (each a buildable package with README, MIT LICENSE,
-  PROJECT-CONTEXT.md, `scripts/check.sh`; CI builds them). `summon project new` copies one to `~/Summon/<name>` and
+  PROJECT-CONTEXT.md, `scripts/check.sh`; CI builds them). `summon project new` copies one to `~/Summon/Apps/<name>` and
   records it in the private `~/.config/summon/projects.json`; `summon project repo` makes a private repo after a
   native dialog. Core: `Projects.swift`. Bundled into `Contents/share/summon/templates`.
 - Bundle id `local.macplugins.summon`. Depends on `macctl` (`macctl/` in the workspace) for every settings change.
@@ -32,14 +32,22 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
 - Shape: Claude Code plugin + native Summon Menu app (Rohi, 2026-10-17). Name chosen by Rohi: Summon.
 - Settings go through `macctl`; no passwordless sudo (Touch ID for sudo instead).
 - Panel vs Settings window split from AGENTS.md applies to the Summon Menu app.
-- Projects live in `~/Summon/<name>` (created on install, app launch and agent launch; agents start there). The
+- Projects live in `~/Summon/Apps/<name>` (created on install, app launch and agent launch; agents start there). The
   project list is private to the Mac: never `plugins.json`, never `tools/mp new/promote` (Rohi, 2026-10-18).
-- GitHub: only a private repo, ever. Every new app gets one: `summon project new` creates it right away under the
-  owner's standing approval (Settings › General, `~/.config/summon/defaults/repos` = always, the default); with `ask`,
-  the dialog approves each one (Cancel default). CI is added with the repo. Public publishing is a separate choice
+- GitHub: only a private repo, ever. Default `ask` (no saved `~/.config/summon/defaults/repos`): a new app gets no
+  repo until `summon project repo`, approved in the dialog (Cancel default). With the owner's standing approval
+  (Settings › General, `always`, kept when already saved) `summon project new` creates it right away (Rohi,
+  2026-10-25, replacing the 2026-10-19 `always` default). CI is added with the repo. Public publishing is a separate choice
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — Repos default to ask; mac-app skill as exact steps
+- `RepoPolicyStore.load()` falls back to `ask`, so an agent's `summon project new` no longer pushes a repo on an
+  install that never chose; a saved `always` stays. Catalog and `summon default repos` wording follow; test updated.
+- `plugin/skills/mac-app/SKILL.md` rewritten as 8 verified steps (name/kind/repo check, `project new` + `project
+  path`, Core test first, `scripts/check.sh`, bundle + `pgrep` + `log show`, `project shots` checklist, icon,
+  PROJECT-CONTEXT + optional repo). Theme path fixed (`current-theme` slug + `themes/<slug>/theme.json`; there is no
+  `current/theme.json`); `~/Summon/<name>` corrected to `~/Summon/Apps/<name>` in docs; `new-*.md` commands aligned.
 ### 2026-10-25 — summon update and the edge channel
 - `Updater` (Core, tested with a fake curl/ditto runner): `pick` reads the GitHub releases JSON (stable: highest
   `vX.Y.Z` tag, drafts and `edge` skipped; edge: version from the `edge` release's zip name), `ReleaseVersion` is

@@ -68,7 +68,7 @@ struct SummonCommand {
                 }
                 print(store.load() == .always
                     ? "always: every new app gets a private GitHub repo right away"
-                    : "ask: a new app gets a private repo after you approve it in Summon's dialog")
+                    : "ask (default): no repo until `summon project repo <name>`, after you approve it in Summon's dialog")
             default: throw CLIError("Usage: summon default agent [name] | terminal [name] | execution [normal|unattended] | repos [always|ask]")
             }
         case "agents":

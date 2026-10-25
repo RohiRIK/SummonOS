@@ -1,7 +1,7 @@
 # Icons: art for apps, folders and files
 
 The art side of an icon. Building and packaging (`.iconset`, `iconutil`, Icon Composer, placing icons with
-`NSWorkspace.setIcon`) is in the `mac-app` skill's "Icons" section; do that after the user picks a design.
+`NSWorkspace.setIcon`) is in the `mac-app` skill (step 7 and "Icons on other things"); do that after the user picks a design.
 
 ## Direction
 

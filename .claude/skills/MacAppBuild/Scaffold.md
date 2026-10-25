@@ -12,7 +12,7 @@ renames `Starter` to the PascalCase name (`MacBattery`) and `menubar-starter` to
 else. Repos come later, with the owner's OK: `tools/mp promote <name> --yes` (see `docs/tools.md`).
 
 This is for plugins of this workspace. Apps a user makes through Summon do not go here: they start with
-`summon project new <name> --kind menubar|app|cli|screensaver` in `~/Summon/<name>` from Summon's own templates
+`summon project new <name> --kind menubar|app|cli|screensaver` in `~/Summon/Apps/<name>` from Summon's own templates
 (`incubator/summon/templates/`, each with `scripts/check.sh`, `LICENSE` and `PROJECT-CONTEXT.md`), are listed only
 in Summon's private `~/.config/summon/projects.json`, and get a private repo only through `summon project repo`.
 

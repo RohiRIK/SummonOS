@@ -2,15 +2,15 @@ import Foundation
 import Testing
 @testable import SummonCore
 
-@Suite("Every new app gets a private repo")
+@Suite("A new app gets a private repo only when the owner chose so")
 struct RepoPolicyTests {
-    @Test func alwaysIsTheDefaultAndAskIsKept() throws {
+    @Test func askIsTheDefaultAndAChoiceIsKept() throws {
         let store = RepoPolicyStore(paths: SummonPaths(home: try makeTempHome()))
-        #expect(store.load() == .always)
-        try store.save(.ask)
         #expect(store.load() == .ask)
         try store.save(.always)
         #expect(store.load() == .always)
+        try store.save(.ask)
+        #expect(store.load() == .ask)
     }
 
     @Test func reposAreAlwaysPrivate() {
