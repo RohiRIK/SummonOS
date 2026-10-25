@@ -137,6 +137,17 @@ public enum SummonMCP {
                 let text = "Checkpoint \(checkpoint.id) \"\(checkpoint.label)\". Undo: summon checkpoint undo \(checkpoint.id)"
                 return MCPServer.ToolResult(text: ([text] + problems).joined(separator: "\n"), structured: try? .encoding(checkpoint))
             },
+            MCPServer.Tool(name: "mac_events", title: "What changed on this Mac",
+                           description: "Recent changes Summon noticed, newest first: network offline/online, VPN, low disk space, battery low, running hot, displays connected. Logged while Summon.app runs.",
+                           inputSchema: schema(["limit": .object(["type": "integer", "minimum": 1, "maximum": 50])]),
+                           readOnly: true) { arguments in
+                let limit = min(max(arguments["limit"]?.int ?? 10, 1), 50)
+                let events = Array(EventLog(paths: env.paths).read().filter { $0.kind.hasPrefix("mac.") }.reversed().prefix(limit))
+                let formatter = ISO8601DateFormatter()
+                let lines = events.map { "\(formatter.string(from: $0.time))  \($0.title)" + ($0.detail.map { " (\($0))" } ?? "") }
+                return MCPServer.ToolResult(text: lines.isEmpty ? "No Mac changes logged yet (Summon.app logs them while it runs)." : lines.joined(separator: "\n"),
+                                            structured: try? .encoding(["events": events]))
+            },
             MCPServer.Tool(name: "crash_list", title: "Crash reports",
                            description: "Recent crash, hang and panic reports on this Mac, newest first (programs the user muted are skipped).",
                            inputSchema: schema(["limit": .object(["type": "integer", "minimum": 1, "maximum": 50])]),

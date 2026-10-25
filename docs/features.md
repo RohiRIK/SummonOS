@@ -153,8 +153,13 @@ sections:
   window, running apps, appearance, what the asking process may do (Accessibility, Screen Recording, Full Disk
   Access), installed agents and crashes in the last day. `summon context hide|show <field>` (or Settings › Agents)
   turns off the computer name, window title, running apps or file paths.
-- `summon events [--kind settings|agent|checkpoint|theme|problem] [--limit N]`: the same timeline as the
-  Activity window. `summon event add` and `event hook start|end` let tools write to it. The Claude Code
+- `summon events [--kind settings|agent|checkpoint|theme|problem|mac] [--limit N] [--follow]`: the same timeline as
+  the Activity window; `--follow` keeps printing new lines, so an agent can watch the Mac.
+- **Live Mac events:** while Summon.app runs, it compares a `summon context` snapshot every 30 seconds and logs
+  what changed as `mac.*` events in the Activity window. That covers: network offline or back online, VPN on or
+  off, low disk space (under 20 GB) and recovered, battery low (20%) or very low (10%), the Mac running hot or
+  cooling down, and displays connected or disconnected. Only crossings are logged, never the same state every
+  minute. Agents read them with the MCP tool `mac_events` (11 tools now) or `summon events --kind mac --follow`. `summon event add` and `event hook start|end` let tools write to it. The Claude Code
   plugin's session hooks use them.
 - **Fix with AI** (`summon fix`) hands the agent only crashes from the last 24 hours that no agent has seen yet,
   the same ones the panel shows, so pressing it again never repeats the same reports.
@@ -197,7 +202,7 @@ sections:
 ### Every agent: the MCP server
 
 `summon mcp` is an MCP server on stdio, so any MCP client (Claude Code, Codex, Gemini CLI, Cursor, opencode,
-Raycast) can use this Mac. It is native Swift with no dependencies, and it serves 10 tools:
+Raycast) can use this Mac. It is native Swift with no dependencies, and it serves 11 tools:
 
 | Tool | Does |
 |---|---|
@@ -207,6 +212,7 @@ Raycast) can use this Mac. It is native Swift with no dependencies, and it serve
 | `settings_undo`, `settings_history` | Roll back a change, newest first or by id, and list what changed |
 | `checkpoint_list`, `checkpoint_create` | Summon's restore points |
 | `crash_list` | Recent crash, hang and panic reports |
+| `mac_events` | What changed on the Mac recently: offline, VPN, low disk, battery, running hot, displays |
 
 `summon connect [agent...] [--dry-run]` registers the server with every agent it finds: Claude Code, Codex,
 Cursor, OpenCode, Hermes, OpenClaw, Antigravity CLI (`agy`) and Pi. It also adds a short marked "This Mac" note to

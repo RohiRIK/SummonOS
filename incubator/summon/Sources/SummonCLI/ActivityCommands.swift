@@ -5,9 +5,10 @@ enum ActivityCommands {
     /// `summon events [--json] [--limit N] [--kind settings|agent|checkpoint|theme|problem]`.
     static func events(_ args: inout Arguments, _ context: Context) throws {
         let json = args.flag("--json")
+        let follow = args.flag("--follow")
         let limitText = args.option("--limit")
         let kindText = args.option("--kind")
-        guard args.isEmpty else { throw CLIError("Usage: summon events [--json] [--limit N] [--kind settings|agent|checkpoint|theme|problem]") }
+        guard args.isEmpty else { throw CLIError("Usage: summon events [--json] [--limit N] [--kind settings|agent|checkpoint|theme|problem|mac] [--follow]") }
         let limit = try limitText.map { text -> Int in
             guard let value = Int(text), value > 0 else { throw CLIError("--limit takes a positive number") }
             return value
@@ -30,14 +31,26 @@ enum ActivityCommands {
         }
         if events.isEmpty {
             print("No activity yet.")
-            return
+            if !follow { return }
         }
-        for event in events {
-            let time = event.date.formatted(date: .abbreviated, time: .shortened)
-            let tag = event.category.rawValue.padding(toLength: 10, withPad: " ", startingAt: 0)
-            print("\(time)  \(tag) \(event.title)")
-            if let detail = event.detail { print("    \(detail)") }
+        for event in events { printLine(event) }
+        guard follow else { return }
+        // Keep printing what arrives, oldest first, until interrupted (an agent can watch the Mac this way).
+        var seen = Set(ActivitySources.load(paths: context.paths).events.map(\.id))
+        setvbuf(stdout, nil, _IOLBF, 0)
+        while true {
+            Thread.sleep(forTimeInterval: 2)
+            let fresh = ActivitySources.load(paths: context.paths).events.filter { !seen.contains($0.id) }
+            for event in fresh.reversed() where category == nil || event.category == category { printLine(event) }
+            seen.formUnion(fresh.map(\.id))
         }
+    }
+
+    static func printLine(_ event: ActivityEvent) {
+        let time = event.date.formatted(date: .abbreviated, time: .shortened)
+        let tag = event.category.rawValue.padding(toLength: 10, withPad: " ", startingAt: 0)
+        print("\(time)  \(tag) \(event.title)")
+        if let detail = event.detail { print("    \(detail)") }
     }
 
     /// `summon status [--json]`.
