@@ -6,6 +6,9 @@ import StarterCore
 @objc(StarterView)
 public final class StarterView: ScreenSaverView {
     private var drift = Drift(count: 0, width: 1, height: 1)
+    // The Summon theme's background and accent, else black and purple.
+    private var backColor = NSColor.black
+    private var dotColor = NSColor.systemPurple
     // Set once in setUp and read in deinit, which is not on the main actor.
     nonisolated(unsafe) private var observer: (any NSObjectProtocol)?
 
@@ -21,6 +24,10 @@ public final class StarterView: ScreenSaverView {
 
     private func setUp() {
         animationTimeInterval = 1.0 / 30
+        if let theme = SummonThemeFile.load() {
+            backColor = theme.colors["background"].map(Self.color) ?? backColor
+            dotColor = theme.colors["accent"].map(Self.color) ?? dotColor
+        }
         // The preview pane is tiny: fewer dots there.
         drift = Drift(count: isPreview ? 12 : 48, width: bounds.width, height: bounds.height)
         // legacyScreenSaver keeps running after the saver closes; stop drawing when macOS says it stopped.
@@ -48,13 +55,17 @@ public final class StarterView: ScreenSaverView {
     }
 
     public override func draw(_ rect: NSRect) {
-        NSColor.black.setFill()
+        backColor.setFill()
         bounds.fill()
-        NSColor.systemPurple.setFill()
+        dotColor.setFill()
         let size: Double = isPreview ? 3 : 6
         for dot in drift.dots {
             NSBezierPath(ovalIn: NSRect(x: dot.x - size / 2, y: dot.y - size / 2, width: size, height: size)).fill()
         }
+    }
+
+    private static func color(_ rgb: SummonThemeFile.RGB) -> NSColor {
+        NSColor(srgbRed: rgb.red, green: rgb.green, blue: rgb.blue, alpha: 1)
     }
 
     public override var hasConfigureSheet: Bool { false }

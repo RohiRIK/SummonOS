@@ -7,10 +7,10 @@ A screensaver: a `.saver` bundle whose `ScreenSaverView` subclass draws from a t
 | Path | What it is |
 |---|---|
 | `Sources/Starter/` | The `ScreenSaverView` subclass (`StarterView`): drawing and lifecycle only |
-| `Sources/StarterCore/` | The animation, Foundation only, tested |
-| `Resources/Info.plist` | The `.saver` bundle's plist: `NSPrincipalClass` `StarterView`, bundle id `local.summon.screensaver-starter` |
+| `Sources/StarterCore/` | The animation, Foundation only, tested (`SummonThemeFile` reads the Summon theme) |
+| `Resources/` | `Info.plist`: The `.saver` bundle's plist: `NSPrincipalClass` `StarterView`, bundle id `local.summon.screensaver-starter`; `AppIcon.icns` (a placeholder: replace it with the summon-art skill) |
 | `Tests/StarterCoreTests/` | swift-testing |
-| `scripts/check.sh` | The gate: build, tests, and the rest; writes `build/check-report.md` |
+| `scripts/check.sh` | The gate: build, tests (`scripts/test.sh`, which also works without Xcode), and the rest; writes `build/check-report.md` |
 
 ## Build and run
 

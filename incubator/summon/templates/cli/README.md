@@ -9,7 +9,7 @@ A command-line tool: one executable, argument parsing in a tested Core. Made wit
 | `Sources/Starter/` | `main.swift` only: runs the parsed command, prints, sets the exit code |
 | `Sources/StarterCore/` | Argument parsing and the work itself, Foundation only, tested |
 | `Tests/StarterCoreTests/` | swift-testing |
-| `scripts/check.sh` | The gate: build, tests, and the rest; writes `build/check-report.md` |
+| `scripts/check.sh` | The gate: build, tests (`scripts/test.sh`, which also works without Xcode), and the rest; writes `build/check-report.md` |
 
 ## Build and run
 

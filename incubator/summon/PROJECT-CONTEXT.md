@@ -17,10 +17,15 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   the Summon Menu (former launcher) inside it. It opens with ⌃⌥Space, `summon panel [--close]`, `open -g summon://panel`
   and `summon://menu/<id>`; there's no launcher window. Spec and proof hooks: `docs/menubar-panel.md`.
   Debug build for the E4 fixture: `scripts/bundle.sh --debug`. Builds on CI; installed and used on Rohi's Mac 2026-10-18.
-- Projects: `templates/{menubar,app,cli,screensaver}` (each a buildable package with README, MIT LICENSE,
-  PROJECT-CONTEXT.md, `scripts/check.sh`; CI builds them). `summon project new` copies one to `~/Summon/Apps/<name>` and
-  records it in the private `~/.config/summon/projects.json`; `summon project repo` makes a private repo after a
-  native dialog. Core: `Projects.swift`. Bundled into `Contents/share/summon/templates`.
+- Projects: `templates/{menubar,menubar-panel,app,cli,screensaver}`, the workspace's only templates (`tools/mp new`
+  copies them too, with `local.macplugins.`). Each is a buildable package with README, MIT LICENSE,
+  PROJECT-CONTEXT.md, `scripts/check.sh` + `scripts/test.sh` (CLT-compatible); UI kinds share Components, SummonTheme
+  (`.themed()`), Glass (`.glassControl()`), Screenshots (`--screenshot`), Open at Login, `Resources/AppIcon.icns`.
+  `--kind` is a `ProjectStarter` (template folder); the registry keeps the `ProjectKind` (`menubar-panel` → `menubar`).
+  CI job `templates` runs `summon project new` for every kind in a temp HOME and each one's `scripts/check.sh`.
+  `summon project new` copies one to `~/Summon/Apps/<name>` and records it in the private
+  `~/.config/summon/projects.json`; `summon project repo` makes a private repo after a native dialog. Core:
+  `Projects.swift`. Bundled into `Contents/share/summon/templates`.
 - Bundle id `local.macplugins.summon`. Depends on `macctl` (`macctl/` in the workspace) for every settings change.
 
 ## Constraints
@@ -41,6 +46,16 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — One canonical template set
+- `examples/menubar-starter` deleted, `examples/menubar-panel-starter` moved in as `templates/menubar-panel`;
+  `tools/mp new --kind menubar|menubar-panel|app|cli|screensaver` copies `templates/<kind>` (no more silent fallback).
+- New `ProjectStarter` (5 templates) over `ProjectKind` (4 registry kinds), so SummonMenuUI's switches stay as they are.
+- Template kit (see Current State). Panels follow MenuPanel.md: 300 wide, 6 padding, one command per row, footer
+  rows `Settings…` (⌘,, dismisses first) and `Quit <App>` (⌘Q) with key hints. Settings comment states the rule:
+  grouped Form under 3 sections, NavigationSplitView sidebar from 3.
+- `summon project shots` asks window apps for `--screenshot` too (`window-light/dark.png`); ItemHealth skips the icon
+  and screenshot checks for `cli`. UI templates do not compile with Command Line Tools only (`@State`, `#Preview`
+  macros): CI is their gate; cli and screensaver pass `scripts/check.sh` locally.
 ### 2026-10-25 — U2 panel v3 (owner: "too messy")
 - After seeing "Now + Recent" on the Mac the owner asked for less: home is Ask Agent, Make Something, My Apps, one
   status line (`PanelAttention.summary`; helpers and test runners filtered by `isHelper`), undo, Activity…,

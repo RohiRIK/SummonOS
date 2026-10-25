@@ -26,6 +26,9 @@ public struct ContentView: View {
                     Text(model.library.items.count == 1 ? "1 item" : "\(model.library.items.count) items")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .glassControl(cornerRadius: 10)
                         .padding(8)
                 }
             }

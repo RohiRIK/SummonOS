@@ -22,8 +22,8 @@ step() {
 }
 
 echo "# cli-starter check $(date -u +%Y-%m-%dT%H:%MZ)" >"$REPORT"
-step build swift build --scratch-path "$CACHE" --build-tests
-step tests swift test --scratch-path "$CACHE" --skip-build
+step build swift build --scratch-path "$CACHE"
+step tests scripts/test.sh
 step release swift build --scratch-path "$CACHE" -c release
 step help swift run --scratch-path "$CACHE" -c release --skip-build cli-starter --help
 cat "$REPORT"

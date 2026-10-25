@@ -12,7 +12,7 @@ root=$(cd "$(dirname "$0")/.." && pwd -P)
 cd "$root"
 
 # Folders that may hold a Swift package. macctl/ and incubator/ leave when they move to their own repos.
-ALLOWED_PACKAGE_ROOTS="macctl/ incubator/ examples/"
+ALLOWED_PACKAGE_ROOTS="macctl/ incubator/"
 
 MAX_BYTES=$((2 * 1024 * 1024))
 

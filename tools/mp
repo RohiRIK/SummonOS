@@ -2,8 +2,8 @@
 # shellcheck disable=SC2016 # jq programs use $vars inside single quotes on purpose
 # mp: the plugin home manager. plugins.json is the registry; plugins.md is generated from it.
 #
-#   mp new <name> [--kind menubar|app|screensaver] [--panel]   scratch/<name> from examples/<kind>-starter
-#                                                    (--panel: menubar-panel-starter, NSStatusItem + NSPanel), registered
+#   mp new <name> [--kind menubar|menubar-panel|app|cli|screensaver]   scratch/<name> from Summon's template
+#                                                    (incubator/summon/templates/<kind>), registered
 #   mp promote <name> [--owner <login>] [--yes]      private <name>-dev + public <name> repos, move to plugins/
 #   mp clone (<name>... | --all)                     clone registered dev repos into plugins/<name>
 #   mp list [--json]                                 registered plugins
@@ -17,6 +17,8 @@
 set -euo pipefail
 
 KINDS="menubar app cli claude-plugin screensaver"
+# What `mp new` starts from: Summon's templates, the same ones `summon project new` uses.
+TEMPLATES="menubar menubar-panel app cli screensaver"
 STATUSES="scratch incubating dev shipped archived"
 
 die() { echo "mp: $*" >&2; exit 1; }
@@ -222,43 +224,32 @@ cmd_status() {
 
 cmd_new() {
   need_reg
-  local name="" kind="menubar" panel=""
+  local name="" kind="menubar"
   while [ $# -gt 0 ]; do
     case "$1" in
-      --panel) panel=1; shift ;;
       --kind) [ $# -ge 2 ] || die "--kind needs a value"; kind=$2; shift 2 ;;
       --kind=*) kind=${1#--kind=}; shift ;;
       -*) die "unknown option $1" ;;
       *) [ -z "$name" ] || die "one name only"; name=$1; shift ;;
     esac
   done
-  [ -n "$name" ] || die "usage: mp new <name> [--kind $(echo "$KINDS" | tr ' ' '|')] [--panel]"
+  [ -n "$name" ] || die "usage: mp new <name> [--kind $(echo "$TEMPLATES" | tr ' ' '|')]"
   valid_name "$name" || die "name must be kebab-case (like mac-battery): $name"
   # shellcheck disable=SC2086
-  in_list "$kind" $KINDS || die "kind must be one of: $KINDS"
+  in_list "$kind" $TEMPLATES || die "kind must be one of: $TEMPLATES (claude-plugin: create the folder, then mp adopt)"
   [ -z "$(entry "$name")" ] || die "$name is already registered (mp list)"
 
-  local starter="$HOME_DIR/examples/$kind-starter"
-  if [ -n "$panel" ]; then
-    [ "$kind" = "menubar" ] || die "--panel is for --kind menubar"
-    starter="$HOME_DIR/examples/menubar-panel-starter"
-  fi
-  if [ ! -d "$starter" ]; then
-    case "$kind" in
-      app | screensaver)
-        note "no $kind starter yet; copied menubar-starter (replace its MenuBarExtra scene for this $kind)"
-        starter="$HOME_DIR/examples/menubar-starter"
-        ;;
-      *) die "no starter for kind $kind; create the folder yourself and run mp adopt" ;;
-    esac
-  fi
-  [ -d "$starter" ] || die "starter not found: $starter"
+  local starter="$HOME_DIR/incubator/summon/templates/$kind"
+  [ -f "$starter/Package.swift" ] || die "template not found: $starter"
 
-  local dest="$HOME_DIR/scratch/$name" old_name old_pascal new_pascal
+  local dest="$HOME_DIR/scratch/$name" old_name old_pascal new_pascal day
   [ ! -e "$dest" ] || die "$dest already exists"
-  old_name=$(basename "$starter")
+  old_name="$kind-starter"
   old_pascal="Starter"
   new_pascal=$(pascal "$name")
+  day=$(date +%Y-%m-%d)
+  # The registry kind: a menubar-panel app is a menu bar app.
+  [ "$kind" != "menubar-panel" ] || kind=menubar
 
   mkdir -p "$HOME_DIR/scratch"
   cp -R "$starter" "$dest"
@@ -271,10 +262,12 @@ cmd_new() {
     newbase=$(printf '%s' "$base" | sed "s/$old_pascal/$new_pascal/g")
     mv "$p" "$(dirname "$p")/$newbase"
   done
+  # Text files only (-I skips the icon). Plugins use the local.macplugins bundle prefix, Summon apps local.summon.
   find "$dest" -type f | while IFS= read -r f; do
-    if grep -q -e "$old_pascal" -e "$old_name" "$f"; then
+    if grep -qI -e "$old_pascal" -e "$old_name" -e "{{DATE}}" -e "{{YEAR}}" -e "local\.summon\." "$f"; then
       tmp=$(mktemp)
-      sed -e "s/$old_name/$name/g" -e "s/$old_pascal/$new_pascal/g" "$f" >"$tmp"
+      sed -e "s/$old_name/$name/g" -e "s/$old_pascal/$new_pascal/g" -e "s/{{DATE}}/$day/g" -e "s/{{YEAR}}/${day%%-*}/g" \
+        -e "s/local\.summon\./local.macplugins./g" "$f" >"$tmp"
       cat "$tmp" >"$f"
       rm -f "$tmp"
     fi
@@ -294,7 +287,7 @@ cmd_new() {
   write_index
 
   echo "Created scratch/$name ($new_pascal, $kind) and registered it."
-  echo "Next: cd \"$dest\" && swift build && swift test"
+  echo "Next: cd \"$dest\" && scripts/check.sh"
   echo "Commit plugins.json and plugins.md in the workspace. Promote only with the owner's OK: mp promote $name"
 }
 

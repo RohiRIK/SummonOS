@@ -23,7 +23,7 @@ git clone https://github.com/RohiRIK/SummonOS && cd SummonOS
 
 ## Build and test
 
-Every Swift package (`macctl/`, `incubator/summon/`, `examples/*`, `incubator/summon/templates/*`) builds and
+Every Swift package (`macctl/`, `incubator/summon/`, `incubator/summon/templates/*`) builds and
 tests on its own:
 
 ```sh

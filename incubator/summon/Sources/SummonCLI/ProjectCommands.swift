@@ -4,6 +4,8 @@ import SummonCore
 
 enum ProjectCommands {
     static let kinds = ProjectKind.allCases.map(\.rawValue).joined(separator: "|")
+    /// What `new --kind` takes: every kind, plus `menubar-panel` (a menu bar app on NSStatusItem + NSPanel).
+    static let starters = ProjectStarter.allCases.map(\.rawValue).joined(separator: "|")
 
     /// `summon project new|register|import|list|path|forget|repo`.
     static func run(_ args: inout Arguments, _ context: Context) async throws {
@@ -21,7 +23,7 @@ enum ProjectCommands {
             let images = try await ShotCommands.shots(name, context)
             print(images.isEmpty ? "README updated" : images.joined(separator: "\n"))
         default:
-            throw CLIError("Usage: summon project new <name> --kind \(kinds) | register <name> [--kind \(kinds)] | import <path> [--name <name>] [--kind \(kinds)] | list [--json] | path <name> | forget <name> | repo <name> [--owner <login>]")
+            throw CLIError("Usage: summon project new <name> --kind \(starters) | register <name> [--kind \(kinds)] | import <path> [--name <name>] [--kind \(kinds)] | list [--json] | path <name> | forget <name> | repo <name> [--owner <login>]")
         }
     }
 
@@ -68,18 +70,18 @@ enum ProjectCommands {
         let json = args.flag("--json")
         let kindName = args.option("--kind")
         guard let name = args.next(), args.isEmpty, let kindName else {
-            throw CLIError("Usage: summon project new <name> --kind \(kinds) [--json]")
+            throw CLIError("Usage: summon project new <name> --kind \(starters) [--json]")
         }
-        guard let kind = ProjectKind(rawValue: kindName.lowercased()) else {
-            throw CLIError("Unknown kind: \(kindName)\nKnown: \(kinds.replacingOccurrences(of: "|", with: ", "))")
+        guard let starter = ProjectStarter(rawValue: kindName.lowercased()) else {
+            throw CLIError("Unknown kind: \(kindName)\nKnown: \(starters.replacingOccurrences(of: "|", with: ", "))")
         }
         let service = ProjectService(paths: context.paths, runner: context.runner, gitPath: context.git)
-        let (project, problems) = try await service.create(name: name, kind: kind, templates: templates)
+        let (project, problems) = try await service.create(name: name, kind: starter, templates: templates)
         for problem in problems {
             context.warn("summon: \(problem)")
         }
-        ActivityCommands.record(LoggedEvent(kind: EventKind.projectNew, title: "New \(kind.title.lowercased()) \(name)",
-                                            refs: ["folder": project.path, "kind": kind.rawValue]), context)
+        ActivityCommands.record(LoggedEvent(kind: EventKind.projectNew, title: "New \(project.kind.title.lowercased()) \(name)",
+                                            refs: ["folder": project.path, "kind": project.kind.rawValue]), context)
         // A new app gets its private repo right away only when the owner turned the standing approval on (Settings ›
         // General; `summon default repos always`; the default is `ask`). A missing gh or login never undoes the project: it says how to finish.
         var made = project

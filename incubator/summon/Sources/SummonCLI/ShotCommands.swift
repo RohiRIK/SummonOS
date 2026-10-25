@@ -22,12 +22,13 @@ enum ShotCommands {
         case .menubar, .app:
             let app = try bundle(folder, context)
             let exec = ProjectName.pascal(project.name)
-            // Menu bar apps from the template draw their own panel (`--screenshot`, light and dark): clean, and it
-            // works when the menu bar is full and the icon is hidden. Older apps and window apps: the live window.
+            // Apps from the templates draw their own panel or window (`--screenshot`, light and dark): clean, no
+            // Screen Recording, and it works when the menu bar is full and the icon is hidden. Older apps: live capture.
             let binary = (app as NSString).appendingPathComponent("Contents/MacOS/\(exec)")
-            let rendered = ["panel-light.png", "panel-dark.png"]
+            let surface = project.kind == .menubar ? "panel" : "window"
+            let rendered = ["\(surface)-light.png", "\(surface)-dark.png"]
             // At most 20 s: an app made before the template had `--screenshot` just launches and never exits.
-            if project.kind == .menubar, run(binary, ["--screenshot", shotsDir.path], within: 20),
+            if run(binary, ["--screenshot", shotsDir.path], within: 20),
                rendered.allSatisfy({ FileManager.default.fileExists(atPath: shotsDir.appendingPathComponent($0).path) }) {
                 images += rendered.map { "docs/screenshots/\($0)" }
             } else {

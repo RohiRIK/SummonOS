@@ -1,6 +1,6 @@
 import Foundation
 
-/// The four kinds of project Summon can start, one template each (`templates/<kind>` in the app's shared files).
+/// The four kinds of project Summon records. Each starts from a template (`ProjectStarter`).
 public enum ProjectKind: String, CaseIterable, Codable, Sendable {
     case menubar
     case app
@@ -22,6 +22,26 @@ public enum ProjectKind: String, CaseIterable, Codable, Sendable {
         case .app: "macwindow"
         case .cli: "terminal"
         case .screensaver: "display"
+        }
+    }
+
+}
+
+/// The templates `summon project new --kind` starts from (`templates/<rawValue>` in the app's shared files). Each
+/// records a `ProjectKind`: `menubar-panel` is a menu bar app whose item is an `NSStatusItem` + `NSPanel`.
+public enum ProjectStarter: String, CaseIterable, Sendable {
+    case menubar
+    case menubarPanel = "menubar-panel"
+    case app
+    case cli
+    case screensaver
+
+    public var kind: ProjectKind {
+        switch self {
+        case .menubar, .menubarPanel: .menubar
+        case .app: .app
+        case .cli: .cli
+        case .screensaver: .screensaver
         }
     }
 
@@ -128,7 +148,7 @@ public enum ProjectTemplate {
     public static let pascalPlaceholder = "Starter"
     static let skipped: Set<String> = [".build", ".swiftpm", "build", ".DS_Store"]
 
-    public static func instantiate(template: URL, to destination: URL, name: String, kind: ProjectKind, date: Date) throws {
+    public static func instantiate(template: URL, to destination: URL, name: String, kind: ProjectStarter, date: Date) throws {
         let fileManager = FileManager.default
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withFullDate]
@@ -219,14 +239,14 @@ public struct ProjectService: Sendable {
         self.gitPath = gitPath
     }
 
-    /// Copies `templates/<kind>` to `~/Summon/Apps/<name>`, makes it a git repo with a first commit, and registers it.
+    /// Copies `templates/<starter>` to `~/Summon/Apps/<name>`, makes it a git repo with a first commit, and registers it.
     /// Returns the project and any git problems (the project is usable without them).
-    public func create(name: String, kind: ProjectKind, templates: URL, date: Date = Date()) async throws -> (Project, [String]) {
+    public func create(name: String, kind starter: ProjectStarter, templates: URL, date: Date = Date()) async throws -> (Project, [String]) {
         guard ProjectName.isValid(name) else { throw ProjectError.invalidName(name) }
         let store = ProjectStore(paths: paths)
         var registry = try store.load()
         guard registry.find(name) == nil else { throw ProjectError.alreadyRegistered(name) }
-        let template = templates.appendingPathComponent(kind.rawValue, isDirectory: true)
+        let template = templates.appendingPathComponent(starter.rawValue, isDirectory: true)
         guard FileManager.default.fileExists(atPath: template.appendingPathComponent("Package.swift").path) else {
             throw ProjectError.noTemplate(template.path)
         }
@@ -234,7 +254,7 @@ public struct ProjectService: Sendable {
         let destination = paths.projects.appendingPathComponent(name, isDirectory: true)
         guard !FileManager.default.fileExists(atPath: destination.path) else { throw ProjectError.alreadyExists(destination.path) }
 
-        try ProjectTemplate.instantiate(template: template, to: destination, name: name, kind: kind, date: date)
+        try ProjectTemplate.instantiate(template: template, to: destination, name: name, kind: starter, date: date)
 
         var problems: [String] = []
         if let git = gitPath {
@@ -242,7 +262,7 @@ public struct ProjectService: Sendable {
             do {
                 _ = try await runner(git, ["-C", dir, "init", "-q", "-b", "main"])
                 _ = try await runner(git, ["-C", dir, "add", "-A"])
-                _ = try await runner(git, ["-C", dir, "commit", "-q", "-m", "chore: start from the Summon \(kind.rawValue) template"])
+                _ = try await runner(git, ["-C", dir, "commit", "-q", "-m", "chore: start from the Summon \(starter.rawValue) template"])
             } catch {
                 problems.append("git: \(error)")
             }
@@ -250,7 +270,7 @@ public struct ProjectService: Sendable {
             problems.append("git is not installed, so the project is not a git repository yet.")
         }
 
-        let project = Project(name: name, kind: kind, path: destination.path, created: date)
+        let project = Project(name: name, kind: starter.kind, path: destination.path, created: date)
         registry.upsert(project)
         try store.save(registry)
         return (project, problems)
