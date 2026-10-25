@@ -105,12 +105,47 @@ One read-only, fast (<300 ms), redacted snapshot of the Mac that any agent can a
 - [ ] **Live Mac events for agents:** `summon events --follow` and MCP notifications for network change, low disk,
       thermal pressure, crashes and app launches.
 
+## Phase R: CI and releases (can run alongside Phases 2–3; owner request 2026-10-25)
+
+Today: `swift.yml` runs on every push to any branch **and** on pull requests, so each PR runs twice (two run ids
+per job). It builds and tests in debug only, only on `macos-26`. There are no tags, no GitHub Releases, no version
+number in `summon` or `macctl`, and `install.sh` needs Xcode because it builds from source.
+
+- [ ] **Leaner CI:**
+  - Trigger on `push` to `main` plus `pull_request` only, which halves the runs.
+  - `concurrency` keyed on the PR number with `cancel-in-progress`.
+  - Add a `macos-15` leg for the minimum OS.
+  - A `paths` filter, so a docs-only change skips the Swift jobs.
+- [ ] **Version stamping:** one SummonOS version (`vX.Y.Z`) generated into Core at build time from the tag.
+  `summon --version` and `macctl --version` print it, and `summon doctor` shows it.
+- [ ] **Release workflow `release.yml`,** run on a `v*` tag or by hand:
+  - Release-mode universal (arm64 + x86_64) builds of `summon`, `macctl` and `Summon.app`.
+  - A zip plus `SHA256SUMS`.
+  - GitHub artifact attestation (`actions/attest-build-provenance`), so anyone can verify a binary came from this repo.
+  - Release notes generated from conventional commits and CHANGELOG.
+  - Ad-hoc signed preview by default. Developer ID signing and notarization (existing `tools/notarize-app.sh`)
+    run only when the signing secrets are set.
+- [ ] **Channels, the Omarchy way:**
+  - `stable` comes from tags.
+  - `edge` is a rolling prerelease rebuilt from every green `main`.
+  - `summon update [--channel stable|edge]` downloads, verifies the checksum, swaps in the new version with rollback,
+    then runs `summon doctor`.
+- [ ] **Binary install:** `install.sh` downloads the latest release by default, so no Xcode is needed. `--from-source`
+  keeps today's path.
+- [ ] **Homebrew:** a tap `RohiRIK/homebrew-summonos` with a formula for the CLIs and a cask for Summon.app. The release
+  workflow bumps it automatically.
+- [ ] **More checks:**
+  - CodeQL for Swift (free on public repos).
+  - `tools/private-scan.sh` in CI.
+  - Dependabot for pinned actions.
+  - A post-release smoke job on a clean runner: install from the release, then run `summon doctor`, `summon context`
+    and `macctl doctor`.
+
 ## Phase 4: Ship and show
 
 - [ ] Finish release qualification from `docs/plans/2026-10-20-production-readiness.md`:
-  - signed and notarized build
-  - real install, upgrade and uninstall
-  - Homebrew tap and update channel
+  - real install, upgrade and uninstall (the Phase R smoke job covers part of it)
+  - recovery and the OS/CPU matrix
 - [ ] Rewrite the README around "the agentic layer for the Mac". Add 3 GIFs (`tools/record-demos.sh`): undo timeline,
       summon with context, and the same Mac diagnosed by Claude, Codex and Gemini side by side.
 - [ ] `docs/features.md`, `PROJECT-CONTEXT.md`, `plugins.json` and `docs/log.md` updated after each phase.
@@ -125,6 +160,10 @@ A tiling window manager, restyling system chrome (blocked by SIP), an ISO or ful
 2. Privacy: context fields are **on by default**. The user can turn each sensitive field (SSID, window titles,
    hostname, user paths) off in Settings › Agents.
 3. First PR: Phase 0 + Phase 1 (context engine). The MCP server is PR 2.
+
+4. Releases are ad-hoc signed preview builds for now, with no Apple Developer ID. The notarization path stays
+   behind its secrets.
+5. The first version is `v0.1.0`. The agent creates a release tag only after the owner's OK for that release.
 
 ## Review
 
