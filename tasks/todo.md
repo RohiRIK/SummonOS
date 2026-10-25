@@ -94,7 +94,7 @@ One read-only, fast (<300 ms), redacted snapshot of the Mac that any agent can a
   It also writes a marked block into each agent's always-loaded instructions file. The block tells the agent "On
   this Mac, call `summon context` / the `summon` MCP". Back up each file first. `summon disconnect` removes only
   Summon's entry and block, keeping any changes the user made since.
-- [ ] Start hooks: the Claude Code plugin's SessionStart hook injects `summon context` (compact) through
+- [x] Start hooks (PR 5): `summon connect` adds a session-start hook to Claude Code, Codex, Cursor and agy. Was: the Claude Code plugin's SessionStart hook injects `summon context` (compact) through
       `additionalContext`. Add the same for the other targets where they support a start hook.
 - [x] Add Hermes and OpenClaw to the agent registry (`Agent.swift`). Drop the "gemini"/"gemini-cli" aliases'
       Gemini wording, since `agy` is the agent. Give copilot, cursor-agent and grok skill folders where they support them.
@@ -119,7 +119,7 @@ Today: `swift.yml` runs on every push to any branch **and** on pull requests, so
 per job). It builds and tests in debug only, only on `macos-26`. There are no tags, no GitHub Releases, no version
 number in `summon` or `macctl`, and `install.sh` needs Xcode because it builds from source.
 
-- [ ] **Leaner CI:**
+- [x] **Leaner CI:** (PR #73)
   - Trigger on `push` to `main` plus `pull_request` only, which halves the runs.
   - `concurrency` keyed on the PR number with `cancel-in-progress`.
   - Add a `macos-15` leg for the minimum OS.
@@ -130,7 +130,7 @@ number in `summon` or `macctl`, and `install.sh` needs Xcode because it builds f
       It needs Xcode 27 installed. Make it a required check, or register the Mac as a self-hosted runner.
     - Switch to `macos-27` when GitHub ships that image.
   - A `paths` filter, so a docs-only change skips the Swift jobs.
-- [ ] **Version stamping:** one SummonOS version (`vX.Y.Z`) generated into Core at build time from the tag.
+- [x] **Version stamping:** (PR #73; typed in by hand and guarded by `check-workspace.sh`, not generated from the tag) one SummonOS version (`vX.Y.Z`) generated into Core at build time from the tag.
   `summon --version` and `macctl --version` print it, and `summon doctor` shows it.
 - [ ] **Release workflow `release.yml`,** run on a `v*` tag or by hand:
   - Release-mode universal (arm64 + x86_64) builds of `summon`, `macctl` and `Summon.app`.

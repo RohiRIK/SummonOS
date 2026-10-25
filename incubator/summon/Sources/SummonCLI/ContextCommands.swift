@@ -2,7 +2,7 @@ import Foundation
 import SummonCore
 
 enum ContextCommands {
-    static let usage = "Usage: summon context [--json] [--only a,b] | context fields | context hide|show <field>"
+    static let usage = "Usage: summon context [--json | --hook <agent>] [--only a,b] | context fields | context hide|show <field>"
 
     /// `summon context [--json] [--only a,b]`, `summon context fields`, `summon context hide|show <field>`.
     @MainActor
@@ -26,12 +26,15 @@ enum ContextCommands {
             print("\(field.rawValue): \(visible ? "shown" : "hidden") to agents")
         default:
             let json = args.flag("--json")
+            let hook = args.option("--hook")
             let only = args.option("--only")?.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
             guard args.isEmpty else { throw CLIError(usage) }
             var snapshot = MacContextProbe.live(paths: context.paths, tools: context.tools, hidden: store.load().hiddenContext)
             if let only {
                 do { snapshot = try snapshot.only(only) } catch { throw CLIError(String(describing: error)) }
             }
+            // A start hook must never block a session: it prints the snapshot in the agent's format and exits 0.
+            if let hook { return print(snapshot.hookOutput(for: hook)) }
             guard json else { return print(snapshot.render()) }
             // ISO dates for agents; printJSON keeps the app's reference-date format for other commands.
             let encoder = JSONEncoder()
