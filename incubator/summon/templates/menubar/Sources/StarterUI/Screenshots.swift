@@ -20,15 +20,22 @@ public enum Screenshots {
 
     @MainActor
     public static func write(to folder: URL) throws {
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        for (name, appearance) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
-            // An off-screen window draws real AppKit controls (ImageRenderer shows them as placeholders), with no
-            // Screen Recording permission and no visible display needed.
-            let framed = PanelView(model: StarterModel())
+        try render(name: "panel", to: folder) {
+            PanelView(model: StarterModel())
                 .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.separator))
                 .padding(20)
-            let host = NSHostingView(rootView: framed)
+        }
+    }
+
+    /// Writes `<name>-light.png` and `<name>-dark.png`.
+    @MainActor
+    static func render<V: View>(name: String, to folder: URL, @ViewBuilder _ view: () -> V) throws {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        for (look, appearance) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
+            // An off-screen window draws real AppKit controls (ImageRenderer shows them as placeholders), with no
+            // Screen Recording permission and no visible display needed.
+            let host = NSHostingView(rootView: view())
             host.appearance = NSAppearance(named: appearance)
             host.frame.size = host.fittingSize
             let window = NSWindow(contentRect: CGRect(origin: CGPoint(x: -10_000, y: -10_000), size: host.frame.size),
@@ -44,7 +51,7 @@ public enum Screenshots {
                 host.cacheDisplay(in: host.bounds, to: bitmap)
             }
             guard let png = bitmap.representation(using: .png, properties: [:]) else { throw CocoaError(.fileWriteUnknown) }
-            try png.write(to: folder.appendingPathComponent("panel-\(name).png"))
+            try png.write(to: folder.appendingPathComponent("\(name)-\(look).png"))
         }
     }
 }

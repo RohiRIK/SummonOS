@@ -1,0 +1,45 @@
+# Makes a project of every template kind with the real `summon project new` (in a temporary HOME, repos policy
+# "ask", never `project repo`) and runs that project's own scripts/check.sh: what an agent starts from is what CI
+# checks. build-and-test in swift.yml still builds the raw templates.
+name: Templates
+
+on:
+  push:
+    branches: [main]
+    paths: ["incubator/summon/**", ".github/workflows/templates.yml"]
+  pull_request:
+    paths: ["incubator/summon/**", ".github/workflows/templates.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  new-project-check:
+    runs-on: macos-26
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        kind: [menubar, menubar-panel, app, cli, screensaver]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: |
+          # Same as swift.yml build-and-test: the templates call macOS 26 APIs behind #available, so Xcode 26.
+          version=$(xcodebuild -version)
+          if ! grep -q '^Xcode 26' <<<"$version"; then
+            xcode=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+            [ -n "$xcode" ] || { echo "::error::no Xcode 26 on this image"; exit 1; }
+            sudo xcode-select -s "$xcode"
+          fi
+          xcodebuild -version
+          swift --version
+      - name: summon project new + scripts/check.sh (${{ matrix.kind }})
+        run: incubator/summon/scripts/check-templates.sh "${{ matrix.kind }}"

@@ -206,12 +206,16 @@ sections:
 
 ### Make things: projects from templates
 
-- `summon project new <name> --kind menubar|app|cli|screensaver` copies a template to `~/Summon/Apps/<name>`,
+- `summon project new <name> --kind menubar|menubar-panel|app|cli|screensaver` copies a template to `~/Summon/Apps/<name>`,
   runs `git init` with a first commit, and records it in a private list (`~/.config/summon/projects.json`).
   Also `project list`, `project path`, `project forget`.
-- **Templates:** menu bar app, window app, CLI tool, screensaver. Each builds on its own and has a tested
-  Core, README, MIT LICENSE, `PROJECT-CONTEXT.md` and `scripts/check.sh`
-  ([`templates/`](../incubator/summon/templates)).
+- **Templates:** menu bar app, menu bar app on an `NSPanel` (opens from code, takes typing without stealing focus),
+  window app, CLI tool, screensaver: the one set of templates, also used by `tools/mp new` for workspace plugins.
+  Each builds on its own and has a tested Core, README, MIT LICENSE, `PROJECT-CONTEXT.md`, `scripts/check.sh` and
+  `scripts/test.sh` (runs the tests with only the Command Line Tools). The app kinds also share a kit: system-menu
+  rows for panels, the Summon theme's accent (follows `summon theme set` live), Liquid Glass controls on macOS 26
+  with a material on 15, Open at Login in Settings, a placeholder app icon, and `--screenshot` for
+  `summon project shots` ([`templates/`](../incubator/summon/templates)).
 - **GitHub only when you say so:** by default (`summon default repos` is `ask`) a new app gets no repo.
   `summon project repo <name>` creates a private repo (screenshots, CI, first push) only after you click Create in
   a native dialog; Cancel is the default button, and no flag skips the dialog. Turning on Settings › General ›
@@ -429,8 +433,8 @@ What this repo gives you for building more apps ([`README.md`](../README.md), [`
 
 CI ([`.github/workflows/swift.yml`](../.github/workflows/swift.yml)) runs once per PR and once per push to `main`
 (a newer commit on a PR cancels its older run). It builds and tests every Swift package, including Summon's templates,
-`examples/menubar-starter` and `examples/menubar-panel-starter`, on `macos-26` and on `macos-15` (the minimum OS,
-built with Xcode 26). An informational Xcode 27 leg (public preview on `macos-26`) builds and tests `summon` and
+on `macos-26` and on `macos-15` (the minimum OS, built with Xcode 26), and makes a project of every template kind
+with the real `summon project new` in a temporary home and runs its `scripts/check.sh`. An informational Xcode 27 leg (public preview on `macos-26`) builds and tests `summon` and
 `macctl` to catch macOS 27 SDK breaks; it never blocks a merge and skips when the image has no Xcode 27.
 A docs-only change (`docs/**`, or `*.md` outside a Swift package and `.claude/`) skips the Swift jobs.
 It also validates design skill structure, typechecks their Swift examples, runs tooling regressions, and checks that

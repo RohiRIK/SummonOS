@@ -22,7 +22,6 @@ idea only when it fits, and credit it in `THIRD_PARTY_NOTICES.md` when code or a
 │   ├── research/            research notes behind the skills
 │   └── plans/               finished and long plans, one file each: YYYY-MM-DD-<name>.md
 ├── tools/                   workspace scripts: mp, check-workspace.sh, okf-index.py, readme-art.py, publish, release
-├── examples/                menubar-starter/, menubar-panel-starter/ (CI-built skeletons that `tools/mp new` copies)
 ├── .claude/skills/          shared skills, used by every plugin (see below)
 ├── plugins/<name>/          one folder per plugin, each its own git repo (gitignored here)
 ├── scratch/<name>/          agent-made apps with no repo yet, from `tools/mp new` (gitignored)
@@ -31,9 +30,10 @@ idea only when it fits, and credit it in `THIRD_PARTY_NOTICES.md` when code or a
 ```
 
 `.gitignore` is a root allowlist: anything new at the top level is ignored until it is added there.
-New plugins start with `tools/mp new <name>` in `scratch/`; `tools/mp promote` (owner's OK each time)
-creates the repo pair. Tool details: `docs/tools.md`. Apps made through Summon are separate: they live in
-`~/Summon/Apps/<name>` (from `incubator/summon/templates/`), in Summon's private project list, never in `plugins.json`.
+New plugins start with `tools/mp new <name> [--kind <kind>]` in `scratch/`, from the same templates as Summon
+(`incubator/summon/templates/`); `tools/mp promote` (owner's OK each time) creates the repo pair. Tool details:
+`docs/tools.md`. Apps made through Summon are separate: they live in `~/Summon/Apps/<name>`, in Summon's private
+project list, never in `plugins.json`.
 
 ## Skills: which one when
 

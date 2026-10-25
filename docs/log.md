@@ -1,6 +1,7 @@
 # Docs update log
 
 ## 2026-10-25
+* **Update**: [Features](features.md), [tools](tools.md), [workflow](workflow.md), [Scaffold](../.claude/skills/MacAppBuild/Scaffold.md): one template set, `incubator/summon/templates/{menubar,menubar-panel,app,cli,screensaver}`; `examples/` is gone and `tools/mp new --kind <kind>` copies these templates. Every template has a CLT-compatible `scripts/test.sh`; UI kinds share a kit (menu rows, Summon theme, Liquid Glass controls, Open at Login, app icon, `--screenshot`). CI makes a project of every kind with `summon project new` and runs its `scripts/check.sh`.
 * **Update**: [Features](features.md): minimal panel (Needs attention, Now, Recent, three actions; the rest by search or Settings › Setup), Liquid Glass, 320 pt; no agent clock in the menu bar by default.
 * **Update**: [Features](features.md), [Install for agents](install-ai.md): `summon update [--channel stable|edge] [--check] [--yes]`; the release workflow publishes a rolling `edge` prerelease after every green `main`, and `install.sh --channel edge` installs it (never by default).
 * **Update**: [Features](features.md) and [Tools](tools.md): more CI checks: CodeQL for Swift, a privacy scan with public patterns, Dependabot for pinned actions, and a post-release smoke test that installs the release on a clean runner.

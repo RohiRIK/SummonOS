@@ -132,15 +132,17 @@ public enum AppHealthChecker {
         // --- ART INSPECTION RULES ---
 
         // 1. App Icon Art inspection
+        // A command-line tool has no bundle to put an icon in, and nothing to screenshot (its README gets `--help`).
+        let isTool = project.kind == .cli
         let resourcesFolder = folder.appendingPathComponent("Resources")
-        let hasAppIcon = fileManager.fileExists(atPath: resourcesFolder.appendingPathComponent("AppIcon.icns").path)
+        let hasAppIcon = isTool || fileManager.fileExists(atPath: resourcesFolder.appendingPathComponent("AppIcon.icns").path)
             || fileManager.fileExists(atPath: folder.appendingPathComponent("AppIcon.icns").path)
 
         // 2. UI Screenshots / Showcase Art inspection
         let shotsFolder = folder.appendingPathComponent("docs/screenshots")
         let shots = (try? fileManager.contentsOfDirectory(atPath: shotsFolder.path))?
             .filter { $0.hasSuffix(".png") || $0.hasSuffix(".jpg") || $0.hasSuffix(".jpeg") } ?? []
-        let hasScreenshots = !shots.isEmpty
+        let hasScreenshots = isTool || !shots.isEmpty
 
         if !hasAppIcon && !hasScreenshots {
             return ItemHealth(

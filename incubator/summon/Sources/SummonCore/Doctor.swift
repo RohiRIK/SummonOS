@@ -205,7 +205,7 @@ public struct Doctor: Sendable {
                                fix: "Reinstall with scripts/install.sh, or set SUMMON_PATH to the folder holding skills/ and themes/")
         }
         let templates = share.appendingPathComponent("templates", isDirectory: true)
-        let missing = ProjectKind.allCases.filter { kind in
+        let missing = ProjectStarter.allCases.filter { kind in
             !FileManager.default.fileExists(atPath: templates.appendingPathComponent(kind.rawValue).path)
         }
         guard missing.isEmpty else {
@@ -214,7 +214,7 @@ public struct Doctor: Sendable {
                                fix: "Reinstall with scripts/bundle.sh && scripts/install.sh (in incubator/summon)")
         }
         return DoctorCheck("install.files", .pass,
-                           "\(tilde(share.path)): \(skillCount) skills, \(themeCount) themes, \(ProjectKind.allCases.count) project templates")
+                           "\(tilde(share.path)): \(skillCount) skills, \(themeCount) themes, \(ProjectStarter.allCases.count) project templates")
     }
 
     // MARK: Config

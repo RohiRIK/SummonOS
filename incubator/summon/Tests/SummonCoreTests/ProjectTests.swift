@@ -50,6 +50,12 @@ struct ProjectTests {
         #expect(ProjectKind.screensaver.systemImage == "display")
     }
 
+    @Test func liveHomeFollowsHOME() {
+        #expect(SummonPaths.liveHome(environment: ["HOME": "/tmp/ci-home"]).path == "/tmp/ci-home")
+        #expect(SummonPaths.liveHome(environment: [:]) == FileManager.default.homeDirectoryForCurrentUser)
+        #expect(SummonPaths.liveHome(environment: ["HOME": "relative"]) == FileManager.default.homeDirectoryForCurrentUser)
+    }
+
     @Test func projectsLiveInSummonUnderHome() throws {
         let paths = SummonPaths(home: try makeTempHome())
         #expect(paths.projects.path.hasSuffix("/Summon/Apps"))
@@ -59,8 +65,8 @@ struct ProjectTests {
         #expect(FileManager.default.fileExists(atPath: paths.projects.path, isDirectory: &isDirectory) && isDirectory.boolValue)
     }
 
-    @Test(arguments: ProjectKind.allCases)
-    func everyTemplateIsComplete(kind: ProjectKind) throws {
+    @Test(arguments: ProjectStarter.allCases)
+    func everyTemplateIsComplete(kind: ProjectStarter) throws {
         let template = shippedTemplates.appendingPathComponent(kind.rawValue)
         for file in ["Package.swift", "README.md", "LICENSE", "PROJECT-CONTEXT.md", ".gitignore", "scripts/check.sh"] {
             #expect(FileManager.default.fileExists(atPath: template.appendingPathComponent(file).path), "\(kind) misses \(file)")
@@ -69,8 +75,8 @@ struct ProjectTests {
         #expect((mode ?? 0) & 0o111 != 0, "\(kind) check.sh is not executable")
     }
 
-    @Test(arguments: ProjectKind.allCases)
-    func templateBecomesTheNamedProject(kind: ProjectKind) throws {
+    @Test(arguments: ProjectStarter.allCases)
+    func templateBecomesTheNamedProject(kind: ProjectStarter) throws {
         let home = try makeTempHome()
         let destination = home.appendingPathComponent("Summon/mac-battery")
         try ProjectTemplate.instantiate(template: shippedTemplates.appendingPathComponent(kind.rawValue),
@@ -80,6 +86,7 @@ struct ProjectTests {
         for file in files {
             let relative = String(file.path.dropFirst(destination.path.count))
             #expect(!relative.contains("Starter") && !relative.contains(kind.placeholder), "path not renamed: \(relative)")
+            if file.pathExtension == "icns" { continue } // binary art, copied as is
             let text = try String(contentsOf: file, encoding: .utf8)
             for leftover in ["Starter", kind.placeholder, "{{DATE}}", "{{YEAR}}"] {
                 #expect(!text.contains(leftover), "\(relative) still says \(leftover)")
