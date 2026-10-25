@@ -40,6 +40,12 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — Live Mac events for agents
+- `MacEvents.changes(from:to:)` (Core, tested) logs only threshold crossings as `mac.network|disk|battery|thermal|display`.
+  `SummonModel.checkMac()` runs in the 30 s crash-watch loop (a shortcut, noted in the code: poll rather than
+  SCDynamicStore). There is a new `ActivityEvent.Category.mac` (Activity icon `desktopcomputer`, teal).
+- `summon events --follow` reloads the timeline every 2 s and prints new events. MCP `mac_events` returns the
+  newest `mac.*` log entries (11 tools).
 ### 2026-10-25 — Undo removes what a change created
 - `CreatedFiles` (Core, tested): `theme set` records the files and folders it created as the `created` ref of its
   `theme.set` event (`createdCandidates`, every file listed one by one). `checkpoint undo` removes them deepest

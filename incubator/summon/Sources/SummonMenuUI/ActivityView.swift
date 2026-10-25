@@ -252,6 +252,8 @@ struct LogLine: View {
             return "clock.arrow.circlepath"
         case .theme:
             return "paintbrush.pointed.fill"
+        case .mac:
+            return "desktopcomputer"
         }
     }
 
@@ -267,6 +269,8 @@ struct LogLine: View {
             return .indigo
         case .theme:
             return .purple
+        case .mac:
+            return .teal
         }
     }
 

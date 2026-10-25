@@ -266,12 +266,24 @@ public final class SummonModel {
 
     // MARK: Crash watching
 
+    private var lastMac: MacContext?
+
+    /// Logs what changed on the Mac since the last look (offline, low disk, hot, battery, displays) for agents.
+    /// shortcut: a 30 s poll of the ~60 ms snapshot; switch to SCDynamicStore and ProcessInfo notifications if it
+    /// ever shows up in energy use.
+    func checkMac() {
+        let snapshot = MacContextProbe.live(paths: paths, tools: ToolLocator.live(), hidden: [])
+        for event in MacEvents.changes(from: lastMac, to: snapshot) { try? EventLog(paths: paths).append(event) }
+        lastMac = snapshot
+    }
+
     public func startWatching(interval: Duration = .seconds(30)) {
         guard watchTask == nil else { return }
         watchTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let model = self else { return }
                 await model.scanCrashes()
+                model.checkMac()
                 try? await Task.sleep(for: interval)
             }
         }
