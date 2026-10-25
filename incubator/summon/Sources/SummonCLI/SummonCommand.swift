@@ -107,6 +107,10 @@ struct SummonCommand {
             try ContextCommands.run(&args, context)
         case "mcp":
             try await MCPCommand.run(&args, context)
+        case "connect":
+            try await ConnectCommands.run(&args, context, remove: false)
+        case "disconnect":
+            try await ConnectCommands.run(&args, context, remove: true)
         case "doctor":
             try await DoctorCommand.run(&args, context)
         case "fix":

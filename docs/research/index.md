@@ -11,3 +11,4 @@ Research notes behind the skills and the design of SummonOS apps.
 # Research
 
 * [Building native macOS apps with agents](2026-09-29-building-macos-apps.md) - What makes agent-built Mac apps good, and how it became the workspace skills. (2026-09-29)
+* [Where each agent keeps its MCP servers and instructions](2026-10-25-agent-mcp-configs.md) - MCP config, instructions file, launch commands and start hooks for the eight agents summon connect reaches. (2026-10-25)

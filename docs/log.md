@@ -1,6 +1,8 @@
 # Docs update log
 
 ## 2026-10-25
+* **New**: [Agent MCP configs](research/2026-10-25-agent-mcp-configs.md): where the eight agents `summon connect` reaches keep their MCP servers, instructions and start hooks.
+* **Update**: [Features](features.md): `summon connect` / `disconnect` register the MCP server and a This Mac note with every installed agent; Hermes and OpenClaw join the agent registry.
 * **Update**: [Features](features.md): `summon mcp`, an MCP server with 10 tools (Mac context, macctl settings with undo, checkpoints, crashes) for every agent; the Claude Code plugin declares it.
 * **Update**: [Features](features.md): one SummonOS version (`VERSION`, 0.1.0): `summon version`/`--version`, `macctl --version`, shown by `summon doctor`. CI runs once per PR, adds `macos-15` and an informational Xcode 27 leg, and skips Swift jobs on docs-only changes.
 * **Update**: [Features](features.md): `summon context` gives agents one snapshot of this Mac, with fields the user can hide in Settings › Agents; Settings lists all 7 tabs; Visual QA opens the panel (there is no launcher window).
