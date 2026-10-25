@@ -17,7 +17,7 @@ There are two ways to start an app, and they do not mix:
 | | Workspace plugin | Summon project |
 |---|---|---|
 | For | Apps that belong to this workspace and get a `<name>-dev` / `<name>` repo pair | Anything a user asks Summon's agent to make on their Mac |
-| Start | `tools/mp new <name> --kind <kind>` | `summon project new <name> --kind menubar\|menubar-panel\|app\|cli\|screensaver` |
+| Start | `tools/mp new <name> --kind <kind>` | `summon project new <name> --kind menubar\|menubar-panel\|launcher\|hud\|notch\|app\|cli\|screensaver` |
 | Template | `incubator/summon/templates/<kind>` (bundle id `local.macplugins.<name>`) | `incubator/summon/templates/<kind>` (bundle id `local.summon.<name>`) |
 | Folder | `scratch/<name>/`, then `plugins/<name>/` after `tools/mp promote` | `~/Summon/Apps/<name>` |
 | Listed in | `plugins.json` / `plugins.md` | `~/.config/summon/projects.json` (private to the Mac) |

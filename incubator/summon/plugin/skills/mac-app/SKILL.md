@@ -1,11 +1,12 @@
 ---
 name: mac-app
 description: >
-  Build a new native Mac app the Summon way: a menu bar app, a full window app, a command-line tool, a
-  screensaver, or an app icon. Starts from Summon's template in ~/Summon/Apps/<name>; Swift 6 + SwiftUI, SwiftPM,
+  Build a new native Mac app the Summon way: a menu bar app, a full window app, a command launcher, a floating
+  HUD, a notch app, a command-line tool, a screensaver, or an app icon. Starts from Summon's template in ~/Summon/Apps/<name>; Swift 6 + SwiftUI, SwiftPM,
   follows the current Summon theme. Use when asked to make, build, or scaffold an app, menu bar widget, utility,
-  CLI tool, screensaver, or icon. Triggers: new app, menu bar app, status bar item, widget, command-line tool,
-  CLI, screensaver, .saver, app icon, icns, "make me an app".
+  CLI tool, screensaver, or icon. Triggers: new app, menu bar app, status bar item, widget, launcher, Spotlight-style,
+  command bar, HUD, overlay, always on top, notch, command-line tool, CLI, screensaver, .saver, app icon, icns,
+  "make me an app".
 ---
 
 # Building a Mac app with Summon
@@ -25,15 +26,24 @@ are installed, use them for depth; this skill is enough on its own.
 - Agree a short kebab-case name (`a-z`, `0-9`, `-`; for example `mac-battery`). It becomes the folder, the
   bundle id `local.summon.<name>`, and the PascalCase type name (`MacBattery`).
 - Pick the kind. The kinds this Summon knows are the ones `summon project new` prints when run with no arguments
-  (also `summon commands`). Today: `menubar`, `app`, `cli`, `screensaver`, and `menubar-panel` when it is listed.
+  (also `summon commands`). Today: `menubar`, `menubar-panel`, `launcher`, `hud`, `notch`, `app`, `cli` and
+  `screensaver`; use only the ones it lists.
 
   | Ask | Kind |
   |---|---|
-  | Show something in the menu bar, a status, a few actions | `menubar` (or `menubar-panel` when listed, for a bigger panel) |
+  | Show something in the menu bar, a status, a few actions | `menubar` (or `menubar-panel` for a bigger panel, one opened from a hotkey, or typing) |
+  | A shortcut that opens a search bar over any app: find, pick, run, vanish | `launcher` |
+  | A small panel that stays on top while you work elsewhere (timer, recording bar, meter) | `hud` |
+  | Something that grows out of the MacBook's camera housing on hover | `notch` |
   | A tool with its own window, documents, a sidebar | `app` |
   | Something to run in a terminal, from scripts or agents | `cli` |
   | Something to look at when the Mac is idle | `screensaver` |
   | Only an icon for an app, file or folder | no project: go to step 7 |
+  | A desktop widget or a Finder extension | no template yet (they need an app extension); tell the user |
+
+  Each kind follows the SummonOS surface rules (sizes, focus, keys, materials, Apple's corrections):
+  https://github.com/RohiRIK/SummonOS/tree/main/docs/ux-surfaces. Read the page for the kind before changing
+  its window or panel.
 
 - Run `summon default repos` and tell the user what it prints:
   - `ask` (the default): no GitHub repo is made. A repo comes only from step 8, if the user wants one.
@@ -82,7 +92,7 @@ so the gate also works with only the Command Line Tools (no Xcode). Fix the caus
 
 ### 5. Run it and read its logs
 
-For `menubar`, `menubar-panel` and `app`:
+For `menubar`, `menubar-panel`, `launcher`, `hud`, `notch` and `app`:
 
 ```bash
 scripts/bundle.sh && open build/<App>.app

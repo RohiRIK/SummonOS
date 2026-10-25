@@ -2,7 +2,7 @@
 # shellcheck disable=SC2016 # jq programs use $vars inside single quotes on purpose
 # mp: the plugin home manager. plugins.json is the registry; plugins.md is generated from it.
 #
-#   mp new <name> [--kind menubar|menubar-panel|app|cli|screensaver]   scratch/<name> from Summon's template
+#   mp new <name> [--kind menubar|menubar-panel|launcher|hud|notch|app|cli|screensaver]   scratch/<name> from Summon's template
 #                                                    (incubator/summon/templates/<kind>), registered
 #   mp promote <name> [--owner <login>] [--yes]      private <name>-dev + public <name> repos, move to plugins/
 #   mp clone (<name>... | --all)                     clone registered dev repos into plugins/<name>
@@ -18,7 +18,7 @@ set -euo pipefail
 
 KINDS="menubar app cli claude-plugin screensaver"
 # What `mp new` starts from: Summon's templates, the same ones `summon project new` uses.
-TEMPLATES="menubar menubar-panel app cli screensaver"
+TEMPLATES="menubar menubar-panel launcher hud notch app cli screensaver"
 STATUSES="scratch incubating dev shipped archived"
 
 die() { echo "mp: $*" >&2; exit 1; }
@@ -248,8 +248,8 @@ cmd_new() {
   old_pascal="Starter"
   new_pascal=$(pascal "$name")
   day=$(date +%Y-%m-%d)
-  # The registry kind: a menubar-panel app is a menu bar app.
-  [ "$kind" != "menubar-panel" ] || kind=menubar
+  # The registry kind: menubar-panel, launcher, hud and notch apps are menu bar (agent) apps.
+  case "$kind" in menubar-panel|launcher|hud|notch) kind=menubar ;; esac
 
   mkdir -p "$HOME_DIR/scratch"
   cp -R "$starter" "$dest"
