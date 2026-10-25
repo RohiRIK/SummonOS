@@ -165,8 +165,11 @@ sections:
 
 - **Nine themes:** Summon Night (default) and Summon Dawn, plus seven community palettes (Tokyo Night,
   Catppuccin, Gruvbox, Nord, Rosé Pine Dawn, Kanagawa, Everforest), each with 5K wallpapers.
-- **One command restyles everything:** `summon theme set <slug>` sets macOS dark or light mode, the
-  wallpaper (through `macctl`, so it can be undone), Ghostty, kitty, window borders and Claude Code.
+- **One command restyles everything:** `summon theme set <slug>` sets macOS dark or light mode, the wallpaper
+  and the accent color (all through `macctl`, so they can be undone). It also restyles Ghostty, kitty, window
+  borders and Claude Code, VS Code and Cursor through a "Summon" color theme (choose it once), and Neovim
+  (`:colorscheme summon`, written when `nvim` is installed). It takes one checkpoint first and ends with
+  `summon checkpoint undo <id>`, which undoes the whole look. The panel offers "Undo Theme <name> (N changes)…".
   There is also `theme list` and `theme current`. Settings › Appearance provides full 16:9 wallpaper previews, color swatches, one-click Apply, and an Undo button to revert to the previous theme.
 - **Default terminal with auto-installer:** Settings › Terminal lets you select Ghostty, kitty, or Apple Terminal. If Ghostty or kitty is not installed, install it directly with one click via Homebrew.
 - **Custom icons** on any file, folder or app: `summon icon set <image> <path>`, `icon reset`.
@@ -315,7 +318,7 @@ Code: [`macctl/`](../macctl). Overview: [its README](../macctl/README.md). `macc
 - **Profiles:** JSON files of desired values. `apply` is idempotent and restarts Dock, Finder or
   SystemUIServer once at the end.
 
-Settings (38, full table in [`macctl/docs/settings.md`](../macctl/docs/settings.md)):
+Settings (39, full table in [`macctl/docs/settings.md`](../macctl/docs/settings.md)):
 
 | Domain | Settings |
 |---|---|

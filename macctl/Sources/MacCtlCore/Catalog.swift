@@ -283,6 +283,13 @@ public enum Catalog {
             systemDefault: .bool(true),
             minimumOS: "26.0"
         ),
+        Setting(
+            id: "appearance.accent-color",
+            summary: "Accent color: -1 graphite, 0 red, 1 orange, 2 yellow, 3 green, 4 blue, 5 purple, 6 pink (unset = multicolor). Apps pick it up when reopened.",
+            type: .int(min: -1, max: 6),
+            backend: .defaults(domain: Backend.globalDomain, key: "AppleAccentColor", type: .int),
+            after: [.relaunchApps]
+        ),
     ]
 
     // MARK: Desktop

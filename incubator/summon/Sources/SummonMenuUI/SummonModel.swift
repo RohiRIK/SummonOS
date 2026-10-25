@@ -249,7 +249,7 @@ public final class SummonModel {
     public func confirmUndo(_ offer: UndoOffer) {
         NSApp.activate()
         let alert = NSAlert()
-        alert.messageText = "Undo the last \(offer.agent) session?"
+        alert.messageText = "Undo \(offer.label)?"
         alert.informativeText = "Puts back the \(offer.changes) setting change\(offer.changes == 1 ? "" : "s") and the ~/.config files from before it. Files created since stay."
         alert.addButton(withTitle: "Undo")
         alert.addButton(withTitle: "Cancel")
