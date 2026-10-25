@@ -1,6 +1,7 @@
 # Docs update log
 
 ## 2026-10-25
+* **Update**: SummonOS 0.1.1 (VERSION, summon, macctl, Summon.app): undo any agent session, hotkey with screen context, one-click Accessibility, `summon connect` hooks, whole-Mac themes with one undo, macOS 27 wallpaper fix, live Mac events.
 * **Update**: [README](../README.md) rewritten around "the agentic layer for the Mac": what you get (context, MCP + connect, hotkey, undo, themes), install flags and what ad-hoc preview builds mean, a 60-second tour, demo placeholders, status and credits (Omarchy).
 * **Update**: [Features](features.md): live Mac events (network, VPN, low disk, battery, thermal, displays) logged by Summon.app as `mac.*`, `summon events --follow`, MCP tool `mac_events`.
 * **Update**: [Features](features.md): `summon checkpoint undo` also removes the files a theme created (recorded as the `created` ref), so undoing a theme leaves no generated files behind.
