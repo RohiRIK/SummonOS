@@ -4,8 +4,8 @@
 # Needs Accessibility (osascript/System Events) and Screen Recording (screencapture) for bash and osascript,
 # which the GitHub runner images pre-grant.
 #   run.sh <out-dir> <Summon.app> <windows-helper> <tag>
-# Summon has one surface: the menu bar panel (NSStatusItem + nonactivating NSPanel, PANEL_W wide) holding the
-# Summon Menu. For light and dark: captures the menu bar, opens the panel with ⌃⌥Space (falling back to
+# Surfaces: the menu bar panel (NSStatusItem + nonactivating NSPanel, PANEL_W wide) holding the Summon Menu, plus
+# every Settings page (summon://settings/<section>), Activity and a sample crash alert (summon://test-crash). For light and dark: captures the menu bar, opens the panel with ⌃⌥Space (falling back to
 # `summon menu summon`, then `open -g summon://menu/`) and closes it with Esc, then opens it by clicking the status
 # item and closes it with a second click, capturing each open.
 # Then it runs `summon menu summon` once on its own. Every path tried goes to <out-dir>/<tag>-log.txt and the job
@@ -38,6 +38,7 @@ cleanup() {
   [ "$ORIGINAL_STYLE" = Dark ] && restore=true
   osascript -e "tell application \"System Events\" to tell appearance preferences to set dark mode to $restore" >/dev/null 2>&1
   [ -n "$PID" ] && kill "$PID" 2>/dev/null
+  defaults delete local.macplugins.summon VisualQA >/dev/null 2>&1
 }
 trap cleanup EXIT
 
@@ -133,9 +134,62 @@ close_panel() {
 
 appearance() { defaults read -g AppleInterfaceStyle 2>/dev/null || echo Light; }
 
+# Closes <id> (a Summon window) with its close button, found by the window's title through Accessibility.
+close_window() {
+  local id=$1 title
+  title=$(osascript -e "tell application \"System Events\" to tell process \"$OWNER\" to get name of front window" 2>>"$LOG")
+  osascript -e "tell application \"System Events\" to tell process \"$OWNER\" to click (first button of front window whose subrole is \"AXCloseButton\")" >>"$LOG" 2>&1
+  window_gone() { ! is_open "$id"; }
+  wait_for 3 window_gone || warned "window $id ($title) still open after its close button"
+}
+
+# Every Settings page, Activity and the crash alert in <theme>: each surface a UI change can touch.
+capture_windows() {
+  local theme=$1 before opened settings="" section
+  before=$(ids)
+  open -g "summon://settings/general" >>"$LOG" 2>&1
+  opened=$(opened_since "$before")
+  for id in $opened; do [ "$(width "$id")" -ge 700 ] && settings=$id; done
+  if [ -z "$settings" ]; then
+    failed "$theme: summon://settings opened no Settings window ($(oneline "${opened:-nothing}"))"
+  else
+    for section in general agents apps terminal notifications appearance tasks; do
+      open -g "summon://settings/$section" >>"$LOG" 2>&1
+      sleep 1.5   # the page swaps in place; agent status checks finish loading
+      capture "$theme-settings-$section" "$settings"
+    done
+    check_luma "$OUT/$TAG-$theme-settings-general.png" "$theme"
+    close_window "$settings"
+  fi
+
+  before=$(ids)
+  open -g "summon://activity" >>"$LOG" 2>&1
+  opened=$(opened_since "$before")
+  if [ -n "$opened" ]; then
+    capture "$theme-activity" "$opened"
+    for id in $opened; do close_window "$id"; done
+  else
+    failed "$theme: summon://activity opened nothing"
+  fi
+
+  before=$(ids)
+  open -g "summon://test-crash" >>"$LOG" 2>&1
+  opened=$(opened_since "$before")
+  if [ -n "$opened" ]; then
+    capture "$theme-crash-alert" "$opened"
+    for id in $opened; do keystroke 53 ""; done   # Escape dismisses the alert
+  else
+    warned "$theme: summon://test-crash showed no window (alert style or flag not applied)"
+  fi
+}
+
+
 read -r SCREEN_W SCREEN_H < <("$WINDOWS" screen)
 log "screen ${SCREEN_W}x${SCREEN_H} points; $(sw_vers -productName) $(sw_vers -productVersion)"
 
+# Lets summon://test-crash show a sample crash alert in this release build (AppDelegate.allowsTestCrash), as an alert.
+defaults write local.macplugins.summon VisualQA -bool true
+defaults write local.macplugins.summon summon.notifications.crashStyle summon
 open "$APP"
 wait_for 30 pgrep -x "$OWNER" >/dev/null
 PID=$(pgrep -x "$OWNER" | head -1)
@@ -216,6 +270,8 @@ for theme in light dark; do
     panel_gone() { ! is_open "$id"; }
     if wait_for 3 panel_gone; then log "  panel closed"; else failed "$theme panel window $id still open after a second click"; fi
   done
+
+  capture_windows "$theme"
 done
 
 # The fallback path on its own, so the artifacts show it works too (in light, the hotkey already did the job).

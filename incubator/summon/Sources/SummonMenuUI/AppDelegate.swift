@@ -101,9 +101,13 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
             case "activity":
                 activity.requestOpen()
             case "settings":
+                // summon://settings/<section> opens on that page (Visual QA captures each one this way).
+                if let name = url.pathComponents.dropFirst().first, let section = SettingsSection(rawValue: name) {
+                    model.requestedSettingsSection = section
+                }
                 activity.requestSettings()
-            #if DEBUG
-            case "test-crash":
+            // A sample crash alert: debug builds, or a Visual QA runner that set the `VisualQA` default.
+            case "test-crash" where Self.allowsTestCrash:
                 let sample = CrashReport(
                     file: "/Library/Logs/DiagnosticReports/Ghostty-2026-10-20-100700.ips",
                     kind: .crash,
@@ -121,11 +125,18 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
                 )
                 // Through the same path as a real report, so it follows Settings › Notifications.
                 announce([sample])
-            #endif
             default:
                 break
             }
         }
+    }
+
+    static var allowsTestCrash: Bool {
+        #if DEBUG
+        true
+        #else
+        UserDefaults.standard.bool(forKey: "VisualQA")
+        #endif
     }
 
     // MARK: Notifications
