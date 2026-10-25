@@ -533,6 +533,11 @@ public final class SummonModel {
         Task { await summon(AgentSettingsCommand.defaultSkills(skills)) }
     }
 
+    /// Shows or hides a `summon context` field from every agent.
+    public func setContextField(_ field: ContextField, visible: Bool) {
+        Task { await summon(AgentSettingsCommand.context(field, visible: visible)) }
+    }
+
     /// The agent follows All Agents' skills again.
     public func useDefaultSkills(for id: String) {
         Task { await summon(AgentSettingsCommand.skills(nil, for: id)) }

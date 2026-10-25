@@ -681,6 +681,13 @@ struct AllAgentsDetail: View {
                 }
             }
 
+            Section("What agents see about this Mac") {
+                ForEach(ContextField.allCases, id: \.self) { field in
+                    Toggle(field.title, isOn: Binding(get: { !model.agentSettings.hiddenContext.contains(field) },
+                                                      set: { model.setContextField(field, visible: $0) }))
+                }
+            }
+
             Section("Shared plugins") {
                 ForEach(PluginCatalog.all) { plugin in
                     let states = model.catalogInstalled[plugin.id] ?? [:]

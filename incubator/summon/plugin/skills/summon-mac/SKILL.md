@@ -22,6 +22,7 @@ summon commands --json      # every Summon command: summary, args, examples, ris
 macctl list --json          # every Mac setting macctl knows, with its current value
 macctl doctor               # permissions and what is missing
 summon checkpoint list      # what earlier sessions changed
+summon context              # this Mac: hardware, power, storage, network, displays, apps, permissions (start here)
 summon status --json        # agent, macctl health, last change, last checkpoint, recent crashes
 summon doctor --json        # Summon's own install: app, CLI, config, macctl, event log, hotkeys, skill links; each check has a fix
 summon events --limit 20    # timeline: settings changes and undos, checkpoints, sessions, themes, crashes

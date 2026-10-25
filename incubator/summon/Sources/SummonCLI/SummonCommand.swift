@@ -103,6 +103,8 @@ struct SummonCommand {
             try ActivityCommands.eventAdd(&args, context)
         case "status":
             try await ActivityCommands.status(&args, context)
+        case "context":
+            try ContextCommands.run(&args, context)
         case "doctor":
             try await DoctorCommand.run(&args, context)
         case "fix":

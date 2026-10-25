@@ -58,7 +58,7 @@
       "path": "macctl",
       "summary": "CLI for AI agents to read, set, diff, apply and undo macOS settings",
       "where": "`macctl/`, plan `docs/plans/2026-10-16-macctl.md`",
-      "statusNote": "merged; 82 tests pass and smoke-tested on a Mac (macOS 26.6, 2026-10-18)"
+      "statusNote": "merged; 94 tests pass and smoke-tested on a Mac (macOS 26.6, 2026-10-18)"
     },
     {
       "name": "mac-assistant",
