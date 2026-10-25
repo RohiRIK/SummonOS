@@ -161,9 +161,28 @@ sections:
   › "Create a private GitHub repo for every new app" is off (`summon default repos ask`): then Summon's dialog asks.
   Never public.
 
+### Every agent: the MCP server
+
+`summon mcp` is an MCP server on stdio, so any MCP client (Claude Code, Codex, Gemini CLI, Cursor, opencode,
+Raycast) can use this Mac. It is native Swift with no dependencies, and it serves 10 tools:
+
+| Tool | Does |
+|---|---|
+| `mac_context` | The `summon context` snapshot (all sections or some) |
+| `settings_list`, `settings_describe`, `settings_get` | macctl's settings, their schema and current values |
+| `settings_set` | Change a setting through macctl. A snapshot is taken first, risky settings need `confirm: true` after the user agrees, and `dry_run` shows the change without making it |
+| `settings_undo`, `settings_history` | Roll back a change, newest first or by id, and list what changed |
+| `checkpoint_list`, `checkpoint_create` | Summon's restore points |
+| `crash_list` | Recent crash, hang and panic reports |
+
+It also serves the resource `mac://context`. Setting ids are checked before they reach macctl, so an id that looks
+like an option is refused. Add it by hand with `claude mcp add summon -- summon mcp`, or with the same command and
+args in any client's MCP config. The Claude Code plugin declares it already.
+
 ### Claude Code plugin
 
-[`plugin/`](../incubator/summon/plugin), loaded with `claude --plugin-dir incubator/summon/plugin`.
+[`plugin/`](../incubator/summon/plugin), loaded with `claude --plugin-dir incubator/summon/plugin`. It declares the
+`summon mcp` server (`summon` must be on PATH).
 
 | Skill | Use |
 |---|---|

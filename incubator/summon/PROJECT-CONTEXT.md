@@ -8,7 +8,7 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
 
 ## Current State
 - Incubating at `incubator/summon/` in the SummonOS workspace (`RohiRIK/SummonOS`). Target repos: `mac-summon-dev` / `mac-summon`.
-- `plugin/`: Claude Code plugin (7 skills, 9 commands; no MCP server yet). `themes/`: 9 theme.json + wallpapers.
+- `plugin/`: Claude Code plugin (7 skills, 9 commands, declares the `summon mcp` server). `themes/`: 9 theme.json + wallpapers.
   `config/`: Brewfile, AeroSpace, Ghostty, borders, zsh. `design/`: brand assets + `generate.py`.
 - Swift package: `SummonCore` (agents, launch plans, .ips crash parsing + watcher, menu tree, themes + compilers,
   checkpoints, debug bundle, hooks, command catalog), `summon` CLI, `SummonMenuUI` + `SummonMenu` app (menu bar panel
@@ -40,6 +40,14 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — `summon mcp`: MCP server for every agent
+- `MCPServer` (Core): transport-free JSON-RPC 2.0 (initialize, ping, tools, resources), `JSONValue` wire type.
+  `SummonMCP`: 10 tools (`mac_context`, `settings_*` through the macctl binary with `--json`, checkpoints, crashes)
+  and the resource `mac://context`. `summon mcp` reads stdin line by line; nothing else may print to stdout.
+- macctl is called as a binary (as checkpoints and status already do), not linked as a library: summon and macctl
+  stay separate packages that move to their own repos, and install.sh ships both. Ids are validated and `--`
+  ends options, so tool input cannot become a macctl flag.
+- Verified with a real client: `claude -p --mcp-config` called `mac_context` and `settings_get`.
 ### 2026-10-25 — One SummonOS version
 - Root `VERSION` (0.1.0) is the source. `SummonVersion.current` (Core/Version.swift) feeds `summon version`/`--version`
   and the first line + `version` key of `summon doctor`; macctl's ArgumentParser `version:` and Summon.app's

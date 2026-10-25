@@ -2,7 +2,25 @@
   "name": "summon",
   "version": "0.1.0",
   "description": "Omarchy-style Mac: one agent you can summon anywhere, that sets up, themes, fixes and builds things on your Mac.",
-  "author": { "name": "RohiRIK" },
+  "author": {
+    "name": "RohiRIK"
+  },
   "license": "MIT",
-  "keywords": ["macos", "omarchy", "settings", "themes", "swiftui", "menu bar", "diagnostics"]
+  "keywords": [
+    "macos",
+    "omarchy",
+    "settings",
+    "themes",
+    "swiftui",
+    "menu bar",
+    "diagnostics"
+  ],
+  "mcpServers": {
+    "summon": {
+      "command": "summon",
+      "args": [
+        "mcp"
+      ]
+    }
+  }
 }
