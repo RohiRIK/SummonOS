@@ -128,7 +128,8 @@ sections:
   from the bar at the bottom. Right-click a line to Ask, Copy, Diagnose, Show in Finder, or Undo This
   Change / Session.
 - **Settings window** (⌘, or `summon://settings`), one toolbar tab per part:
-  - General: Open at Login.
+  - General: Permissions (Accessibility: On, or **Allow…**, which asks macOS to add Summon to Privacy & Security ›
+    Accessibility and opens that page, so only the switch is left), Open at Login.
   - Agents: a list of agents (status dot, Default) with **All Agents** on top: the default agent, where agents
     open (Ghostty, kitty or Terminal), the skills every agent gets, what agents see about this Mac (computer name,
     window title, running apps, file paths: all on, each can be turned off), and shared plugins (OpenLTM: Install in All).

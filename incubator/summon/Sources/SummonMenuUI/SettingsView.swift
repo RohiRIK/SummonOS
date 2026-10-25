@@ -303,6 +303,19 @@ struct GeneralSettings: View {
 
     var body: some View {
         Form {
+            Section("Permissions") {
+                LabeledContent("Accessibility") {
+                    if model.accessibilityGranted {
+                        Text("On").foregroundStyle(.secondary)
+                    } else {
+                        Button("Allow…") { model.requestAccessibility() }
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                model.refreshPermissions()
+            }
+
             Section("System Diagnostics & Health") {
                 if model.isCheckingHealth {
                     HStack(spacing: 10) {
