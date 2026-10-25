@@ -12,6 +12,13 @@ version numbers yet; entries are grouped by day and point at the pull request.
   that grows out of the camera housing, with a fallback on screens without one). Make Something has a menu item
   for each.
 
+### Fixed
+- Settings: only the close button works (minimize and zoom dimmed, no full screen, per the HIG), and the window is
+  780–820 pt wide instead of 860 or more.
+- The crash alert stays out of Mission Control, ⌘` and the Window menu.
+- VoiceOver reads a menu entry's health badge; the dot was color only.
+- `docs/ux-audit.md`: every Summon surface checked against the UX surface table.
+
 ## 2026-10-24
 
 ### Added
