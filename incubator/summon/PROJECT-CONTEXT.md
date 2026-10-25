@@ -40,6 +40,11 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — Undo removes what a change created
+- `CreatedFiles` (Core, tested): `theme set` records the files and folders it created as the `created` ref of its
+  `theme.set` event (`createdCandidates`, every file listed one by one). `checkpoint undo` removes them deepest
+  first, only inside home. A folder goes only when everything left in it is recorded, so files the user added keep it.
+  The first version removed a created folder along with a file the user had put in it; the test caught it.
 ### 2026-10-25 — Theme the whole Mac with one undo
 - `ThemeCompiler.accentIndex` (hue → macOS accent, graphite when gray), `vscodeTheme`/`vscodePackage`
   (extension `summon.summon-theme-0.0.1` in `~/.vscode/extensions` and `~/.cursor/extensions` when those exist),
