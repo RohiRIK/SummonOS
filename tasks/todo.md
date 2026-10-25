@@ -63,7 +63,7 @@ One read-only, fast (<300 ms), redacted snapshot of the Mac that any agent can a
 
 ## Phase 2: Reach every agent
 
-- [ ] **MCP server `summon mcp` (stdio, native Swift, no dependencies).** Keep it to 15 tools or fewer (agents get worse with
+- [x] **MCP server `summon mcp` (stdio, native Swift, no dependencies).** PR 2: 10 tools, verified with Claude Code. Keep it to 15 tools or fewer (agents get worse with
       more than 40).
   - Read tools:
     - `context_get`
@@ -115,6 +115,12 @@ number in `summon` or `macctl`, and `install.sh` needs Xcode because it builds f
   - Trigger on `push` to `main` plus `pull_request` only, which halves the runs.
   - `concurrency` keyed on the PR number with `cancel-in-progress`.
   - Add a `macos-15` leg for the minimum OS.
+  - macOS 27: GitHub has no hosted `macos-27` runner yet (checked 2026-10-25; newest is `macos-26`, default Xcode 26.6).
+    - Add an Xcode 27 leg on `macos-26`. Xcode 27 is a public preview there (actions/runner-images#14404). This catches
+      macOS 27 SDK and compiler breaks, though not runtime behavior.
+    - For runtime on 27, `tools/local-ci.sh <pr>` on the owner's Mac (macOS 27.0.1) posts `local / swift (macOS)`.
+      It needs Xcode 27 installed. Make it a required check, or register the Mac as a self-hosted runner.
+    - Switch to `macos-27` when GitHub ships that image.
   - A `paths` filter, so a docs-only change skips the Swift jobs.
 - [ ] **Version stamping:** one SummonOS version (`vX.Y.Z`) generated into Core at build time from the tag.
   `summon --version` and `macctl --version` print it, and `summon doctor` shows it.
@@ -156,7 +162,8 @@ A tiling window manager, restyling system chrome (blocked by SIP), an ISO or ful
 
 ## Decisions (owner, 2026-10-25)
 
-1. MCP lives in `summon mcp`, with macctl linked as a library. One binary, one install.
+1. MCP lives in `summon mcp`. One server, one install. macctl is called as a binary rather than linked (PR 2):
+   the two packages stay separate, and install.sh ships both.
 2. Privacy: context fields are **on by default**. The user can turn each sensitive field (SSID, window titles,
    hostname, user paths) off in Settings › Agents.
 3. First PR: Phase 0 + Phase 1 (context engine). The MCP server is PR 2.
