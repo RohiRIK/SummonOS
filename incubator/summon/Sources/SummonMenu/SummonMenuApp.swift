@@ -8,7 +8,7 @@ struct SummonMenuApp: App {
     // The menu bar item is an NSStatusItem + nonactivating panel owned by `AppDelegate.panel` (PanelController),
     // not MenuBarExtra: it takes typing without activating Summon and we own dismissal (docs/menubar-panel.md).
     var body: some Scene {
-        Window("Summon Activity", id: ActivityOpener.windowID) {
+        Window("Activity", id: ActivityOpener.windowID) {
             ActivityView(model: delegate.activity)
         }
         .defaultSize(width: 980, height: 640)

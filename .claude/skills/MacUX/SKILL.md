@@ -36,6 +36,8 @@ Makes plugins look and feel like they shipped with macOS. Bar: "beautiful by def
 
 ## Gotchas
 
+- Sidebar Settings (`NavigationSplitView`): never paint the detail pane (`.background(windowBackgroundColor)`) and remove the sidebar toggle (`.toolbar(removing: .sidebarToggle)`). Otherwise the title bar gets an empty band with a floating toggle, unlike System Settings (Summon, 2026-10-25).
+- A segmented filter with 4+ segments in a window toolbar gets clipped next to the title and search field. Use a `.menu` Picker (`.fixedSize()`); keep segmented controls to 2–3 short options (Summon Activity, 2026-10-25).
 - Hard-coded colors (`Color.black`, hex) break dark mode and Increase Contrast. Use `.primary`, `.secondary`, `Color(nsColor: .separatorColor)`, `.tint`.
 - Liquid Glass is for floating controls and navigation only, never content (cards, lists, details). Glass cards made the first mac-network panel look wrong. `.glassEffect()` is macOS 26+; gate with `if #available(macOS 26, *)`.
 - More than one job in a panel: split it into tabs with `TabSwitcher` (`MenuPanel.md` › Everything in the panel). Editing the app's *job* (mac-network's IP settings) can be a panel tab with `SettingsGroup` rows. App preferences (Open at Login, permissions, theme, any toggle) never go in the panel: Settings window (⌘,), plus onboarding only when a permission is needed up front.

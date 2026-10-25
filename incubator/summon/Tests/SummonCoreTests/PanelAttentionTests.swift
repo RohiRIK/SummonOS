@@ -31,4 +31,16 @@ struct PanelAttentionTests {
         #expect(attention.setupTitle == "2 setup problems · Fix…")
         #expect(!attention.isEmpty)
     }
+
+    @Test func helpersDontFlagThePanelAndOneLineSummarizes() {
+        let attention = PanelAttention(reports: [Self.report("Helium Helper", "/r/h.ips"), Self.report("swiftpm-testing-helper", "/r/s.ips"),
+                                                  Self.report("Ghostty", "/r/g.ips")], doctor: nil)
+        #expect(attention.crashes.map(\.program) == ["Ghostty"])
+        #expect(attention.summary == "Ghostty crashed · Review…")
+        let two = PanelAttention(reports: [Self.report("Ghostty", "/a"), Self.report("Helium", "/b")], doctor: nil)
+        #expect(two.summary == "2 apps crashed · Review…")
+        let setupOnly = PanelAttention(reports: [Self.report("Helium Helper", "/h")], doctor: DoctorReport(checks: [DoctorCheck("a", .warn, "x")]))
+        #expect(setupOnly.summary == "1 setup problem · Fix…")
+        #expect(PanelAttention(reports: [Self.report("xctest", "/x")], doctor: nil).summary == nil)
+    }
 }

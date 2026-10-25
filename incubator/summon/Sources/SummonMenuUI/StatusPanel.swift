@@ -13,7 +13,7 @@ public enum PanelConfig {
     /// Every Summon panel (this one and the crash alert) uses `.statusBar`, which sits above fullscreen apps (F1, F2).
     public static let level: NSWindow.Level = .statusBar
     /// Panel width in points.
-    public static let width: CGFloat = 360
+    public static let width: CGFloat = 320
 }
 
 /// B1 timing and the D-rules monitor count, visible in Instruments (os_signpost) and Console / `log stream`:
