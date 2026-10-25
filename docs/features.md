@@ -106,9 +106,12 @@ sections:
 - **Settings window** (⌘, or `summon://settings`), one toolbar tab per part:
   - General: Open at Login.
   - Agents: a list of agents (status dot, Default) with **All Agents** on top: the default agent, where agents
-    open (Ghostty, kitty or Terminal), the skills every agent gets, and shared plugins (OpenLTM: Install in All).
+    open (Ghostty, kitty or Terminal), the skills every agent gets, what agents see about this Mac (computer name,
+    window title, running apps, file paths: all on, each can be turned off), and shared plugins (OpenLTM: Install in All).
     Each agent's page has the same sections: Account (Connected, or Log In…), Model (from that agent's real model
     list, or Custom…), Skills (same as All Agents, or Custom), Plugins (installed, recommended, Add).
+  - My Apps: apps and menu bar widgets built in `~/Summon/Apps`.
+  - Terminal: the default terminal, launch behavior and window styling.
   - Notifications: crash and hang alerts (Summon alert or macOS banner), task results, sound, muted programs with Unmute.
   - Appearance: the theme.
   - Tasks: each recurring task with its schedule, agent and last result (view only).
@@ -116,6 +119,11 @@ sections:
 ### Activity and status from the command line
 
 - `summon status`: agent, macctl, last change, last checkpoint and recent problems at a glance.
+- `summon context [--json] [--only a,b]`: this Mac for agents in one read-only snapshot (about 60 ms): model,
+  chip, RAM, macOS, power and thermal state, free space per volume, network and VPN, displays, frontmost app and
+  window, running apps, appearance, what the asking process may do (Accessibility, Screen Recording, Full Disk
+  Access), installed agents and crashes in the last day. `summon context hide|show <field>` (or Settings › Agents)
+  turns off the computer name, window title, running apps or file paths.
 - `summon events [--kind settings|agent|checkpoint|theme|problem] [--limit N]`: the same timeline as the
   Activity window. `summon event add` and `event hook start|end` let tools write to it. The Claude Code
   plugin's session hooks use them.
@@ -326,6 +334,6 @@ CI ([`.github/workflows/swift.yml`](../.github/workflows/swift.yml)) builds and 
 on macOS on every push, including Summon's templates, `examples/menubar-starter` and `examples/menubar-panel-starter`.
 It also validates design skill structure, typechecks their Swift examples, and runs tooling regressions.
 A second workflow, [`visual-qa.yml`](../.github/workflows/visual-qa.yml) (Visual QA (macOS)), runs on PRs that touch
-`incubator/summon/**` and on demand: on GitHub-hosted `macos-26` and `macos-15` runners it opens Summon's launcher
+`incubator/summon/**` and on demand: on GitHub-hosted `macos-26` and `macos-15` runners it opens the Summon panel
 (⌃⌥Space) and menu bar panel in light and dark and uploads screenshots as 14-day artifacts. It fails when a surface
 does not open or a capture is missing or the wrong theme. It is not a merge gate.

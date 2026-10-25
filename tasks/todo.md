@@ -1,17 +1,170 @@
-# Current plan
+# Current plan: SummonOS master plan — "the agentic layer for the Mac"
 
-No active implementation plan. Completed plans and evidence: Completed plans and evidence:
+Status: draft, awaiting owner review (2026-10-25). Move to `docs/plans/` when done.
 
-- [Production readiness](../docs/plans/2026-10-20-production-readiness.md): approved hardening and remaining release qualification.
-- [Skills and public preview](../docs/plans/2026-10-20-skills-public-preview.md): six skills repaired/retested, privacy review, public visibility, PR #60, and live GitHub CI.
+## Goal (owner, 2026-10-25)
+
+An AI-native layer on top of macOS that gives every agent the user runs (Claude Code, Codex, Gemini CLI,
+Cursor, opencode, ...) more context about the Mac itself. Omarchy's idea, rebuilt as native Mac apps.
+
+Positioning: Omarchy v4 already markets itself as "agentic Linux". Do not claim the idea is new; lead with what
+only the Mac version has: native signed Swift binaries, live Mac context, and **undo for anything an agent changed**.
+
+## Where we are (checks run 2026-10-25)
+
+- `main` = `origin/main` @ `3920664`; GitHub `Swift (macOS)` green; `tools/check-workspace.sh` ok; 64 Python tool tests pass.
+- This Mac has only CommandLineTools, no Xcode: UI targets and every `swift test` fail to compile locally
+  (`#Preview`/`@State`/`@Test` macro plugins missing). macctl and the `summon` CLI build. CI is the only Swift test signal.
+- Have: `macctl` (38 settings, set/apply/undo with journal), `summon` CLI + menu bar app (8 agents, checkpoints,
+  tasks, crash alerts, session brief, themes, templates), 3 shipped plugins, Claude Code plugin (7 skills, 9 commands).
+- Missing for the vision:
+  - no MCP server (planned as macctl M2, never built);
+  - no single "what is this Mac's state" command;
+  - context only reaches agents Summon itself launches (`SessionBrief`);
+  - the hooks only log events;
+  - no real Gemini CLI entry;
+  - 3 agents get no skills;
+  - no signed release or update channel.
+- Doc drift:
+  - `incubator/summon/PROJECT-CONTEXT.md` claims a macctl MCP and gives wrong skill and command counts;
+  - `docs/features.md` lists 5 Settings tabs, but the code has 7;
+  - `plugins.json` says macctl has 82 tests; it has 94;
+  - "gemini" is an alias of Antigravity.
+
+## Phase 0: Unblock (small, first)
+
+- [ ] Owner: install Xcode 27 (or set `DEVELOPER_DIR`) so this Mac can build UI, run tests, previews, `tools/local-ci.sh`.
+- [x] Fix the doc drift listed above (PR 1). The 10 "redundant `try`" warnings are artifacts of the missing Testing
+      macro plugin (`try #require` is correct); left as is.
+
+## Phase 1: Mac Context Engine (the core of the vision)
+
+One read-only, fast (<300 ms), redacted snapshot of the Mac that any agent can ask for.
+
+- [x] `MacContext` + `MacContextProbe` (SummonCore): one small reader per area. Each provider returns a `Codable` struct and works on its own,
+      so one failing area does not break the snapshot.
+  - OS/hardware: model, chip, RAM, macOS version.
+  - Power: battery, charging, thermal state.
+  - Disk: free space per volume.
+  - Network: interface, online, VPN on/off.
+  - Displays: count, resolution, scale.
+  - Frontmost app and window title.
+  - Running GUI apps.
+  - Appearance: dark mode, accent, wallpaper.
+  - Permissions Summon holds (Accessibility, Automation, Full Disk Access): granted or not.
+  - ~~Settings drift from `macctl diff`~~: `macctl diff` needs a profile; deferred to the MCP tools.
+  - Crashes and hangs in the last day.
+  - Agents installed and default agent.
+- [x] `summon context [--json] [--only a,b]`: full or partial snapshot; text form is about 14 lines (~60 ms warm).
+- [x] Privacy: every field is on by default (owner's choice). The user can turn off SSIDs, window titles, hostnames and
+      user paths in Settings › Agents. Reuse `DebugRedactor` for the fields that are turned off.
+- [x] Tests: `MacContextTests` (render size and lines, hiding, `--only`, accent, settings round trip, live probe).
+      Run on this Mac through a scratch harness (no Xcode); CI runs the real suite.
+
+## Phase 2: Reach every agent
+
+- [ ] **MCP server `summon mcp` (stdio, native Swift, no dependencies).** Keep it to 15 tools or fewer (agents get worse with
+      more than 40).
+  - Read tools:
+    - `context_get`
+    - `settings_list` / `settings_get` / `settings_diff`
+    - `apps_running`
+    - `crash_list`
+    - `checkpoint_list`
+  - Write tools (journaled, undoable):
+    - `settings_set` and `settings_apply`, which use macctl's recovery contract and return an undo id
+    - `settings_undo`
+    - `checkpoint_create` and `checkpoint_undo`
+  - Resource: `mac://context`.
+  - Tests: protocol tests with JSON fixtures, plus one end-to-end run that pipes stdin into the server.
+- [ ] **`summon connect [agent|--all] [--dry-run]`.** Registers the MCP server in each agent's config:
+  - Claude Code: `claude mcp add`, or `~/.claude.json`.
+  - Codex: `~/.codex/config.toml`.
+  - Gemini CLI: `~/.gemini/settings.json`.
+  - Cursor: `~/.cursor/mcp.json`.
+  - opencode.
+
+  It also writes a marked block into each agent's always-loaded instructions file (`~/.claude/CLAUDE.md`,
+  `~/.codex/AGENTS.md`, `~/.gemini/GEMINI.md`). The block tells the agent "On this Mac, call `summon context` /
+  the `summon` MCP". Back up each file first, and make `summon disconnect` restore it.
+- [ ] Start hooks: the Claude Code plugin's SessionStart hook injects `summon context` (compact) through
+      `additionalContext`. Add the same hook for Codex and Gemini where they support one.
+- [ ] Add a real `gemini` agent entry and give copilot, cursor-agent and grok skill folders where they support them.
+- [ ] `install.sh` asks to run `summon connect --all` at the end.
+
+## Phase 3: Features worth showing
+
+- [ ] **Undo timeline:** the panel lists what agents changed on this Mac (macctl journal + checkpoints, grouped by
+      agent session), with one-click undo. The demo is: an agent changes Dock, Finder and dark mode through MCP, then one
+      click puts everything back.
+- [ ] **Summon with context:** the hotkey captures the frontmost app, its selected text, the Finder selection and the
+      browser URL, and hands them to the agent so "fix this" works on whatever is on screen. Each capture is opt-in and
+      shown before the agent sends it.
+- [ ] **System-wide theme:** `summon theme <name>` sets wallpaper, accent, dark mode, Terminal/Ghostty, VS Code and nvim
+      in one step, undoable. Build it on the existing theme work.
+- [ ] **Live Mac events for agents:** `summon events --follow` and MCP notifications for network change, low disk,
+      thermal pressure, crashes and app launches.
+
+## Phase R: CI and releases (can run alongside Phases 2–3; owner request 2026-10-25)
+
+Today: `swift.yml` runs on every push to any branch **and** on pull requests, so each PR runs twice (two run ids
+per job). It builds and tests in debug only, only on `macos-26`. There are no tags, no GitHub Releases, no version
+number in `summon` or `macctl`, and `install.sh` needs Xcode because it builds from source.
+
+- [ ] **Leaner CI:**
+  - Trigger on `push` to `main` plus `pull_request` only, which halves the runs.
+  - `concurrency` keyed on the PR number with `cancel-in-progress`.
+  - Add a `macos-15` leg for the minimum OS.
+  - A `paths` filter, so a docs-only change skips the Swift jobs.
+- [ ] **Version stamping:** one SummonOS version (`vX.Y.Z`) generated into Core at build time from the tag.
+  `summon --version` and `macctl --version` print it, and `summon doctor` shows it.
+- [ ] **Release workflow `release.yml`,** run on a `v*` tag or by hand:
+  - Release-mode universal (arm64 + x86_64) builds of `summon`, `macctl` and `Summon.app`.
+  - A zip plus `SHA256SUMS`.
+  - GitHub artifact attestation (`actions/attest-build-provenance`), so anyone can verify a binary came from this repo.
+  - Release notes generated from conventional commits and CHANGELOG.
+  - Ad-hoc signed preview by default. Developer ID signing and notarization (existing `tools/notarize-app.sh`)
+    run only when the signing secrets are set.
+- [ ] **Channels, the Omarchy way:**
+  - `stable` comes from tags.
+  - `edge` is a rolling prerelease rebuilt from every green `main`.
+  - `summon update [--channel stable|edge]` downloads, verifies the checksum, swaps in the new version with rollback,
+    then runs `summon doctor`.
+- [ ] **Binary install:** `install.sh` downloads the latest release by default, so no Xcode is needed. `--from-source`
+  keeps today's path.
+- [ ] **Homebrew:** a tap `RohiRIK/homebrew-summonos` with a formula for the CLIs and a cask for Summon.app. The release
+  workflow bumps it automatically.
+- [ ] **More checks:**
+  - CodeQL for Swift (free on public repos).
+  - `tools/private-scan.sh` in CI.
+  - Dependabot for pinned actions.
+  - A post-release smoke job on a clean runner: install from the release, then run `summon doctor`, `summon context`
+    and `macctl doctor`.
+
+## Phase 4: Ship and show
+
+- [ ] Finish release qualification from `docs/plans/2026-10-20-production-readiness.md`:
+  - real install, upgrade and uninstall (the Phase R smoke job covers part of it)
+  - recovery and the OS/CPU matrix
+- [ ] Rewrite the README around "the agentic layer for the Mac". Add 3 GIFs (`tools/record-demos.sh`): undo timeline,
+      summon with context, and the same Mac diagnosed by Claude, Codex and Gemini side by side.
+- [ ] `docs/features.md`, `PROJECT-CONTEXT.md`, `plugins.json` and `docs/log.md` updated after each phase.
+
+## Out of scope
+
+A tiling window manager, restyling system chrome (blocked by SIP), an ISO or full-OS install, cloud services.
+
+## Decisions (owner, 2026-10-25)
+
+1. MCP lives in `summon mcp`, with macctl linked as a library. One binary, one install.
+2. Privacy: context fields are **on by default**. The user can turn each sensitive field (SSID, window titles,
+   hostname, user paths) off in Settings › Agents.
+3. First PR: Phase 0 + Phase 1 (context engine). The MCP server is PR 2.
+
+4. Releases are ad-hoc signed preview builds for now, with no Apple Developer ID. The notarization path stays
+   behind its secrets.
+5. The first version is `v0.1.0`. The agent creates a release tag only after the owner's OK for that release.
 
 ## Review
 
-- All reviewed workspace changes pushed under the owner's explicit publication approval; repository is public.
-- Six skill entrypoints, eight Swift example files, eight model-selection cases, two controlled response comparisons,
-  and static native renders checked. NeXT running-badge overlap fixed. CI now repeats structure/example checks.
-- Summon: 175 Core + 5 CLI tests and full release bundle gate; macctl: 94 tests; tooling: 45 distribution + 19 skill regressions.
-- Live GitHub runs 39422680890 and 39423213770 passed all ten jobs.
-  Preserved concurrent main commit d27ee14’s README cleanup; combined-tree checks are required before merge. Repaired stale compiled-module CI cache after the repository rename.
-  Final documentation-head checks must remain green before merging PR #60; public main is verified during handoff.
-- No live installation, preferences, login registration, real agent launch, signing credentials, or production binary release used.
+(fill in when done)
