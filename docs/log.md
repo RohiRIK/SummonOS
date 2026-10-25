@@ -1,6 +1,7 @@
 # Docs update log
 
 ## 2026-10-25
+* **Update**: [Features](features.md): one SummonOS version (`VERSION`, 0.1.0): `summon version`/`--version`, `macctl --version`, shown by `summon doctor`. CI runs once per PR, adds `macos-15` and an informational Xcode 27 leg, and skips Swift jobs on docs-only changes.
 * **Update**: [Features](features.md): `summon context` gives agents one snapshot of this Mac, with fields the user can hide in Settings › Agents; Settings lists all 7 tabs; Visual QA opens the panel (there is no launcher window).
 
 ## 2026-10-24

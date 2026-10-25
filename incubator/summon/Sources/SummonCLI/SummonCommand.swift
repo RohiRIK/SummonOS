@@ -172,6 +172,8 @@ struct SummonCommand {
                     print("    \(info.summary)")
                 }
             }
+        case "version", "--version":
+            print("summon \(SummonVersion.current)")
         case "help", "--help", "-h":
             print(CommandCatalog.helpText())
         default:
