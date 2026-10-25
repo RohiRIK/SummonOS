@@ -21,7 +21,7 @@ public struct PanelView: View {
             CommandRow(title: "Add One", key: "↩", action: model.increment)
             CommandRow(title: "Reset", action: model.reset)
                 .disabled(model.counter.value == 0)
-            PanelFooter(openSettings: showSettings)
+            PanelFooter(openSettings: { showSettings() })
         }
         .padding(6)
         .frame(width: 300)

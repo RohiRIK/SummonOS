@@ -3,11 +3,11 @@ import SwiftUI
 
 /// What the panel content can ask the controller to do.
 public struct PanelActions {
-    public var close: () -> Void
-    public var openSettings: () -> Void
-    public var quit: () -> Void
+    public var close: @MainActor () -> Void
+    public var openSettings: @MainActor () -> Void
+    public var quit: @MainActor () -> Void
 
-    public init(close: @escaping () -> Void, openSettings: @escaping () -> Void, quit: @escaping () -> Void) {
+    public init(close: @escaping @MainActor () -> Void, openSettings: @escaping @MainActor () -> Void, quit: @escaping @MainActor () -> Void) {
         self.close = close
         self.openSettings = openSettings
         self.quit = quit
@@ -60,7 +60,7 @@ public final class PanelController: NSObject {
 
     public var isOpen: Bool { panel.isVisible }
 
-    public init<Content: View>(image: NSImage?, openSettings: @escaping () -> Void,
+    public init<Content: View>(image: NSImage?, openSettings: @escaping @MainActor () -> Void,
                                @ViewBuilder content: (PanelActions) -> Content) {
         super.init()
         let actions = PanelActions(
