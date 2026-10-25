@@ -120,7 +120,7 @@ public struct PanelView: View {
             PanelDivider()
             MenuRow(title: "Ask Agent", systemImage: "sparkles", shortcut: model.panelAgentShortcut.displayString) {
                 actions.finish()
-                model.askAgent()
+                model.askAgentAboutScreen()
             }
             .keyboardShortcut(model.panelAgentShortcut.keyEquivalent, modifiers: model.panelAgentShortcut.eventModifiers)
             .disabled(model.defaultAgent == nil || !model.agentInstalled)
@@ -199,7 +199,7 @@ public struct PanelView: View {
                     if model.panelAgentShortcut.matches(press) {
                         guard model.defaultAgent != nil && model.agentInstalled else { return .ignored }
                         actions.finish()
-                        model.askAgent()
+                        model.askAgentAboutScreen()
                         return .handled
                     }
                     return .ignored

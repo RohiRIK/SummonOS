@@ -105,7 +105,7 @@ One read-only, fast (<300 ms), redacted snapshot of the Mac that any agent can a
 - [x] **Undo timeline** (owner chose: MCP session checkpoints + one contextual panel row, no list): the panel lists what agents changed on this Mac (macctl journal + checkpoints, grouped by
       agent session), with one-click undo. The demo is: an agent changes Dock, Finder and dark mode through MCP, then one
       click puts everything back.
-- [ ] **Summon with context:** the hotkey captures the frontmost app, its selected text, the Finder selection and the
+- [x] **Summon with context:** (on by default like the other context fields, owner 2026-10-25; each can be turned off) the hotkey captures the frontmost app, its selected text, the Finder selection and the
       browser URL, and hands them to the agent so "fix this" works on whatever is on screen. Each capture is opt-in and
       shown before the agent sends it.
 - [ ] **System-wide theme:** `summon theme <name>` sets wallpaper, accent, dark mode, Terminal/Ghostty, VS Code and nvim
