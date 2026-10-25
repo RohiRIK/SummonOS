@@ -147,7 +147,7 @@ How an app is made, step by step: [`docs/workflow.md`](docs/workflow.md).
 
 ## Status and roadmap
 
-SummonOS is a preview (`0.1.0`). What is designed but not built yet is listed under "Planned" in
+SummonOS is a preview (`0.1.1`). What is designed but not built yet is listed under "Planned" in
 [`docs/features.md`](docs/features.md). Finished and long-running plans are in [`docs/plans/`](docs/plans/index.md).
 While Summon.app runs it logs Mac changes for agents (network, VPN, low disk, battery, thermal, displays):
 `summon events --kind mac --follow` or the MCP tool `mac_events`.

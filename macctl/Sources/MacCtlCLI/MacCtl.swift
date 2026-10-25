@@ -31,7 +31,7 @@ struct MacCtl: AsyncParsableCommand {
             Exit codes: 0 ok, 1 error, 2 needs permission, 3 needs confirmation (--yes), 4 unsupported.
             After an interrupted run, every write refuses with recovery_pending until `macctl recover`.
             """,
-            version: "macctl 0.1.0",
+            version: "macctl 0.1.1",
             subcommands: [
                 DoctorCommand.self,
                 ListCommand.self,
