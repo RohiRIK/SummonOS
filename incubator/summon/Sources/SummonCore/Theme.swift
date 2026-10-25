@@ -169,6 +169,106 @@ public enum ThemeCompiler {
         return lines.joined(separator: "\n") + "\n"
     }
 
+    /// The macOS accent (`appearance.accent-color`) nearest the theme's accent: by hue, graphite when nearly gray.
+    public static func accentIndex(_ theme: Theme) -> Int {
+        let c = color(theme.colors.accent)
+        let r = Double(c.red) / 255, g = Double(c.green) / 255, b = Double(c.blue) / 255
+        let high = max(r, g, b), low = min(r, g, b), span = high - low
+        guard high > 0, span / high > 0.2 else { return -1 }
+        var hue: Double
+        if high == r { hue = (g - b) / span } else if high == g { hue = 2 + (b - r) / span } else { hue = 4 + (r - g) / span }
+        hue = (hue * 60).truncatingRemainder(dividingBy: 360)
+        if hue < 0 { hue += 360 }
+        switch hue {
+        case ..<15, 345...: return 0
+        case ..<45: return 1
+        case ..<70: return 2
+        case ..<170: return 3
+        case ..<250: return 4
+        case ..<310: return 5
+        default: return 6
+        }
+    }
+
+    /// A VS Code (and Cursor) color theme named "Summon"; the user selects it once, later themes rewrite it.
+    public static func vscodeTheme(_ theme: Theme) -> String {
+        let c = theme.colors
+        let ansi = ["Black", "Red", "Green", "Yellow", "Blue", "Magenta", "Cyan", "White"]
+        var colors: [String: String] = [
+            "editor.background": hash(c.background), "editor.foreground": hash(c.foreground),
+            "editorCursor.foreground": hash(c.cursor), "editor.selectionBackground": hash(c.selection),
+            "editorLineNumber.foreground": hash(c.muted), "editorLineNumber.activeForeground": hash(c.foreground),
+            "activityBar.background": hash(c.background), "activityBar.foreground": hash(c.accent),
+            "sideBar.background": hash(c.background), "sideBar.foreground": hash(c.foreground),
+            "statusBar.background": hash(c.background), "statusBar.foreground": hash(c.muted),
+            "titleBar.activeBackground": hash(c.background), "titleBar.activeForeground": hash(c.foreground),
+            "tab.activeBackground": hash(c.selection), "tab.inactiveBackground": hash(c.background),
+            "focusBorder": hash(c.accent), "button.background": hash(c.accent), "button.foreground": hash(c.background),
+            "terminal.background": hash(c.background), "terminal.foreground": hash(c.foreground),
+        ]
+        for (index, value) in theme.terminal.prefix(16).enumerated() {
+            colors["terminal.ansi" + (index < 8 ? "" : "Bright") + ansi[index % 8]] = hash(value)
+        }
+        let term = theme.terminal.map(hash)
+        func token(_ scope: [String], _ color: String, italic: Bool = false) -> [String: Any] {
+            var settings: [String: Any] = ["foreground": color]
+            if italic { settings["fontStyle"] = "italic" }
+            return ["scope": scope, "settings": settings]
+        }
+        let body: [String: Any] = [
+            "name": "Summon", "type": theme.isDark ? "dark" : "light", "colors": colors,
+            "tokenColors": [
+                token(["comment"], hash(c.muted), italic: true),
+                token(["keyword", "storage", "keyword.control"], hash(c.accent)),
+                token(["string"], term.count > 2 ? term[2] : hash(c.accent2)),
+                token(["entity.name.function", "support.function"], hash(c.accent2)),
+                token(["constant", "constant.numeric"], term.count > 3 ? term[3] : hash(c.accent)),
+                token(["entity.name.type", "support.type"], term.count > 6 ? term[6] : hash(c.accent2)),
+            ],
+        ]
+        return json(body)
+    }
+
+    /// The extension manifest that makes `vscodeTheme` show up as "Summon" in VS Code and Cursor.
+    public static func vscodePackage(_ theme: Theme) -> String {
+        json([
+            "name": "summon-theme", "displayName": "Summon", "publisher": "summon", "version": "0.0.1",
+            "description": header, "engines": ["vscode": "^1.70.0"], "categories": ["Themes"],
+            "contributes": ["themes": [["label": "Summon", "uiTheme": theme.isDark ? "vs-dark" : "vs", "path": "./themes/summon.json"]]],
+        ])
+    }
+
+    /// `~/.config/nvim/colors/summon.lua`, chosen with `:colorscheme summon`.
+    public static func nvim(_ theme: Theme) -> String {
+        let c = theme.colors
+        let term = theme.terminal.map(hash)
+        func at(_ index: Int, _ fallback: String) -> String { term.count > index ? term[index] : hash(fallback) }
+        var lines = ["-- \(header)", "-- Theme: \(theme.name)", #"vim.cmd("highlight clear")"#, #"vim.g.colors_name = "summon""#,
+                     "vim.o.background = \"\(theme.isDark ? "dark" : "light")\"",
+                     "local hi = function(group, opts) vim.api.nvim_set_hl(0, group, opts) end"]
+        let groups: [(String, String)] = [
+            ("Normal", "fg = \"\(hash(c.foreground))\", bg = \"\(hash(c.background))\""),
+            ("Comment", "fg = \"\(hash(c.muted))\", italic = true"),
+            ("Statement", "fg = \"\(hash(c.accent))\""), ("Keyword", "fg = \"\(hash(c.accent))\""),
+            ("String", "fg = \"\(at(2, c.accent2))\""), ("Function", "fg = \"\(hash(c.accent2))\""),
+            ("Constant", "fg = \"\(at(3, c.accent))\""), ("Type", "fg = \"\(at(6, c.accent2))\""),
+            ("Visual", "bg = \"\(hash(c.selection))\""), ("CursorLine", "bg = \"\(hash(c.selection))\""),
+            ("LineNr", "fg = \"\(hash(c.muted))\""), ("CursorLineNr", "fg = \"\(hash(c.accent))\""),
+            ("StatusLine", "fg = \"\(hash(c.foreground))\", bg = \"\(hash(c.selection))\""),
+            ("Pmenu", "fg = \"\(hash(c.foreground))\", bg = \"\(hash(c.selection))\""),
+            ("Search", "fg = \"\(hash(c.background))\", bg = \"\(hash(c.accent))\""),
+            ("WinSeparator", "fg = \"\(hash(c.borderInactive))\""),
+        ]
+        lines += groups.map { "hi(\"\($0.0)\", { \($0.1) })" }
+        lines += term.prefix(16).enumerated().map { "vim.g.terminal_color_\($0.offset) = \"\($0.element)\"" }
+        return lines.joined(separator: "\n") + "\n"
+    }
+
+    private static func json(_ value: Any) -> String {
+        let data = (try? JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])) ?? Data("{}".utf8)
+        return String(decoding: data, as: UTF8.self) + "\n"
+    }
+
     /// Arguments for JankyBorders: `borders <args…>` (also valid as `bordersrc` lines).
     public static func bordersArguments(_ theme: Theme) -> [String] {
         [

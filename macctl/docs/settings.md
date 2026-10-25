@@ -36,6 +36,7 @@ Source of truth: `Sources/MacCtlCore/Catalog.swift`. `macctl describe <id>` show
 | `screenshots.include-date` | `com.apple.screencapture` / `include-date` | bool | restart SystemUIServer | no | 15+ |
 | `appearance.scroll-bars` | `NSGlobalDomain` / `AppleShowScrollBars` | enum Automatic, WhenScrolling, Always | relaunch apps | no | 15+ |
 | `appearance.menu-icons` | `NSGlobalDomain` / `NSMenuEnableActionImages` | bool | relaunch apps | no | 26+ |
+| `appearance.accent-color` | `NSGlobalDomain` / `AppleAccentColor` | int -1…6 (unset = multicolor) | relaunch apps | no | 15+ |
 | `windows.click-desktop-to-reveal` | `com.apple.WindowManager` / `EnableStandardClickToShowDesktop` | bool | none | no | 15+ |
 | `windows.tile-by-edge-drag` | `com.apple.WindowManager` / `EnableTilingByEdgeDrag` | bool | none | no | 15+ |
 | `windows.tile-margins` | `com.apple.WindowManager` / `EnableTiledWindowMargins` | bool | none | no | 15+ |

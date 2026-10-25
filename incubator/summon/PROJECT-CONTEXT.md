@@ -40,6 +40,13 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — Theme the whole Mac with one undo
+- `ThemeCompiler.accentIndex` (hue → macOS accent, graphite when gray), `vscodeTheme`/`vscodePackage`
+  (extension `summon.summon-theme-0.0.1` in `~/.vscode/extensions` and `~/.cursor/extensions` when those exist),
+  `nvim` (`~/.config/nvim/colors/summon.lua` when `nvim` is on PATH). macctl gained `appearance.accent-color`
+  (`AppleAccentColor`, -1…6, unset = multicolor).
+- `summon theme set` creates a checkpoint "Theme <name>" first and logs `theme.set` with `checkpoint` and
+  `agent: "Theme <name>"` refs. `UndoOffer` now has a `label` ("Codex Session", "Theme Tokyo Night").
 ### 2026-10-25 — First real Mac run of the hotkey capture
 - Verified on the owner's Mac: ⌃⌥⌘A over Helium sent app, window title, page and selected text. `summon connect
   claude` added the MCP server (✔ Connected), start/end hooks and the note; doctor `plugin` passes.
