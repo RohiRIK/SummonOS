@@ -1,0 +1,48 @@
+# Post-release smoke test: on a clean macos-26 runner, install SummonOS the way users do (the one-line installer
+# from main, which downloads the release zip and checks SHA256SUMS), then run the installed commands.
+# Runs when a release is published, by hand (any tag, or the newest release), and on a PR that edits this file.
+name: Release smoke test
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to install, such as v0.1.0 ("latest" = the newest release, prereleases included)
+        default: latest
+  pull_request:
+    paths: ['.github/workflows/release-smoke.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: macos-26
+    timeout-minutes: 20
+    env:
+      # A PR run checks the newest release; a published release checks itself.
+      TAG: ${{ github.event.release.tag_name || inputs.tag || 'latest' }}
+    steps:
+      - name: Install with the public installer
+        run: |
+          args=(--yes)
+          [ "$TAG" = latest ] || args+=(--version "$TAG")
+          echo "install.sh ${args[*]}"
+          curl -fsSL https://raw.githubusercontent.com/RohiRIK/SummonOS/main/install.sh | bash -s -- "${args[@]}"
+      - name: summon --version
+        run: |
+          out=$(~/.local/bin/summon --version); echo "$out"
+          [ "$TAG" = latest ] || grep -qF "${TAG#v}" <<<"$out" || { echo "::error::summon --version does not name $TAG"; exit 1; }
+      - name: summon doctor
+        # Exit 1 only on a FAIL check; warnings keep exit 0.
+        run: ~/.local/bin/summon doctor
+      - name: summon context --json
+        run: ~/.local/bin/summon context --json | tee "$RUNNER_TEMP/context.json" | python3 -m json.tool >/dev/null
+      - name: macctl --version
+        run: |
+          out=$(~/.local/bin/macctl --version); echo "$out"
+          [ "$TAG" = latest ] || grep -qF "${TAG#v}" <<<"$out" || { echo "::error::macctl --version does not name $TAG"; exit 1; }
+      - name: macctl doctor
+        run: ~/.local/bin/macctl doctor

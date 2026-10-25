@@ -127,6 +127,9 @@ tools/publish-public.sh plugins/<name> [branch] "<commit message>"
 - Exports the branch with `git archive` and drops `PROJECT-CONTEXT.md` (agent memory).
 - Refuses to publish if any regex in `tools/private-patterns.txt` matches. That file is gitignored
   and must contain usable patterns. Invalid patterns, read errors, binary matches and private symlink targets block publishing.
+- CI (`swift.yml`, workspace job) runs the same scanner over every tracked file of this repo with
+  `tools/public-patterns.txt`: generic checks only (private IPv4 ranges, MACs outside `00:00:5e:00:53:xx`, personal
+  mail domains), since the private file never leaves your Mac.
 - Commits with your GitHub noreply address, so the author email never reaches the public history.
 - Needs `gh` signed in and the public repo `<login>/<name>` to exist.
 

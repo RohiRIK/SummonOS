@@ -1,0 +1,55 @@
+# CodeQL code scanning for the Swift in this repo (free on public repos). Results land in Security › Code scanning.
+# Swift needs a manual build: CodeQL traces the compiler while `summon` and `macctl` build on macos-26 with Xcode 26.
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths: ['**/*.swift', '**/Package.swift', '.github/workflows/codeql.yml']
+  schedule:
+    - cron: '23 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One group per PR (or ref): a new commit on a PR cancels its older run; pushes to main are never cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  analyze:
+    runs-on: macos-26
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: |
+          # Same selection as swift.yml: the code calls macOS 26 APIs behind #available, so it needs Xcode 26.
+          # Read the version into a variable first: piping xcodebuild into `grep -q` breaks its pipe and it aborts.
+          version=$(xcodebuild -version)
+          if ! grep -q '^Xcode 26' <<<"$version"; then
+            xcode=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+            [ -n "$xcode" ] || { echo "::error::no Xcode 26 on this image"; exit 1; }
+            sudo xcode-select -s "$xcode"
+          fi
+          xcodebuild -version
+          swift --version
+      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          languages: swift
+          build-mode: manual
+      - name: Build summon and macctl
+        run: |
+          swift build --package-path incubator/summon --product summon
+          swift build --package-path macctl --product macctl
+      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          category: /language:swift
