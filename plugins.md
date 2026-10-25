@@ -10,7 +10,7 @@
 
 | Plugin | What it is | Where | Status |
 |---|---|---|---|
-| macctl | CLI for AI agents to read, set, diff, apply and undo macOS settings | `macctl/`, plan `docs/plans/2026-10-16-macctl.md` | merged; 82 tests pass and smoke-tested on a Mac (macOS 26.6, 2026-10-18) |
+| macctl | CLI for AI agents to read, set, diff, apply and undo macOS settings | `macctl/`, plan `docs/plans/2026-10-16-macctl.md` | merged; 94 tests pass and smoke-tested on a Mac (macOS 26.6, 2026-10-18) |
 | Summon | An agent you summon from anywhere on the Mac: crash and log handoff, checkpoints with undo, themes, app templates | `incubator/summon/`, plan `docs/plans/2026-10-17-summon.md` | CLI and menu app built, tested and installed on a Mac (2026-10-18) |
 
 ## Scratch (local only, no repo yet)

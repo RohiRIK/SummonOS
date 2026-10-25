@@ -12,15 +12,25 @@ public struct AgentSettings: Sendable, Equatable, Codable {
     public var agents: [String: Entry] = [:]
     /// All Agents: the skills an agent gets unless its own page customizes them; nil means every shipped skill.
     public var defaultSkills: [String]? = nil
+    /// `summon context` fields the person turned off; empty means agents see everything.
+    public var hiddenContext: [ContextField] = []
 
     public init() {}
 
-    enum CodingKeys: String, CodingKey { case agents, defaultSkills }
+    enum CodingKeys: String, CodingKey { case agents, defaultSkills, hiddenContext }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         agents = try container.decodeIfPresent([String: Entry].self, forKey: .agents) ?? [:]
         defaultSkills = try container.decodeIfPresent([String].self, forKey: .defaultSkills)
+        // Unknown names (from a newer Summon) are dropped instead of failing the whole file.
+        hiddenContext = (try container.decodeIfPresent([String].self, forKey: .hiddenContext) ?? []).compactMap { ContextField(rawValue: $0) }
+    }
+
+    public mutating func setContext(_ field: ContextField, visible: Bool) {
+        var hidden = Set(hiddenContext)
+        if visible { hidden.remove(field) } else { hidden.insert(field) }
+        hiddenContext = ContextField.allCases.filter(hidden.contains)
     }
 
     /// The All Agents skills.
@@ -120,6 +130,11 @@ public enum AgentSettingsCommand {
     public static func skills(_ skills: [String]?, for id: String) -> [String] {
         guard let skills else { return ["agents", "set", id, "--all-skills"] }
         return ["agents", "set", id, "--skills=" + skills.joined(separator: ",")]
+    }
+
+    /// `summon context show|hide <field>`.
+    public static func context(_ field: ContextField, visible: Bool) -> [String] {
+        ["context", visible ? "show" : "hide", field.rawValue]
     }
 
     /// Skill names from `summon skills` output (one `…/<name>/SKILL.md` path per line), sorted.

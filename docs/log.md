@@ -1,5 +1,8 @@
 # Docs update log
 
+## 2026-10-25
+* **Update**: [Features](features.md): `summon context` gives agents one snapshot of this Mac, with fields the user can hide in Settings › Agents; Settings lists all 7 tabs; Visual QA opens the panel (there is no launcher window).
+
 ## 2026-10-24
 * **Update**: [Features](features.md): every agent prompt carries a Summon session brief; crash alerts are one style (Summon alert or banner) and never take the keyboard; task results come from Summon.app with Show Log and Ask Agent.
 * **Update**: [Features](features.md): Summon's menu bar icon shows a running agent's elapsed time and tells VoiceOver; keyboard and URL panel opens are announced. New `examples/menubar-panel-starter` (`tools/mp new <name> --panel`).

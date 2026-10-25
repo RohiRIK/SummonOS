@@ -8,7 +8,7 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
 
 ## Current State
 - Incubating at `incubator/summon/` in the SummonOS workspace (`RohiRIK/SummonOS`). Target repos: `mac-summon-dev` / `mac-summon`.
-- `plugin/`: Claude Code plugin (4 skills, 7 commands, `macctl` MCP). `themes/`: 9 theme.json + wallpapers.
+- `plugin/`: Claude Code plugin (7 skills, 9 commands; no MCP server yet). `themes/`: 9 theme.json + wallpapers.
   `config/`: Brewfile, AeroSpace, Ghostty, borders, zsh. `design/`: brand assets + `generate.py`.
 - Swift package: `SummonCore` (agents, launch plans, .ips crash parsing + watcher, menu tree, themes + compilers,
   checkpoints, debug bundle, hooks, command catalog), `summon` CLI, `SummonMenuUI` + `SummonMenu` app (menu bar panel
@@ -40,6 +40,13 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — `summon context`: the Mac snapshot for agents
+- `MacContext` (Core, tested) + `MacContextProbe` (live: sysctl, IOKit power, SystemConfiguration, CoreGraphics,
+  NSWorkspace, Accessibility only when already trusted; never prompts). `summon context [--json] [--only]`,
+  `context fields|hide|show`. JSON dates are ISO 8601 (other commands keep the app's format).
+- Privacy: everything on by default (owner, 2026-10-25); `agents.json` `hiddenContext` lists fields turned off,
+  shown in Settings › Agents › All Agents. Unknown names are dropped on load.
+- First step of the master plan (`tasks/todo.md`): PR 2 is `summon mcp`.
 ### 2026-10-24 — Agent prompts, skills and notifications aligned
 - `SessionBrief` (Core, tested) ends every prompt Summon gives an agent (`summon agent prompt`, crash diagnose,
   `summon fix`, item health, Activity, tasks): folder, checkpoint id + undo command, approval mode, skill files.
