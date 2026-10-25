@@ -8,7 +8,7 @@ import SummonCore
 @MainActor
 final class MenuBarStatusWatcher {
     private let model: SummonModel
-    private let apply: (_ title: String?, _ accessibilityLabel: String) -> Void
+    private let apply: (_ title: String?, _ accessibilityLabel: String, _ attention: Bool) -> Void
     private var task: Task<Void, Never>?
     private var logDate: Date?
     private var session: LoggedEvent?
@@ -18,7 +18,7 @@ final class MenuBarStatusWatcher {
     private var seenAtBoundary: [LoggedEvent] = []
     var onNewEvents: (([LoggedEvent]) -> Void)?
 
-    init(model: SummonModel, apply: @escaping (_ title: String?, _ accessibilityLabel: String) -> Void) {
+    init(model: SummonModel, apply: @escaping (_ title: String?, _ accessibilityLabel: String, _ attention: Bool) -> Void) {
         self.model = model
         self.apply = apply
     }
@@ -51,7 +51,8 @@ final class MenuBarStatusWatcher {
         // A session older than `StatusProbe.staleSession` stops counting even if the log never moves again.
         if let start = session?.time, now.timeIntervalSince(start) >= StatusProbe.staleSession { session = nil }
         apply(MenuBarStatus.title(session: session, enabled: model.menuBarShowsAgentTime, now: now),
-              MenuBarStatus.accessibilityLabel(agentName: model.defaultAgent?.name, session: session, now: now))
+              MenuBarStatus.accessibilityLabel(agentName: model.defaultAgent?.name, session: session, now: now),
+              !PanelAttention(reports: model.panelProblems, doctor: model.doctorReport).isEmpty)
     }
 
     private func reloadIfChanged() async {

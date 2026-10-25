@@ -40,6 +40,15 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — U1 UX quick wins (Phase 5)
+- One Settings window: the `Settings` scene only (the duplicate `Window("Summon Settings")` is gone); `ActivityOpener`
+  calls `openSettings()` and finds the window by its identifier (its title is the page name now).
+- Settings: `detailHeader` removed (`.navigationTitle` per page); General lost the diagnostics card, the
+  explanatory subtitles and footer, the "caffeine" line and the second Quit.
+- Panel: `PanelAttention` (Core, tested) feeds Needs attention rows (crashes by program → Diagnose…, setup problems →
+  Fix…). `checkHealth()` runs at launch and every 10 min in the watch loop. "Choose an agent" menu when no default
+  agent, auto-pick when one is installed; the theme chip is gone.
+- Undo alert: "Restore N Changes", Cancel default, copy matches #85. The menu bar icon is tinted orange while there is attention.
 ### 2026-10-25 — Live Mac events for agents
 - `MacEvents.changes(from:to:)` (Core, tested) logs only threshold crossings as `mac.network|disk|battery|thermal|display`.
   `SummonModel.checkMac()` runs in the 30 s crash-watch loop (a shortcut, noted in the code: poll rather than

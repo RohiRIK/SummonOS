@@ -104,73 +104,20 @@ public struct SettingsView: View {
 
     @ViewBuilder private var detailView: some View {
         if let selection {
-            VStack(alignment: .leading, spacing: 0) {
-                detailHeader(for: selection)
-
-                detailContent(for: selection)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+            // The page title is the window title, as in System Settings; no header block or subtitle.
+            detailContent(for: selection)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .navigationTitle(title(for: selection))
         } else {
             ContentUnavailableView("Select a Section", systemImage: "gearshape")
         }
     }
 
-    @ViewBuilder private func detailHeader(for panel: SettingsPanel) -> some View {
-        HStack(spacing: 14) {
-            switch panel {
-            case .general:
-                headerIcon(systemName: "gearshape.fill", color: .gray)
-                headerText(title: "General", subtitle: "System defaults, startup behavior, and global shortcuts")
-            case .agents:
-                headerIcon(systemName: "sparkles", color: .purple)
-                headerText(title: "All Agents", subtitle: "Installed coding agents, model connections, and providers")
-            case .apps:
-                headerIcon(systemName: "square.grid.2x2.fill", color: .indigo)
-                headerText(title: "My Apps", subtitle: "Apps and menu bar widgets built in ~/Summon/Apps")
-            case .terminal:
-                headerIcon(systemName: "terminal.fill", color: .black)
-                headerText(title: "Terminal", subtitle: "Default terminal emulator, launch behavior, and window styling")
-            case .notifications:
-                headerIcon(systemName: "bell.badge.fill", color: .red)
-                headerText(title: "Notifications", subtitle: "Crash alerts, task results, and sound")
-            case .appearance:
-                headerIcon(systemName: "paintpalette.fill", color: .blue)
-                headerText(title: "Appearance", subtitle: "Theme palettes, colors, and visual styling")
-            case .tasks:
-                headerIcon(systemName: "clock.arrow.circlepath", color: .orange)
-                headerText(title: "Tasks", subtitle: "Automation schedule, recurring maintenance, and log rotation")
-            case .agent(let id):
-                if let agent = AgentRegistry.find(id) {
-                    AgentBrandIcon(agentId: agent.id, size: 24)
-                        .frame(width: 36, height: 36)
-                        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    headerText(title: agent.name, subtitle: "AI assistant settings, provider login, and custom model")
-                }
-            }
-            Spacer()
-        }
-        .padding(.horizontal, 28)
-        .padding(.top, 20)
-        .padding(.bottom, 12)
-    }
-
-    private func headerIcon(systemName: String, color: Color) -> some View {
-        Image(systemName: systemName)
-            .font(.system(size: 18, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: 36, height: 36)
-            .background(color, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .shadow(color: color.opacity(0.25), radius: 3, y: 1.5)
-    }
-
-    private func headerText(title: String, subtitle: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(.primary)
-            Text(subtitle)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+    private func title(for panel: SettingsPanel) -> String {
+        switch panel {
+        case .agent(let id): AgentRegistry.find(id)?.name ?? "Agent"
+        case .agents: "Agents"
+        default: SettingsSection.allCases.first { $0.panel == panel }?.title ?? "Settings"
         }
     }
 
@@ -313,12 +260,10 @@ struct GeneralSettings: View {
                     if model.accessibilityGranted {
                         Text("On").foregroundStyle(.secondary)
                     } else {
+                        // Each preview build is a new app to macOS, so an old switch can look on and still not count.
                         Button("Allow…") { model.requestAccessibility() }
+                            .help("Still off after allowing? Turn Summon off and on again in the list.")
                     }
-                }
-                // Each preview build is a new app to macOS, so an old switch can look on and still not count.
-                if model.accessibilityRequested && !model.accessibilityGranted {
-                    Text("Still off? Turn Summon off and on again in the list.").foregroundStyle(.secondary)
                 }
             }
             // Re-check while it is off: granting happens in System Settings, not in Summon.
@@ -326,121 +271,6 @@ struct GeneralSettings: View {
                 while !model.accessibilityGranted, !Task.isCancelled {
                     try? await Task.sleep(for: .seconds(2))
                     model.refreshPermissions()
-                }
-            }
-
-            Section("System Diagnostics & Health") {
-                if model.isCheckingHealth {
-                    HStack(spacing: 10) {
-                        ProgressView()
-                            .controlSize(.small)
-                        Text("Running system diagnostics...")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.vertical, 4)
-                } else if let report = model.doctorReport {
-                    if report.hasIssues {
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack(alignment: .center, spacing: 10) {
-                                Image(systemName: report.status == .fail ? "xmark.octagon.fill" : "exclamationmark.triangle.fill")
-                                    .font(.title2)
-                                    .foregroundStyle(report.status == .fail ? Color.red : Color.orange)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("\(report.issues.count) issue\(report.issues.count == 1 ? "" : "s") detected")
-                                        .font(.headline)
-                                    Text("Summon detected configuration or environment issues on this Mac.")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Button {
-                                    model.fixWithAI()
-                                } label: {
-                                    HStack(spacing: 5) {
-                                        Image(systemName: "wrench.and.screwdriver.fill")
-                                        Text("Fix with AI")
-                                    }
-                                    .fontWeight(.semibold)
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .tint(.purple)
-                                .help("Launch default agent to automatically repair these issues")
-                            }
-
-                            Divider()
-
-                            VStack(alignment: .leading, spacing: 8) {
-                                ForEach(report.issues, id: \.id) { check in
-                                    HStack(alignment: .top, spacing: 8) {
-                                        Text(check.status == .fail ? "FAIL" : "WARN")
-                                            .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                            .padding(.horizontal, 5)
-                                            .padding(.vertical, 2)
-                                            .background(check.status == .fail ? Color.red.opacity(0.15) : Color.orange.opacity(0.15))
-                                            .foregroundStyle(check.status == .fail ? Color.red : Color.orange)
-                                            .clipShape(RoundedRectangle(cornerRadius: 4))
-
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(check.detail)
-                                                .font(.subheadline)
-                                                .foregroundStyle(.primary)
-                                            if let fix = check.fix {
-                                                Text("Fix: \(fix)")
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
-                                                    .fontDesign(.monospaced)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            HStack {
-                                Spacer()
-                                Button("Re-check") {
-                                    Task { await model.checkHealth() }
-                                }
-                                .buttonStyle(.borderless)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            }
-                        }
-                        .padding(.vertical, 4)
-                    } else {
-                        HStack(spacing: 12) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.title3)
-                                .foregroundStyle(.green)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("System Healthy")
-                                    .font(.subheadline.weight(.medium))
-                                Text("All Summon diagnostics and macOS permissions pass.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Button("Run Diagnostics") {
-                                Task { await model.checkHealth() }
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                        }
-                        .padding(.vertical, 4)
-                    }
-                } else {
-                    HStack {
-                        Text("Check your environment, permissions, and toolchain")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Button("Run Diagnostics") {
-                            Task { await model.checkHealth() }
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                    }
-                    .padding(.vertical, 4)
                 }
             }
 
@@ -491,7 +321,6 @@ struct GeneralSettings: View {
 
                 Toggle(isOn: Binding(get: { model.repoPolicy == .always }, set: { model.setRepoPolicy($0 ? .always : .ask) })) {
                     Text("Create a private GitHub repo for every new app")
-                    Text("With screenshots and CI. Always private. Off: Summon asks each time.")
                 }
 
                 LabeledContent {
@@ -503,14 +332,12 @@ struct GeneralSettings: View {
                     }
                 } label: {
                     Text("Keep ~/Summon tidy")
-                    Text("Once a day, old task logs and art go to the Trash. Apps are never touched.")
                 }
             }
 
             Section {
                 Toggle(isOn: $model.menuBarShowsAgentTime) {
                     Text("Show agent time in the menu bar")
-                    Text("While an agent runs, its elapsed time appears next to the Summon icon.")
                 }
             } header: {
                 Text("Menu Bar")
@@ -543,27 +370,6 @@ struct GeneralSettings: View {
                 )
             } header: {
                 Text("Keyboard Shortcuts")
-            } footer: {
-                Text("Global shortcuts work anywhere in macOS. Quick-Launch Agent triggers directly from the search bar or anywhere in the Summon panel. Click Record on any shortcut to customize it.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section {
-                HStack {
-                    Text("Powered by caffeine and questionable choices.")
-                        .font(.footnote)
-                        .foregroundStyle(.tertiary)
-                    Spacer()
-                    Button(role: .destructive) {
-                        NSApp.terminate(nil)
-                    } label: {
-                        Text("Quit Summon")
-                            .font(.system(size: 13, weight: .medium))
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.red)
-                }
             }
         }
         .formStyle(.grouped)

@@ -88,10 +88,31 @@ public struct PanelView: View {
         }
     }
 
+    /// Needs attention: shown only when something is wrong (crashes by program, Summon's setup problems).
+    @ViewBuilder private var attentionRows: some View {
+        let attention = PanelAttention(reports: model.panelProblems, doctor: model.doctorReport)
+        if !attention.isEmpty {
+            ForEach(attention.crashes) { crash in
+                MenuRow(title: crash.title, systemImage: "exclamationmark.triangle.fill", shortcut: "Diagnose…") {
+                    actions.finish()
+                    model.diagnose(file: crash.file)
+                }
+            }
+            if attention.setupProblems > 0 {
+                MenuRow(title: attention.setupTitle, systemImage: "wrench.and.screwdriver", shortcut: nil) {
+                    actions.finish()
+                    model.fixWithAI()
+                }
+            }
+            PanelDivider()
+        }
+    }
+
     private var content: some View {
         VStack(alignment: .leading, spacing: 2) {
             header
             search
+            attentionRows
             ForEach(Array(rows.enumerated()), id: \.element.id) { index, item in
                 MenuTreeRow(item: item,
                             breadcrumb: query.isEmpty ? nil : model.menu.path(to: item.parentID ?? "").joined(separator: " › "),
@@ -289,17 +310,7 @@ public struct PanelView: View {
                 .background(Circle().fill(Color.accentColor))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 6) {
-                    Text("Summon").font(.headline)
-                    if let themeName = model.currentThemeName {
-                        Text(themeName)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 1.5)
-                            .background(Color.secondary.opacity(0.12), in: Capsule())
-                    }
-                }
+                Text("Summon").font(.headline)
                 agentLine
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -325,8 +336,17 @@ public struct PanelView: View {
             } else {
                 Text(agent.name)
             }
+        } else if model.installedAgentIDs.isEmpty {
+            Text("No agent installed")
         } else {
-            Text("No default agent: choose one in Settings")
+            // Picking one here, not in Settings: Ask Agent works right away.
+            Menu("Choose an agent") {
+                ForEach(AgentRegistry.all.filter { model.installedAgentIDs.contains($0.id) }, id: \.id) { agent in
+                    Button(agent.name) { model.setDefaultAgent(agent.id) }
+                }
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
         }
     }
 }
