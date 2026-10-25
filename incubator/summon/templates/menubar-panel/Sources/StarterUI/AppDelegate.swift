@@ -37,7 +37,14 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Opening the app again from the Finder shows Settings: the way back when the menu bar item is hidden.
+    public func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        model.requestSettings()
+        return false
+    }
+
     private func updateLabel() {
+        panel?.isStatusItemVisible = UserDefaults.standard.object(forKey: StarterSettings.showInMenuBarKey) as? Bool ?? true
         let showCount = UserDefaults.standard.bool(forKey: StarterSettings.showCountKey)
         panel?.setLabel(title: showCount ? "\(model.counter.value)" : nil,
                         accessibilityLabel: "Starter, \(model.counter.label)")

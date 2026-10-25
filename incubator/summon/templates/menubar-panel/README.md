@@ -29,6 +29,8 @@ Take this one when the app needs any of these:
 | `Sources/StarterUI/SummonTheme.swift` | `.themed()`: the Summon theme's accent on every window root, live |
 | `Sources/StarterUI/Glass.swift` | `.glassControl()`: Liquid Glass on macOS 26, a material on 15; controls only |
 | `Sources/StarterUI/SettingsView.swift` | Settings window: Open at Login (`SMAppService`), the menu bar toggle |
+| `Sources/StarterUI/Onboarding.swift` | The first-run window: steps, permission cards with live status |
+| `Sources/StarterUI/CloseOnlyWindow.swift` | `.closeOnlyWindow()`: dims minimize and zoom, no full screen (Settings, setup) |
 | `Sources/StarterUI/Screenshots.swift` | `--screenshot <folder>`: the panel to PNGs, used by `summon project shots` |
 | `Sources/StarterCore/` | Logic, Foundation only, tested (`SummonThemeFile` reads the theme) |
 | `Resources/` | `Info.plist` (bundle id `local.summon.menubar-panel-starter`, `LSUIElement`), `AppIcon.icns` |
@@ -42,6 +44,13 @@ Take this one when the app needs any of these:
 - **Settings…** closes the panel and opens the Settings window. SwiftUI's `openSettings` only works inside a
   scene, so the request goes through `SettingsOpener` in an invisible, always-open window.
 - **Keys** while open: Return adds one, ⌘, opens Settings, ⌘Q quits, Esc closes.
+- **Right-click** (or ⌃-click) the icon: a plain menu with Settings… and Quit.
+- **Show in menu bar** (Settings): people decide whether the icon is there. Hidden, the app is reachable from code
+  and by opening it again in the Finder, which shows Settings.
+- **First run:** a 640 × 440 welcome window (`Onboarding.swift`) ends by pointing at the menu bar icon. The app shows
+  in the Dock only while it is open. Closing it skips it; Settings › Welcome shows it again. Add a permission card
+  only for a permission the app can't work without (`StarterOnboarding.permissions`, empty by default).
+- **Settings** window: close only (minimize and zoom dimmed), 480 pt, changes apply at once.
 
 To add a global hotkey, register it with Carbon's `RegisterEventHotKey` (no Accessibility permission needed) and
 call `panel.toggle()`.

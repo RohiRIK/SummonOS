@@ -1,6 +1,7 @@
 # Docs update log
 
 ## 2026-10-25
+* **Update**: [Features](features.md): templates follow the [UX surfaces](ux-surfaces/index.md): close-only Settings, desktop app inspector/search/undo at 800 × 550, menu bar right-click menu and Show in menu bar, first-run welcome window.
 * **Update**: [Features](features.md), [tools](tools.md), [workflow](workflow.md), [Scaffold](../.claude/skills/MacAppBuild/Scaffold.md): three new templates for the [UX surfaces](ux-surfaces/index.md): `launcher` (hotkey command bar), `hud` (floating always-on-top panel), `notch` (panel out of the camera housing).
 * **New**: [macOS UX surfaces](ux-surfaces/index.md): the surface table (7 surfaces × 14 dimensions), one research page per surface checked against the HIG and API docs, and [findings](ux-surfaces/00-findings.md) with ten corrections and the rules every surface shares.
 * **Update**: [Features](features.md), [tools](tools.md), [workflow](workflow.md), [Scaffold](../.claude/skills/MacAppBuild/Scaffold.md): one template set, `incubator/summon/templates/{menubar,menubar-panel,app,cli,screensaver}`; `examples/` is gone and `tools/mp new --kind <kind>` copies these templates. Every template has a CLT-compatible `scripts/test.sh`; UI kinds share a kit (menu rows, Summon theme, Liquid Glass controls, Open at Login, app icon, `--screenshot`). CI makes a project of every kind with `summon project new` and runs its `scripts/check.sh`.

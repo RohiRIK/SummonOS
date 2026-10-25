@@ -35,8 +35,24 @@ public struct Library: Equatable, Sendable {
         items[index].title = trimmed
     }
 
-    public mutating func remove(_ id: UUID) {
-        items.removeAll { $0.id == id }
+    /// Removes the item and says where it was, so the delete can be undone with `insert(_:at:)`.
+    @discardableResult
+    public mutating func remove(_ id: UUID) -> (item: Item, index: Int)? {
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return nil }
+        return (items.remove(at: index), index)
+    }
+
+    /// Puts a removed item back (undo). An out-of-range index appends; an item already present is ignored.
+    public mutating func insert(_ item: Item, at index: Int) {
+        guard !items.contains(where: { $0.id == item.id }) else { return }
+        items.insert(item, at: min(max(0, index), items.count))
+    }
+
+    /// Items whose title contains `query`, ignoring case and accents; all items for an empty query.
+    public func matching(_ query: String) -> [Item] {
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return items }
+        return items.filter { $0.title.localizedStandardContains(trimmed) }
     }
 
     public func item(_ id: UUID?) -> Item? {
