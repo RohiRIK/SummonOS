@@ -27,6 +27,11 @@ in the workspace. Agent instructions: workspace skill `MacSetup`.
 - Lives in the workspace repo for now (`macctl/`); planned move to `mac-ctl-dev` / `mac-ctl`.
 
 ## Recent History
+### 2026-10-25 — Wallpaper read-back race on macOS 27
+- Found on the owner's Mac (2 displays, macOS 27.0.1): `set desktop.wallpaper` returned `mutation_failed` ("read-back did not
+  match") although the picture had changed. `desktopImageURL` lags about 0.5 s behind the write. `LiveWallpaper` now waits
+  up to 3 s for every screen to report its target after `setWallpaper` and `restoreWallpapers`. Verified live: set,
+  then `undo`, on both screens.
 ### 2026-10-23 — Recovery contract, undo preview, macOS 27 settings, discover
 - `RecoveryContract` derived per backend (exact/value/conditional/compare_only + notUndone side effects), in describe,
   list and dry-run notes. `undo --dry-run` mirrors the revert walk read-only. ADR addendum D4.

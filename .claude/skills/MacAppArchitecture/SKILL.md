@@ -34,6 +34,8 @@ How a plugin is put together behind the views. Decide the shape first, then fill
 - `@AppStorage` has no `[String]` type on macOS 15; store a comma-joined `String`.
 - EventKit: request access only from a user action (`requestFullAccessToEvents` / `…ToReminders`, completion-handler form under Swift 6), `NSCalendarsFullAccessUsageDescription` / `NSRemindersFullAccessUsageDescription` in Info.plist, reload on `.EKEventStoreChanged`.
 - Opening Ghostty from an app: `open -na Ghostty --args -e …` starts a *second* Ghostty process each time (extra Dock icon, stray window, tabs merging oddly). If Ghostty is running, use its AppleScript (1.3+): `new surface configuration` + `new window with configuration`, argv joined with `quoted form of`. Use `open -na` only on a cold start (Summon `LaunchPlan.swift`).
+- macOS 27: `NSWorkspace.desktopImageURL(for:)` still returns the *old* picture for about 0.5 s after `setDesktopImageURL` (System Events sees the new one at once). Wait until every screen reports the target before verifying (macctl `LiveWallpaper.waitUntilShown`); an immediate read-back "fails" a change that already happened.
+- Ad-hoc signed builds get a new code hash each build, so TCC (Accessibility) treats each one as a new app: an old entry can look on and not count. `tccutil reset Accessibility <bundle id>` clears it.
 - A new feature is done only when it is reachable (menu, key, button), persisted if it should be, and verified running.
 
 ## Examples
