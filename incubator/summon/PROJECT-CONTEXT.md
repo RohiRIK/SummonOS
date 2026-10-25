@@ -40,6 +40,17 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — summon update and the edge channel
+- `Updater` (Core, tested with a fake curl/ditto runner): `pick` reads the GitHub releases JSON (stable: highest
+  `vX.Y.Z` tag, drafts and `edge` skipped; edge: version from the `edge` release's zip name), `ReleaseVersion` is
+  SemVer precedence (`0.1.0-edge.x < 0.1.0`), stable updates only forward and edge on any difference. `install`
+  downloads zip + `SHA256SUMS`, verifies with CryptoKit, unpacks, checks the layout, then runs the zip's
+  `scripts/install.sh` with `SUMMONOS_APP_SOURCE`/`SUMMONOS_MACCTL_SOURCE` (via `/usr/bin/env`), as `install.sh` does.
+- `summon update` (CLI): the channel lives in `~/.config/summon/defaults/channel`; prompts on a TTY unless `--yes`;
+  runs the new binary's `summon doctor` after. `Shell.live(timeout:)` gives downloads 15 minutes.
+- release.yml: `workflow_run` of "Swift (macOS)" (success, push, main, this repo) builds the head commit with
+  `Version.swift` stamped `<VERSION>-edge.<sha7>` and replaces the `edge` prerelease's assets (tag moved via the API).
+- No Settings › General "Check for Updates…" yet: it needs an async check, a result and an install flow in the app.
 ### 2026-10-25 — U1 UX quick wins (Phase 5)
 - One Settings window: the `Settings` scene only (the duplicate `Window("Summon Settings")` is gone); `ActivityOpener`
   calls `openSettings()` and finds the window by its identifier (its title is the page name now).

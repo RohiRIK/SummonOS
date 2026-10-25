@@ -3,14 +3,16 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/RohiRIK/SummonOS/main/install.sh | bash
 #   curl -fsSL .../install.sh | bash -s -- --version v0.1.0     # pass options after `bash -s --`
+#   curl -fsSL .../install.sh | bash -s -- --channel edge       # the rolling build of the newest green main
 #   ./install.sh                     # from a checkout: builds and installs that checkout
 #
-# Piped from curl, it downloads the newest GitHub release (prereleases included), checks it against
+# Piped from curl, it downloads the newest GitHub release (prereleases included, never the rolling `edge`), checks it against
 # SHA256SUMS and installs it: no Xcode needed. With no release published yet it builds from source instead.
 #
 # Options:
 #   --from-source     build from source (needs git and Swift 6: Xcode or the Command Line Tools)
 #   --version vX.Y.Z  install that release
+#   --channel C       stable (default: the newest release tag) or edge (rebuilt from every green main)
 #   --connect         after the install, run `summon connect` without asking
 #   --yes             never prompt (does not connect unless --connect is also given)
 #
@@ -32,21 +34,28 @@ CACHE="$HOME/Library/Caches/macplugins"
 say() { printf '\033[1;35m==>\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
-FROM_SOURCE=0 TAG="" CONNECT=0 YES=0
+FROM_SOURCE=0 TAG="" CHANNEL=stable CONNECT=0 YES=0
 while (( $# )); do
   case "$1" in
     --from-source) FROM_SOURCE=1 ;;
     --version) [[ -n ${2:-} ]] || die "--version needs a tag, such as v0.1.0"; TAG=$2; shift ;;
     --version=*) TAG=${1#--version=} ;;
+    --channel) [[ -n ${2:-} ]] || die "--channel needs stable or edge"; CHANNEL=$2; shift ;;
+    --channel=*) CHANNEL=${1#--channel=} ;;
     --connect) CONNECT=1 ;;
     --yes|-y) YES=1 ;;
-    -h|--help) echo "usage: install.sh [--from-source | --version vX.Y.Z] [--connect] [--yes]"; exit 0 ;;
+    -h|--help) echo "usage: install.sh [--from-source | --version vX.Y.Z | --channel stable|edge] [--connect] [--yes]"; exit 0 ;;
     *) die "Unknown option: $1 (see the options at the top of install.sh)" ;;
   esac
   shift
 done
 (( FROM_SOURCE == 0 || ${#TAG} == 0 )) || die "Choose either --from-source or --version, not both."
-[[ -z $TAG || $TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || die "Not a release tag: $TAG (expected vX.Y.Z)"
+case $CHANNEL in
+  stable) ;;
+  edge) (( FROM_SOURCE == 0 && ${#TAG} == 0 )) || die "--channel edge cannot be combined with --from-source or --version."; TAG=edge ;;
+  *) die "Unknown channel: $CHANNEL (expected stable or edge)" ;;
+esac
+[[ -z $TAG || $TAG == edge || $TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || die "Not a release tag: $TAG (expected vX.Y.Z)"
 
 # 1. This Mac can run it.
 [[ $(uname -s) == Darwin ]] || die "SummonOS runs on macOS only."
@@ -61,9 +70,9 @@ fi
 in_checkout=0
 [[ -n $here && -d $here/incubator/summon && -d $here/macctl ]] && in_checkout=1
 if (( FROM_SOURCE == 0 && ${#TAG} == 0 && in_checkout == 0 )); then
-  # /releases lists newest first and includes prereleases; /releases/latest skips them.
-  TAG=$(curl -fsSL "$API/releases?per_page=1" 2>/dev/null \
-    | grep -o '"tag_name": *"[^"]*"' | head -1 | sed -E 's/.*"([^"]*)"$/\1/') || TAG=""
+  # /releases lists newest first and includes prereleases (/releases/latest skips them); the rolling `edge` is opt-in.
+  TAG=$(curl -fsSL "$API/releases?per_page=30" 2>/dev/null \
+    | grep -o '"tag_name": *"[^"]*"' | sed -E 's/.*"([^"]*)"$/\1/' | grep -vx edge | sed -n 1p) || TAG=""
   if [[ -z $TAG ]]; then
     say "No SummonOS release is published yet (or GitHub is unreachable); building from source instead."
     FROM_SOURCE=1
@@ -73,13 +82,20 @@ if (( FROM_SOURCE == 0 && ${#TAG} == 0 && in_checkout == 0 )); then
 fi
 
 install_release() {
-  local version=${TAG#v}
-  local name="summonos-$version-macos-universal.zip"
+  local version=${TAG#v} name
   WORK=$(mktemp -d)
   trap '/bin/rm -rf "$WORK"' EXIT
-  say "Downloading SummonOS $TAG"
-  curl -fsSL --retry 3 -o "$WORK/$name" "$DOWNLOAD/$TAG/$name" || die "Could not download $name from release $TAG."
   curl -fsSL --retry 3 -o "$WORK/SHA256SUMS" "$DOWNLOAD/$TAG/SHA256SUMS" || die "Could not download SHA256SUMS from release $TAG."
+  if [[ $TAG == edge ]]; then
+    # The rolling edge zip is named after its build (summonos-0.1.0-edge.<sha>-...), so SHA256SUMS names it.
+    name=$(awk '{ sub(/^\*/, "", $2) } $2 ~ /^summonos-.*-macos-universal\.zip$/ { print $2; exit }' "$WORK/SHA256SUMS")
+    version=${name#summonos-}
+    version=${version%-macos-universal.zip}
+    [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+-edge\.[0-9a-f]+$ ]] || die "The edge release does not list a SummonOS build."
+  fi
+  name="summonos-$version-macos-universal.zip"
+  say "Downloading SummonOS $version"
+  curl -fsSL --retry 3 -o "$WORK/$name" "$DOWNLOAD/$TAG/$name" || die "Could not download $name from release $TAG."
   local expected actual
   expected=$(awk -v f="$name" '$2 == f || $2 == "*" f { print $1; exit }' "$WORK/SHA256SUMS")
   actual=$(shasum -a 256 "$WORK/$name" | cut -d' ' -f1)
