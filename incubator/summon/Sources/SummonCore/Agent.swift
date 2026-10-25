@@ -84,7 +84,7 @@ public enum AgentRegistry {
             id: "agy", name: "Antigravity", command: "agy", aliases: ["antigravity", "gemini", "gemini-cli"],
             interactive: ["agy", "--dangerously-skip-permissions"],
             withPrompt: ["agy", "--dangerously-skip-permissions", "--prompt-interactive"],
-            installHint: "npm install -g antigravity-cli", modelFlag: "--model", skillFolder: ".gemini/config/skills",
+            installHint: "curl -fsSL https://antigravity.google/cli/install.sh | bash", modelFlag: "--model", skillFolder: ".gemini/config/skills",
             headlessPrefix: ["agy", "--dangerously-skip-permissions", "-p"]
         ),
         Agent(
@@ -94,6 +94,19 @@ public enum AgentRegistry {
             withPrompt: ["pi", "--"],
             installHint: "bun add -g @earendil-works/pi-coding-agent", modelFlag: "--model", skillFolder: ".pi/agent/skills",
             headlessPrefix: ["pi", "-p", "--"]
+        ),
+        Agent(
+            // Nous Research's agent; `chat -q` starts a session with a first message and stays open on a terminal.
+            id: "hermes", name: "Hermes", command: "hermes", aliases: ["hermes-agent"],
+            interactive: ["hermes"],
+            withPrompt: ["hermes", "chat", "-q"],
+            installHint: "curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash", skillFolder: ".hermes/skills"
+        ),
+        Agent(
+            id: "openclaw", name: "OpenClaw", command: "openclaw", aliases: ["clawdbot", "moltbot"],
+            interactive: ["openclaw", "tui"],
+            withPrompt: ["openclaw", "agent", "--message"],
+            installHint: "curl -fsSL https://openclaw.ai/install.sh | bash", skillFolder: ".openclaw/skills"
         ),
         Agent(
             id: "grok", name: "Grok", command: "grok", aliases: ["grok-build"],

@@ -175,6 +175,14 @@ Raycast) can use this Mac. It is native Swift with no dependencies, and it serve
 | `checkpoint_list`, `checkpoint_create` | Summon's restore points |
 | `crash_list` | Recent crash, hang and panic reports |
 
+`summon connect [agent...] [--dry-run]` registers the server with every agent it finds: Claude Code, Codex,
+Cursor, OpenCode, Hermes, OpenClaw, Antigravity CLI (`agy`) and Pi. It also adds a short marked "This Mac" note to
+each agent's always-loaded instructions file (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, ...). It uses an agent's
+own `mcp add` when it has one, and otherwise edits its JSON config, keeping every other key. Each file is backed up
+first to `~/.local/state/summon/backups/connect/`. Symlinked dotfiles are edited in place, and a second run changes
+nothing. `summon disconnect` removes only Summon's server entry and note. OpenCode has no remove command, so that
+step is printed for the user. Paths per agent: [research note](research/2026-10-25-agent-mcp-configs.md).
+
 It also serves the resource `mac://context`. Setting ids are checked before they reach macctl, so an id that looks
 like an option is refused. Add it by hand with `claude mcp add summon -- summon mcp`, or with the same command and
 args in any client's MCP config. The Claude Code plugin declares it already.
