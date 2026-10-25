@@ -58,7 +58,9 @@ enum DoctorCommand {
         let issues = report.issues
 
         let watcher = CrashWatcher(paths: context.paths)
-        let crashes = watcher.reports(since: nil, limit: 3)
+        // Only what the panel would still show (last 24 h, not handed to an agent yet), so Fix never repeats itself.
+        let archive = ProblemArchive(paths: context.paths)
+        let crashes = Array(archive.visible(watcher.reports(since: Date().addingTimeInterval(-ProblemArchive.maxAge), limit: 20)).prefix(3))
 
         if issues.isEmpty && crashes.isEmpty {
             print("✓ All checks passed! No issues found on this Mac.")
@@ -77,5 +79,6 @@ enum DoctorCommand {
         let skill = SkillCommands.source.appendingPathComponent("summon-mac/SKILL.md").path
         let prompt = FixPrompt.make(for: issues, crashes: crashes, skillPath: skill)
         try await AgentCommands.launch(prompt: prompt, inline: inline, checkpoint: true, context)
+        try? archive.archive(crashes.map(\.file))
     }
 }

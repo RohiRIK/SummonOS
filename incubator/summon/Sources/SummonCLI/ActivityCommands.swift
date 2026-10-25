@@ -103,13 +103,14 @@ enum ActivityCommands {
 
     /// `summon event add <kind> <title...> [--detail text] [--ref key=value]...`, for hooks and scripts.
     static func eventAdd(_ args: inout Arguments, _ context: Context) throws {
-        let usage = "Usage: summon event add <kind> <title...> [--detail text] [--ref key=value]...\n       summon event hook start|end   (Claude Code hook payload on stdin)"
+        let usage = "Usage: summon event add <kind> <title...> [--detail text] [--ref key=value]...\n       summon event hook start|end [--agent <id>]   (hook payload on stdin)"
         let sub = args.next()
         if sub == "hook" {
+            let agent = args.option("--agent").map { AgentRegistry.find($0)?.name ?? $0 } ?? "Claude Code"
             guard let phase = args.next(), args.isEmpty else { throw CLIError(usage) }
             // Run by hand in a terminal there is no payload; never wait on the keyboard.
             let payload = isatty(STDIN_FILENO) == 1 ? "" : String(decoding: FileHandle.standardInput.readDataToEndOfFile(), as: UTF8.self)
-            guard let event = SessionHook.event(phase: phase, payload: payload) else {
+            guard let event = SessionHook.event(phase: phase, payload: payload, agent: agent) else {
                 if phase != "start" && phase != "end" { throw CLIError(usage) }
                 return
             }

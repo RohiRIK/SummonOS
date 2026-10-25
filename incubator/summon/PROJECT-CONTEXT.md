@@ -40,6 +40,14 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — `summon connect` replaces the plugin's jobs (found on the owner's Mac)
+- Claude Code/Codex hooks: `context --hook <id>` also logs `session.start` from the stdin payload, and a new
+  `SessionEnd` hook runs `event hook end --agent <id>` (`event hook` takes `--agent`). Activity shows the
+  sessions without the plugin.
+- `plugin.json` dropped `mcpServers`: with `summon connect` too, Claude would see two `summon` servers.
+- Doctor `plugin` check passes when `~/.claude/settings.json` has Summon's start hook. Its fix is now
+  `summon connect claude` (the old `--plugin-dir <repo>` fix was useless for release installs).
+- `summon fix` sends only `ProblemArchive.visible` crashes (24 h, not archived) and archives what it sent.
 ### 2026-10-25 — Accessibility in one click; skills only for installed agents
 - Settings › General › Permissions: `requestAccessibility()` calls `AXIsProcessTrustedWithOptions` with the prompt
   key, written as the string "AXTrustedCheckOptionPrompt" because the global is not concurrency-safe in Swift 6. It

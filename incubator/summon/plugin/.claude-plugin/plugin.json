@@ -14,13 +14,5 @@
     "swiftui",
     "menu bar",
     "diagnostics"
-  ],
-  "mcpServers": {
-    "summon": {
-      "command": "summon",
-      "args": [
-        "mcp"
-      ]
-    }
-  }
+  ]
 }

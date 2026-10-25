@@ -82,6 +82,19 @@ struct DoctorTests {
         #expect(report.check("config.themes")?.detail.contains("current summon-night") == true)
     }
 
+    @Test func claudeConnectedBySummonConnectNeedsNoPlugin() async throws {
+        let home = try healthyHome()
+        try fm.removeItem(at: home.appendingPathComponent(".claude/plugins/installed_plugins.json"))
+        let doctor = try makeDoctor(home: home, tools: ["summon", "claude", "macctl", "git"],
+                                    runner: fakeRunner(CallLog(), responses: ["macctl": Self.macctlOK]))
+        let unconnected = await doctor.run().check("plugin")
+        #expect(unconnected?.status == .warn)
+        #expect(unconnected?.fix == "summon connect claude")
+        try writeFile(#"{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"\"/s\" context --hook claude"}]}]}}"#,
+                      to: home.appendingPathComponent(".claude/settings.json"))
+        #expect(await doctor.run().check("plugin")?.status == .pass)
+    }
+
     @Test func emptyHomeFailsWithFixes() async throws {
         let home = try makeTempHome()
         let doctor = try makeDoctor(home: home, onShellPath: false)

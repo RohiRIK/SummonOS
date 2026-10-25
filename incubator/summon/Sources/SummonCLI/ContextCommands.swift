@@ -34,7 +34,10 @@ enum ContextCommands {
                 do { snapshot = try snapshot.only(only) } catch { throw CLIError(String(describing: error)) }
             }
             // A start hook must never block a session: it prints the snapshot in the agent's format and exits 0.
-            if let hook { return print(snapshot.hookOutput(for: hook)) }
+            if let hook {
+                recordSessionStart(agent: hook, context)
+                return print(snapshot.hookOutput(for: hook))
+            }
             guard json else { return print(snapshot.render()) }
             // ISO dates for agents; printJSON keeps the app's reference-date format for other commands.
             let encoder = JSONEncoder()
@@ -42,5 +45,15 @@ enum ContextCommands {
             encoder.dateEncodingStrategy = .iso8601
             print(String(decoding: try encoder.encode(snapshot), as: UTF8.self))
         }
+    }
+
+    /// Claude Code and Codex send their session payload on stdin; recording it (with the matching `SessionEnd`
+    /// hook from `summon connect`) shows the session in Activity without the plugin. Never fails the hook.
+    static func recordSessionStart(agent: String, _ context: Context) {
+        guard ["claude", "codex"].contains(agent), isatty(STDIN_FILENO) == 0 else { return }
+        let payload = String(decoding: FileHandle.standardInput.readDataToEndOfFile(), as: UTF8.self)
+        let name = AgentRegistry.find(agent)?.name ?? agent
+        guard let event = SessionHook.event(phase: "start", payload: payload, agent: name) else { return }
+        try? EventLog(paths: context.paths).append(event)
     }
 }

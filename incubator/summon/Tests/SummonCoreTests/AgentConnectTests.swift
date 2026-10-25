@@ -131,6 +131,8 @@ struct AgentConnectTests {
         #expect(groups.count == 2)
         let command = try #require((groups.last?["hooks"] as? [[String: Any]])?.first?["command"] as? String)
         #expect(command == #""/opt/summon/bin/summon" context --hook claude"#)
+        let ends = try #require((root["hooks"] as? [String: Any])?["SessionEnd"] as? [[String: Any]])
+        #expect((ends.first?["hooks"] as? [[String: Any]])?.first?["command"] as? String == #""/opt/summon/bin/summon" event hook end --agent claude"#)
         let cursor = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: cursorHooks)) as? [String: Any])
         #expect(((cursor["hooks"] as? [String: Any])?["sessionStart"] as? [Any])?.count == 2)
         let agy = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: home.appendingPathComponent(".gemini/config/hooks.json"))) as? [String: Any])
