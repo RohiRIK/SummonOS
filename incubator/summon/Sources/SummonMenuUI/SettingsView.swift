@@ -11,6 +11,7 @@ public enum SettingsPanel: Hashable {
     case terminal
     case notifications
     case appearance
+    case setup
     case tasks
     case agent(String)
 }
@@ -135,6 +136,8 @@ public struct SettingsView: View {
             NotificationSettings(model: model)
         case .appearance:
             AppearanceSettings(model: model)
+        case .setup:
+            SetupSettings(model: model)
         case .tasks:
             TasksSettings(model: model)
         case .agent(let id):
@@ -167,6 +170,7 @@ struct SettingsSectionView: View {
         case .terminal: TerminalSettings(model: model)
         case .notifications: NotificationSettings(model: model)
         case .appearance: AppearanceSettings(model: model)
+        case .setup: SetupSettings(model: model)
         case .tasks: TasksSettings(model: model)
         }
     }
@@ -181,6 +185,7 @@ extension SettingsSection {
         case .terminal: return .terminal
         case .notifications: return .notifications
         case .appearance: return .appearance
+        case .setup: return .setup
         case .tasks: return .tasks
         }
     }
@@ -193,6 +198,7 @@ extension SettingsSection {
         case .terminal: return Color.cyan
         case .notifications: return Color.red
         case .appearance: return Color.pink
+        case .setup: return Color.gray
         case .tasks: return Color.orange
         }
     }
@@ -2196,5 +2202,29 @@ private struct ShortcutRecorderRow: View {
             self.monitor = nil
         }
         isRecording = false
+    }
+}
+
+/// The Summon Menu groups the panel no longer shows (owner, 2026-10-25): one row per action, run from here or found
+/// by typing in the panel's search.
+struct SetupSettings: View {
+    @Bindable var model: SummonModel
+
+    var body: some View {
+        Form {
+            ForEach(PanelLayout.setupGroups, id: \.self) { group in
+                let actions = model.visibleChildren(of: group).filter { $0.action != nil }
+                if let parent = model.menu.item(group), !actions.isEmpty {
+                    Section(parent.label) {
+                        ForEach(actions, id: \.id) { item in
+                            LabeledContent(item.label) {
+                                Button("Run") { model.run(item) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
     }
 }

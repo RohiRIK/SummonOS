@@ -28,9 +28,15 @@ public struct PanelView: View {
         self.actions = actions
     }
 
-    /// The menu level's visible children, or search results across the whole tree (hidden entries excluded).
+    /// Home: Needs attention, Now, Recent and the main actions; everything else is found by search.
+    private var isHome: Bool { level == nil && query.isEmpty }
+
+    /// The menu level's visible children (at home only `PanelLayout.homeItems`), or search results across the whole
+    /// tree (hidden entries excluded).
     private var rows: [MenuItem] {
-        query.isEmpty ? model.visibleChildren(of: level) : model.menu.search(query).filter { model.visibility[$0.id] != false }
+        guard query.isEmpty else { return model.menu.search(query).filter { model.visibility[$0.id] != false } }
+        let children = model.visibleChildren(of: level)
+        return level == nil ? children.filter { PanelLayout.homeItems.contains($0.id) } : children
     }
 
     public var body: some View {
@@ -51,9 +57,8 @@ public struct PanelView: View {
         }
         // E3/E4: as tall as the content, capped at the screen's visible height; past that it scrolls inside.
         .frame(width: PanelConfig.width, height: max(1, min(contentHeight, panel.maxHeight)))
-        .background(VisualEffectBackground())
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.white.opacity(0.12)))
+        .background(PanelBackground())
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Summon")
         // A1/E5: every open (and `summon://menu/<id>`) starts clean at its level. Focus comes only from
@@ -108,11 +113,68 @@ public struct PanelView: View {
         }
     }
 
+    private var askAgentRow: some View {
+        MenuRow(title: "Ask Agent", systemImage: "sparkles", shortcut: model.panelAgentShortcut.displayString) {
+            actions.finish()
+            model.askAgentAboutScreen()
+        }
+        .keyboardShortcut(model.panelAgentShortcut.keyEquivalent, modifiers: model.panelAgentShortcut.eventModifiers)
+        .disabled(model.defaultAgent == nil || !model.agentInstalled)
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 8)
+            .padding(.top, 6)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    /// Now: the running agent session with its elapsed time (only once this open's first refresh landed, E5).
+    @ViewBuilder private var nowRows: some View {
+        if refreshedSession == panel.session, let agent = activity.status?.agent, agent.running, let since = agent.since {
+            sectionHeader("Now")
+            TimelineView(.periodic(from: since, by: 1)) { context in
+                MenuRow(title: "\(agent.name ?? "Agent") · \(PanelClock.elapsed(from: since, to: context.date))",
+                        systemImage: "circle.fill", shortcut: nil) {
+                    activity.selection = nil
+                    actions.openActivity()
+                }
+                .monospacedDigit()
+            }
+        }
+    }
+
+    /// Recent: the last few things that happened, newest first; each opens Activity at that line.
+    @ViewBuilder private var recentRows: some View {
+        let recent = Array(activity.events.prefix(PanelLayout.recentCount))
+        if !recent.isEmpty {
+            sectionHeader("Recent")
+            ForEach(recent) { event in
+                MenuRow(title: event.title, systemImage: nil, shortcut: PanelClock.ago(event.date)) {
+                    activity.selection = event.id
+                    actions.openActivity()
+                }
+            }
+        }
+        MenuRow(title: recent.isEmpty ? "Activity…" : "Show All Activity…", systemImage: nil, shortcut: nil) {
+            activity.selection = nil
+            actions.openActivity()
+        }
+        PanelDivider()
+    }
+
     private var content: some View {
         VStack(alignment: .leading, spacing: 2) {
             header
             search
             attentionRows
+            if isHome {
+                nowRows
+                recentRows
+                askAgentRow
+            }
             ForEach(Array(rows.enumerated()), id: \.element.id) { index, item in
                 MenuTreeRow(item: item,
                             breadcrumb: query.isEmpty ? nil : model.menu.path(to: item.parentID ?? "").joined(separator: " › "),
@@ -125,7 +187,7 @@ public struct PanelView: View {
                 }
                 .id(item.id)
             }
-            if rows.isEmpty {
+            if rows.isEmpty && !isHome {
                 Text(query.isEmpty ? "Nothing here." : "No match for “\(query)”.")
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 8)
@@ -138,18 +200,7 @@ public struct PanelView: View {
                     .lineLimit(3)
                     .padding(.horizontal, 8)
             }
-            PanelDivider()
-            MenuRow(title: "Ask Agent", systemImage: "sparkles", shortcut: model.panelAgentShortcut.displayString) {
-                actions.finish()
-                model.askAgentAboutScreen()
-            }
-            .keyboardShortcut(model.panelAgentShortcut.keyEquivalent, modifiers: model.panelAgentShortcut.eventModifiers)
-            .disabled(model.defaultAgent == nil || !model.agentInstalled)
-            MenuRow(title: "Activity…", systemImage: "list.bullet.rectangle", shortcut: nil) {
-                activity.selection = nil
-                actions.openActivity()
-            }
-            if let offer = model.undoOffer {
+            if let offer = model.undoOffer, isHome {
                 MenuRow(title: offer.title, systemImage: "arrow.uturn.backward", shortcut: nil) {
                     actions.finish()
                     model.confirmUndo(offer)
@@ -327,12 +378,6 @@ public struct PanelView: View {
         if let agent = model.defaultAgent {
             if !model.agentInstalled {
                 Text("\(agent.name) is not installed")
-            } else if refreshedSession == panel.session,
-                      let since = activity.status?.agent.since, activity.status?.agent.running == true {
-                TimelineView(.periodic(from: since, by: 1)) { context in
-                    Text("\(agent.name) · running \(PanelClock.elapsed(from: since, to: context.date))")
-                        .monospacedDigit()
-                }
             } else {
                 Text(agent.name)
             }
@@ -452,4 +497,20 @@ struct PanelDivider: View {
 #Preview("Panel") {
     let activity = ActivityModel.preview()
     return PanelView(model: activity.summon, activity: activity, panel: .preview(), actions: .preview)
+}
+
+/// Liquid Glass behind the panel on macOS 26 (system-menu look, never on rows), the menu material before.
+struct PanelBackground: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        if #available(macOS 26, *) {
+            return NSGlassEffectView()
+        }
+        let view = NSVisualEffectView()
+        view.material = .menu
+        view.blendingMode = .behindWindow
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
 }

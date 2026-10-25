@@ -128,12 +128,14 @@ sections:
 
 ### Menu bar app
 
-- **Panel:** **Needs attention** at the top, only when something is wrong: one row per program that crashed
-  (with a count; Diagnose… hands the newest report to the agent and the program leaves the panel; a report also
-  leaves after 24 hours) and "N setup problems · Fix…" (Summon's own `summon doctor`, checked at launch and every 10
-  minutes). Then the Summon Menu, Ask Agent, Activity…, the undo row when there is something to undo, Settings… (⌘,)
-  and Quit (⌘Q). With no default agent, the header offers "Choose an agent" (the installed ones); with exactly one
-  installed, it is chosen automatically. The menu bar icon turns orange while Needs attention has something.
+- **Panel** (320 pt, Liquid Glass on macOS 26): minimal by design. **Needs attention** (only when something is
+  wrong: one row per crashed program with Diagnose…, "N setup problems · Fix…"), **Now** (the running agent session
+  and its clock), **Recent** (the last 3 events, each opens Activity at that line; Show All Activity…), then Ask
+  Agent, Make Something ›, My Apps ›, the undo row when there is something to undo, Settings… (⌘,) and Quit (⌘Q).
+  Everything else in the Summon Menu (Style, Setup, Trigger, Install, Update, System, Agent) is found by typing in
+  the search field or run from Settings › Setup. With no default agent, the header offers "Choose an agent";
+  with exactly one installed it is chosen automatically. The menu bar shows Summon's icon only (the agent clock is an
+  option in Settings › General), and it turns orange while Needs attention has something.
 - **Undo confirmation:** "Restore N Changes" names what it does; Cancel is the default button.
 - **Activity window:** a plain, oldest-first log of settings changes, undos, agent sessions, themes and
   crashes and recurring tasks, opened at the newest line (also `summon://activity`). Select lines and ask the agent about them

@@ -351,4 +351,25 @@ public enum PanelClock {
         let rest = seconds % 60
         return (minutes < 10 ? "0" : "") + "\(minutes):" + (rest < 10 ? "0" : "") + "\(rest)"
     }
+
+    /// How long ago, as a menu shows it at the trailing edge: "now", "5m", "3h", "2d".
+    public static func ago(_ date: Date, now: Date = Date()) -> String {
+        let seconds = max(0, Int(now.timeIntervalSince(date)))
+        switch seconds {
+        case ..<60: return "now"
+        case ..<3600: return "\(seconds / 60)m"
+        case ..<86_400: return "\(seconds / 3600)h"
+        default: return "\(seconds / 86_400)d"
+        }
+    }
+}
+
+/// What the panel shows at its top level (owner, 2026-10-25): only what is happening and the main actions. The rest
+/// of the Summon Menu stays reachable through search, and its groups are listed in Settings › Setup.
+public enum PanelLayout {
+    /// Top-level Summon Menu entries the panel's home shows (My Apps is added when there are apps).
+    public static let homeItems: Set<String> = ["make", "apps"]
+    /// Default Summon Menu groups that Settings › Setup lists instead of the panel.
+    public static let setupGroups = ["agent", "style", "setup", "trigger", "install", "update", "system"]
+    public static let recentCount = 3
 }

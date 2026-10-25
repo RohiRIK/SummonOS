@@ -1,6 +1,7 @@
 # Docs update log
 
 ## 2026-10-25
+* **Update**: [Features](features.md): minimal panel (Needs attention, Now, Recent, three actions; the rest by search or Settings › Setup), Liquid Glass, 320 pt; no agent clock in the menu bar by default.
 * **Update**: [Features](features.md), [Install for agents](install-ai.md): `summon update [--channel stable|edge] [--check] [--yes]`; the release workflow publishes a rolling `edge` prerelease after every green `main`, and `install.sh --channel edge` installs it (never by default).
 * **Update**: [Features](features.md) and [Tools](tools.md): more CI checks: CodeQL for Swift, a privacy scan with public patterns, Dependabot for pinned actions, and a post-release smoke test that installs the release on a clean runner.
 * **Update**: [Features](features.md): the panel shows Needs attention (crashes, setup problems) and lets you choose an agent; one Settings window without header blocks or explanatory text; undo asks with "Restore N Changes" (Cancel default); orange menu bar icon for problems.

@@ -41,6 +41,14 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — U2 minimal panel (owner's "Now + Recent" layout)
+- Home (`isHome`: root level, empty query): Needs attention, Now (running session from `activity.status`), Recent
+  (`activity.events.prefix(3)`, `PanelClock.ago`), Ask Agent, then only `PanelLayout.homeItems` (make, apps) from the
+  tree. Search and submenus still cover the whole Summon Menu. `PanelLayout.setupGroups` render in the new
+  Settings › Setup page (`SetupSettings`, Run per action).
+- `PanelBackground`: `NSGlassEffectView` on macOS 26, `.menu` material before; no hand-drawn stroke. Width 360 → 320
+  (Visual QA `PANEL_W` too). The header no longer shows the running clock (Now does). `menuBarShowsAgentTime`
+  defaults to false; `repoPolicy` starts at `.ask` (T2 leftover).
 ### 2026-10-25 — Agent installer and updater
 - Core `AgentInstall.swift`: per-agent `AgentInstall` (npm package, vendor script, verified self-update),
   `DetectedInstall.detect` (Caskroom, Cellar, ~/.bun, node_modules/nvm/fnm/volta, home folder = vendor),
