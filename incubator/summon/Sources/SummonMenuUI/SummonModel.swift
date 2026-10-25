@@ -31,6 +31,8 @@ public final class SummonModel {
     public private(set) var taskResults: [String: String] = [:]
     /// Per-agent model and skill choices (`~/.config/summon/agents.json`), read here, changed through the CLI.
     public private(set) var agentSettings = AgentSettings()
+    /// The panel's "Undo <agent> Session" row; nil hides it.
+    public private(set) var undoOffer: UndoOffer?
     /// Skills Summon ships, from `summon skills`; empty until `loadShippedSkills()` runs.
     public private(set) var shippedSkills: [String] = []
     /// Each shipped skill's description, for Settings.
@@ -216,8 +218,22 @@ public final class SummonModel {
         mutedPrograms = CrashWatcher(paths: paths).muted().sorted()
         do { agentSettings = try AgentSettingsStore(paths: paths).loadValidated() }
         catch { lastError = String(describing: error) }
+        undoOffer = UndoOffer.latest(ActivitySources.load(paths: paths, crashLimit: 0))
         reloadProjects()
         loadMenu()
+    }
+
+    /// Asks first (the undo restores settings and ~/.config files), then runs `summon checkpoint undo <id>`.
+    public func confirmUndo(_ offer: UndoOffer) {
+        NSApp.activate()
+        let alert = NSAlert()
+        alert.messageText = "Undo the last \(offer.agent) session?"
+        alert.informativeText = "Puts back the \(offer.changes) setting change\(offer.changes == 1 ? "" : "s") and the ~/.config files from before it. Files created since stay."
+        alert.addButton(withTitle: "Undo")
+        alert.addButton(withTitle: "Cancel")
+        alert.buttons.first?.hasDestructiveAction = true
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        Task { await summon(["checkpoint", "undo", offer.checkpoint]) }
     }
 
     func loadMenu() {

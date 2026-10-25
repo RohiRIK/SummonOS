@@ -1,6 +1,7 @@
 # Docs update log
 
 ## 2026-10-25
+* **Update**: [Features](features.md): sessions through `summon mcp` take a checkpoint before the first change and are logged under the agent's name; the panel offers "Undo <Agent> Session (N changes)…" only when there is something to undo.
 * **New**: [Agent MCP configs](research/2026-10-25-agent-mcp-configs.md): where the eight agents `summon connect` reaches keep their MCP servers, instructions and start hooks.
 * **Update**: [Features](features.md): `summon connect` adds a session-start hook (`summon context --hook <agent>`) to Claude Code, Codex, Cursor and the Antigravity CLI, so sessions start with the Mac snapshot.
 * **Update**: [Features](features.md): `summon connect` / `disconnect` register the MCP server and a This Mac note with every installed agent; Hermes and OpenClaw join the agent registry.

@@ -128,6 +128,12 @@ public struct PanelView: View {
                 activity.selection = nil
                 actions.openActivity()
             }
+            if let offer = model.undoOffer {
+                MenuRow(title: offer.title, systemImage: "arrow.uturn.backward", shortcut: nil) {
+                    actions.finish()
+                    model.confirmUndo(offer)
+                }
+            }
             if panel.fixtureRows > 0 {
                 PanelDivider()
                 ForEach(0..<panel.fixtureRows, id: \.self) { row in

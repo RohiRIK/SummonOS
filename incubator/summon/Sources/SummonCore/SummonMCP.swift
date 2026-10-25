@@ -28,14 +28,16 @@ public enum SummonMCP {
         Before a larger change, call checkpoint_create. Tell the user what you changed and how to undo it.
         """
 
-    public static func server(_ env: Environment) -> MCPServer {
-        MCPServer(name: "summon", version: env.version, instructions: instructions, tools: tools(env), resources: [
+    public static func server(_ env: Environment, session: MCPSession = MCPSession()) -> MCPServer {
+        var server = MCPServer(name: "summon", version: env.version, instructions: instructions, tools: tools(env, session), resources: [
             MCPServer.Resource(uri: "mac://context", name: "This Mac", description: "summon context: a short snapshot of this Mac",
                                mimeType: "text/markdown") { await snapshot(env).render() },
         ])
+        server.onInitialize = { params in await session.name(from: params) }
+        return server
     }
 
-    static func tools(_ env: Environment) -> [MCPServer.Tool] {
+    static func tools(_ env: Environment, _ session: MCPSession) -> [MCPServer.Tool] {
         let id: JSONValue = .object(["type": "string", "description": "Setting id from settings_list, for example dock.autohide"])
         return [
             MCPServer.Tool(name: "mac_context", title: "This Mac",
@@ -85,9 +87,17 @@ public enum SummonMCP {
                 guard let setting = settingID(arguments["id"]) else { return invalidID }
                 guard let value = plainValue(arguments["value"]) else { return .error("value must be a string, number or boolean") }
                 var command = ["set"]
-                if arguments["dry_run"]?.bool == true { command.append("--dry-run") }
+                let dryRun = arguments["dry_run"]?.bool == true
+                if dryRun { command.append("--dry-run") }
                 if arguments["confirm"]?.bool == true { command.append("--yes") }
-                return await macctl(env, command + ["--", setting, value])
+                guard !dryRun else { return await macctl(env, command + ["--", setting, value]) }
+                // The first real change of a session gets a checkpoint, so one undo covers the whole session.
+                let checkpoint = await session.checkpoint(env)
+                var result = await macctl(env, command + ["--", setting, value])
+                if !result.isError {
+                    result.text += "\nUndo everything this session changed: summon checkpoint undo \(checkpoint.id)"
+                }
+                return result
             },
             MCPServer.Tool(name: "settings_undo", title: "Undo a settings change",
                            description: "Roll back a change from settings_history (the newest when id is omitted). Keys the user changed by hand since are left alone and reported. dry_run shows what would be restored.",
@@ -140,6 +150,17 @@ public enum SummonMCP {
                                             structured: try? .encoding(["reports": reports]))
             },
         ]
+    }
+
+    /// A readable agent name from MCP `clientInfo.name` ("claude-code", "codex-mcp-client", "cursor-vscode", ...).
+    public static func agentName(_ client: String?) -> String {
+        guard let client, !client.isEmpty else { return "An agent" }
+        let key = client.lowercased()
+        let known: [(String, String)] = [("claude", "Claude Code"), ("codex", "Codex"), ("cursor", "Cursor"),
+                                         ("opencode", "OpenCode"), ("hermes", "Hermes"), ("openclaw", "OpenClaw"),
+                                         ("antigravity", "Antigravity CLI"), ("agy", "Antigravity CLI"), ("raycast", "Raycast")]
+        if let match = known.first(where: { key.contains($0.0) }) { return match.1 }
+        return key == "pi" || key.hasPrefix("pi-") ? "Pi" : client
     }
 
     static func snapshot(_ env: Environment) async -> MacContext {
@@ -202,5 +223,37 @@ public enum SummonMCP {
         var body: [String: JSONValue] = ["type": "object", "properties": .object(properties)]
         if !required.isEmpty { body["required"] = .array(required.map(JSONValue.string)) }
         return .object(body)
+    }
+}
+
+/// One MCP connection: which agent it is, and the checkpoint taken before its first change. Its changes then show
+/// in Activity as that agent's session, and `summon checkpoint undo <id>` (or the panel) undoes all of them.
+public actor MCPSession {
+    public private(set) var agent = "An agent"
+    public private(set) var taken: Checkpoint?
+    let id = UUID().uuidString
+
+    public init() {}
+
+    func name(from params: JSONValue) {
+        agent = SummonMCP.agentName(params["clientInfo"]?["name"]?.string)
+    }
+
+    func checkpoint(_ env: SummonMCP.Environment) async -> Checkpoint {
+        if let taken { return taken }
+        let (checkpoint, _) = await SummonMCP.service(env).create(label: "\(agent) via MCP")
+        taken = checkpoint
+        try? EventLog(paths: env.paths).append(LoggedEvent(
+            kind: EventKind.sessionStart, title: "\(agent) session started (MCP)",
+            refs: ["session": id, "checkpoint": checkpoint.id, "agent": agent]))
+        return checkpoint
+    }
+
+    /// Called when the client closes the connection; nothing is logged for a session that changed nothing.
+    public func end(_ env: SummonMCP.Environment) {
+        guard let taken else { return }
+        try? EventLog(paths: env.paths).append(LoggedEvent(
+            kind: EventKind.sessionEnd, title: "\(agent) session ended (MCP)",
+            refs: ["session": id, "checkpoint": taken.id, "agent": agent]))
     }
 }
