@@ -40,6 +40,12 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — First real Mac run of the hotkey capture
+- Verified on the owner's Mac: ⌃⌥⌘A over Helium sent app, window title, page and selected text. `summon connect
+  claude` added the MCP server (✔ Connected), start/end hooks and the note; doctor `plugin` passes.
+- Gotcha: ad-hoc preview builds get a new code hash each time, so a stale Accessibility entry looks on but does not
+  count (`tccutil reset Accessibility local.macplugins.summon` clears it). The row now polls every 2 s while off
+  and, after Allow…, says to turn the switch off and on.
 ### 2026-10-25 — `summon connect` replaces the plugin's jobs (found on the owner's Mac)
 - Claude Code/Codex hooks: `context --hook <id>` also logs `session.start` from the stdin payload, and a new
   `SessionEnd` hook runs `event hook end --agent <id>` (`event hook` takes `--agent`). Activity shows the

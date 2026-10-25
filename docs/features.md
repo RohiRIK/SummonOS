@@ -53,7 +53,8 @@ hotkey, while your app is still in front.
 Selected text and window title use Accessibility only when Summon already has it, and never ask for it. The browser
 and Finder fields use AppleScript, so macOS asks once for Automation permission per app. If you say no, that field
 is just left out. Every field is on by default; Settings › Agents (or `summon context hide selected-text|browser-page|finder-selection|window-title`)
-turns each one off. Crash diagnosis, Activity and tasks keep their own prompts.
+turns each one off. Crash diagnosis, Activity and tasks keep their own prompts. Verified on a Mac (macOS 27.0.1,
+2026-10-25): with text selected in Helium, the agent's first message had the app, window, page and selection.
 
 ### Safety: checkpoints and undo
 
@@ -129,7 +130,8 @@ sections:
   Change / Session.
 - **Settings window** (⌘, or `summon://settings`), one toolbar tab per part:
   - General: Permissions (Accessibility: On, or **Allow…**, which asks macOS to add Summon to Privacy & Security ›
-    Accessibility and opens that page, so only the switch is left), Open at Login.
+    Accessibility and opens that page, so only the switch is left; the row re-checks every 2 seconds and says to
+    turn the switch off and on when an older build's entry is in the way), Open at Login.
   - Agents: a list of agents (status dot, Default) with **All Agents** on top: the default agent, where agents
     open (Ghostty, kitty or Terminal), the skills every agent gets, what agents see about this Mac (computer name,
     window title, running apps, file paths: all on, each can be turned off), and shared plugins (OpenLTM: Install in All).

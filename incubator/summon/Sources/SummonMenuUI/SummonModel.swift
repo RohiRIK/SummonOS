@@ -34,6 +34,8 @@ public final class SummonModel {
     public private(set) var agentSettings = AgentSettings()
     /// Accessibility lets the agent hotkey read the selected text and window title.
     public private(set) var accessibilityGranted = AXIsProcessTrusted()
+    /// Allow… was clicked; if the permission is still off, the switch in the list belongs to an older build.
+    public private(set) var accessibilityRequested = false
     /// The panel's "Undo <agent> Session" row; nil hides it.
     public private(set) var undoOffer: UndoOffer?
     /// Skills Summon ships, from `summon skills`; empty until `loadShippedSkills()` runs.
@@ -231,6 +233,7 @@ public final class SummonModel {
     /// it, so the person only flips the switch. The page is opened too, in case the request was dismissed before.
     public func requestAccessibility() {
         // The key's value is "AXTrustedCheckOptionPrompt"; the global constant is not concurrency-safe in Swift 6.
+        accessibilityRequested = true
         let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
         accessibilityGranted = AXIsProcessTrustedWithOptions(options)
         guard !accessibilityGranted,
