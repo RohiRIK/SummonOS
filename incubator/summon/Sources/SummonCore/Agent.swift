@@ -112,7 +112,7 @@ public enum AgentRegistry {
             id: "grok", name: "Grok", command: "grok", aliases: ["grok-build"],
             interactive: ["grok", "--permission-mode", "bypassPermissions"],
             withPrompt: ["grok", "--permission-mode", "bypassPermissions", "--"],
-            installHint: "npm install -g @xai/grok"
+            installHint: "curl -fsSL https://x.ai/cli/install.sh | bash"
         ),
     ]
 
