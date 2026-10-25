@@ -31,7 +31,7 @@ struct OpenAtLoginToggle: View {
     @State private var error: String?
 
     var body: some View {
-        Toggle("Open at Login", isOn: Binding(get: { isOn }, set: change))
+        Toggle("Open at Login", isOn: Binding(get: { isOn }, set: { change($0) }))
             .onAppear { isOn = SMAppService.mainApp.status == .enabled }
         if let error {
             Text(error).font(.subheadline).foregroundStyle(.red)
