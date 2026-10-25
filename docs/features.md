@@ -169,7 +169,8 @@ sections:
   and the accent color (all through `macctl`, so they can be undone). It also restyles Ghostty, kitty, window
   borders and Claude Code, VS Code and Cursor through a "Summon" color theme (choose it once), and Neovim
   (`:colorscheme summon`, written when `nvim` is installed). It takes one checkpoint first and ends with
-  `summon checkpoint undo <id>`, which undoes the whole look. The panel offers "Undo Theme <name> (N changes)…".
+  `summon checkpoint undo <id>`, which undoes the whole look, including removing the files the theme created
+  (generated configs, the editor themes). A folder you have added your own files to stays. The panel offers "Undo Theme <name> (N changes)…".
   There is also `theme list` and `theme current`. Settings › Appearance provides full 16:9 wallpaper previews, color swatches, one-click Apply, and an Undo button to revert to the previous theme.
 - **Default terminal with auto-installer:** Settings › Terminal lets you select Ghostty, kitty, or Apple Terminal. If Ghostty or kitty is not installed, install it directly with one click via Homebrew.
 - **Custom icons** on any file, folder or app: `summon icon set <image> <path>`, `icon reset`.

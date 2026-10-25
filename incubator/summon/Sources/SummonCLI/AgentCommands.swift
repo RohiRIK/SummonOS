@@ -275,7 +275,9 @@ enum AgentCommands {
         }
         let snapshots = try await service.macctlSnapshots(after: checkpoint)
         let steps = service.undoSteps(checkpoint, macctlSnapshots: snapshots)
-        guard !steps.isEmpty else {
+        let log = EventLog(paths: context.paths).read()
+        let toRemove = CreatedFiles.removeAll(for: checkpoint.id, in: log, home: context.paths.home, dryRun: true)
+        guard !steps.isEmpty || !toRemove.isEmpty else {
             throw CLIError("Checkpoint \(checkpoint.id) has nothing to restore (no ~/.config git repo and no macctl changes since).")
         }
         for step in steps {
@@ -287,6 +289,9 @@ enum AgentCommands {
                 print("ran: \(line)")
             }
         }
+        // Files the session or theme created did not exist at the checkpoint, so restoring it leaves them; remove them.
+        let created = CreatedFiles.removeAll(for: checkpoint.id, in: log, home: context.paths.home, dryRun: dryRun)
+        for path in created { print(dryRun ? "would remove \(path)" : "removed: \(path)") }
         if !dryRun {
             ActivityCommands.record(LoggedEvent(
                 kind: EventKind.sessionUndo,
@@ -294,7 +299,7 @@ enum AgentCommands {
                 detail: snapshots.isEmpty ? nil : "Undid macctl snapshots " + snapshots.joined(separator: ", "),
                 refs: ["checkpoint": checkpoint.id]
             ), context)
-            print("Restored checkpoint \(checkpoint.id) \"\(checkpoint.label)\". Files created after it were left in place; see `git -C ~/.config status`.")
+            print("Restored checkpoint \(checkpoint.id) \"\(checkpoint.label)\". Other files created after it were left in place; see `git -C ~/.config status`.")
         }
     }
 }

@@ -1,6 +1,7 @@
 # Docs update log
 
 ## 2026-10-25
+* **Update**: [Features](features.md): `summon checkpoint undo` also removes the files a theme created (recorded as the `created` ref), so undoing a theme leaves no generated files behind.
 * **Update**: [MacAppArchitecture](../.claude/skills/MacAppArchitecture/SKILL.md) gotchas: macOS 27 `desktopImageURL` lags behind a wallpaper write; ad-hoc builds and stale Accessibility entries.
 * **Update**: [Features](features.md): `summon theme set` also sets the macOS accent (new macctl setting `appearance.accent-color`, 39 settings), VS Code/Cursor and Neovim, and takes one checkpoint so the whole look undoes at once.
 * **Update**: [Features](features.md): `summon connect` records Claude Code and Codex sessions in Activity (start and end hooks), so the plugin is optional and no longer declares the MCP server; doctor asks for `summon connect claude`; Fix with AI skips crashes already handed to an agent.
