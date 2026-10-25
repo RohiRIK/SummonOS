@@ -181,7 +181,13 @@ each agent's always-loaded instructions file (`~/.claude/CLAUDE.md`, `~/.codex/A
 own `mcp add` when it has one, and otherwise edits its JSON config, keeping every other key. Each file is backed up
 first to `~/.local/state/summon/backups/connect/`. Symlinked dotfiles are edited in place, and a second run changes
 nothing. `summon disconnect` removes only Summon's server entry and note. OpenCode has no remove command, so that
-step is printed for the user. Paths per agent: [research note](research/2026-10-25-agent-mcp-configs.md).
+step is printed for the user.
+
+Claude Code, Codex, Cursor and the Antigravity CLI also get a session-start hook that runs `summon context --hook
+<agent>`. It goes in `~/.claude/settings.json`, `~/.codex/hooks.json`, `~/.cursor/hooks.json` or
+`~/.gemini/config/hooks.json`. Every new session then starts knowing this Mac's state without calling a tool. The hook
+prints plain text for Claude Code and Codex, and the JSON shape Cursor and `agy` read. The user's own hooks stay, and
+disconnect removes only Summon's. Paths per agent: [research note](research/2026-10-25-agent-mcp-configs.md).
 
 It also serves the resource `mac://context`. Setting ids are checked before they reach macctl, so an id that looks
 like an option is refused. Add it by hand with `claude mcp add summon -- summon mcp`, or with the same command and
