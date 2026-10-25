@@ -40,6 +40,13 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — Accessibility in one click; skills only for installed agents
+- Settings › General › Permissions: `requestAccessibility()` calls `AXIsProcessTrustedWithOptions` with the prompt
+  key, written as the string "AXTrustedCheckOptionPrompt" because the global is not concurrency-safe in Swift 6. It
+  then opens `com.apple.settings.PrivacySecurity.extension?Privacy_Accessibility`; the old
+  `com.apple.preference.security` URL opens the wrong page on macOS 26/27. The status refreshes when the app becomes active.
+- `SkillLinker.link(isInstalled:)`: the CLI passes "command on PATH". The first real install created `~/.pi`,
+  `~/.hermes`, `~/.openclaw` and `~/.gemini/config/skills` for agents that were not installed.
 ### 2026-10-25 — Summon with what is on screen
 - `ScreenContext` (Core, tested): reads the frontmost app, its window title and selected text (AX, only if already
   trusted), and the browser front tab or Finder selection (`/usr/bin/osascript` through the runner, Safari plus a

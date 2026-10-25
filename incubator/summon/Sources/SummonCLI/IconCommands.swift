@@ -53,13 +53,16 @@ enum SkillCommands {
         case "link":
             let quiet = args.flag("--quiet")
             let settings = try AgentSettingsStore(paths: context.paths).loadValidated()
-            let result = try SkillLinker(home: context.paths.home).link(from: source, settings: settings)
+            let result = try SkillLinker(home: context.paths.home).link(from: source, settings: settings) { agent in
+                context.tools.find(agent.command) != nil
+            }
             for path in result.kept {
                 context.warn("Leaving your own \(path) in place")
             }
             if !quiet {
-                print("Linked \(SkillLinker.skillNames(in: source).joined(separator: ", ")) into " +
-                      SkillLinker.agentFolders.map { "~/" + $0 }.joined(separator: ", "))
+                print(result.folders.isEmpty ? "No agent is installed, so no skills were linked." :
+                      "Linked \(SkillLinker.skillNames(in: source).joined(separator: ", ")) into " +
+                      result.folders.map { "~/" + $0 }.joined(separator: ", "))
             }
         default:
             throw CLIError("Usage: summon skills [list] | summon skills link [--quiet]")
