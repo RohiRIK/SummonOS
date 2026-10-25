@@ -25,6 +25,12 @@ Code: [`incubator/summon/`](../incubator/summon). Overview: [its README](../incu
 - **Eight agents:** Claude Code, Codex, OpenCode, GitHub Copilot, Cursor CLI, Antigravity (`agy`), Pi
   and Grok. One is the default (`summon default agent`); `summon agents` shows which are installed and
   how to install the rest.
+- **Install and update agents:** `summon agents install <agent>` installs agents published on npm with bun
+  (npm if bun is missing; otherwise it prints the bun install line) and the rest with the vendor's script
+  (`--yes` off a terminal). `summon agents update <agent>|--all` updates each the way it was installed (Homebrew
+  formula or cask, bun, npm, or the vendor's own updater), detected from the binary's real path; `--check` lists
+  method, current and latest version, cached for 24 hours in `~/.local/state/summon/agent-updates.json`.
+  `summon agents` shows the install method. Skills are relinked after every install or update.
 - **From anywhere:** ⌃⌥⌘A opens the agent in a new terminal window, the drop-down terminal (⌃⌥⌘\`, then
   `a`) runs it inline, and `summon agent prompt "<task>"` starts it straight into a task.
 - **Session brief:** every task Summon hands an agent (menu, crash, Fix with AI, Activity, scheduled task) ends

@@ -87,6 +87,12 @@ struct SummonCommand {
             } else if args.items.first == "plugin-add" {
                 _ = args.next()
                 try PluginCommands.add(&args, context)
+            } else if args.items.first == "install" {
+                _ = args.next()
+                try AgentInstallCommands.install(&args, context)
+            } else if args.items.first == "update" {
+                _ = args.next()
+                try await AgentInstallCommands.update(&args, context)
             } else if args.items.first == "login" {
                 _ = args.next()
                 try await AgentProbeCommands.login(&args, context)

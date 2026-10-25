@@ -83,6 +83,7 @@ A session started from the hotkey or menu with no task has no block: the checkpo
 | Everything agents make | `~/Summon`: `Apps/<name>`, `Art/<job>`, `Tasks/<id>`, `Themes` (a link to the themes) | `summon home` |
 | Default agent | `~/.config/summon/defaults/agent` | `summon default agent <name>` |
 | Per-agent model and skills | `~/.config/summon/agents.json` | `summon agents set <agent> --model <m> --skills a,b` |
+| Install or update a coding agent | bun / npm / Homebrew / vendor script | `summon agents install <agent>`; `summon agents update --check`, `summon agents update <agent>\|--all` (same method it was installed with) |
 | Recurring agent tasks | `~/.config/summon/tasks.json`, logs in `~/Summon/Tasks/<id>/` | `summon task add "<prompt>" --at 09:00 [--weekdays] \| --every 2h [--agent <id>]`, `task list`, `task run <id>`, `task remove <id>` |
 
 ## Making a new theme
