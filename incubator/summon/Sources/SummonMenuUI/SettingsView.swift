@@ -311,9 +311,17 @@ struct GeneralSettings: View {
                         Button("Allow…") { model.requestAccessibility() }
                     }
                 }
+                // Each preview build is a new app to macOS, so an old switch can look on and still not count.
+                if model.accessibilityRequested && !model.accessibilityGranted {
+                    Text("Still off? Turn Summon off and on again in the list.").foregroundStyle(.secondary)
+                }
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-                model.refreshPermissions()
+            // Re-check while it is off: granting happens in System Settings, not in Summon.
+            .task(id: model.accessibilityGranted) {
+                while !model.accessibilityGranted, !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(2))
+                    model.refreshPermissions()
+                }
             }
 
             Section("System Diagnostics & Health") {
