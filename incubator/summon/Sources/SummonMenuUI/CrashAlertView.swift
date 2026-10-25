@@ -301,7 +301,9 @@ public final class CrashAlertController {
         panel.backgroundColor = .clear
         panel.hasShadow = true
         panel.level = PanelConfig.level
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        // Out of Mission Control, ⌘` and the Window menu, like the menu bar panel (docs/ux-surfaces/05-floating-hud.md).
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient, .ignoresCycle]
+        panel.isExcludedFromWindowsMenu = true
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
         return panel

@@ -90,7 +90,9 @@ public struct SettingsView: View {
         }
         // Like System Settings: the sidebar is always there, so no toggle floating in its own toolbar row.
         .toolbar(removing: .sidebarToggle)
-        .frame(minWidth: 860, idealWidth: 900, minHeight: 560, idealHeight: 620)
+        // Sidebar Settings are 760–820 pt wide (docs/ux-surfaces/03-settings-window.md); only the height grows.
+        .frame(minWidth: 780, idealWidth: 800, maxWidth: 820, minHeight: 520, idealHeight: 620)
+        .background(SettingsWindowChrome())
         .task {
             await model.loadShippedSkills()
             for id in model.installedAgentIDs where model.agentStatus[id] == nil {
@@ -2036,6 +2038,30 @@ struct TasksSettings: View {
         }
         .formStyle(.grouped)
     }
+}
+
+/// HIG Settings: "Dim a settings window's minimize and maximize buttons." Close only and no full screen; ⌘,
+/// brings the window back, so it never needs the Dock.
+private struct SettingsWindowChrome: NSViewRepresentable {
+    final class Probe: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            apply()
+        }
+
+        func apply() {
+            guard let window else { return }
+            if window.styleMask.contains(.miniaturizable) { window.styleMask.remove(.miniaturizable) }
+            window.collectionBehavior.remove(.fullScreenPrimary)
+            window.collectionBehavior.insert(.fullScreenNone)
+            window.standardWindowButton(.miniaturizeButton)?.isEnabled = false
+            window.standardWindowButton(.zoomButton)?.isEnabled = false
+        }
+    }
+
+    func makeNSView(context: Context) -> Probe { Probe() }
+    // SwiftUI can restore the buttons when it updates the window, so apply again on every update.
+    func updateNSView(_ nsView: Probe, context: Context) { nsView.apply() }
 }
 
 // MARK: Previews

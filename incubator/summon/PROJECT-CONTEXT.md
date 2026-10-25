@@ -46,6 +46,11 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-25 — UX surface audit
+- `docs/ux-audit.md` checks every surface against `docs/ux-surfaces/` (table + research). Fixed: Settings close-only
+  chrome (`SettingsWindowChrome`) and 780–820 pt width; crash alert `.transient`/`.ignoresCycle`; health dot read
+  by VoiceOver. Open: onboarding (owner's call), "Show in menu bar" / removable status item, low-priority extras.
+- Mac checks 8–10 added to `docs/menubar-panel.md`.
 ### 2026-10-25 — One canonical template set
 - `examples/menubar-starter` deleted, `examples/menubar-panel-starter` moved in as `templates/menubar-panel`;
   `tools/mp new --kind menubar|menubar-panel|app|cli|screensaver` copies `templates/<kind>` (no more silent fallback).
