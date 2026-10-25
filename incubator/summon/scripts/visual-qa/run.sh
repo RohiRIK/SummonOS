@@ -29,7 +29,7 @@ LOG="$OUT/$TAG-log.txt"
 SUMMARY=${GITHUB_STEP_SUMMARY:-/dev/null}
 PID=
 fail=0
-PANEL_W=360   # PanelConfig.width in StatusPanel.swift
+PANEL_W=320   # PanelConfig.width in StatusPanel.swift
 LIGHT_MIN=150 DARK_MAX=100   # mean luma of launcher and panel captures (spike: light 222-233, dark 29-46)
 
 ORIGINAL_STYLE=$(defaults read -g AppleInterfaceStyle 2>/dev/null || echo Light)
@@ -153,7 +153,7 @@ capture_windows() {
   if [ -z "$settings" ]; then
     failed "$theme: summon://settings opened no Settings window ($(oneline "${opened:-nothing}"))"
   else
-    for section in general agents apps terminal notifications appearance tasks; do
+    for section in general agents apps terminal notifications appearance setup tasks; do
       open -g "summon://settings/$section" >>"$LOG" 2>&1
       sleep 1.5   # the page swaps in place; agent status checks finish loading
       capture "$theme-settings-$section" "$settings"
@@ -296,11 +296,11 @@ for id in $opened; do
 done
 [ -n "$opened" ] && [ -z "$launcher" ] && failed "summon menu summon did not open the panel"
 # Known app bug (not fixed here): the summon:// URL also opens the Activity window. A warning until that lands.
-[ -n "$activity" ] && warned "known bug: summon menu summon also opened the Summon Activity window ($activity)"
+[ -n "$activity" ] && warned "known bug: summon menu summon also opened the Activity window ($activity)"
 capture "light-fallback-cli" "$opened"
 [ -n "$launcher" ] && close_panel "$launcher"
 if [ -n "$activity" ]; then
-  osascript -e "tell application \"System Events\" to tell process \"$OWNER\" to click (first button of window \"Summon Activity\" whose subrole is \"AXCloseButton\")" >>"$LOG" 2>&1
+  osascript -e "tell application \"System Events\" to tell process \"$OWNER\" to click (first button of window \"Activity\" whose subrole is \"AXCloseButton\")" >>"$LOG" 2>&1
   activity_gone() { ! is_open "$activity"; }
   if wait_for 3 activity_gone; then log "  Activity window closed"; else warned "Activity window $activity still open (the exit trap quits Summon)"; fi
 fi

@@ -11,6 +11,7 @@ public enum SettingsPanel: Hashable {
     case terminal
     case notifications
     case appearance
+    case setup
     case tasks
     case agent(String)
 }
@@ -82,10 +83,13 @@ public struct SettingsView: View {
             .searchable(text: $query, placement: .sidebar, prompt: "Search settings...")
             .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 280)
         } detail: {
+            // No painted background: the system draws the detail pane and the title bar over it (LiquidGlass
+            // SidebarSettings). A solid color here showed up as an empty band under the traffic lights.
             detailView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(nsColor: .windowBackgroundColor))
         }
+        // Like System Settings: the sidebar is always there, so no toggle floating in its own toolbar row.
+        .toolbar(removing: .sidebarToggle)
         .frame(minWidth: 860, idealWidth: 900, minHeight: 560, idealHeight: 620)
         .task {
             await model.loadShippedSkills()
@@ -104,13 +108,40 @@ public struct SettingsView: View {
 
     @ViewBuilder private var detailView: some View {
         if let selection {
-            // The page title is the window title, as in System Settings; no header block or subtitle.
-            detailContent(for: selection)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .navigationTitle(title(for: selection))
+            // A large page title like System Settings' panes (the owner found the title-bar title too small);
+            // icon and name only, no subtitle or explanatory text.
+            VStack(alignment: .leading, spacing: 0) {
+                pageTitle(for: selection)
+                detailContent(for: selection)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .navigationTitle(title(for: selection))
         } else {
             ContentUnavailableView("Select a Section", systemImage: "gearshape")
         }
+    }
+
+    private func pageTitle(for panel: SettingsPanel) -> some View {
+        HStack(spacing: 12) {
+            if case .agent(let id) = panel {
+                AgentBrandIcon(agentId: id, size: 22)
+                    .frame(width: 34, height: 34)
+                    .background(Color.secondary.opacity(0.15), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            } else if let section = SettingsSection.allCases.first(where: { $0.panel == panel }) {
+                Image(systemName: section.systemImage)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 34, height: 34)
+                    .background(section.badgeColor, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+            Text(title(for: panel))
+                .font(.largeTitle.weight(.bold))
+        }
+        .padding(.horizontal, 28)
+        .padding(.top, 18)
+        .padding(.bottom, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 
     private func title(for panel: SettingsPanel) -> String {
@@ -135,6 +166,8 @@ public struct SettingsView: View {
             NotificationSettings(model: model)
         case .appearance:
             AppearanceSettings(model: model)
+        case .setup:
+            SetupSettings(model: model)
         case .tasks:
             TasksSettings(model: model)
         case .agent(let id):
@@ -167,6 +200,7 @@ struct SettingsSectionView: View {
         case .terminal: TerminalSettings(model: model)
         case .notifications: NotificationSettings(model: model)
         case .appearance: AppearanceSettings(model: model)
+        case .setup: SetupSettings(model: model)
         case .tasks: TasksSettings(model: model)
         }
     }
@@ -181,6 +215,7 @@ extension SettingsSection {
         case .terminal: return .terminal
         case .notifications: return .notifications
         case .appearance: return .appearance
+        case .setup: return .setup
         case .tasks: return .tasks
         }
     }
@@ -193,6 +228,7 @@ extension SettingsSection {
         case .terminal: return Color.cyan
         case .notifications: return Color.red
         case .appearance: return Color.pink
+        case .setup: return Color.gray
         case .tasks: return Color.orange
         }
     }
@@ -2196,5 +2232,29 @@ private struct ShortcutRecorderRow: View {
             self.monitor = nil
         }
         isRecording = false
+    }
+}
+
+/// The Summon Menu groups the panel no longer shows (owner, 2026-10-25): one row per action, run from here or found
+/// by typing in the panel's search.
+struct SetupSettings: View {
+    @Bindable var model: SummonModel
+
+    var body: some View {
+        Form {
+            ForEach(PanelLayout.setupGroups, id: \.self) { group in
+                let actions = model.visibleChildren(of: group).filter { $0.action != nil }
+                if let parent = model.menu.item(group), !actions.isEmpty {
+                    Section(parent.label) {
+                        ForEach(actions, id: \.id) { item in
+                            LabeledContent(item.label) {
+                                Button("Run") { model.run(item) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
     }
 }

@@ -48,7 +48,7 @@ public final class SummonModel {
     public private(set) var agentStatus: [String: AgentStatus] = [:]
     public private(set) var checkingAgents: Set<String> = []
     /// Every new app gets a private GitHub repo right away (`always`) or after the dialog (`ask`).
-    public private(set) var repoPolicy: RepoPolicy = .always
+    public private(set) var repoPolicy: RepoPolicy = .ask
     public private(set) var executionMode: AgentExecutionMode = .normal
     /// Agents whose CLI is on this Mac, in registry order.
     public private(set) var installedAgentIDs: [String] = []
@@ -173,7 +173,8 @@ public final class SummonModel {
             .flatMap(CrashAlertStyle.init(rawValue:)) ?? .default
         self.taskNotificationsEnabled = UserDefaults.standard.object(forKey: Self.taskNotificationsKey) as? Bool ?? true
         self.notificationSound = UserDefaults.standard.object(forKey: Self.notificationSoundKey) as? Bool ?? true
-        self.menuBarShowsAgentTime = UserDefaults.standard.object(forKey: Self.menuBarShowsAgentTimeKey) as? Bool ?? true
+        // Off unless chosen (owner, 2026-10-25): the menu bar shows Summon's icon only; the panel's Now has the clock.
+        self.menuBarShowsAgentTime = UserDefaults.standard.object(forKey: Self.menuBarShowsAgentTimeKey) as? Bool ?? false
         self.previousThemeSlug = UserDefaults.standard.string(forKey: Self.previousThemeKey)
         if let data = UserDefaults.standard.data(forKey: Self.globalMenuShortcutKey),
            let loaded = try? JSONDecoder().decode(PanelShortcut.self, from: data) {

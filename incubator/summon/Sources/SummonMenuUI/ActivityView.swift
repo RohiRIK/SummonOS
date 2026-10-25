@@ -19,18 +19,18 @@ public struct ActivityView: View {
         log
             .searchable(text: $model.query, placement: .toolbar, prompt: "Search")
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Picker("Filter", selection: $model.filter) {
+                // A menu, not a segmented control: five segments were clipped next to the title and search.
+                ToolbarItem(placement: .automatic) {
+                    Picker("Show", selection: $model.filter) {
                         ForEach(ActivityModel.Filter.allCases) { filter in
                             Text(filter.rawValue).tag(filter)
                         }
                     }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 380)
+                    .pickerStyle(.menu)
+                    .fixedSize()
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) { askBar }
-            .containerBackground(.thinMaterial, for: .window)
             .frame(minWidth: 640, minHeight: 420)
             .confirmationDialog(pendingUndo?.title ?? "", isPresented: undoBinding, presenting: pendingUndo) { undo in
                 Button("Undo", role: .destructive) { undo.run(model) }
