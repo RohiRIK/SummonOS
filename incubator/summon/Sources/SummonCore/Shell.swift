@@ -73,7 +73,7 @@ public struct ToolLocator: Sendable {
 
     public static func live(environment: [String: String] = ProcessInfo.processInfo.environment) -> ToolLocator {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let userDirs = ["\(home)/.local/bin", "\(home)/.bun/bin", "\(home)/.cargo/bin", "\(home)/.npm-global/bin"]
+        let userDirs = ["\(home)/.local/bin", "\(home)/.opencode/bin", "\(home)/.bun/bin", "\(home)/.cargo/bin", "\(home)/.npm-global/bin"]
         let fallbackDirs = ["/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin", "/usr/bin", "/bin"]
         let rawDirs = (environment["PATH"] ?? "").split(separator: ":").map(String.init)
 
@@ -86,10 +86,14 @@ public struct ToolLocator: Sendable {
             dirs.append(dir)
         }
 
-        // The user's own folders first, as in their shell: a tool installed with bun or a script can be newer than
-        // a Homebrew copy (two OpenCodes on one Mac: Homebrew 1.15 and bun 2.0).
-        for dir in userDirs { add(dir) }
-        for dir in rawDirs { add(dir) }
+        // PATH order wins among its own folders, so Summon finds the copy the user's shell runs (three OpenCodes on
+        // one Mac: a working vendor ~/.opencode/bin, a broken bun copy, Homebrew). User folders missing from PATH (a
+        // GUI app gets only system folders) go before the first system folder: a tool installed with bun or a script
+        // can be newer than a Homebrew copy (Homebrew 1.15 and bun 2.0).
+        let firstSystem = rawDirs.firstIndex(where: fallbackDirs.contains) ?? rawDirs.endIndex
+        for dir in rawDirs[..<firstSystem] { add(dir) }
+        for dir in userDirs where !rawDirs.contains(dir) { add(dir) }
+        for dir in rawDirs[firstSystem...] { add(dir) }
         for dir in fallbackDirs { add(dir) }
 
         return ToolLocator(searchPath: dirs) { path in
