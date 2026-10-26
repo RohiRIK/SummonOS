@@ -51,6 +51,13 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   uses body / headline / subheadline only. A Now + Recent layout was built and rejected by the owner (recent logs and
   a NOW section felt weird): do not add activity rows to the panel.
 
+### 2026-10-26 — Tool search follows PATH order
+- `ToolLocator.live`: PATH order wins among its own folders; user folders missing from PATH go before the first
+  system folder (GUI app keeps user folders before Homebrew). Added `~/.opencode/bin`. Found on a real Mac where
+  Summon picked a broken bun OpenCode over the vendor copy the shell runs.
+- First full local run on Xcode 27.1: 335 + 150 tests green; panel, 8 Settings pages, Activity, Welcome open; CLI
+  read-only commands exit 0.
+
 ### 2026-10-26 — First-run welcome window
 - `OnboardingView` (Window scene `onboarding`, 640 × 440, close only via `closeOnlyWindow()`): agent, Accessibility,
   ready. `OnboardingFlow.launch` (Core, tested) decides at launch in `ActivityOpener`; key
