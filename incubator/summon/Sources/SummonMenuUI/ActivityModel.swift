@@ -49,6 +49,8 @@ public final class ActivityModel {
     public private(set) var openRequest = 0
     /// Bumped by `summon://settings`; the menu bar label opens the Settings window.
     public private(set) var settingsRequest = 0
+    /// Bumped by `summon://welcome`; the opener shows the first-run setup window again.
+    public private(set) var onboardingRequest = 0
 
     /// False for previews: no disk reads, commands or activation-policy changes.
     @ObservationIgnored public internal(set) var live = true
@@ -106,6 +108,10 @@ public final class ActivityModel {
 
     public func requestSettings() {
         settingsRequest += 1
+    }
+
+    public func requestOnboarding() {
+        onboardingRequest += 1
     }
 
     /// Reloads every source off the main actor. Cheap: small JSON files, no crash parsing.
@@ -284,6 +290,23 @@ public struct ActivityOpener: ViewModifier {
                 openSettings()
                 // The Settings scene's window is titled after the page shown, so it is found by its identifier.
                 bringToFront { $0.identifier?.rawValue.contains("Settings") == true }
+            }
+            .onChange(of: activity.onboardingRequest) {
+                openWindow(id: OnboardingView.windowID)
+                bringToFront { $0.title == OnboardingView.title }
+            }
+            // First launch: the opener is the one window open from launch, so it decides about the setup window.
+            .task {
+                guard activity.live else { return }
+                let defaults = UserDefaults.standard
+                switch OnboardingFlow.launch(completed: defaults.bool(forKey: OnboardingFlow.completedKey),
+                                             visualQA: defaults.bool(forKey: "VisualQA"),
+                                             hasDefaultAgent: activity.summon.defaultAgent != nil,
+                                             accessibilityGranted: activity.summon.accessibilityGranted) {
+                case .show: openWindow(id: OnboardingView.windowID)
+                case .markCompleted: defaults.set(true, forKey: OnboardingFlow.completedKey)
+                case .none: break
+                }
             }
     }
 

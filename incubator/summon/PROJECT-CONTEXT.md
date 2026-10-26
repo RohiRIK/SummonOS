@@ -46,6 +46,10 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-26 — First-run welcome window
+- `OnboardingView` (Window scene `onboarding`, 640 × 440, close only via `closeOnlyWindow()`): agent, Accessibility,
+  ready. `OnboardingFlow.launch` (Core, tested) decides at launch in `ActivityOpener`; key
+  `summon.onboarding.completed`; skipped when `VisualQA` is set. Reopened by Settings › General and `summon://welcome`.
 ### 2026-10-25 — Existing templates brought to the surface rules
 - Kit: `CloseOnlyWindow.swift` (`.closeOnlyWindow()`, the probe Summon's Settings uses) in all six UI templates;
   `OnboardingFlow` (Core) + `Onboarding.swift` (window, permission cards, `showsOnboardingOnFirstLaunch()`,

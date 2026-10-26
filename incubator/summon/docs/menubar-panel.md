@@ -155,6 +155,12 @@ level. To watch them: `log stream --predicate 'subsystem == "local.macplugins.su
    Space, takes typing, and Esc returns focus to Safari. Then `open -g summon://test-crash` (debug build): the crash
    alert shows over the full-screen app without taking key, and it isn't listed in Mission Control or ⌘`.
 10. VoiceOver on a menu entry with a health dot (My Apps): VO reads the label and then its badge ("Healthy", or the problem).
+11. Welcome window: `defaults delete local.macplugins.summon summon.onboarding.completed`, then quit and reopen
+    Summon. Expected: "Welcome to Summon" opens centered, 640 × 440, close only, with Summon in the Dock. Pick an
+    agent (the panel header shows it). On step 2, Open System Settings, turn Summon on: the card turns "Allowed"
+    within a second. Done closes it, Summon leaves the Dock and the panel opens under the icon. Relaunch: no
+    window. Closing it on step 1 also doesn't bring it back. Settings › General › Show Welcome Again and
+    `open summon://welcome` open it again.
 
 ## Deployment floor
 

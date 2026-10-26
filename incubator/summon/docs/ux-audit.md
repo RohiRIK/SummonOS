@@ -13,7 +13,7 @@ still needs a change. **By design** means it's a deliberate difference, with the
 | 3 Settings | `Settings` scene, sidebar + grouped forms | `SettingsView.swift` |
 | 4 Launcher | Merged into the menu bar panel (type to search) | `PanelView.swift` |
 | 5 HUD | Crash alert (closest fit: small nonactivating panel above other windows) | `CrashAlertView.swift` |
-| 6 Onboarding | None | |
+| 6 Onboarding | Welcome window, three steps | `OnboardingView.swift` |
 | 7 System extensions | None | |
 
 ## 1. Menu bar panel
@@ -51,7 +51,7 @@ still needs a change. **By design** means it's a deliberate difference, with the
 
 | Dimension | Status | Notes |
 |---|---|---|
-| Anatomy | Fixed | HIG: dim minimize and zoom. They were enabled and Settings could go full screen. Now only close works (`SettingsWindowChrome`). |
+| Anatomy | Fixed | HIG: dim minimize and zoom. They were enabled and Settings could go full screen. Now only close works (`closeOnlyWindow()`). |
 | Size | Fixed | Was at least 860 × 560 and freely resizable. Now 780–820 wide (owner's 760–820) and at least 520 tall. |
 | Focus | OK | Every opener calls `openSettings()` and then `NSApp.activate()` (`ActivityOpener`). |
 | Materials | OK | Grouped forms. There's no app-only Light/Dark picker; Summon's theme changes the whole Mac through macctl, with undo. |
@@ -83,14 +83,18 @@ still needs a change. **By design** means it's a deliberate difference, with the
 
 ## 6. Onboarding
 
-**Open.** There's no first-run flow. A first launch shows only an icon in the menu bar. Per the research, a short
-wizard is worth it for an `LSUIElement` app that needs setup. For Summon, that means:
+**Fixed** (owner chose the three-step wizard, 2026-10-26). `OnboardingView.swift`, steps in `SummonCore/Onboarding.swift`:
 
-1. Choose the default agent (and offer to install one).
-2. Accessibility, explained first, with a live check.
-3. Show the ⌃⌥Space hotkey and point at the menu bar icon.
+1. **Agent:** what Summon does, then a radio list of installed agents. With none installed, it shows the install
+   command and a Check Again button.
+2. **Accessibility:** why Summon asks (the selected text and window title for Ask Agent), a live status (words and a
+   symbol, not color alone), and Open System Settings. It's optional, so Continue always moves on.
+3. **Ready:** a bouncing arrow toward the menu bar (still with Reduce Motion), and the ⌃⌥Space hotkey. Done opens the panel under the icon.
 
-This is a product change, so it waits for the owner's decision.
+The window is 640 × 440, centered and close only. Closing it counts as skipping. Summon shows in the Dock while the
+window is open, so it isn't lost behind System Settings. It opens once, on a first launch that still needs setup.
+Updates where an agent is chosen and Accessibility is on never show it, and Visual QA runs skip it. Settings ›
+General › Show Welcome Again and `summon://welcome` bring it back. Mac check 11.
 
 ## 7. System extensions
 
