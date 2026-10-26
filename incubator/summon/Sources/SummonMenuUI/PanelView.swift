@@ -161,6 +161,13 @@ public struct PanelView: View {
                     .padding(.horizontal, 8)
             }
             if isHome { attentionRow }
+            if isHome, let update = model.availableUpdate {
+                MenuRow(title: model.isUpdating ? "Updating Summon…" : "Summon \(update.release.version) available · Update",
+                        systemImage: "arrow.down.circle", shortcut: nil) {
+                    model.installUpdate()
+                }
+                .disabled(model.isUpdating)
+            }
             if let offer = model.undoOffer, isHome {
                 MenuRow(title: offer.title, systemImage: "arrow.uturn.backward", shortcut: nil) {
                     actions.finish()

@@ -21,7 +21,7 @@ enum UpdateCommand {
         }
 
         // Downloads can outlast the default 60-second deadline on a slow connection.
-        let updater = Updater(runner: Shell.live(timeout: 900))
+        let updater = Updater(runner: Shell.live(timeout: 900), gh: context.tools.find("gh"))
         let check = try await updater.check(channel)
         print("Installed: summon \(check.current)")
         print("Latest on \(channel.rawValue): \(check.release.version) (release \(check.release.tag))")
@@ -42,11 +42,8 @@ enum UpdateCommand {
             }
         }
 
-        let work = FileManager.default.temporaryDirectory.appendingPathComponent("summon-update-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        defer { try? FileManager.default.removeItem(at: work) }
         print("Downloading \(check.release.zipName)")
-        let output = try await updater.install(check.release, work: work)
+        let output = try await updater.install(check.release)
         print(output.trimmingCharacters(in: .whitespacesAndNewlines))
 
         // The new binary checks its own install; this process is still the old one.

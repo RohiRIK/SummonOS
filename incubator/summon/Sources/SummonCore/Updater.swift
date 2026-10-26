@@ -22,6 +22,19 @@ public struct UpdateChannelStore: Sendable {
     }
 }
 
+/// Whether Summon.app looks for a new build once a day: `~/.config/summon/defaults/update-check` (`on` unless `off`).
+public struct AutoUpdateStore: Sendable {
+    public let paths: SummonPaths
+    public init(paths: SummonPaths) { self.paths = paths }
+    public var file: URL { paths.config.appendingPathComponent("defaults/update-check") }
+
+    public func load() -> Bool { TextFile.firstLine(file) != "off" }
+
+    public func save(_ on: Bool) throws {
+        try TextFile.write((on ? "on" : "off") + "\n", to: file)
+    }
+}
+
 /// A SemVer 2.0 version (`0.1.0`, `0.1.0-edge.abc1234`), compared by SemVer precedence.
 public struct ReleaseVersion: Comparable, Sendable, CustomStringConvertible {
     public let core: [Int]
@@ -109,13 +122,16 @@ public struct Updater: Sendable {
     public let current: String
     public let curl: String
     public let ditto: String
+    /// A logged-in gh has its own API quota; used when the anonymous one is spent (a VPN or office IP).
+    public let gh: String?
 
     public init(runner: @escaping Runner, current: String = SummonVersion.current,
-                curl: String = "/usr/bin/curl", ditto: String = "/usr/bin/ditto") {
+                curl: String = "/usr/bin/curl", ditto: String = "/usr/bin/ditto", gh: String? = nil) {
         self.runner = runner
         self.current = current
         self.curl = curl
         self.ditto = ditto
+        self.gh = gh
     }
 
     struct APIRelease: Decodable {
@@ -160,7 +176,12 @@ public struct Updater: Sendable {
     public func check(_ channel: UpdateChannel) async throws -> UpdateCheck {
         let output: String
         do { output = try await runner(curl, ["-fsSL", "--retry", "3", "\(Self.api)/releases?per_page=30"]) }
-        catch { throw UpdateError.unreadable("GitHub is unreachable or rate limited (\(error))") }
+        catch {
+            guard let gh, let viaGH = try? await runner(gh, ["api", "repos/RohiRIK/SummonOS/releases?per_page=30"]) else {
+                throw UpdateError.unreadable("GitHub is unreachable or rate limited (\(error))")
+            }
+            output = viaGH
+        }
         let release = try Self.pick(Data(output.utf8), channel: channel)
         return UpdateCheck(channel: channel, current: current, release: release,
                            available: Self.isAvailable(current: current, latest: release.version, channel: channel))
@@ -190,6 +211,14 @@ public struct Updater: Sendable {
         guard let expected = expectedDigest(sums, file: zip.lastPathComponent), try sha256(of: zip) == expected else {
             throw UpdateError.checksumMismatch(zip.lastPathComponent)
         }
+    }
+
+    /// `install` in a private temp folder that is removed afterwards (the CLI and the app both update this way).
+    public func install(_ release: UpdateRelease) async throws -> String {
+        let work = FileManager.default.temporaryDirectory.appendingPathComponent("summon-update-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: work) }
+        return try await install(release, work: work)
     }
 
     /// Downloads and verifies the release into `work` (an empty temp folder), unpacks it and runs its installer.

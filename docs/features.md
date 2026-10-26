@@ -189,7 +189,12 @@ sections:
   newest release tag; `edge` is a rolling prerelease rebuilt from every green `main` (`summon --version` then reads
   `0.1.0-edge.<sha>`). It downloads the zip and `SHA256SUMS`, refuses on a mismatch, installs with the release's own
   staged installer (rollback on failure) and runs `summon doctor`. `--check` only reports. A `--channel` is
-  remembered in `~/.config/summon/defaults/channel`.
+  remembered in `~/.config/summon/defaults/channel`. When the anonymous GitHub API is rate limited (a VPN or office
+  IP), the check uses a logged-in `gh`.
+- The app updates itself: Summon.app checks the channel at launch and once a day. A newer build adds a panel row,
+  "Summon X available · Update"; one click installs it the same way and relaunches, then asks for Accessibility again.
+  Settings › General › Updates: Check for updates automatically (on; `~/.config/summon/defaults/update-check`),
+  the channel (Stable / Edge) and Check Now.
 
 ### Themes and look
 
