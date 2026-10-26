@@ -5,6 +5,16 @@ public enum ProjectShowcase {
     static let start = "<!-- summon:screenshots -->"
     static let end = "<!-- /summon:screenshots -->"
 
+    /// Every PNG an app's `--screenshot` wrote, the main surface (`panel-*` or `window-*`) first, then the rest
+    /// (an editor window, a second panel state) by name, light before dark.
+    public static func orderedShots(_ files: [String], surface: String) -> [String] {
+        func key(_ name: String) -> (Int, String) {
+            (name.hasPrefix(surface + "-") ? 0 : 1,
+             name.replacingOccurrences(of: "-light.", with: "-0.").replacingOccurrences(of: "-dark.", with: "-1."))
+        }
+        return files.filter { $0.hasSuffix(".png") }.sorted { key($0) < key($1) }
+    }
+
     /// Puts (or replaces) a Screenshots section right after the README's first paragraph.
     public static func updateReadme(_ readme: String, images: [String], cliHelp: String?) -> String {
         let title = readme.split(separator: "\n").first { $0.hasPrefix("# ") }.map { String($0.dropFirst(2)) } ?? "App"
