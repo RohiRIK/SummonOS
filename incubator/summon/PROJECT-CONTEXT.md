@@ -46,6 +46,14 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-26 — Welcome window polish (U4, docs/ux-surfaces/06-onboarding.md)
+- Four steps, 720 × 480: `welcome` (new: `banner.png` header bundled into Resources by bundle.sh, three feature
+  rows), agent rows with `AgentBrandIcon` + live login (`checkAgent`, re-checked every 5 s while logged out),
+  Accessibility (footer "Skip" while off, visible re-grant hint), ready ("Try it now" ticks green when
+  `PanelState.session` moves; warns when `PanelController.isStatusItemVisible` is false).
+- `SummonModel.preview()` now has three installed agents with login states. Pages checked by rendering each with
+  `ImageRenderer` (ScrollView contents don't render there; rows rendered alone).
+
 ### 2026-10-26 — Tool search follows PATH order
 - `ToolLocator.live`: PATH order wins among its own folders; user folders missing from PATH go before the first
   system folder (GUI app keeps user folders before Homebrew). Added `~/.opencode/bin`. Found on a real Mac where

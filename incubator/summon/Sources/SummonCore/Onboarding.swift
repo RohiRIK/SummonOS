@@ -1,8 +1,10 @@
-/// Summon's first-run setup (docs/ux-surfaces/06-onboarding.md): choose the agent, allow Accessibility, then see
-/// where Summon lives. Short and optional: closing the window skips it, and Settings › General shows it again.
+/// Summon's first-run setup (docs/ux-surfaces/06-onboarding.md): what Summon does, choose the agent, allow
+/// Accessibility, then see where Summon lives. Short and optional: closing the window skips it, and Settings › General shows it again.
 public struct OnboardingFlow: Equatable, Sendable {
     public enum Step: String, CaseIterable, Equatable, Sendable {
-        /// What Summon does and which coding agent it uses.
+        /// A short brand moment and what Summon does.
+        case welcome
+        /// Which coding agent it uses, and whether that agent is logged in.
         case agent
         /// Accessibility, explained before System Settings opens, with a live check.
         case accessibility

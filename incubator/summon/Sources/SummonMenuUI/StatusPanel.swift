@@ -148,6 +148,8 @@ public final class PanelController: NSObject {
     /// Live observers right now; 0 whenever the panel is closed (D rules). Logged on every close.
     public var activeObserverCount: Int { observers.count }
     public var isOpen: Bool { state.isOpen }
+    /// False when the menu bar has no room for the icon (behind the notch, or hidden by a menu bar manager).
+    public var isStatusItemVisible: Bool { statusItem.button?.window?.occlusionState.contains(.visible) ?? false }
 
     /// `content` is the panel's single SwiftUI view; it is hosted once and kept for the app's lifetime.
     public init<Content: View>(openActivity: @escaping () -> Void = {},
