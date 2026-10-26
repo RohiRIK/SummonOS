@@ -31,6 +31,13 @@ struct ProjectShowcaseTests {
         #expect(html.contains("prefers-color-scheme: dark"))
     }
 
+    @Test func everyRenderedShotIsListedMainSurfaceFirst() {
+        let files = ["editor-light.png", "panel-light.png", ".DS_Store", "editor-dark.png", "panel-dark.png"]
+        #expect(ProjectShowcase.orderedShots(files, surface: "panel")
+                == ["panel-light.png", "panel-dark.png", "editor-light.png", "editor-dark.png"])
+        #expect(ProjectShowcase.orderedShots([], surface: "window").isEmpty)
+    }
+
     @Test func summaryIsTheFirstParagraphAfterTheTitle() {
         #expect(ProjectShowcase.summary(fromReadme: "# Mac Battery\n\nShows the battery.\nIn the menu bar.\n\n## Build\n") == "Shows the battery. In the menu bar.")
         #expect(ProjectShowcase.summary(fromReadme: "# X\n\nA panel (`MenuBarExtra`), **fast**.\n") == "A panel (MenuBarExtra), fast.")

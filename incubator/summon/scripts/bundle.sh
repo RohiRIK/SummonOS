@@ -40,7 +40,7 @@ for size in 16 32 128 256 512; do
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 cp design/brand/app-icon-128.png "$APP/Contents/Resources/app-icon.png"
-cp design/brand/menubar-icon.png design/brand/menubar-icon@2x.png "$APP/Contents/Resources/"
+cp design/brand/menubar-icon.png design/brand/menubar-icon@2x.png design/brand/banner.png "$APP/Contents/Resources/"
 mkdir -p "$APP/Contents/Resources/agents"
 cp Resources/agents/*.svg "$APP/Contents/Resources/agents/"
 

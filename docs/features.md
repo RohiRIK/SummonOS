@@ -136,8 +136,10 @@ sections:
   Summon Menu (Style, Setup, Trigger, Install, Update, System, Agent), and Settings › Setup lists those groups with
   Run buttons. With no default agent, the header offers "Choose an agent". The menu bar shows Summon's icon only (the
   agent clock is an option in Settings › General), and it turns orange while the status line has something.
-- **Welcome window** (first launch only, 640 × 440, close only): choose the default agent (or how to install one),
-  allow Accessibility with a live check, then see the menu bar icon and ⌃⌥Space; Done opens the panel. Closing it
+- **Welcome window** (first launch only, 720 × 480, close only): a brand header and what Summon does; choose the
+  default agent from rows showing each agent's login (Log In… when logged out) or how to install one; allow
+  Accessibility with a live check (Skip while off; one click re-grants after an update); then try ⌃⌥Space and
+  watch it tick green, with a warning when the menu bar hides the icon; Done opens the panel. Closing it
   skips setup. An update where an agent is set and Accessibility is on never shows it. Settings › General › Show
   Welcome Again or `open summon://welcome` brings it back.
 - **Undo confirmation:** "Restore N Changes" names what it does; Cancel is the default button.
@@ -285,6 +287,7 @@ in Activity. The plugin no longer declares the server, so its tools never appear
 | `summon-mac` | Settings, configs, themes, tiling, terminal, keybindings, hooks, apps to install |
 | `summon-art` | Themes, wallpapers and icons: concept, palette with a contrast check, images through Nano Banana, review |
 | `mac-app` | Build a menu bar app, window app, CLI tool, screensaver or icon from a Summon template |
+| `mac-app-test` | Test an app before it is done: Core and model tests, the gate, every way in (launch, My Apps, icon, hotkey, reopen) with a window check, logs, screenshots, and a click-through for the user |
 | `diagnose-crash-mac` | Why an app crashed, hung or was killed, from its diagnostic report |
 | `mac-logs` | Read the unified log, app and launchd logs, install logs |
 

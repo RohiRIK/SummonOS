@@ -55,6 +55,9 @@ final class StatusPanel: NSPanel {
 /// A right-click (or ⌃-click) opens a plain menu with Settings… and Quit instead.
 @MainActor
 public final class PanelController: NSObject {
+    /// The panel follows SwiftUI's ideal size. `.intrinsicContentSize` is what makes `fittingSize` real: with
+    /// `.preferredContentSize` alone it is 0 × 0 and a click on the icon shows nothing (PanelSizeTests).
+    static let sizingOptions: NSHostingSizingOptions = [.intrinsicContentSize, .preferredContentSize]
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let panel = StatusPanel.make()
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
@@ -92,7 +95,7 @@ public final class PanelController: NSObject {
         settingsAction = actions.openSettings
         let host = NSHostingView(rootView: content(actions)
             .background(.regularMaterial, in: .rect(cornerRadius: 12)))
-        host.sizingOptions = [.preferredContentSize] // the panel follows SwiftUI's ideal size
+        host.sizingOptions = Self.sizingOptions
         panel.contentView = host
         panel.onEscape = { [weak self] in self?.close() }
 

@@ -26,11 +26,22 @@ enum ShotCommands {
             // Screen Recording, and it works when the menu bar is full and the icon is hidden. Older apps: live capture.
             let binary = (app as NSString).appendingPathComponent("Contents/MacOS/\(exec)")
             let surface = project.kind == .menubar ? "panel" : "window"
-            let rendered = ["\(surface)-light.png", "\(surface)-dark.png"]
+            let required = ["\(surface)-light.png", "\(surface)-dark.png"]
+            // A fresh folder, so the README lists what this run drew, not shots of views that are gone.
+            let fresh = FileManager.default.temporaryDirectory.appendingPathComponent("summon-shots-\(UUID().uuidString)")
+            defer { try? FileManager.default.removeItem(at: fresh) }
             // At most 20 s: an app made before the template had `--screenshot` just launches and never exits.
-            if run(binary, ["--screenshot", shotsDir.path], within: 20),
-               rendered.allSatisfy({ FileManager.default.fileExists(atPath: shotsDir.appendingPathComponent($0).path) }) {
-                images += rendered.map { "docs/screenshots/\($0)" }
+            if run(binary, ["--screenshot", fresh.path], within: 20),
+               required.allSatisfy({ FileManager.default.fileExists(atPath: fresh.appendingPathComponent($0).path) }) {
+                // Every surface the app draws (an editor window too), not only the panel.
+                let files = ProjectShowcase.orderedShots(
+                    (try? FileManager.default.contentsOfDirectory(atPath: fresh.path)) ?? required, surface: surface)
+                for file in files {
+                    let target = shotsDir.appendingPathComponent(file)
+                    try? FileManager.default.removeItem(at: target)
+                    try FileManager.default.copyItem(at: fresh.appendingPathComponent(file), to: target)
+                }
+                images += files.map { "docs/screenshots/\($0)" }
             } else {
                 let file = shotsDir.appendingPathComponent(project.kind == .menubar ? "panel.png" : "window.png")
                 try await capture(app: app, executable: exec, menuBar: project.kind == .menubar, to: file)

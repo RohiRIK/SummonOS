@@ -29,7 +29,7 @@ struct SummonMenuApp: App {
 
         // First-run setup: opened once at first launch (ActivityOpener), again from Settings or summon://welcome.
         Window(OnboardingView.title, id: OnboardingView.windowID) {
-            OnboardingView(model: delegate.model) { delegate.panel?.open() }
+            OnboardingView(model: delegate.model, panel: delegate.panel) { delegate.panel?.open() }
         }
         .windowResizability(.contentSize)
         .defaultLaunchBehavior(.suppressed)
