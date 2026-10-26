@@ -51,7 +51,8 @@ struct ProcessExecutorTests {
         defer { try? FileManager.default.removeItem(at: home) }
         let childFile = home.appendingPathComponent("child-pid")
         var options = ProcessOptions()
-        options.timeout = 0.2
+        // Long enough for the shell to start its child and write child-pid while the full suite runs in parallel.
+        options.timeout = 1
         options.terminationGrace = 0.05
         let began = ContinuousClock.now
         await #expect(throws: RunnerError.self) {
