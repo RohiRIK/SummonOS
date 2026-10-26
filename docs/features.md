@@ -128,13 +128,11 @@ sections:
 
 ### Menu bar app
 
-- **Panel** (320 pt, Liquid Glass on macOS 26), Now + Recent (owner, 2026-10-26): the header (the Summon mark and the
-  default agent), a "Search Summon…" field, one status line only when something is wrong ("Ghostty crashed ·
-  Review…" opens Activity's problems; "N setup problems · Fix…" asks the agent; crashes of helpers and test runners
-  don't count), the undo row when there is something to undo, **Now** (the running agent session with its folder and
-  how long; click brings its terminal forward), **Recent** (the last three events, without session start/end; each
-  opens in Activity) and Show All Activity…, then **Ask Agent**, **Make Something ›**, **My Apps ›**, Settings… (⌘,)
-  and Quit (⌘Q). The search field searches the whole
+- **Panel** (320 pt, Liquid Glass on macOS 26), calm by design (owner, 2026-10-25): the header (Summon, the default
+  agent, "running 3h" while a session runs, next to the Summon mark), a "Search Summon…" field, then **Ask Agent**, **Make Something ›**, **My Apps ›**, one status line
+  only when something is wrong ("Ghostty crashed · Review…" opens Activity's problems; "N setup problems · Fix…" asks
+  the agent; crashes of helpers and test runners don't count), the undo row when there is something to undo, then
+  Activity…, Settings… (⌘,) and Quit (⌘Q). The search field searches the whole
   Summon Menu (Style, Setup, Trigger, Install, Update, System, Agent), and Settings › Setup lists those groups with
   Run buttons. With no default agent, the header offers "Choose an agent". The menu bar shows Summon's icon only (the
   agent clock is an option in Settings › General), and it turns orange while the status line has something.

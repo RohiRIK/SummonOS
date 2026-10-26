@@ -13,17 +13,6 @@ struct PanelLayoutTests {
         #expect(PanelClock.ago(now.addingTimeInterval(60), now: now) == "now")
     }
 
-    @Test func recentIsNewestFirstWithoutSessionNoise() {
-        let t0 = Date(timeIntervalSince1970: 1_800_000_000)
-        func event(_ id: String, _ minutes: Double, _ kind: String) -> ActivityEvent {
-            ActivityEvent(id: id, date: t0.addingTimeInterval(minutes * 60), category: .agent, kind: kind, title: id)
-        }
-        let events = [event("theme", 1, "theme"), event("start", 9, EventKind.sessionStart), event("crash", 5, "crash"),
-                      event("end", 8, EventKind.sessionEnd), event("undo", 3, "setting.undo"), event("old", 0, "checkpoint")]
-        #expect(PanelLayout.recent(events).map(\.id) == ["crash", "undo", "theme"])
-        #expect(PanelLayout.recent([event("start", 1, EventKind.sessionStart)]).isEmpty)
-    }
-
     @Test func everyDefaultGroupIsOnTheHomeOrInSetup() throws {
         let tree = try MenuTree.parse(DefaultMenu.jsonc)
         let top = tree.children(of: nil).map(\.id)
