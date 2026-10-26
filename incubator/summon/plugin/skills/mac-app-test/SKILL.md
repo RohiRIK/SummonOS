@@ -23,6 +23,9 @@ at its step 5; it also stands alone for any later change.
   nothing does) are logic too. Move them to Core, or add a `<App>UITests` test target for the model
   (`.testTarget(name: "<App>UITests", dependencies: ["<App>UI"])`, `@MainActor` tests) with its store in a
   temporary folder.
+- A panel or window that sizes itself from SwiftUI gets a size test: host the view exactly as the app does (same
+  `NSHostingView`, same `sizingOptions`, same background) and expect a real `fittingSize`, with data and empty.
+  `.preferredContentSize` alone reports 0 × 0, and the icon click then shows nothing.
 - Storage is tested against a temporary folder, never the user's real data, and through a second model or store
   instance, so a test proves the data comes back after a relaunch.
 - A test fails first: break the code on purpose once, see the test fail, then put it back.
