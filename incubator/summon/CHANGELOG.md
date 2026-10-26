@@ -6,6 +6,9 @@ version numbers yet; entries are grouped by day and point at the pull request.
 ## 2026-10-26
 
 ### Added
+- A first-run welcome window: choose the agent, allow Accessibility (live status), then see the menu bar icon and
+  ⌃⌥Space; Done opens the panel. Shown once, skipped by closing it, and never on an update that is already set up.
+  Settings › General › Show Welcome Again and `summon://welcome` reopen it.
 - `summon project new <name> --kind widget`: a desktop and Notification Center widget (a countdown to a date set
   with Edit Widget, small and medium, a live timer on the day) and the one-window app that carries it. Logic and
   views are a Swift package; a small `Xcode/` project builds the app and the sandboxed widget extension, the one

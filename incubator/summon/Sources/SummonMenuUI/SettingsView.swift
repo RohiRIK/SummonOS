@@ -92,7 +92,7 @@ public struct SettingsView: View {
         .toolbar(removing: .sidebarToggle)
         // Sidebar Settings are 760–820 pt wide (docs/ux-surfaces/03-settings-window.md); only the height grows.
         .frame(minWidth: 780, idealWidth: 800, maxWidth: 820, minHeight: 520, idealHeight: 620)
-        .background(SettingsWindowChrome())
+        .closeOnlyWindow()
         .task {
             await model.loadShippedSkills()
             for id in model.installedAgentIDs where model.agentStatus[id] == nil {
@@ -289,6 +289,7 @@ struct GeneralSettings: View {
 
     @State private var cleanPlan: SummonCleaner.Plan?
     @State private var confirmingClean = false
+    @Environment(\.openWindow) private var openWindow
     @Bindable var model: SummonModel
 
     var body: some View {
@@ -408,6 +409,12 @@ struct GeneralSettings: View {
                 )
             } header: {
                 Text("Keyboard Shortcuts")
+            }
+            // HIG Onboarding: let people see a skipped setup again.
+            Section {
+                LabeledContent("Welcome") {
+                    Button("Show Welcome Again") { openWindow(id: OnboardingView.windowID) }
+                }
             }
         }
         .formStyle(.grouped)
@@ -2038,30 +2045,6 @@ struct TasksSettings: View {
         }
         .formStyle(.grouped)
     }
-}
-
-/// HIG Settings: "Dim a settings window's minimize and maximize buttons." Close only and no full screen; ⌘,
-/// brings the window back, so it never needs the Dock.
-private struct SettingsWindowChrome: NSViewRepresentable {
-    final class Probe: NSView {
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            apply()
-        }
-
-        func apply() {
-            guard let window else { return }
-            if window.styleMask.contains(.miniaturizable) { window.styleMask.remove(.miniaturizable) }
-            window.collectionBehavior.remove(.fullScreenPrimary)
-            window.collectionBehavior.insert(.fullScreenNone)
-            window.standardWindowButton(.miniaturizeButton)?.isEnabled = false
-            window.standardWindowButton(.zoomButton)?.isEnabled = false
-        }
-    }
-
-    func makeNSView(context: Context) -> Probe { Probe() }
-    // SwiftUI can restore the buttons when it updates the window, so apply again on every update.
-    func updateNSView(_ nsView: Probe, context: Context) { nsView.apply() }
 }
 
 // MARK: Previews

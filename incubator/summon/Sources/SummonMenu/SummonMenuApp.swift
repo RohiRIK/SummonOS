@@ -27,6 +27,16 @@ struct SummonMenuApp: App {
         // The invisible, always-open opener claims summon:// so SwiftUI reuses it instead of opening a window.
         .handlesExternalEvents(matching: ["summon"])
 
+        // First-run setup: opened once at first launch (ActivityOpener), again from Settings or summon://welcome.
+        Window(OnboardingView.title, id: OnboardingView.windowID) {
+            OnboardingView(model: delegate.model) { delegate.panel?.open() }
+        }
+        .windowResizability(.contentSize)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
+        .defaultWindowPlacement { _, _ in WindowPlacement(.center) }
+        .handlesExternalEvents(matching: [])
+
         // The one Settings window (⌘, from the app menu, Settings… in the panel, summon://settings).
         Settings {
             SettingsView(model: delegate.model)

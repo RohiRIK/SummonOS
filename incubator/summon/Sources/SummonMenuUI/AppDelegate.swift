@@ -84,7 +84,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
 
     /// `summon://panel` opens the menu bar panel and `summon://panel/close` closes it (use `open -g`);
     /// `summon://menu/<id>` opens the panel at that Summon Menu entry; `summon://agent` starts the agent;
-    /// `summon://activity` opens the Activity window; `summon://settings` opens Settings.
+    /// `summon://activity` opens the Activity window; `summon://settings` opens Settings; `summon://welcome` opens
+    /// the first-run setup again.
     public func application(_ application: NSApplication, open urls: [URL]) {
         // Cold launch: AppKit can deliver the URL before applicationDidFinishLaunching made the panel. Queue it.
         for url in launchURLs.receive(urls) where url.scheme == "summon" {
@@ -100,6 +101,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
                 model.askAgent()
             case "activity":
                 activity.requestOpen()
+            case "welcome":
+                activity.requestOnboarding()
             case "settings":
                 // summon://settings/<section> opens on that page (Visual QA captures each one this way).
                 if let name = url.pathComponents.dropFirst().first, let section = SettingsSection(rawValue: name) {
