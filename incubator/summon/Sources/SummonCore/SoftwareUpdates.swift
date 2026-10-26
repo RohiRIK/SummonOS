@@ -1,17 +1,33 @@
 import Foundation
 
-/// One thing on this Mac with a newer version out: Summon itself, a Homebrew formula or cask, a bun or npm global
-/// package, or a macOS update. The panel's Updates folder lists them.
+/// One thing on this Mac with a newer version out: Summon itself, an agent CLI, a Homebrew formula or cask, a bun or
+/// npm global package, or a macOS update. The panel's Update folder lists them by `Group`.
 public struct SoftwareUpdate: Sendable, Equatable, Identifiable {
     public enum Source: String, Sendable, CaseIterable {
-        case summon, homebrew, bun, npm, macOS
+        case summon, agent, homebrew, bun, npm, macOS
+    }
+
+    /// The Update folder's sections, in order: Summon is a row of its own, the rest are folders.
+    public enum Group: String, Sendable, CaseIterable {
+        case summon, agents, homebrew, packages, os
+
+        public var title: String {
+            switch self {
+            case .summon: return "Summon"
+            case .agents: return "Agents"
+            case .homebrew: return "Homebrew"
+            case .packages: return "bun & npm"
+            case .os: return "macOS"
+            }
+        }
 
         public var icon: String {
             switch self {
             case .summon: return "sparkles"
+            case .agents: return "terminal"
             case .homebrew: return "shippingbox"
-            case .bun, .npm: return "cube.box"
-            case .macOS: return "apple.logo"
+            case .packages: return "cube.box"
+            case .os: return "apple.logo"
             }
         }
     }
@@ -24,7 +40,17 @@ public struct SoftwareUpdate: Sendable, Equatable, Identifiable {
     public var command: [String]?
 
     public var id: String { "\(source.rawValue):\(name)" }
-    public var title: String { current.isEmpty ? "\(name) \(latest)" : "\(name) \(current) → \(latest)" }
+    public var title: String { current.isEmpty ? name : "\(name) \(current)" }
+
+    public var group: Group {
+        switch source {
+        case .summon: return .summon
+        case .agent: return .agents
+        case .homebrew: return .homebrew
+        case .bun, .npm: return .packages
+        case .macOS: return .os
+        }
+    }
 
     public init(source: Source, name: String, current: String, latest: String, command: [String]?) {
         self.source = source
@@ -80,6 +106,26 @@ public struct SoftwareUpdate: Sendable, Equatable, Identifiable {
         }
     }
 
+    /// Agent CLIs (codex from bun, claude-code from Homebrew) get their own group, under the agent's name. The
+    /// package's own upgrade command stays: an install is updated the way it was installed.
+    public static func markAgents(_ updates: [SoftwareUpdate]) -> [SoftwareUpdate] {
+        var agents: [String: String] = [:]
+        for agent in AgentRegistry.all {
+            if let package = AgentInstall.catalog[agent.id]?.npmPackage { agents[package] = agent.name }
+            let hint = agent.installHint.split(separator: " ")
+            if hint.starts(with: ["brew", "install"]), let formula = hint.last?.split(separator: "/").last {
+                agents[String(formula)] = agent.name
+            }
+        }
+        return updates.map { update in
+            guard [.homebrew, .bun, .npm].contains(update.source), let name = agents[update.name] else { return update }
+            var agent = update
+            agent.source = .agent
+            agent.name = name
+            return agent
+        }
+    }
+
     /// The `{...}` in a tool's output: brew prints progress before it, npm prints notices after it.
     static func jsonObject(_ text: String) -> Data {
         guard let start = text.firstIndex(of: "{"), let end = text.lastIndex(of: "}"), start < end else { return Data() }
@@ -115,7 +161,7 @@ public struct SoftwareUpdateCheck: Sendable {
         async let bun = check("bun", ["outdated", "--global"]) { SoftwareUpdate.bun($0, bun: $1) }
         async let npm = check("npm", ["outdated", "-g", "--json"]) { SoftwareUpdate.npm($0, npm: $1) }
         async let macOS = check("softwareupdate", ["-l"]) { text, _ in SoftwareUpdate.macOS(text) }
-        return await brew + bun + npm + macOS
+        return SoftwareUpdate.markAgents(await brew + bun + npm + macOS)
     }
 
     private func check(_ tool: String, _ arguments: [String],
@@ -130,23 +176,45 @@ public struct SoftwareUpdateCheck: Sendable {
 }
 
 extension MenuTree {
-    /// The panel's Updates folder, right after Make Something: one row per update (`updates.<n>`, in `updates`
-    /// order), Update All when more than one installs from the shell, and Check Now.
+    /// Fills the panel's Update folder (`update`, the default menu's group; added after Make Something when a
+    /// custom menu has none): Summon as a row, a folder per other group, Update All and Check Now. An update row is
+    /// `<folder>.<n>`, where n indexes `updates`; its tag is the new version.
     public func withUpdates(_ updates: [SoftwareUpdate]) -> MenuTree {
-        guard !items.contains(where: { $0.id == "updates" }) else { return self }
-        var rows = [MenuItem(id: "updates", label: updates.isEmpty ? "Updates" : "Updates · \(updates.count)",
-                             icon: "arrow.down.circle", aliases: ["upgrade", "outdated", "brew", "bun", "npm"])]
-        if updates.filter({ $0.command != nil }).count > 1 {
-            rows.append(MenuItem(id: "updates.all", label: "Update All", icon: "arrow.down.circle.fill"))
-        }
-        for (index, update) in updates.enumerated() {
-            rows.append(MenuItem(id: "updates.\(index)", label: update.title, icon: update.source.icon))
-        }
-        if updates.isEmpty { rows.append(MenuItem(id: "updates.none", label: "Everything is up to date", icon: "checkmark.circle")) }
-        rows.append(MenuItem(id: "updates.check", label: "Check Now", icon: "arrow.clockwise"))
+        guard !items.contains(where: { $0.id == "update.check" }) else { return self }
         var updated = items
-        let afterMake = (items.lastIndex { $0.id == "make" || $0.id.hasPrefix("make.") }).map { $0 + 1 } ?? items.endIndex
-        updated.insert(contentsOf: rows, at: afterMake)
+        var rows: [MenuItem] = []
+        let tag = updates.isEmpty ? nil : "\(updates.count) new"
+        let insertAt: Int
+        if let index = updated.firstIndex(where: { $0.id == "update" }) {
+            updated[index].badge = tag
+            insertAt = index + 1
+        } else {
+            rows.append(MenuItem(id: "update", label: "Update", icon: "arrow.triangle.2.circlepath", aliases: ["upgrade"], badge: tag))
+            insertAt = (items.lastIndex { $0.id == "make" || $0.id.hasPrefix("make.") }).map { $0 + 1 } ?? items.endIndex
+        }
+        for group in SoftwareUpdate.Group.allCases {
+            let members = updates.enumerated().filter { $0.element.group == group }
+            guard !members.isEmpty else { continue }
+            let folder = group == .summon ? "update" : "update.\(group.rawValue)"
+            if group != .summon {
+                rows.append(MenuItem(id: folder, label: group.title, icon: group.icon, badge: "\(members.count)"))
+            }
+            for (index, update) in members {
+                rows.append(MenuItem(id: "\(folder).\(index)", label: update.title, icon: group.icon, badge: "New \(update.latest)"))
+            }
+        }
+        if updates.filter({ $0.command != nil }).count > 1 {
+            rows.append(MenuItem(id: "update.all", label: "Update All", icon: "arrow.down.circle"))
+        }
+        if updates.isEmpty { rows.append(MenuItem(id: "update.none", label: "Everything is up to date", icon: "checkmark.circle")) }
+        rows.append(MenuItem(id: "update.check", label: "Check Now", icon: "arrow.clockwise"))
+        updated.insert(contentsOf: rows, at: insertAt)
         return (try? MenuTree(items: updated)) ?? self
+    }
+
+    /// The index into `updates` for an update row, nil for every other item (`update.brew` from a menu file too).
+    public static func updateIndex(_ id: String) -> Int? {
+        guard id.hasPrefix("update."), let last = id.split(separator: ".").last else { return nil }
+        return Int(last)
     }
 }

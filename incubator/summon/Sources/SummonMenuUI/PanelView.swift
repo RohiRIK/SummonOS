@@ -154,7 +154,7 @@ public struct PanelView: View {
                     .padding(.horizontal, 8)
             }
             if isHome { attentionRow }
-            if level == "updates", let status = model.updateStatus, model.isUpdating {
+            if level?.hasPrefix("update") == true, let status = model.updateStatus, model.isUpdating {
                 Text(status)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -334,10 +334,10 @@ public struct PanelView: View {
             if !model.updates.isEmpty {
                 Button {
                     query = ""
-                    level = "updates"
+                    level = "update"
                     selection = 0
                 } label: {
-                    Label("\(model.updates.count)", systemImage: "arrow.down.circle.fill")
+                    Text(model.updates.count == 1 ? "1 update" : "\(model.updates.count) updates")
                         .font(.subheadline.weight(.semibold))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
@@ -433,6 +433,14 @@ struct MenuTreeRow: View {
                 Text(breadcrumb).foregroundStyle(.tertiary).lineLimit(1)
             }
             Spacer()
+            if let badge = item.badge {
+                Text(badge)
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.accentColor.opacity(0.18), in: Capsule())
+                    .foregroundStyle(Color.accentColor)
+            }
             if let health {
                 Circle()
                     .fill(health.level == .healthy ? Color.green : (health.level == .warning ? Color.orange : Color.red))

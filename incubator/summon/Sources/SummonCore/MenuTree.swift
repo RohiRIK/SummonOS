@@ -14,9 +14,11 @@ public struct MenuItem: Sendable, Equatable, Codable, Identifiable {
     /// Shell guard: a check mark is shown when this exits 0.
     public var checked: String?
     public var aliases: [String]?
+    /// A short tag at the row's end ("New 1.4.8", "3 new").
+    public var badge: String?
 
     public init(id: String, label: String, icon: String? = nil, action: String? = nil,
-                when: String? = nil, checked: String? = nil, aliases: [String]? = nil) {
+                when: String? = nil, checked: String? = nil, aliases: [String]? = nil, badge: String? = nil) {
         self.id = id
         self.label = label
         self.icon = icon
@@ -24,6 +26,7 @@ public struct MenuItem: Sendable, Equatable, Codable, Identifiable {
         self.when = when
         self.checked = checked
         self.aliases = aliases
+        self.badge = badge
     }
 
     public var parentID: String? {

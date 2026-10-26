@@ -306,14 +306,14 @@ public final class SummonModel {
         loadMenu()
     }
 
-    /// A row in the panel's Updates folder (`MenuTree.withUpdates`): `updates.<n>` indexes `updates`.
+    /// A row in the panel's Update folder (`MenuTree.withUpdates`): `<folder>.<n>` indexes `updates`.
     private func runUpdate(_ id: String) {
-        let name = id.dropFirst("updates.".count)
-        switch name {
-        case "check": Task { await checkForUpdates() }
-        case "all": installPackages(packageUpdates)
+        switch id {
+        case "update.check": Task { await checkForUpdates() }
+        case "update.all": installPackages(packageUpdates)
+        case "update.none": break
         default:
-            guard let index = Int(name), updates.indices.contains(index) else { return }
+            guard let index = MenuTree.updateIndex(id), updates.indices.contains(index) else { return }
             let update = updates[index]
             switch update.source {
             case .summon: installUpdate()
@@ -874,7 +874,7 @@ public final class SummonModel {
     }
 
     public func run(_ item: MenuItem) {
-        if item.id.hasPrefix("updates.") {
+        if ["update.all", "update.check", "update.none"].contains(item.id) || MenuTree.updateIndex(item.id) != nil {
             runUpdate(item.id)
             return
         }

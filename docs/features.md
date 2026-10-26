@@ -192,7 +192,7 @@ sections:
   remembered in `~/.config/summon/defaults/channel`. When the anonymous GitHub API is rate limited (a VPN or office
   IP), the check uses a logged-in `gh`.
 - The app updates itself: Summon.app checks the channel at launch and once a day, together with Homebrew
-  (`brew outdated`), bun and npm globals and macOS (`softwareupdate -l`). The panel's Updates folder, under Make
+  (`brew outdated`), bun and npm globals and macOS (`softwareupdate -l`). The panel's Update folder (the old Update group, back on the home), under Make
   Something, lists each one with its versions (one click updates it; Summon installs the same way as `summon update`,
   relaunches and asks for Accessibility again; macOS opens Software Update), plus Update All and Check Now. A count
   tag in the panel's top right opens it.
