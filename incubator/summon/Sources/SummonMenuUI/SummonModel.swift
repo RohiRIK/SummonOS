@@ -808,6 +808,9 @@ extension SummonModel {
         ]
         model.defaultAgent = AgentRegistry.find("claude")
         model.agentInstalled = true
+        model.installedAgentIDs = ["claude", "codex", "opencode"]
+        model.agentStatus = ["claude": AgentStatus(login: AgentLogin(loggedIn: true, detail: "Claude Max"), models: []),
+                             "codex": AgentStatus(login: AgentLogin(loggedIn: false), models: [])]
         model.installedTerminals = [.ghostty, .kitty, .terminal]
         model.terminal = .ghostty
         model.mutedPrograms = ["adminbyrequest"]

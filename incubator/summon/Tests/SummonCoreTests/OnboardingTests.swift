@@ -2,11 +2,13 @@ import SummonCore
 import Testing
 
 @Suite struct OnboardingTests {
-    @Test func threeStepsForwardToTheEndAndBack() {
+    @Test func fourStepsForwardToTheEndAndBack() {
         var flow = OnboardingFlow()
-        #expect(flow.steps == [.agent, .accessibility, .ready])
-        #expect(flow.isFirst && flow.step == .agent)
+        #expect(flow.steps == [.welcome, .agent, .accessibility, .ready])
+        #expect(flow.isFirst && flow.step == .welcome)
         var moved = flow.next()
+        #expect(moved && flow.step == .agent)
+        moved = flow.next()
         #expect(moved && flow.step == .accessibility)
         moved = flow.next()
         #expect(moved && flow.isLast && flow.step == .ready)
@@ -15,7 +17,8 @@ import Testing
         flow.back()
         flow.back()
         flow.back()
-        #expect(flow.step == .agent)
+        flow.back()
+        #expect(flow.step == .welcome)
     }
 
     @Test func showsOnlyOnAFirstLaunchThatNeedsSetup() {
