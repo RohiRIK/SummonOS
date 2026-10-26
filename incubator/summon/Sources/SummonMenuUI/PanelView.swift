@@ -93,20 +93,13 @@ public struct PanelView: View {
         }
     }
 
-    /// One status line, only when something is wrong (owner: no per-crash list in the panel). Crashes open
-    /// Activity's problems, where each has Diagnose; setup problems go to the agent (`summon fix`).
+    /// One status line, only when Summon's setup is broken; Fix… hands it to the agent (`summon fix`). Crashes are a
+    /// notification, not a row (owner, 2026-10-26).
     @ViewBuilder private var attentionRow: some View {
-        let attention = PanelAttention(reports: model.panelProblems, doctor: model.doctorReport)
-        if let summary = attention.summary {
+        if let summary = PanelAttention(doctor: model.doctorReport).summary {
             MenuRow(title: summary, systemImage: "exclamationmark.triangle.fill", shortcut: nil) {
-                if attention.crashes.isEmpty {
-                    actions.finish()
-                    model.fixWithAI()
-                } else {
-                    activity.filter = .problems
-                    activity.selection = nil
-                    actions.openActivity()
-                }
+                actions.finish()
+                model.fixWithAI()
             }
         }
     }
@@ -161,12 +154,11 @@ public struct PanelView: View {
                     .padding(.horizontal, 8)
             }
             if isHome { attentionRow }
-            if isHome, let update = model.availableUpdate {
-                MenuRow(title: model.isUpdating ? "Updating Summon…" : "Summon \(update.release.version) available · Update",
-                        systemImage: "arrow.down.circle", shortcut: nil) {
-                    model.installUpdate()
-                }
-                .disabled(model.isUpdating)
+            if level == "updates", let status = model.updateStatus, model.isUpdating {
+                Text(status)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
             }
             if let offer = model.undoOffer, isHome {
                 MenuRow(title: offer.title, systemImage: "arrow.uturn.backward", shortcut: nil) {
@@ -338,6 +330,24 @@ public struct PanelView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            // The update tag: one click opens the Updates folder.
+            if !model.updates.isEmpty {
+                Button {
+                    query = ""
+                    level = "updates"
+                    selection = 0
+                } label: {
+                    Label("\(model.updates.count)", systemImage: "arrow.down.circle.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.accentColor, in: Capsule())
+                        .foregroundStyle(.white)
+                }
+                .buttonStyle(.plain)
+                .help("\(model.updates.count) update\(model.updates.count == 1 ? "" : "s") available")
+                .accessibilityLabel("\(model.updates.count) updates available")
+            }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)

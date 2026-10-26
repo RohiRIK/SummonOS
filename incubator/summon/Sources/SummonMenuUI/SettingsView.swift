@@ -362,7 +362,7 @@ struct GeneralSettings: View {
                         Button("Update to \(update.release.version)") { model.installUpdate() }
                             .disabled(model.isUpdating)
                     } else {
-                        Button("Check Now") { Task { await model.checkForUpdate() } }
+                        Button("Check Now") { Task { await model.checkForUpdates() } }
                             .disabled(model.isUpdating)
                     }
                 } label: {

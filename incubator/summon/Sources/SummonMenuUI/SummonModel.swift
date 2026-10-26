@@ -57,6 +57,15 @@ public final class SummonModel {
     public private(set) var isUpdating = false
     /// The last Check Now or install result for Settings ("up to date", an error).
     public private(set) var updateStatus: String?
+    /// Outdated Homebrew, bun and npm packages and macOS updates (`SoftwareUpdateCheck`), checked with Summon's.
+    public private(set) var packageUpdates: [SoftwareUpdate] = []
+    /// Everything the panel's Updates folder lists: Summon first.
+    public var updates: [SoftwareUpdate] {
+        let summon = availableUpdate.map {
+            SoftwareUpdate(source: .summon, name: "Summon", current: $0.current, latest: $0.release.version, command: nil)
+        }
+        return (summon.map { [$0] } ?? []) + packageUpdates
+    }
     /// Agents whose CLI is on this Mac, in registry order.
     public private(set) var installedAgentIDs: [String] = []
     /// Installed plugins per agent, and which agents have each catalog plugin (filled on demand).
@@ -267,19 +276,25 @@ public final class SummonModel {
     public func setChecksForUpdates(_ on: Bool) {
         do { try AutoUpdateStore(paths: paths).save(on) } catch { lastError = String(describing: error) }
         checksForUpdates = on
-        if !on { availableUpdate = nil }
+        if !on {
+            availableUpdate = nil
+            packageUpdates = []
+            loadMenu()
+        }
     }
 
     public func setUpdateChannel(_ channel: UpdateChannel) {
         do { try UpdateChannelStore(paths: paths).save(channel) } catch { lastError = String(describing: error) }
         updateChannel = channel
-        Task { await checkForUpdate() }
+        Task { await checkForUpdates() }
     }
 
-    /// `quiet` (the daily check) says nothing when it fails: offline or GitHub's rate limit is not worth a row.
-    public func checkForUpdate(quiet: Bool = false) async {
+    /// Summon's channel and every package manager at once. `quiet` (the daily check) says nothing when Summon's
+    /// check fails: offline or GitHub's rate limit is not worth a row.
+    public func checkForUpdates(quiet: Bool = false) async {
         guard !isUpdating else { return }
         if !quiet { updateStatus = "Checking…" }
+        async let packages = SoftwareUpdateCheck(runner: userPathRunner(runner), tools: ToolLocator.live()).run()
         do {
             let check = try await Updater(runner: runner, gh: ToolLocator.live().find("gh")).check(updateChannel)
             availableUpdate = check.available ? check : nil
@@ -287,6 +302,57 @@ public final class SummonModel {
         } catch {
             if !quiet { updateStatus = String(describing: error) }
         }
+        packageUpdates = await packages
+        loadMenu()
+    }
+
+    /// A row in the panel's Updates folder (`MenuTree.withUpdates`): `updates.<n>` indexes `updates`.
+    private func runUpdate(_ id: String) {
+        let name = id.dropFirst("updates.".count)
+        switch name {
+        case "check": Task { await checkForUpdates() }
+        case "all": installPackages(packageUpdates)
+        default:
+            guard let index = Int(name), updates.indices.contains(index) else { return }
+            let update = updates[index]
+            switch update.source {
+            case .summon: installUpdate()
+            case .macOS: NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Software-Update-Settings.extension")!)
+            default: installPackages([update])
+            }
+        }
+    }
+
+    /// Runs each package's own upgrade command in turn; a failure keeps its row and is named in the panel.
+    private func installPackages(_ list: [SoftwareUpdate]) {
+        guard !isUpdating, !list.isEmpty else { return }
+        isUpdating = true
+        // Upgrades (a cask, a big formula) can take minutes.
+        let install = userPathRunner(Shell.live(timeout: 1800))
+        Task {
+            var failed: [String] = []
+            for update in list {
+                guard let command = update.command, let tool = command.first else { continue }
+                updateStatus = "Updating \(update.name)…"
+                do {
+                    _ = try await install(tool, Array(command.dropFirst()))
+                    packageUpdates.removeAll { $0.id == update.id }
+                } catch {
+                    failed.append(update.name)
+                }
+                loadMenu()
+            }
+            isUpdating = false
+            updateStatus = nil
+            lastError = failed.isEmpty ? nil : "Could not update \(failed.joined(separator: ", ")); try it in a terminal."
+        }
+    }
+
+    /// Package managers need the user's PATH from a GUI app (npm starts with `env node`). The argv is passed as
+    /// "$@", never spliced into the shell string.
+    private func userPathRunner(_ base: @escaping Runner) -> Runner {
+        let prefix = shellPrefix
+        return { tool, arguments in try await base("/bin/zsh", ["-c", prefix + "\"$@\"", "zsh", tool] + arguments) }
     }
 
     /// The same install as `summon update` (checksum, staged installer with rollback), then Summon relaunches.
@@ -345,6 +411,7 @@ public final class SummonModel {
     func loadMenu() {
         let loaded = MenuTree.load(from: paths.menuFile)
         menu = loaded.tree.withProjects(projects, themes: themes, appHealth: appHealth, themeHealth: themeHealth)
+            .withUpdates(updates)
         menuError = loaded.problem
     }
 
@@ -372,7 +439,7 @@ public final class SummonModel {
                 // Summon's own setup (`summon doctor`) for the panel's Needs attention: at launch, then every 10 min.
                 if round % 20 == 0 { await model.checkHealth() }
                 // A new Summon build: at launch, then once a day (2880 rounds of 30 s).
-                if round % 2880 == 0, model.checksForUpdates { await model.checkForUpdate(quiet: true) }
+                if round % 2880 == 0, model.checksForUpdates { await model.checkForUpdates(quiet: true) }
                 round += 1
                 try? await Task.sleep(for: interval)
             }
@@ -597,15 +664,7 @@ public final class SummonModel {
         NSWorkspace.shared.open(folder)
     }
 
-    /// Problems the panel still shows: not archived, not older than a day (Activity keeps them all).
-    /// `problemsVersion` makes the panel recompute after an archive.
-    public var panelProblems: [CrashReport] {
-        _ = problemsVersion
-        return ProblemArchive(paths: paths).visible(recentCrashes)
-    }
-    private var problemsVersion = 0
-
-    /// Diagnosing hands the report to the agent, so that program's reports leave the panel.
+    /// Diagnosing hands the report to the agent, so that program's reports are archived.
     public func diagnose(file: String) {
         if let program = recentCrashes.first(where: { $0.file == file })?.program {
             archiveProblems(recentCrashes.filter { $0.program == program })
@@ -615,7 +674,6 @@ public final class SummonModel {
 
     public func archiveProblems(_ reports: [CrashReport]) {
         try? ProblemArchive(paths: paths).archive(reports.map(\.file))
-        problemsVersion += 1
     }
 
     public func mute(program: String) {
@@ -816,6 +874,10 @@ public final class SummonModel {
     }
 
     public func run(_ item: MenuItem) {
+        if item.id.hasPrefix("updates.") {
+            runUpdate(item.id)
+            return
+        }
         if item.id.hasPrefix("apps.") {
             let parts = item.id.split(separator: ".")
             if parts.count >= 3 {
