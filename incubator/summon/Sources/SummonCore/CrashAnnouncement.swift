@@ -14,7 +14,7 @@ public enum CrashAlertStyle: String, Sendable, CaseIterable, Identifiable {
         }
     }
 
-    public static let `default`: CrashAlertStyle = .summon
+    public static let `default`: CrashAlertStyle = .banner
 }
 
 /// What one crash scan announces. A scan can find several reports at once (after sleep, or a crash loop): the

@@ -64,6 +64,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
             self?.registerHotKeys()
         }
         setUpNotifications(health: health)
+        // Relaunched by an in-app update: the new build needs Accessibility again, so ask now, not when the hotkey fails.
+        if CommandLine.arguments.contains("--updated"), !model.accessibilityGranted { model.requestAccessibility() }
         crashAlert.onWillPresent = { [weak panel] in panel?.yieldToCrashAlert() }
         // A `summon://` URL that launched Summon can arrive before this method ran (Sam's review); replay it now,
         // after the status item has had a pass to get its place in the menu bar so the panel opens under it.
