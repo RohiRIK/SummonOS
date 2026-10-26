@@ -285,6 +285,7 @@ in Activity. The plugin no longer declares the server, so its tools never appear
 | `summon-mac` | Settings, configs, themes, tiling, terminal, keybindings, hooks, apps to install |
 | `summon-art` | Themes, wallpapers and icons: concept, palette with a contrast check, images through Nano Banana, review |
 | `mac-app` | Build a menu bar app, window app, CLI tool, screensaver or icon from a Summon template |
+| `mac-app-test` | Test an app before it is done: Core and model tests, the gate, every way in (launch, My Apps, icon, hotkey, reopen) with a window check, logs, screenshots, and a click-through for the user |
 | `diagnose-crash-mac` | Why an app crashed, hung or was killed, from its diagnostic report |
 | `mac-logs` | Read the unified log, app and launchd logs, install logs |
 
