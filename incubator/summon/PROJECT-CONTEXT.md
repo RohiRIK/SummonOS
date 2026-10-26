@@ -46,6 +46,13 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-26 — Panel: Now + Recent (owner-chosen, research 01-menubar-apps)
+- Home: header (app icon mark + agent name), visible "Search Summon…" (reverses the 2026-10-25 hidden field, owner
+  picked it), attention + undo, NOW (running session: folder, `PanelClock.ago`; click activates the terminal), RECENT
+  (`PanelLayout.recent`: last 3, no session start/end; click selects it in Activity) + Show All Activity…, then Ask
+  Agent, Make Something, My Apps, Settings…/Quit. Activity… left the footer.
+- Type scale: body 13, headline, subheadline 11 only. `ActivityEvent.symbolName/symbolColor` shared with Activity.
+
 ### 2026-10-26 — First-run welcome window
 - `OnboardingView` (Window scene `onboarding`, 640 × 440, close only via `closeOnlyWindow()`): agent, Accessibility,
   ready. `OnboardingFlow.launch` (Core, tested) decides at launch in `ActivityOpener`; key

@@ -240,39 +240,8 @@ public struct ActivityView: View {
 struct LogLine: View {
     let event: ActivityEvent
 
-    private var iconName: String {
-        switch event.category {
-        case .problem:
-            return event.kind == "hang" ? "hourglass.badge.exclamationmark" : "exclamationmark.triangle.fill"
-        case .agent:
-            return "sparkles"
-        case .settings:
-            return event.kind.contains("undo") ? "arrow.uturn.backward.circle.fill" : "slider.horizontal.3"
-        case .checkpoint:
-            return "clock.arrow.circlepath"
-        case .theme:
-            return "paintbrush.pointed.fill"
-        case .mac:
-            return "desktopcomputer"
-        }
-    }
-
-    private var iconColor: Color {
-        switch event.category {
-        case .problem:
-            return event.kind == "hang" ? .orange : .red
-        case .agent:
-            return .accentColor
-        case .settings:
-            return event.kind.contains("undo") ? .green : .cyan
-        case .checkpoint:
-            return .indigo
-        case .theme:
-            return .purple
-        case .mac:
-            return .teal
-        }
-    }
+    private var iconName: String { event.symbolName }
+    private var iconColor: Color { event.symbolColor }
 
     private var detailText: String? {
         if !event.changes.isEmpty {
@@ -340,4 +309,41 @@ struct LogLine: View {
 #Preview("Activity") {
     ActivityView(model: .preview())
         .frame(width: 760, height: 520)
+}
+
+/// One symbol and color per kind of event, shared by Activity and the panel's RECENT rows.
+extension ActivityEvent {
+    var symbolName: String {
+        switch category {
+        case .problem:
+            return kind == "hang" ? "hourglass.badge.exclamationmark" : "exclamationmark.triangle.fill"
+        case .agent:
+            return "sparkles"
+        case .settings:
+            return kind.contains("undo") ? "arrow.uturn.backward.circle.fill" : "slider.horizontal.3"
+        case .checkpoint:
+            return "clock.arrow.circlepath"
+        case .theme:
+            return "paintbrush.pointed.fill"
+        case .mac:
+            return "desktopcomputer"
+        }
+    }
+
+    var symbolColor: Color {
+        switch category {
+        case .problem:
+            return kind == "hang" ? .orange : .red
+        case .agent:
+            return .accentColor
+        case .settings:
+            return kind.contains("undo") ? .green : .cyan
+        case .checkpoint:
+            return .indigo
+        case .theme:
+            return .purple
+        case .mac:
+            return .teal
+        }
+    }
 }

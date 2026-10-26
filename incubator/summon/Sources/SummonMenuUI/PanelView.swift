@@ -122,22 +122,87 @@ public struct PanelView: View {
 
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
-            .font(.caption.weight(.semibold))
+            .font(.subheadline.weight(.semibold))
             .foregroundStyle(.secondary)
             .padding(.horizontal, 8)
             .padding(.top, 6)
             .accessibilityAddTraits(.isHeader)
     }
 
+    /// NOW: the agent session that is running, if any (E5: not before this open's first refresh, so a session that
+    /// ended since the last open never flashes). Click brings its terminal to the front.
+    @ViewBuilder private var nowSection: some View {
+        if refreshedSession == panel.session, let agent = activity.status?.agent, agent.running {
+            sectionHeader("Now")
+            PanelRow(action: bringTerminalForward) {
+                Circle().fill(.green).frame(width: 7, height: 7).frame(width: 16)
+                    .accessibilityHidden(true)
+                Text(agent.name ?? model.defaultAgent?.name ?? "Agent")
+                if let folder = agent.folder {
+                    Text((folder as NSString).abbreviatingWithTildeInPath)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                Spacer(minLength: 4)
+                if let since = agent.since {
+                    // Coarse on purpose ("12m"): status, not a stopwatch.
+                    Text(PanelClock.ago(since)).foregroundStyle(.tertiary).monospacedDigit()
+                }
+            }
+            .accessibilityLabel("Running")
+        }
+    }
+
+    /// RECENT: the last few things that happened; each opens in Activity, and Show All Activity… opens the rest.
+    @ViewBuilder private var recentSection: some View {
+        let recent = PanelLayout.recent(activity.events)
+        if !recent.isEmpty { sectionHeader("Recent") }
+        ForEach(recent) { event in
+            PanelRow(action: {
+                activity.filter = .all
+                activity.selection = event.id
+                actions.openActivity()
+            }) {
+                Image(systemName: event.symbolName)
+                    .foregroundStyle(event.symbolColor)
+                    .frame(width: 16)
+                    .accessibilityHidden(true)
+                Text(event.title).lineLimit(1)
+                Spacer(minLength: 4)
+                Text(PanelClock.ago(event.date)).foregroundStyle(.tertiary).monospacedDigit()
+            }
+        }
+        MenuRow(title: "Show All Activity…", systemImage: recent.isEmpty ? "clock" : nil, shortcut: nil) {
+            activity.selection = nil
+            actions.openActivity()
+        }
+    }
+
+    private func bringTerminalForward() {
+        actions.finish()
+        let name = model.terminal.name
+        NSWorkspace.shared.runningApplications.first { $0.localizedName == name }?.activate()
+    }
+
     private var content: some View {
         VStack(alignment: .leading, spacing: 2) {
             header
+            // Always visible (owner, 2026-10-26: Now + Recent panel), so people know they can type.
             search
-                // Type anywhere to search: the field appears with the first letter (owner: no search box at home).
-                .frame(height: isHome ? 0 : nil)
-                .opacity(isHome ? 0 : 1)
-                .clipped()
-            if isHome { askAgentRow }
+            if isHome {
+                attentionRow
+                if let offer = model.undoOffer {
+                    MenuRow(title: offer.title, systemImage: "arrow.uturn.backward", shortcut: nil) {
+                        actions.finish()
+                        model.confirmUndo(offer)
+                    }
+                }
+                nowSection
+                recentSection
+                PanelDivider()
+                askAgentRow
+            }
             ForEach(Array(rows.enumerated()), id: \.element.id) { index, item in
                 MenuTreeRow(item: item,
                             breadcrumb: query.isEmpty ? nil : model.menu.path(to: item.parentID ?? "").joined(separator: " › "),
@@ -163,13 +228,6 @@ public struct PanelView: View {
                     .lineLimit(3)
                     .padding(.horizontal, 8)
             }
-            if isHome { attentionRow }
-            if let offer = model.undoOffer, isHome {
-                MenuRow(title: offer.title, systemImage: "arrow.uturn.backward", shortcut: nil) {
-                    actions.finish()
-                    model.confirmUndo(offer)
-                }
-            }
             if panel.fixtureRows > 0 {
                 PanelDivider()
                 ForEach(0..<panel.fixtureRows, id: \.self) { row in
@@ -179,10 +237,6 @@ public struct PanelView: View {
 
             // Footer per AGENTS.md; the right-click menu has the same two items (decision 5).
             PanelDivider()
-            MenuRow(title: "Activity…", systemImage: nil, shortcut: nil) {
-                activity.selection = nil
-                actions.openActivity()
-            }
             MenuRow(title: "Settings…", systemImage: nil, shortcut: "⌘,") {
                 actions.openSettings()
             }
@@ -202,9 +256,9 @@ public struct PanelView: View {
                 Button(action: back) {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.subheadline.weight(.bold))
                         Text(model.menu.path(to: level!).joined(separator: " › "))
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.subheadline.weight(.semibold))
                             .lineLimit(1)
                             .fixedSize()
                     }
@@ -262,9 +316,9 @@ public struct PanelView: View {
                     return .handled
                 }
         }
-        .font(.system(size: 14))
+        .font(.body)
         .padding(.horizontal, 8)
-        .frame(height: 30)
+        .frame(height: 28)
         .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary))
         .padding(.horizontal, 2)
         .padding(.bottom, 4)
@@ -322,11 +376,10 @@ public struct PanelView: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 26, height: 26)
-                .background(Circle().fill(Color.accentColor))
+            // The Summon mark (the app icon), not a stock symbol.
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 28, height: 28)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text("Summon").font(.headline)
@@ -340,16 +393,11 @@ public struct PanelView: View {
         .padding(.vertical, 6)
     }
 
-    /// E5: until this open's first refresh lands, only the agent's name shows (no stale "running" from last time).
+    /// The default agent; whether it is running shows under NOW.
     @ViewBuilder private var agentLine: some View {
         if let agent = model.defaultAgent {
             if !model.agentInstalled {
                 Text("\(agent.name) is not installed")
-            } else if refreshedSession == panel.session, let since = activity.status?.agent.since,
-                      activity.status?.agent.running == true {
-                // Coarse on purpose ("running 3h"): status, not a stopwatch.
-                let ago = PanelClock.ago(since)
-                Text(ago == "now" ? "\(agent.name) · running" : "\(agent.name) · running \(ago)")
             } else {
                 Text(agent.name)
             }

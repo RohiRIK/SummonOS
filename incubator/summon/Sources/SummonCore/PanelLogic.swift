@@ -371,4 +371,11 @@ public enum PanelLayout {
     public static let homeItems: Set<String> = ["make", "apps"]
     /// Default Summon Menu groups that Settings › Setup lists instead of the panel.
     public static let setupGroups = ["agent", "style", "setup", "trigger", "install", "update", "system"]
+
+    /// RECENT: the newest events, without session start/end (NOW shows the running session, and a busy day of
+    /// agent sessions would push everything else out).
+    public static func recent(_ events: [ActivityEvent], limit: Int = 3) -> [ActivityEvent] {
+        let sessionKinds: Set<String> = [EventKind.sessionStart, EventKind.sessionEnd]
+        return Array(events.filter { !sessionKinds.contains($0.kind) }.sorted { $0.date > $1.date }.prefix(limit))
+    }
 }
