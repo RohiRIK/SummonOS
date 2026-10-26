@@ -241,6 +241,11 @@ public final class SummonModel {
     public func requestAccessibility() {
         // The key's value is "AXTrustedCheckOptionPrompt"; the global constant is not concurrency-safe in Swift 6.
         accessibilityRequested = true
+        // Ad-hoc builds are trusted by cdhash: after an update the old switch stays on but no longer counts. Not
+        // trusted means any entry for this bundle id is stale, so clear it and the prompt lists this build, off.
+        if !AXIsProcessTrusted(), let id = Bundle.main.bundleIdentifier {
+            _ = try? Shell.runSync("/usr/bin/tccutil", ["reset", "Accessibility", id])
+        }
         let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
         accessibilityGranted = AXIsProcessTrustedWithOptions(options)
         guard !accessibilityGranted,
