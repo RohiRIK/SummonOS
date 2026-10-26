@@ -3,6 +3,13 @@
 All notable changes to Summon. Newest first. Summon is still incubating in the SummonOS workspace, so there are no
 version numbers yet; entries are grouped by day and point at the pull request.
 
+## 2026-10-26
+
+### Added
+- A first-run welcome window: choose the agent, allow Accessibility (live status), then see the menu bar icon and
+  ⌃⌥Space; Done opens the panel. Shown once, skipped by closing it, and never on an update that is already set up.
+  Settings › General › Show Welcome Again and `summon://welcome` reopen it.
+
 ## 2026-10-25
 
 ### Added
