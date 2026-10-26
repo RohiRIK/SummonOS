@@ -136,8 +136,10 @@ sections:
   Summon Menu (Style, Setup, Trigger, Install, Update, System, Agent), and Settings › Setup lists those groups with
   Run buttons. With no default agent, the header offers "Choose an agent". The menu bar shows Summon's icon only (the
   agent clock is an option in Settings › General), and it turns orange while the status line has something.
-- **Welcome window** (first launch only, 640 × 440, close only): choose the default agent (or how to install one),
-  allow Accessibility with a live check, then see the menu bar icon and ⌃⌥Space; Done opens the panel. Closing it
+- **Welcome window** (first launch only, 720 × 480, close only): a brand header and what Summon does; choose the
+  default agent from rows showing each agent's login (Log In… when logged out) or how to install one; allow
+  Accessibility with a live check (Skip while off; one click re-grants after an update); then try ⌃⌥Space and
+  watch it tick green, with a warning when the menu bar hides the icon; Done opens the panel. Closing it
   skips setup. An update where an agent is set and Accessibility is on never shows it. Settings › General › Show
   Welcome Again or `open summon://welcome` brings it back.
 - **Undo confirmation:** "Restore N Changes" names what it does; Cancel is the default button.
