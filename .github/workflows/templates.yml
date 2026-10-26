@@ -1,14 +1,19 @@
 # Makes a project of every template kind with the real `summon project new` (in a temporary HOME, repos policy
 # "ask", never `project repo`) and runs that project's own scripts/check.sh: what an agent starts from is what CI
-# checks. build-and-test in swift.yml still builds the raw templates.
+# checks. build-and-test in swift.yml still builds the raw templates. Runs when the templates or the code that copies
+# them changes (main is fully checked by swift.yml on every push).
 name: Templates
 
 on:
   push:
     branches: [main]
-    paths: ["incubator/summon/**", ".github/workflows/templates.yml"]
+    paths: ["incubator/summon/templates/**", "incubator/summon/Sources/SummonCore/Projects.swift",
+            "incubator/summon/Sources/SummonCLI/ProjectCommands.swift", "incubator/summon/scripts/check-templates.sh",
+            ".github/workflows/templates.yml"]
   pull_request:
-    paths: ["incubator/summon/**", ".github/workflows/templates.yml"]
+    paths: ["incubator/summon/templates/**", "incubator/summon/Sources/SummonCore/Projects.swift",
+            "incubator/summon/Sources/SummonCLI/ProjectCommands.swift", "incubator/summon/scripts/check-templates.sh",
+            ".github/workflows/templates.yml"]
   workflow_dispatch:
 
 permissions:
