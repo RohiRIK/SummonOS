@@ -51,6 +51,9 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   build shows a panel row "Summon X available · Update"; Settings › General › Updates has the toggle, the channel
   and Check Now. Install = `summon update`'s verified, rolled-back install, then a relaunch with `--updated`, which
   asks for Accessibility again (ad-hoc builds lose it on every update). Owner chose one click over silent installs.
+- Owner follow-up: one Updates folder under Make Something for Summon + Homebrew + bun + npm + macOS
+  (`SoftwareUpdates.swift`), a count tag top right of the panel. Crashes left the panel (no row; alert style
+  defaults to the macOS notification); Needs attention is setup problems only.
 - The anonymous GitHub API returns 403 behind the owner's VPN; `check` falls back to a logged-in `gh api`.
 ### 2026-10-26 — Panel polish (owner rejected Now + Recent)
 - Header shows the Summon mark (app icon) instead of a stock sparkle; "Search Summon…" is always visible; panel text

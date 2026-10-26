@@ -84,8 +84,8 @@ turns each one off. Crash diagnosis, Activity and tasks keep their own prompts. 
 
 ### The Mac calls the agent
 
-- **Crash watcher:** the menu app announces new crash, hang and panic reports, as a Summon alert (default)
-  or a macOS banner (Settings › Notifications), never both. The alert never takes the keyboard from the app you
+- **Crash watcher:** the menu app announces new crash, hang and panic reports, as a macOS notification (default)
+  or a Summon alert (Settings › Notifications), never both; the panel shows no crash row. The alert never takes the keyboard from the app you
   are typing in; a burst shows one alert ("N more"), banners group per program. Diagnose with AI hands the report
   to the agent with the `diagnose-crash-mac` skill.
 - **Task results:** each scheduled run ends with a "Task done" or "Task failed" notification from Summon, with
@@ -191,8 +191,11 @@ sections:
   staged installer (rollback on failure) and runs `summon doctor`. `--check` only reports. A `--channel` is
   remembered in `~/.config/summon/defaults/channel`. When the anonymous GitHub API is rate limited (a VPN or office
   IP), the check uses a logged-in `gh`.
-- The app updates itself: Summon.app checks the channel at launch and once a day. A newer build adds a panel row,
-  "Summon X available · Update"; one click installs it the same way and relaunches, then asks for Accessibility again.
+- The app updates itself: Summon.app checks the channel at launch and once a day, together with Homebrew
+  (`brew outdated`), bun and npm globals and macOS (`softwareupdate -l`). The panel's Updates folder, under Make
+  Something, lists each one with its versions (one click updates it; Summon installs the same way as `summon update`,
+  relaunches and asks for Accessibility again; macOS opens Software Update), plus Update All and Check Now. A count
+  tag in the panel's top right opens it.
   Settings › General › Updates: Check for updates automatically (on; `~/.config/summon/defaults/update-check`),
   the channel (Stable / Edge) and Check Now.
 
