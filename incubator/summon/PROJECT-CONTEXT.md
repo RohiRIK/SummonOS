@@ -57,6 +57,13 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
 - `app`: 800 × 550 min, `.inspector`, `.searchable` + ⌘F, context menu, undo via the window's UndoManager.
 - `menubar-panel`: right-click menu on the status item, `isStatusItemVisible`, reopen shows Settings. `menubar`
   (MenuBarExtra) has no hide toggle: it has no way back once hidden.
+### 2026-10-26 — Widget template
+- New template `widget` (ProjectStarter case, recorded as `.app`), the owner's choice of "Xcode project for the
+  widget only": root `Package.swift` (Core + UI, product `StarterKit`) plus `Xcode/Starter.xcodeproj` (objectVersion
+  77, synchronized folders, local package `..`, ad hoc signing, sandboxed extension). `scripts/bundle.sh` uses
+  xcodebuild. No App Group (ad hoc signing); configuration is Edit Widget (`AppIntentConfiguration`).
+- swift.yml builds the package only; the Xcode build runs in `scripts/check.sh`, so only `templates.yml` (matrix
+  still owner-only) or a Mac covers it. Not built with Xcode or run on a Mac yet.
 ### 2026-10-25 — Templates for the UX surfaces
 - New templates `launcher`, `hud`, `notch` (ProjectStarter cases, all recorded as `.menubar`), built to
   `docs/ux-surfaces/04`, `05` and `07`. They share a small kit: `KeyCombo` (Core, refuses ⌘Space and other system

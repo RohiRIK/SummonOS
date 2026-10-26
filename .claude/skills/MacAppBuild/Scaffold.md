@@ -3,7 +3,7 @@
 Start every new plugin with `mp new` from the workspace root:
 
 ```bash
-tools/mp new <name> --kind menubar        # or menubar-panel, launcher, hud, notch, app, cli, screensaver
+tools/mp new <name> --kind menubar        # or menubar-panel, launcher, hud, notch, app, widget, cli, screensaver
 ```
 
 It copies Summon's template for that kind (`incubator/summon/templates/<kind>/`, the one set of templates, built
@@ -13,7 +13,7 @@ and `<kind>-starter` to the kebab-case name (`mac-battery`), switches the bundle
 else. Repos come later, with the owner's OK: `tools/mp promote <name> --yes` (see `docs/tools.md`).
 
 This is for plugins of this workspace. Apps a user makes through Summon do not go here: they start with
-`summon project new <name> --kind menubar|menubar-panel|launcher|hud|notch|app|cli|screensaver` in `~/Summon/Apps/<name>` from the
+`summon project new <name> --kind menubar|menubar-panel|launcher|hud|notch|app|widget|cli|screensaver` in `~/Summon/Apps/<name>` from the
 same templates, are listed only in Summon's private `~/.config/summon/projects.json`, and get a private repo only
 through `summon project repo`.
 
@@ -42,6 +42,13 @@ scratch/<name>/                 plugins/<name>/ after mp promote
 ```
 
 No `.github/workflows`: there is no GitHub Actions billing. `scripts/check.sh` is the gate.
+
+The `widget` kind is the one exception to "no `.xcodeproj`": a WidgetKit widget is an `.appex` inside the app, and
+only Xcode builds one. The layout above stays (`Package.swift`, `Sources/AppCore`, `Sources/AppUI`, tests), with no
+`Sources/App` or `Resources/`; `Xcode/App.xcodeproj` adds two thin targets, the app (`Xcode/App/`) and the widget
+extension (`Xcode/Widget/`), both linking the package's `<App>Kit` library product as a local package (`..`).
+Synchronized folders: a file added to `Xcode/App/` or `Xcode/Widget/` joins its target without a project edit.
+`scripts/bundle.sh` runs `xcodebuild`, so the gate needs Xcode, not only the Command Line Tools.
 
 ## Package.swift
 
