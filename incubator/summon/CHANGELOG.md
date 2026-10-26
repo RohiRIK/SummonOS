@@ -1,7 +1,9 @@
 # Changelog
 
-All notable changes to Summon. Newest first. Summon is still incubating in the SummonOS workspace, so there are no
-version numbers yet; entries are grouped by day and point at the pull request.
+All notable changes to Summon. Newest first. Summon is still incubating in the SummonOS workspace; entries are
+grouped by day and point at the pull request. SummonOS releases (one version for `summon`, `macctl` and Summon.app,
+see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/releases): `v0.1.0` (up to #77) and
+`v0.1.1` (#78 to #90), both on 2026-10-25. Later changes ship on the rolling `edge` prerelease until the next tag.
 
 ## 2026-10-26
 
@@ -22,6 +24,32 @@ version numbers yet; entries are grouped by day and point at the pull request.
 - Templates follow the UX surface rules: every Settings window is close only and 480 pt; the window app has an
   inspector, ⌘F search, context menus and undoable deletes from 800 × 550; `menubar-panel` has a right-click menu
   and "Show in menu bar"; `app` and `menubar-panel` open a first-run welcome window once (Settings shows it again).
+- One canonical template set in `templates/{menubar,menubar-panel,app,cli,screensaver}` with a shared kit (menu
+  rows, Summon theme, Liquid Glass controls, Open at Login, app icon, `--screenshot`); `examples/` is gone and
+  `tools/mp new --kind <kind>` copies these templates. Every template has a `scripts/test.sh` (#95).
+- `summon agents install` / `summon agents update [--check]`: install coding agents with bun (npm agents) or the
+  vendor script, and update each the way it was installed (brew, cask, bun, npm, vendor updater) (#94).
+- `summon update [--channel stable|edge] [--check] [--yes]`, and a rolling `edge` prerelease built after every green
+  `main`; `install.sh --channel edge` installs it, never by default (#89).
+- Visual QA screenshots every Settings page, Activity and the crash alert; `summon://settings/<section>` opens a
+  Settings page (#91).
+- CI: CodeQL for Swift, a privacy scan, Dependabot for pinned actions, and a post-release smoke test (#88).
+- SummonOS 0.1.1 (#78 to #90): undo any agent's session (MCP checkpoints, one "Undo <Agent> Session" row), the agent
+  hotkey starts the agent with what is on screen, Accessibility in one click, `summon connect` session hooks
+  record Claude Code and Codex sessions in Activity, `summon theme set` themes the whole Mac (accent, VS
+  Code/Cursor, Neovim) with one undo, checkpoint undo removes the files a theme created, live Mac events (`mac.*`,
+  `summon events --follow`, MCP tool `mac_events`).
+- SummonOS 0.1.0 (#72 to #77): `summon context` (one snapshot of this Mac for agents), `summon mcp` (an MCP server
+  with 10 tools), `summon connect` / `disconnect` for every installed agent, session-start hooks, one `VERSION` with
+  `summon --version` and `macctl --version`, and the release workflow with checksum-verified binary installs.
+
+### Changed
+- Minimal panel: Needs attention, Now, Recent and three actions; the rest by search or Settings › Setup; Liquid
+  Glass, 320 pt; no agent clock in the menu bar by default (#96).
+- UX quick wins: Needs attention in the panel with an agent picker, one Settings window without header blocks,
+  undo asks "Restore N Changes" with Cancel as the default, orange menu bar icon for problems (#93).
+- `summon default repos` defaults to `ask`: no GitHub repo until `summon project repo` and its dialog; a saved
+  `always` is kept. The `mac-app` skill is exact steps (#92).
 
 ### Fixed
 - Settings: only the close button works (minimize and zoom dimmed, no full screen, per the HIG), and the window is
