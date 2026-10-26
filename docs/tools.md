@@ -70,6 +70,14 @@ Mac before pushing:
 tools/local-ci.sh 42 && gh pr merge 42 --merge --delete-branch
 ```
 
+## ci-plan.sh
+
+`tools/ci-plan.sh <event> <changed-files> <packages-json>`: what `swift.yml` builds for a change. A PR builds only
+the packages its files are in, on macos-15 and macos-26 for Summon and macctl and macos-26 only for templates; a
+template change also builds Summon (its tests read the templates); the macctl crash matrix runs only for macctl;
+`.claude/` changes run only the design-skill check; docs and workspace files build nothing. A push to main, a
+manual run, a workflow change or any file it can't place builds everything. Tested in `tools/tests/test_ci_plan.py`.
+
 ## check-workspace.sh
 
 Workspace hygiene gate, active in `.github/workflows/swift.yml` on every push and pull request.

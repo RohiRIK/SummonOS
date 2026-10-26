@@ -8,8 +8,15 @@ name: Visual QA (macOS)
 on:
   workflow_dispatch:
   pull_request:
+    # What it captures: the app's windows and panel, and the menubar-panel template's --screenshot render.
     paths:
-      - incubator/summon/**
+      - incubator/summon/Sources/SummonMenuUI/**
+      - incubator/summon/Sources/SummonMenu/**
+      - incubator/summon/Resources/**
+      - incubator/summon/design/brand/**
+      - incubator/summon/scripts/bundle.sh
+      - incubator/summon/scripts/visual-qa/**
+      - incubator/summon/templates/menubar-panel/**
       - .github/workflows/visual-qa.yml
 
 permissions:
