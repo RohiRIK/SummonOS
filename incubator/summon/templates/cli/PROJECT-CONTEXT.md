@@ -4,7 +4,7 @@
 Starter is a command-line tool made with Summon. Write its one job and who it is for here once they are settled.
 
 ## Current State
-- Lives in `~/Summon/cli-starter`, recorded in Summon's private list (`summon project list`).
+- Lives in `~/Summon/Apps/cli-starter`, recorded in Summon's private list (`summon project list`).
 - Started from Summon's `cli` template; layout in `README.md`. Gate: `scripts/check.sh`.
 - No GitHub repo yet. `summon project repo cli-starter` creates a private one after you approve it in a Summon
   dialog, and adds CI (`.github/workflows/check.yml`, which runs `scripts/check.sh`).
@@ -18,4 +18,4 @@ Starter is a command-line tool made with Summon. Write its one job and who it is
 
 ## Recent History
 ### {{DATE}} — Started from the Summon cli template
-- Copied from Summon's `cli` template into `~/Summon/cli-starter`.
+- Copied from Summon's `cli` template into `~/Summon/Apps/cli-starter`.
