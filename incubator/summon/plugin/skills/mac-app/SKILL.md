@@ -2,7 +2,7 @@
 name: mac-app
 description: >
   Build a new native Mac app the Summon way: a menu bar app, a full window app, a command launcher, a floating
-  HUD, a notch app, a command-line tool, a screensaver, or an app icon. Starts from Summon's template in ~/Summon/Apps/<name>; Swift 6 + SwiftUI, SwiftPM,
+  HUD, a notch app, a desktop widget, a command-line tool, a screensaver, or an app icon. Starts from Summon's template in ~/Summon/Apps/<name>; Swift 6 + SwiftUI, SwiftPM,
   follows the current Summon theme. Use when asked to make, build, or scaffold an app, menu bar widget, utility,
   CLI tool, screensaver, or icon. Triggers: new app, menu bar app, status bar item, widget, launcher, Spotlight-style,
   command bar, HUD, overlay, always on top, notch, command-line tool, CLI, screensaver, .saver, app icon, icns,
@@ -26,8 +26,8 @@ are installed, use them for depth; this skill is enough on its own.
 - Agree a short kebab-case name (`a-z`, `0-9`, `-`; for example `mac-battery`). It becomes the folder, the
   bundle id `local.summon.<name>`, and the PascalCase type name (`MacBattery`).
 - Pick the kind. The kinds this Summon knows are the ones `summon project new` prints when run with no arguments
-  (also `summon commands`). Today: `menubar`, `menubar-panel`, `launcher`, `hud`, `notch`, `app`, `cli` and
-  `screensaver`; use only the ones it lists.
+  (also `summon commands`). Today: `menubar`, `menubar-panel`, `launcher`, `hud`, `notch`, `app`, `widget`,
+  `cli` and `screensaver`; use only the ones it lists.
 
   | Ask | Kind |
   |---|---|
@@ -39,7 +39,8 @@ are installed, use them for depth; this skill is enough on its own.
   | Something to run in a terminal, from scripts or agents | `cli` |
   | Something to look at when the Mac is idle | `screensaver` |
   | Only an icon for an app, file or folder | no project: go to step 7 |
-  | A desktop widget or a Finder extension | no template yet (they need an app extension); tell the user |
+  | A glanceable view on the desktop or in Notification Center | `widget` (needs Xcode; see its README) |
+  | A Finder extension | no template (Finder Sync needs its own extension); tell the user |
 
   Each kind follows the SummonOS surface rules (sizes, focus, keys, materials, Apple's corrections):
   https://github.com/RohiRIK/SummonOS/tree/main/docs/ux-surfaces. Read the page for the kind before changing
@@ -92,7 +93,8 @@ so the gate also works with only the Command Line Tools (no Xcode). Fix the caus
 
 ### 5. Run it and read its logs
 
-For `menubar`, `menubar-panel`, `launcher`, `hud`, `notch` and `app`:
+For `menubar`, `menubar-panel`, `launcher`, `hud`, `notch`, `app` and `widget` (a widget: run the app once, then
+right-click the desktop › Edit Widgets… and add it):
 
 ```bash
 scripts/bundle.sh && open build/<App>.app

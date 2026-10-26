@@ -206,14 +206,16 @@ sections:
 
 ### Make things: projects from templates
 
-- `summon project new <name> --kind menubar|menubar-panel|launcher|hud|notch|app|cli|screensaver` copies a template to `~/Summon/Apps/<name>`,
+- `summon project new <name> --kind menubar|menubar-panel|launcher|hud|notch|app|widget|cli|screensaver` copies a template to `~/Summon/Apps/<name>`,
   runs `git init` with a first commit, and records it in a private list (`~/.config/summon/projects.json`).
   Also `project list`, `project path`, `project forget`.
 - **Templates:** menu bar app, menu bar app on an `NSPanel` (opens from code, takes typing without stealing focus),
   command launcher (⌥Space by default, never ⌘Space; a pre-warmed Spotlight-style bar with fuzzy app search,
   ⌘1–9, ⌘K actions and file drop), floating HUD (an always-on-top stopwatch pill that never takes focus, thrown to
   the nearest corner, right-click opacity, size and corner), notch app (a drop shelf that grows out of the camera
-  housing, with a fallback on screens without one), window app, CLI tool, screensaver: the one set of templates,
+  housing, with a fallback on screens without one), window app, desktop widget (a WidgetKit countdown set with
+  Edit Widget, small and medium, plus the app that carries it; the one template with a small Xcode project,
+  because only Xcode builds the widget extension), CLI tool, screensaver: the one set of templates,
   also used by `tools/mp new` for workspace plugins. Each follows its page in [UX surfaces](ux-surfaces/index.md).
   The launcher and HUD record their global shortcut in Settings (Carbon `RegisterEventHotKey`, no permission
   prompt, system shortcuts refused); the agent apps keep a small menu bar menu that Settings can hide.
