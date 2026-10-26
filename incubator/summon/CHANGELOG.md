@@ -3,6 +3,14 @@
 All notable changes to Summon. Newest first. Summon is still incubating in the SummonOS workspace, so there are no
 version numbers yet; entries are grouped by day and point at the pull request.
 
+## 2026-10-26
+
+### Added
+- `summon project new <name> --kind widget`: a desktop and Notification Center widget (a countdown to a date set
+  with Edit Widget, small and medium, a live timer on the day) and the one-window app that carries it. Logic and
+  views are a Swift package; a small `Xcode/` project builds the app and the sandboxed widget extension, the one
+  template with an `.xcodeproj` (owner's decision). Make Something › New Widget.
+
 ## 2026-10-25
 
 ### Added

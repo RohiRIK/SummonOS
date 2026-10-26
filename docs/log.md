@@ -1,5 +1,8 @@
 # Docs update log
 
+## 2026-10-26
+* **Update**: [Features](features.md), [tools](tools.md), [workflow](workflow.md), [Scaffold](../.claude/skills/MacAppBuild/Scaffold.md): a `widget` template (WidgetKit countdown + its app), the one template with a small Xcode project (owner's decision); [surface 7](ux-surfaces/07-system-extensions.md).
+
 ## 2026-10-25
 * **Update**: [Features](features.md): templates follow the [UX surfaces](ux-surfaces/index.md): close-only Settings, desktop app inspector/search/undo at 800 × 550, menu bar right-click menu and Show in menu bar, first-run welcome window.
 * **Update**: [Features](features.md), [tools](tools.md), [workflow](workflow.md), [Scaffold](../.claude/skills/MacAppBuild/Scaffold.md): three new templates for the [UX surfaces](ux-surfaces/index.md): `launcher` (hotkey command bar), `hud` (floating always-on-top panel), `notch` (panel out of the camera housing).

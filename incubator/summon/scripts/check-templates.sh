@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 root=$PWD
 
 kinds=("$@")
-[ ${#kinds[@]} -gt 0 ] || kinds=(menubar menubar-panel launcher hud notch app cli screensaver)
+[ ${#kinds[@]} -gt 0 ] || kinds=(menubar menubar-panel launcher hud notch app widget cli screensaver)
 
 CACHE="$HOME/Library/Caches/macplugins/summon/build"
 swift build --scratch-path "$CACHE" --product summon

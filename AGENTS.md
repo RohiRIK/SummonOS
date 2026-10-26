@@ -62,7 +62,8 @@ installed unmodified with their LICENSE files. Do not edit them; put our rules i
 
 - Swift 6 + SwiftUI, AppKit only where SwiftUI has no API. Minimum macOS 15; Liquid Glass behind
   `if #available(macOS 26, *)`.
-- SwiftPM, no `.xcodeproj`: `Core` / `UI` library / `@main` targets (`MacAppBuild/Scaffold.md`).
+- SwiftPM, no `.xcodeproj`: `Core` / `UI` library / `@main` targets (`MacAppBuild/Scaffold.md`). One exception:
+  the `widget` template keeps a small Xcode project for the widget extension (`.appex`), which SwiftPM can't build.
 - Xcode 27 selected; Xcode MCP server `xcode` in `.mcp.json` for previews, builds, tests.
 - No third-party dependencies unless a skill says so. Tests: swift-testing.
 

@@ -32,7 +32,7 @@ Manages the plugin home: the registry `plugins.json` (source of truth), the gene
 the `plugins/` and `scratch/` folders. Needs `jq` and `git`; `gh` for `promote` and `clone`.
 
 ```bash
-tools/mp new <name> [--kind menubar|menubar-panel|launcher|hud|notch|app|cli|screensaver]   # scratch/<name> from Summon's template, registered
+tools/mp new <name> [--kind menubar|menubar-panel|launcher|hud|notch|app|widget|cli|screensaver]   # scratch/<name> from Summon's template, registered
 tools/mp promote <name> [--owner <login>] [--yes]      # private <name>-dev + public <name>, moves to plugins/
 tools/mp clone (<name>... | --all)                     # clones registered dev repos into plugins/<name>
 tools/mp list [--json]                                 # the registry
@@ -46,7 +46,7 @@ tools/mp adopt <path> [--name n] [--kind k] [--status s]   # registers an existi
 - `new` copies `incubator/summon/templates/<kind>` (the templates `summon project new` uses; `menubar` is the
   default), renames `Starter` to the PascalCase name and `<kind>-starter` to the kebab-case name, switches the
   bundle prefix to `local.macplugins.`, runs `git init`, registers it as `scratch` (`menubar-panel`, `launcher`,
-  `hud` and `notch` apps are kind `menubar`), and rewrites `plugins.md`. A `claude-plugin` has no template: make the folder, then `adopt`.
+  `hud` and `notch` apps are kind `menubar`, a `widget` is kind `app`), and rewrites `plugins.md`. A `claude-plugin` has no template: make the folder, then `adopt`.
 - `promote` prints the `gh repo create` commands and the move, and runs nothing without `--yes`. It creates
   GitHub repos, so it needs the owner's OK every time.
 - Edit `plugins.json` by hand for notes (`statusNote`, `devRepoNote`, `summary`, `where`, `title`), then run
