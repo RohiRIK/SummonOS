@@ -76,6 +76,16 @@ struct AgentTests {
         #expect(locator.searchPath.contains(FileManager.default.homeDirectoryForCurrentUser.path + "/.bun/bin"))
     }
 
+    @Test func pathOrderWinsSoSummonFindsTheCopyTheShellRuns() {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let path = ["\(home)/.opencode/bin", "/opt/homebrew/bin", "\(home)/.bun/bin"]
+        let terminal = ToolLocator.live(environment: ["PATH": path.joined(separator: ":")]).searchPath
+        #expect(terminal.filter(path.contains) == path)
+        // A GUI app's bare PATH: the user's folders still come before Homebrew.
+        let gui = ToolLocator.live(environment: ["PATH": "/usr/bin:/bin"]).searchPath
+        #expect(gui.firstIndex(of: "\(home)/.bun/bin")! < gui.firstIndex(of: "/opt/homebrew/bin")!)
+    }
+
     @Test func kittyPlanHandsOffToTheRunningInstance() {
         let plan = AgentLauncher.terminalPlan(agentArgv: ["/bin/claude", "--", "it's"], directory: "/tmp/x", terminal: .kitty)
         #expect(plan.executable == "/usr/bin/open")
