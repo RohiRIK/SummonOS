@@ -132,11 +132,8 @@ public struct PanelView: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: 2) {
             header
+            // Always visible (owner, 2026-10-26), so people know they can type.
             search
-                // Type anywhere to search: the field appears with the first letter (owner: no search box at home).
-                .frame(height: isHome ? 0 : nil)
-                .opacity(isHome ? 0 : 1)
-                .clipped()
             if isHome { askAgentRow }
             ForEach(Array(rows.enumerated()), id: \.element.id) { index, item in
                 MenuTreeRow(item: item,
@@ -202,9 +199,9 @@ public struct PanelView: View {
                 Button(action: back) {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.subheadline.weight(.bold))
                         Text(model.menu.path(to: level!).joined(separator: " › "))
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.subheadline.weight(.semibold))
                             .lineLimit(1)
                             .fixedSize()
                     }
@@ -262,9 +259,9 @@ public struct PanelView: View {
                     return .handled
                 }
         }
-        .font(.system(size: 14))
+        .font(.body)
         .padding(.horizontal, 8)
-        .frame(height: 30)
+        .frame(height: 28)
         .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary))
         .padding(.horizontal, 2)
         .padding(.bottom, 4)
@@ -322,11 +319,10 @@ public struct PanelView: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 26, height: 26)
-                .background(Circle().fill(Color.accentColor))
+            // The Summon mark (the app icon), not a stock symbol.
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 28, height: 28)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
                 Text("Summon").font(.headline)
