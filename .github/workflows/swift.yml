@@ -1,7 +1,8 @@
 # Builds and tests every Swift package in this repo on macOS runners.
 # A package is any Package.swift outside .build/ and plugins/ (plugins are their own repos).
-# Runs once per PR and once per push to main. A docs-only change skips the Swift jobs through a job-level `if`
-# (not a workflow `paths` filter), so they report "skipped" instead of a check that never arrives.
+# Runs once per PR and once per push to main. A PR builds only what its files touch (tools/ci-plan.sh): a docs-only
+# change skips the Swift jobs through job-level `if`s (not a workflow `paths` filter), so they report "skipped"
+# instead of a check that never arrives. Pushes to main build everything.
 name: Swift (macOS)
 
 on:
@@ -39,12 +40,12 @@ jobs:
         run: python3 -m unittest discover -s tools/tests -p 'test_*.py'
       - name: Shell syntax and lint
         run: |
-          bash -n install.sh tools/private-scan.sh tools/publish-public.sh tools/release.sh tools/notarize-app.sh tools/uninstall.sh incubator/summon/scripts/install.sh
-          shellcheck install.sh tools/private-scan.sh tools/publish-public.sh tools/release.sh tools/notarize-app.sh tools/uninstall.sh incubator/summon/scripts/install.sh
+          bash -n install.sh tools/ci-plan.sh tools/private-scan.sh tools/publish-public.sh tools/release.sh tools/notarize-app.sh tools/uninstall.sh incubator/summon/scripts/install.sh
+          shellcheck install.sh tools/ci-plan.sh tools/private-scan.sh tools/publish-public.sh tools/release.sh tools/notarize-app.sh tools/uninstall.sh incubator/summon/scripts/install.sh
 
   design-skills:
     needs: discover
-    if: needs.discover.outputs.code == 'true'
+    if: needs.discover.outputs.skills == 'true'
     runs-on: macos-26
     timeout-minutes: 10
     steps:
@@ -57,8 +58,10 @@ jobs:
   discover:
     runs-on: ubuntu-latest
     outputs:
-      packages: ${{ steps.find.outputs.packages }}
-      code: ${{ steps.changes.outputs.code }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+      core: ${{ steps.plan.outputs.core }}
+      macctl: ${{ steps.plan.outputs.macctl }}
+      skills: ${{ steps.plan.outputs.skills }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -71,49 +74,29 @@ jobs:
             -exec dirname {} \; | sed 's|^\./||' | sort | jq -R . | jq -sc .)
           echo "packages=$packages" >> "$GITHUB_OUTPUT"
           echo "Packages: $packages"
-      - id: changes
+      - id: plan
         env:
           EVENT: ${{ github.event_name }}
-          BEFORE: ${{ github.event.before }}
           PACKAGES: ${{ steps.find.outputs.packages }}
         run: |
-          # code=false only when every changed file is docs: docs/** or a *.md outside a Swift package and .claude/
-          # (package and skill markdown can be read by builds and tests). Anything unclear runs the Swift jobs.
-          files=""
-          if [ "$EVENT" = pull_request ]; then
-            files=$(git diff --name-only HEAD^1 HEAD) || files=""
-          elif [ "$EVENT" = push ] && git fetch --no-tags --depth=1 origin "$BEFORE" 2>/dev/null; then
-            files=$(git diff --name-only "$BEFORE" HEAD) || files=""
-          fi
-          code=true
-          if [ -n "$files" ]; then
-            code=false
-            while read -r f; do
-              case "$f" in
-                docs/*) continue ;;
-                .claude/*) code=true ;;
-                *.md)
-                  for p in $(jq -r '.[]' <<<"$PACKAGES"); do
-                    case "$f" in "$p"/*) code=true ;; esac
-                  done ;;
-                *) code=true ;;
-              esac
-            done <<<"$files"
-          fi
-          echo "code=$code" >> "$GITHUB_OUTPUT"
-          echo "Changed files:"; echo "${files:-(unknown)}"; echo "code=$code"
+          # A PR builds only the packages its files touch (tools/ci-plan.sh, tested in tools/tests); a push to main
+          # or a manual run builds everything, so main is always fully tested.
+          files="$RUNNER_TEMP/changed.txt"
+          : >"$files"
+          if [ "$EVENT" = pull_request ]; then git diff --name-only HEAD^1 HEAD >"$files" || : >"$files"; fi
+          echo "Changed files:"; cat "$files"
+          tools/ci-plan.sh "$EVENT" "$files" "$PACKAGES" | tee -a "$GITHUB_OUTPUT"
 
   build-and-test:
     needs: discover
-    if: needs.discover.outputs.packages != '[]' && needs.discover.outputs.code == 'true'
+    if: needs.discover.outputs.matrix != '{"include":[]}'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      matrix:
-        # macos-15 is the minimum OS: tests run on its runtime, built with the macOS 26 SDK.
-        os: [macos-26, macos-15]
-        package: ${{ fromJSON(needs.discover.outputs.packages) }}
+      # Summon and macctl on macos-15 (the minimum OS, built with the macOS 26 SDK) and macos-26; templates on
+      # macos-26 only. Only the packages a PR touches (tools/ci-plan.sh).
+      matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
     defaults:
       run:
         working-directory: ${{ matrix.package }}
@@ -155,14 +138,14 @@ jobs:
   # Switch to a macos-27 runner when GitHub ships one.
   xcode-27:
     needs: discover
-    if: needs.discover.outputs.code == 'true'
+    if: needs.discover.outputs.core != '[]'
     runs-on: macos-26
     continue-on-error: true
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        package: [incubator/summon, macctl]
+        package: ${{ fromJSON(needs.discover.outputs.core) }}
     defaults:
       run:
         working-directory: ${{ matrix.package }}
@@ -196,7 +179,7 @@ jobs:
   # has its own temp root and HOME; real domains are fingerprinted before and after.
   macctl-crash-matrix:
     needs: discover
-    if: needs.discover.outputs.code == 'true'
+    if: needs.discover.outputs.macctl == 'true'
     runs-on: macos-26
     # One group per PR (or ref) and shard: a new commit on a PR cancels that PR's older matrix;
     # push runs are never cancelled.
