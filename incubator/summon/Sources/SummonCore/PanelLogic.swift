@@ -367,8 +367,9 @@ public enum PanelClock {
 /// What the panel shows at its top level (owner, 2026-10-25): only what is happening and the main actions. The rest
 /// of the Summon Menu stays reachable through search, and its groups are listed in Settings › Setup.
 public enum PanelLayout {
-    /// Top-level Summon Menu entries the panel's home shows (My Apps is added when there are apps).
-    public static let homeItems: Set<String> = ["make", "apps"]
+    /// Top-level Summon Menu entries the panel's home shows (My Apps is added when there are apps; Update, with what
+    /// is outdated, came back by owner request on 2026-10-26).
+    public static let homeItems: Set<String> = ["make", "update", "apps"]
     /// Default Summon Menu groups that Settings › Setup lists instead of the panel.
-    public static let setupGroups = ["agent", "style", "setup", "trigger", "install", "update", "system"]
+    public static let setupGroups = ["agent", "style", "setup", "trigger", "install", "system"]
 }

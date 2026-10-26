@@ -350,6 +350,29 @@ struct GeneralSettings: View {
                 }
             }
 
+            Section("Updates") {
+                Toggle("Check for updates automatically", isOn: Binding(get: { model.checksForUpdates },
+                                                                        set: { model.setChecksForUpdates($0) }))
+                Picker("Channel", selection: Binding(get: { model.updateChannel }, set: { model.setUpdateChannel($0) })) {
+                    Text("Stable").tag(UpdateChannel.stable)
+                    Text("Edge (every green build)").tag(UpdateChannel.edge)
+                }
+                LabeledContent {
+                    if let update = model.availableUpdate {
+                        Button("Update to \(update.release.version)") { model.installUpdate() }
+                            .disabled(model.isUpdating)
+                    } else {
+                        Button("Check Now") { Task { await model.checkForUpdates() } }
+                            .disabled(model.isUpdating)
+                    }
+                } label: {
+                    Text("Summon \(SummonVersion.current)")
+                    if let status = model.updateStatus {
+                        Text(status)
+                    }
+                }
+            }
+
             Section("Automation & Storage") {
                 Picker("Agent execution", selection: Binding(get: { model.executionMode }, set: { model.setExecutionMode($0) })) {
                     ForEach(AgentExecutionMode.allCases, id: \.self) { mode in

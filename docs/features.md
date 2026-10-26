@@ -84,8 +84,8 @@ turns each one off. Crash diagnosis, Activity and tasks keep their own prompts. 
 
 ### The Mac calls the agent
 
-- **Crash watcher:** the menu app announces new crash, hang and panic reports, as a Summon alert (default)
-  or a macOS banner (Settings › Notifications), never both. The alert never takes the keyboard from the app you
+- **Crash watcher:** the menu app announces new crash, hang and panic reports, as a macOS notification (default)
+  or a Summon alert (Settings › Notifications), never both; the panel shows no crash row. The alert never takes the keyboard from the app you
   are typing in; a burst shows one alert ("N more"), banners group per program. Diagnose with AI hands the report
   to the agent with the `diagnose-crash-mac` skill.
 - **Task results:** each scheduled run ends with a "Task done" or "Task failed" notification from Summon, with
@@ -166,7 +166,7 @@ sections:
 ### Activity and status from the command line
 
 - `summon status`: agent, macctl, last change, last checkpoint and recent problems at a glance.
-- `summon version` (or `--version`): prints the SummonOS version (`summon 0.1.1`); `summon doctor` shows it on its
+- `summon version` (or `--version`): prints the SummonOS version (`summon 0.2.0`); `summon doctor` shows it on its
   first line and in `--json`. One version for `summon`, Summon.app and `macctl`, kept in the root `VERSION` file.
 - `summon context [--json] [--only a,b]`: this Mac for agents in one read-only snapshot (about 60 ms): model,
   chip, RAM, macOS, power and thermal state, free space per volume, network and VPN, displays, frontmost app and
@@ -189,7 +189,15 @@ sections:
   newest release tag; `edge` is a rolling prerelease rebuilt from every green `main` (`summon --version` then reads
   `0.1.0-edge.<sha>`). It downloads the zip and `SHA256SUMS`, refuses on a mismatch, installs with the release's own
   staged installer (rollback on failure) and runs `summon doctor`. `--check` only reports. A `--channel` is
-  remembered in `~/.config/summon/defaults/channel`.
+  remembered in `~/.config/summon/defaults/channel`. When the anonymous GitHub API is rate limited (a VPN or office
+  IP), the check uses a logged-in `gh`.
+- The app updates itself: Summon.app checks the channel at launch and once a day, together with Homebrew
+  (`brew outdated`), bun and npm globals and macOS (`softwareupdate -l`). The panel's Update folder (the old Update group, back on the home), under Make
+  Something, lists each one with its versions (one click updates it; Summon installs the same way as `summon update`,
+  relaunches and asks for Accessibility again; macOS opens Software Update), plus Update All and Check Now. A count
+  tag in the panel's top right opens it.
+  Settings › General › Updates: Check for updates automatically (on; `~/.config/summon/defaults/update-check`),
+  the channel (Stable / Edge) and Check Now.
 
 ### Themes and look
 

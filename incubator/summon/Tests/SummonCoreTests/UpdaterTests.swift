@@ -73,6 +73,16 @@ struct UpdaterTests {
         #expect(store.file.path.hasSuffix(".config/summon/defaults/channel"))
     }
 
+    @Test func appChecksForUpdatesUntilTurnedOff() throws {
+        let store = AutoUpdateStore(paths: SummonPaths(home: try makeTempHome()))
+        #expect(store.load())
+        try store.save(false)
+        #expect(!store.load())
+        try store.save(true)
+        #expect(store.load())
+        #expect(store.file.path.hasSuffix(".config/summon/defaults/update-check"))
+    }
+
     @Test func checksumsParseBothShasumModes() {
         let digest = String(repeating: "ab", count: 32)
         #expect(Updater.expectedDigest("\(digest)  a.zip\n", file: "a.zip") == digest)
@@ -127,6 +137,16 @@ struct UpdaterTests {
         let package = work.appendingPathComponent("unpacked/summonos-0.2.0").path
         #expect(calls[4] == ["/usr/bin/env", "SUMMONOS_APP_SOURCE=\(package)/Summon.app",
                              "SUMMONOS_MACCTL_SOURCE=\(package)/bin/macctl", "/bin/bash", "\(package)/scripts/install.sh"])
+    }
+
+    @Test func checkFallsBackToGHWhenTheAnonymousAPIIsBlocked() async throws {
+        let log = CallLog()
+        let runner = fakeRunner(log, responses: ["curl": nil, "gh": Self.releasesJSON])
+        let check = try await Updater(runner: runner, current: "0.1.0", gh: "/opt/homebrew/bin/gh").check(.stable)
+        #expect(check.release.version == "0.2.0")
+        #expect(await log.calls.last == ["/opt/homebrew/bin/gh", "api", "repos/RohiRIK/SummonOS/releases?per_page=30"])
+        // Without gh the curl failure is the answer.
+        await #expect(throws: UpdateError.self) { try await Updater(runner: runner, current: "0.1.0").check(.stable) }
     }
 
     @Test func installRefusesAChecksumMismatchBeforeUnpacking() async throws {

@@ -52,7 +52,7 @@ final class MenuBarStatusWatcher {
         if let start = session?.time, now.timeIntervalSince(start) >= StatusProbe.staleSession { session = nil }
         apply(MenuBarStatus.title(session: session, enabled: model.menuBarShowsAgentTime, now: now),
               MenuBarStatus.accessibilityLabel(agentName: model.defaultAgent?.name, session: session, now: now),
-              !PanelAttention(reports: model.panelProblems, doctor: model.doctorReport).isEmpty)
+              !PanelAttention(doctor: model.doctorReport).isEmpty)
     }
 
     private func reloadIfChanged() async {

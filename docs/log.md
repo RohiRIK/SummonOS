@@ -1,6 +1,7 @@
 # Docs update log
 
 ## 2026-10-26
+* **Update**: SummonOS 0.2.0 (VERSION, summon, macctl, Summon.app): the app updates itself; Update folder with every outdated tool; crashes as notifications.
 * **Update**: [Summon CHANGELOG](../incubator/summon/CHANGELOG.md): the 2026-10-25 work from #72 to #96 was missing; it now lists it and names the `v0.1.0` and `v0.1.1` releases.
 * **Update**: [Features](features.md), [tools](tools.md), [workflow](workflow.md), [Scaffold](../.claude/skills/MacAppBuild/Scaffold.md): a `widget` template (WidgetKit countdown + its app), the one template with a small Xcode project (owner's decision); [surface 7](ux-surfaces/07-system-extensions.md).
 

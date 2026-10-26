@@ -3,11 +3,15 @@
 All notable changes to Summon. Newest first. Summon is still incubating in the SummonOS workspace; entries are
 grouped by day and point at the pull request. SummonOS releases (one version for `summon`, `macctl` and Summon.app,
 see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/releases): `v0.1.0` (up to #77) and
-`v0.1.1` (#78 to #90), both on 2026-10-25. Later changes ship on the rolling `edge` prerelease until the next tag.
+`v0.1.1` (#78 to #90), both on 2026-10-25, and `v0.2.0` (#91 to #114) on 2026-10-26. Later changes ship on the rolling `edge` prerelease until the next tag.
 
 ## 2026-10-26
 
 ### Added
+- The app updates itself (#114): it checks at launch and daily, and one click installs with the same verified,
+  rolled-back install as `summon update`, then relaunches. The panel's Update folder is back under Make Something
+  with Summon, Agents, Homebrew, bun & npm and macOS updates, each tagged "New x.y.z". Crashes became
+  notifications instead of a panel row. Released as SummonOS 0.2.0.
 - A first-run welcome window: choose the agent, allow Accessibility (live status), then see the menu bar icon and
   ⌃⌥Space; Done opens the panel. Shown once, skipped by closing it, and never on an update that is already set up.
   Settings › General › Show Welcome Again and `summon://welcome` reopen it.
