@@ -122,6 +122,8 @@ public enum CommandCatalog {
                     args: "[--json]", examples: ["summon project list --json"], risk: "read"),
         CommandInfo(route: "project path", summary: "Print a project's folder, or ~/Summon/Apps without a name",
                     args: "[name]", examples: ["summon project path mac-battery"], risk: "read"),
+        CommandInfo(route: "project open", summary: "Open a project's built app (what My Apps in the panel runs)",
+                    args: "<name>", examples: ["summon project open mac-battery"], risk: "user"),
         CommandInfo(route: "project forget", summary: "Remove a project from the list (its folder and repo stay)",
                     args: "<name>", examples: ["summon project forget mac-battery"], risk: "user"),
         CommandInfo(route: "project repo", summary: "Create the project's PRIVATE GitHub repo with CI, only after the user approves a native Summon dialog (never public)",

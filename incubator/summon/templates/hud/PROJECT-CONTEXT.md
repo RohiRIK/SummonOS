@@ -4,7 +4,7 @@
 Starter is a floating HUD (always-on-top panel that never takes focus) made with Summon. Write its one job and who it is for here once they are settled.
 
 ## Current State
-- Lives in `~/Summon/hud-starter`, recorded in Summon's private list (`summon project list`).
+- Lives in `~/Summon/Apps/hud-starter`, recorded in Summon's private list (`summon project list`).
 - Started from Summon's `hud` template; layout in `README.md`. Gate: `scripts/check.sh`.
 - No GitHub repo yet. `summon project repo hud-starter` creates a private one after you approve it in a Summon
   dialog, and adds CI (`.github/workflows/check.yml`, which runs `scripts/check.sh`).
@@ -18,4 +18,4 @@ Starter is a floating HUD (always-on-top panel that never takes focus) made with
 
 ## Recent History
 ### {{DATE}} — Started from the Summon hud template
-- Copied from Summon's `hud` template into `~/Summon/hud-starter`.
+- Copied from Summon's `hud` template into `~/Summon/Apps/hud-starter`.

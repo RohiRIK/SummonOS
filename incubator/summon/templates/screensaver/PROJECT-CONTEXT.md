@@ -4,7 +4,7 @@
 Starter is a screensaver made with Summon. Write its one job and who it is for here once they are settled.
 
 ## Current State
-- Lives in `~/Summon/screensaver-starter`, recorded in Summon's private list (`summon project list`).
+- Lives in `~/Summon/Apps/screensaver-starter`, recorded in Summon's private list (`summon project list`).
 - Started from Summon's `screensaver` template; layout in `README.md`. Gate: `scripts/check.sh`.
 - No GitHub repo yet. `summon project repo screensaver-starter` creates a private one after you approve it in a Summon
   dialog, and adds CI (`.github/workflows/check.yml`, which runs `scripts/check.sh`).
@@ -18,4 +18,4 @@ Starter is a screensaver made with Summon. Write its one job and who it is for h
 
 ## Recent History
 ### {{DATE}} — Started from the Summon screensaver template
-- Copied from Summon's `screensaver` template into `~/Summon/screensaver-starter`.
+- Copied from Summon's `screensaver` template into `~/Summon/Apps/screensaver-starter`.

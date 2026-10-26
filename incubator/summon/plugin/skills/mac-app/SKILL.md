@@ -71,7 +71,12 @@ Layout (SwiftPM, no `.xcodeproj`): `Sources/<App>/` holds `@main` only, `Sources
 - New logic starts as a failing test in `Tests/<App>CoreTests/`, then the code in `Sources/<App>Core/` that makes
   it pass. The UI only calls Core.
 - Rules: Swift 6 strict concurrency, `@MainActor` UI, no third-party dependencies, shell tools by absolute path
-  with argv arrays (never a shell string), minimum macOS 15.
+  with argv arrays (never a shell string), minimum macOS 15. A `Regex` literal can't be a stored `static let`
+  (not `Sendable`): make it a computed `static var`.
+- Onboarding: the template's welcome window is only for an app that needs a permission (Accessibility, Screen
+  Recording, Automation…) or when the user asks for one. Otherwise delete it in this step: `Onboarding.swift`,
+  `OnboardingFlow.swift` and its test, the `Window` scene, `.showsOnboardingOnFirstLaunch()` and
+  `ShowWelcomeButton()` (owner, 2026-10-26).
 - The panel (or main window) is the app's job: live data, lists, and actions on them. Its footer has `Settings…`
   (⌘,) and `Quit` (⌘Q) rows and nothing else.
 - Every preference lives in `SettingsView` (the `Settings` scene, opened from `Settings…`), never in the panel.
@@ -104,7 +109,9 @@ log show --last 5m --predicate 'process == "<App>"'
 ```
 
 `pgrep` must show the process. The first `log show` shows the app's own `Logger` lines, the second also system
-messages about it. Then click through every screen, action and setting: each must be reachable.
+messages about it. Then test it with the `mac-app-test` skill: model tests, every way in (launch, My Apps, the
+icon, the hotkey, opening it again), windows, logs, and a click-through the user does when you can't click. The
+app is not done until that skill's report is green.
 For `cli`: run the built tool with real arguments and `--help`; `scripts/install.sh` puts it in `~/.local/bin`.
 For `screensaver`: `scripts/install.sh` copies it to `~/Library/Screen Savers/`; check the preview pane in
 System Settings › Screen Saver and the real saver (a Hot Corner).
@@ -125,6 +132,9 @@ README and commits. Screensavers are not captured: take the picture in System Se
 - Glass only on controls, behind `if #available(macOS 26, *)`. Light and dark both read well.
 
 Fix what fails, then run steps 4 and 6 again.
+
+`--screenshot` draws views in an offscreen window: a `NavigationSplitView` or `List` comes out blank there. Capture
+the panel (and other plain stacks) that way, and check such windows by running the app.
 
 ### 7. Make the icon
 

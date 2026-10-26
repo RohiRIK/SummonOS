@@ -4,7 +4,7 @@
 Starter is a notch app (a panel that grows out of the camera housing) made with Summon. Write its one job and who it is for here once they are settled.
 
 ## Current State
-- Lives in `~/Summon/notch-starter`, recorded in Summon's private list (`summon project list`).
+- Lives in `~/Summon/Apps/notch-starter`, recorded in Summon's private list (`summon project list`).
 - Started from Summon's `notch` template; layout in `README.md`. Gate: `scripts/check.sh`.
 - No GitHub repo yet. `summon project repo notch-starter` creates a private one after you approve it in a Summon
   dialog, and adds CI (`.github/workflows/check.yml`, which runs `scripts/check.sh`).
@@ -18,4 +18,4 @@ Starter is a notch app (a panel that grows out of the camera housing) made with 
 
 ## Recent History
 ### {{DATE}} — Started from the Summon notch template
-- Copied from Summon's `notch` template into `~/Summon/notch-starter`.
+- Copied from Summon's `notch` template into `~/Summon/Apps/notch-starter`.

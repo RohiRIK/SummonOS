@@ -4,7 +4,7 @@
 Starter is a command launcher (global shortcut, Spotlight-style panel) made with Summon. Write its one job and who it is for here once they are settled.
 
 ## Current State
-- Lives in `~/Summon/launcher-starter`, recorded in Summon's private list (`summon project list`).
+- Lives in `~/Summon/Apps/launcher-starter`, recorded in Summon's private list (`summon project list`).
 - Started from Summon's `launcher` template; layout in `README.md`. Gate: `scripts/check.sh`.
 - No GitHub repo yet. `summon project repo launcher-starter` creates a private one after you approve it in a Summon
   dialog, and adds CI (`.github/workflows/check.yml`, which runs `scripts/check.sh`).
@@ -19,4 +19,4 @@ Starter is a command launcher (global shortcut, Spotlight-style panel) made with
 
 ## Recent History
 ### {{DATE}} — Started from the Summon launcher template
-- Copied from Summon's `launcher` template into `~/Summon/launcher-starter`.
+- Copied from Summon's `launcher` template into `~/Summon/Apps/launcher-starter`.

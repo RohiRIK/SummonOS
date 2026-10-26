@@ -4,7 +4,7 @@
 Starter is a menu bar app made with Summon. Write its one job and who it is for here once they are settled.
 
 ## Current State
-- Lives in `~/Summon/menubar-starter`, recorded in Summon's private list (`summon project list`).
+- Lives in `~/Summon/Apps/menubar-starter`, recorded in Summon's private list (`summon project list`).
 - Started from Summon's `menubar` template; layout in `README.md`. Gate: `scripts/check.sh`.
 - No GitHub repo yet. `summon project repo menubar-starter` creates a private one after you approve it in a Summon
   dialog, and adds CI (`.github/workflows/check.yml`, which runs `scripts/check.sh`).
@@ -18,4 +18,4 @@ Starter is a menu bar app made with Summon. Write its one job and who it is for 
 
 ## Recent History
 ### {{DATE}} — Started from the Summon menubar template
-- Copied from Summon's `menubar` template into `~/Summon/menubar-starter`.
+- Copied from Summon's `menubar` template into `~/Summon/Apps/menubar-starter`.

@@ -4,7 +4,7 @@
 Starter is a full window app made with Summon. Write its one job and who it is for here once they are settled.
 
 ## Current State
-- Lives in `~/Summon/app-starter`, recorded in Summon's private list (`summon project list`).
+- Lives in `~/Summon/Apps/app-starter`, recorded in Summon's private list (`summon project list`).
 - Started from Summon's `app` template; layout in `README.md`. Gate: `scripts/check.sh`.
 - No GitHub repo yet. `summon project repo app-starter` creates a private one after you approve it in a Summon
   dialog, and adds CI (`.github/workflows/check.yml`, which runs `scripts/check.sh`).
@@ -18,4 +18,4 @@ Starter is a full window app made with Summon. Write its one job and who it is f
 
 ## Recent History
 ### {{DATE}} — Started from the Summon app template
-- Copied from Summon's `app` template into `~/Summon/app-starter`.
+- Copied from Summon's `app` template into `~/Summon/Apps/app-starter`.
