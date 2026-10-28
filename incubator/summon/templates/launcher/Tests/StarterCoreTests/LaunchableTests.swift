@@ -42,6 +42,16 @@ import Testing
         #expect(titles == ["Alpha", "Terminal", "Zed"])
     }
 
+    @Test func stampChangesWhenAnAppIsAdded() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let before = AppCatalog.stamp([root])
+        #expect(before == AppCatalog.stamp([root]))
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("New.app"), withIntermediateDirectories: true)
+        #expect(before != AppCatalog.stamp([root]))
+    }
+
     @Test func missingFolderIsEmpty() {
         #expect(AppCatalog.scan([URL(fileURLWithPath: "/nonexistent-\(UUID().uuidString)")]).isEmpty)
     }
