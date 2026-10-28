@@ -46,6 +46,11 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-28 — Idle efficiency
+- `FileWatch` (Core): kqueue vnode source for files and folders. `MenuBarStatusWatcher` waits on it plus model
+  observation (`Doorbell`); 1 s ticks only with a visible session clock. Crash folders are watched (3 s debounce).
+- `SummonModel.startWatching`: 60 s round, 10 s tolerance: `MacContextProbe.vitals` (power, storage, network),
+  crash scan every 5 rounds, doctor every 30 rounds (`reuseMacctl`), updates via `updateCheckDue`.
 ### 2026-10-28 — Siri and Shortcuts actions
 - `Sources/SummonMenu/SummonIntents.swift`: five App Intents + `SummonShortcuts`; they reach the model through
   `AppDelegate.shared`. `scripts/bundle.sh` runs `appintentsmetadataprocessor` (SwiftPM never writes

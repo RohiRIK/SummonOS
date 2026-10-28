@@ -34,6 +34,15 @@ public enum MacContextProbe {
         return context.hiding(hidden)
     }
 
+    /// Only what `MacEvents.changes` compares (power, disk, network): the menu app's periodic look, cheap and off-main.
+    public static func vitals(paths: SummonPaths, now: Date = Date()) -> MacContext {
+        var context = MacContext(generated: now, hidden: [])
+        context.power = power()
+        context.storage = storage(home: paths.home.path)
+        context.network = network()
+        return context
+    }
+
     /// Everything that needs no AppKit; safe off the main thread.
     static func basics(paths: SummonPaths, tools: ToolLocator, now: Date) -> MacContext {
         let home = paths.home.path

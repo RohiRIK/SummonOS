@@ -178,6 +178,8 @@ public final class SummonModel {
     @ObservationIgnored private var recentKey: [String] = []
     @ObservationIgnored private var scanningCrashes = false
     @ObservationIgnored private var watchTask: Task<Void, Never>? = nil
+    @ObservationIgnored private var crashFolders: [FileWatch] = []
+    @ObservationIgnored private var pendingCrashScan: Task<Void, Never>?
 
     static let crashCaptureKey = "crashCaptureEnabled"
     static let crashAlertStyleKey = "summon.notifications.crashStyle"
@@ -466,8 +468,8 @@ public final class SummonModel {
 
     // MARK: Crash watching
 
-    private var lastMac: MacContext?
-    private var macCheck: Task<Void, Never>?
+    @ObservationIgnored private var lastMac: MacContext?
+    @ObservationIgnored private var macCheck: Task<Void, Never>?
 
     /// Logs what changed on the Mac since the last look (offline, low disk, hot, battery, displays) for agents.
     /// shortcut: a 30 s poll of the ~60 ms snapshot; switch to SCDynamicStore and ProcessInfo notifications if it
@@ -475,28 +477,56 @@ public final class SummonModel {
     /// A probe stuck on a slow file system (#119) is skipped, not stacked; the watch loop never waits for it.
     func checkMac() {
         guard macCheck == nil else { return }
+        let paths = paths
         macCheck = Task {
-            let snapshot = await MacContextProbe.snapshot(paths: paths, tools: ToolLocator.live(), hidden: [])
+            let snapshot = await Task.detached(priority: .utility) { MacContextProbe.vitals(paths: paths) }.value
             for event in MacEvents.changes(from: lastMac, to: snapshot) { try? EventLog(paths: paths).append(event) }
             lastMac = snapshot
             macCheck = nil
         }
     }
 
-    public func startWatching(interval: Duration = .seconds(30)) {
+    /// At launch, then a day after the last check.
+    func updateCheckDue(now: Date = Date()) -> Bool {
+        lastUpdateCheck.map { now.timeIntervalSince($0) >= 24 * 60 * 60 } ?? true
+    }
+
+    /// One slow loop for what has no notification: Mac vitals, a fallback crash scan, the doctor and updates.
+    /// New crash reports arrive sooner through `crashFolders` (a folder watch).
+    public func startWatching(interval: Duration = .seconds(60)) {
         guard watchTask == nil else { return }
+        // A new report is written in pieces: scan once the folder has been quiet for 3 s.
+        crashFolders = paths.diagnosticReportDirs.compactMap { dir in
+            FileWatch(dir) { [weak self] in
+                Task { @MainActor in
+                    guard let self else { return }
+                    self.pendingCrashScan?.cancel()
+                    self.pendingCrashScan = Task {
+                        try? await Task.sleep(for: .seconds(3), tolerance: .seconds(1))
+                        if !Task.isCancelled { await self.scanCrashes() }
+                    }
+                }
+            }
+        }
         watchTask = Task { [weak self] in
             var round = 0
             while !Task.isCancelled {
                 guard let model = self else { return }
-                await model.scanCrashes()
+                // The folder watch finds new reports; this is the fallback (also for a folder that did not exist).
+                if round % 5 == 0 || model.crashFolders.count < model.paths.diagnosticReportDirs.count {
+                    await model.scanCrashes()
+                }
                 model.checkMac()
-                // Summon's own setup (`summon doctor`) for the panel's Needs attention: at launch, then every 10 min.
-                if round % 20 == 0 { await model.checkHealth() }
-                // A new Summon build: at launch, then once a day (2880 rounds of 30 s).
-                if round % 2880 == 0, model.checksForUpdates { await model.checkForUpdates(quiet: true) }
+                // Summon's own setup (`summon doctor`) for the panel's Needs attention: in full at launch, then every
+                // 30 min without re-running `macctl doctor`.
+                if round % 30 == 0 { await model.checkHealth(full: round == 0) }
+                // Updates once a day, counted from the last check (it survives relaunches), never in Low Power Mode.
+                if model.checksForUpdates, model.updateCheckDue(), !ProcessInfo.processInfo.isLowPowerModeEnabled {
+                    await model.checkForUpdates(quiet: true)
+                }
                 round += 1
-                try? await Task.sleep(for: interval)
+                // The slack lets macOS group this wakeup with others.
+                try? await Task.sleep(for: interval, tolerance: .seconds(10))
             }
         }
     }
@@ -504,6 +534,8 @@ public final class SummonModel {
     public func stopWatching() {
         watchTask?.cancel()
         watchTask = nil
+        crashFolders = []
+        pendingCrashScan?.cancel()
     }
 
     func scanCrashes() async {
@@ -579,7 +611,8 @@ public final class SummonModel {
         }
     }
 
-    public func checkHealth() async {
+    /// `full: false` keeps the last `macctl` result (the periodic re-check); Settings and launch run everything.
+    public func checkHealth(full: Bool = true) async {
         guard !isCheckingHealth else { return }
         isCheckingHealth = true
         defer { isCheckingHealth = false }
@@ -599,7 +632,8 @@ public final class SummonModel {
             installedTerminals: TerminalApp.installed,
             isProcessRunning: { pid in pid > 0 && kill(pid, 0) == 0 }
         )
-        doctorReport = await doctor.run()
+        let report = await doctor.run(reuseMacctl: full ? nil : doctorReport?.check("macctl"))
+        if report != doctorReport { doctorReport = report }
     }
 
     public func fixWithAI() {

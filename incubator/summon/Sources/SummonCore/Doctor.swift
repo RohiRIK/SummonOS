@@ -145,7 +145,9 @@ public struct Doctor: Sendable {
 
     var skills: URL { share.appendingPathComponent("skills", isDirectory: true) }
 
-    public func run() async -> DoctorReport {
+    /// `reuseMacctl`: a periodic re-check keeps that earlier `macctl` result instead of spawning `macctl doctor`
+    /// again (it probes Automation through AppleScript).
+    public func run(reuseMacctl previous: DoctorCheck? = nil) async -> DoctorReport {
         var checks = [
             appInstalled(),
             cliOnPath(),
@@ -158,7 +160,7 @@ public struct Doctor: Sendable {
             themes(),
             undoRepo(),
         ]
-        checks.append(await macctl())
+        if let previous { checks.append(previous) } else { checks.append(await macctl()) }
         checks.append(contentsOf: [
             stateFolder(),
             eventLog(),
