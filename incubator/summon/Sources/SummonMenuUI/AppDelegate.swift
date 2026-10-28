@@ -19,6 +19,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
     static let taskCategory = "summon.task"
     static let showLogAction = "summon.task.log"
     static let askAction = "summon.task.ask"
+    static let updatesCategory = "summon.updates"
+    static let updateAllAction = "summon.updates.all"
+    static let showUpdatesAction = "summon.updates.show"
+    /// Updates already announced (`id@version`), so a daily check posts only when something new is out.
+    static let notifiedUpdatesKey = "summon.updates.notified"
 
     /// `summon://` URLs that arrived before the panel existed; replayed at the end of applicationDidFinishLaunching.
     private var launchURLs = LaunchURLQueue()
@@ -60,6 +65,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         menuBarStatus.onNewEvents = { [weak self] events in self?.announce(events) }
         menuBarStatus.start()
         let health = registerHotKeys() ?? AppHealth(pid: ProcessInfo.processInfo.processIdentifier, hotkeys: [:])
+        model.onUpdatesFound = { [weak self] updates in self?.announce(updates) }
         model.onUpdateGlobalHotKeys = { [weak self] in
             self?.registerHotKeys()
         }
@@ -203,7 +209,10 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         let showLog = UNNotificationAction(identifier: Self.showLogAction, title: "Show Log", options: [])
         let ask = UNNotificationAction(identifier: Self.askAction, title: "Ask Agent", options: [])
         let task = UNNotificationCategory(identifier: Self.taskCategory, actions: [showLog, ask], intentIdentifiers: [], options: [])
-        center.setNotificationCategories([crash, task])
+        let updateAll = UNNotificationAction(identifier: Self.updateAllAction, title: "Update All", options: [])
+        let show = UNNotificationAction(identifier: Self.showUpdatesAction, title: "Show", options: [.foreground])
+        let updates = UNNotificationCategory(identifier: Self.updatesCategory, actions: [updateAll, show], intentIdentifiers: [], options: [])
+        center.setNotificationCategories([crash, task, updates])
         let store = AppHealthStore(paths: model.paths)
         center.requestAuthorization(options: [.alert, .sound]) { _, _ in
             UNUserNotificationCenter.current().getNotificationSettings { settings in
@@ -294,7 +303,30 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         completionHandler([.banner, .sound])
     }
 
+    /// At most one notification per new set: nothing again for updates already announced.
+    private func announce(_ updates: [SoftwareUpdate]) {
+        guard canNotify else { return }
+        let defaults = UserDefaults.standard
+        let seen = Set(defaults.stringArray(forKey: Self.notifiedUpdatesKey) ?? [])
+        let keys = Set(updates.map { "\($0.id)@\($0.latest)" })
+        guard !keys.isSubset(of: seen) else { return }
+        defaults.set(Array(keys), forKey: Self.notifiedUpdatesKey)
+        let content = UNMutableNotificationContent()
+        content.title = updates.count == 1 ? "1 update available" : "\(updates.count) updates available"
+        content.body = updates.prefix(4).map(\.name).joined(separator: ", ") + (updates.count > 4 ? ", …" : "")
+        content.categoryIdentifier = Self.updatesCategory
+        content.threadIdentifier = "summon.updates"
+        let request = UNNotificationRequest(identifier: "summon.updates", content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request) { _ in }
+    }
+
     private func handle(action: String, category: String, info: [String: String]) {
+        if category == Self.updatesCategory {
+            // Update All installs the command-line ones; Summon and macOS still need their own click in the window.
+            if action == Self.updateAllAction { model.install(model.pendingUpdates) }
+            activity.requestUpdates()
+            return
+        }
         if category == Self.taskCategory {
             handleTask(action: action, info: info)
             return

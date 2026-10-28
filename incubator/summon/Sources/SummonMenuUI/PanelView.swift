@@ -154,12 +154,6 @@ public struct PanelView: View {
                     .padding(.horizontal, 8)
             }
             if isHome { attentionRow }
-            if level?.hasPrefix("update") == true, let status = model.updateStatus, model.isUpdating {
-                Text(status)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-            }
             if let offer = model.undoOffer, isHome {
                 MenuRow(title: offer.title, systemImage: "arrow.uturn.backward", shortcut: nil) {
                     actions.finish()
@@ -306,7 +300,10 @@ public struct PanelView: View {
         let current = rows
         guard current.indices.contains(selection) else { return }
         let item = current[selection]
-        if item.action != nil {
+        if MenuTree.runsInApp(item.id) {
+            actions.finish()
+            activity.requestUpdates()
+        } else if item.isRunnable {
             actions.finish()
             model.run(item)
         } else if model.hasChildren(item) {
@@ -330,14 +327,15 @@ public struct PanelView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            // The update tag: one click opens the Updates folder.
-            if !model.updates.isEmpty {
+            // The update tag: one click opens the Updates window.
+            if !model.pendingUpdates.isEmpty {
+                let count = model.pendingUpdates.count
                 Button {
-                    query = ""
-                    level = "update"
-                    selection = 0
+                    PanelTrace.log.notice("update tag: open the Updates window (\(count, privacy: .public) updates)")
+                    actions.finish()
+                    activity.requestUpdates()
                 } label: {
-                    Text(model.updates.count == 1 ? "1 update" : "\(model.updates.count) updates")
+                    Text(count == 1 ? "1 update" : "\(count) updates")
                         .font(.subheadline.weight(.semibold))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
@@ -345,8 +343,8 @@ public struct PanelView: View {
                         .foregroundStyle(.white)
                 }
                 .buttonStyle(.plain)
-                .help("\(model.updates.count) update\(model.updates.count == 1 ? "" : "s") available")
-                .accessibilityLabel("\(model.updates.count) updates available")
+                .help("Show the updates")
+                .accessibilityLabel("\(count) updates available")
             }
         }
         .padding(.horizontal, 8)

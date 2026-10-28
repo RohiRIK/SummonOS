@@ -18,8 +18,8 @@ public enum CrashAlertStyle: String, Sendable, CaseIterable, Identifiable {
 }
 
 /// What one crash scan announces. A scan can find several reports at once (after sleep, or a crash loop): the
-/// Summon alert shows the newest and counts the rest, banners group per program, and routine memory kills
-/// (`CrashReport.isRoutine`) are listed in the panel only.
+/// Summon alert shows the newest and counts the rest, banners group per program, and routine reports
+/// (`CrashReport.isRoutine`: memory kills, user faults) are listed in Activity only.
 public struct CrashAnnouncementPlan: Sendable, Equatable {
     /// The report the floating alert shows, if any.
     public var alert: CrashReport?

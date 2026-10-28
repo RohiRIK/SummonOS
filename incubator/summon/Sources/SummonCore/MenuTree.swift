@@ -29,6 +29,9 @@ public struct MenuItem: Sendable, Equatable, Codable, Identifiable {
         self.badge = badge
     }
 
+    /// A row that does something when chosen: a shell `action`, or the Update row (it opens the Updates window).
+    public var isRunnable: Bool { action != nil || MenuTree.runsInApp(id) }
+
     public var parentID: String? {
         guard let dot = id.lastIndex(of: ".") else { return nil }
         return String(id[..<dot])
@@ -211,7 +214,7 @@ public struct MenuTree: Sendable, Equatable {
         let words = query.lowercased().split(separator: " ").map(String.init)
         guard !words.isEmpty else { return [] }
         return items.filter { item in
-            guard item.action != nil else { return false }
+            guard item.isRunnable else { return false }
             let haystack = ([item.label, item.id] + (item.aliases ?? [])).joined(separator: " ").lowercased()
             return words.allSatisfy { haystack.contains($0) }
         }
