@@ -9,6 +9,8 @@ see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/rele
 
 ### Fixed
 
+- The menu no longer hangs while a File Provider (OneDrive, iCloud) is busy: the Mac snapshot's file checks run
+  off the main thread, and a stuck one skips its next rounds instead of piling up (#119).
 - Only one Summon runs at a time: a second copy (a dev build with the same bundle id) activates the running one and
   quits.
 

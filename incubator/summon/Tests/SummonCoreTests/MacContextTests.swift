@@ -107,4 +107,13 @@ struct MacContextTests {
         #expect(context.agents?.installed == [])
         #expect(context.hidden == ["hostname"])
     }
+
+    @Test func snapshotReadsThisMacOffTheMainThread() async throws {
+        let paths = SummonPaths(home: try makeTempHome())
+        let context = await MacContextProbe.snapshot(paths: paths, tools: ToolLocator(searchPath: [], isExecutable: { _ in false }),
+                                                     hidden: [.hostname])
+        #expect(try #require(context.system).memoryGB > 0)
+        #expect(context.apps != nil && context.appearance != nil && context.permissions != nil)
+        #expect(context.hidden == ["hostname"])
+    }
 }

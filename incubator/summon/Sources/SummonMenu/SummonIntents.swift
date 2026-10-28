@@ -74,7 +74,7 @@ struct MacStatusIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
         let model = try model
-        let snapshot = MacContextProbe.live(paths: model.paths, tools: ToolLocator.live(), hidden: [])
+        let snapshot = await MacContextProbe.snapshot(paths: model.paths, tools: ToolLocator.live(), hidden: [])
         return .result(value: snapshot.spoken, dialog: "\(snapshot.spoken)")
     }
 }

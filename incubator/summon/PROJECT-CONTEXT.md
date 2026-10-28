@@ -50,6 +50,7 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
 - `Sources/SummonMenu/SummonIntents.swift`: five App Intents + `SummonShortcuts`; they reach the model through
   `AppDelegate.shared`. `scripts/bundle.sh` runs `appintentsmetadataprocessor` (SwiftPM never writes
   `Metadata.appintents`); visual-qa and release fail without it. Not yet tried by voice on the owner's Mac.
+- #119: `MacContextProbe.snapshot` (async) keeps file checks off the main actor; `live` stays for the CLI only.
 ### 2026-10-28 — Fix with AI on failed updates (0.2.2)
 - A failed Updates row has Fix with AI: `SoftwareUpdate.fixPrompt(output:)` (command + last 4000 chars of output)
   goes to `askAgent`.
