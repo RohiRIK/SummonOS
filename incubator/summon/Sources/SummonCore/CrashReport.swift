@@ -47,10 +47,12 @@ public struct CrashReport: Sendable, Equatable, Codable, Identifiable {
     /// Jetsam's raw reason for the kill (`per-process-limit`, `vm-pageshortage`, …), nil otherwise.
     public var memoryKillReason: String? = nil
 
-    /// A kill that is part of normal life on macOS: one process over its own memory cap, or stopped while idle.
-    /// Not worth a notification; still listed.
+    /// Part of normal life on macOS: one process over its own memory cap, stopped while idle, or a user fault
+    /// (`ExcUserFault_*.ips`: EXC_GUARD and the like, written while the process kept running; Apple's
+    /// nsattributedstringagent writes several a day). Not worth a notification; still listed in Activity.
     public var isRoutine: Bool {
         ["per-process-limit", "idle-exit", "inactive"].contains(memoryKillReason ?? "")
+            || (file as NSString).lastPathComponent.hasPrefix("ExcUserFault_")
     }
 
     /// Jetsam reasons in plain words.

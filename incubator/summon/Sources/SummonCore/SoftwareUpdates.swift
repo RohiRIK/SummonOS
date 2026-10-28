@@ -38,6 +38,8 @@ public struct SoftwareUpdate: Sendable, Equatable, Identifiable {
     public var latest: String
     /// What installs it (absolute tool path first); nil when the app handles it (Summon, macOS's Software Update).
     public var command: [String]?
+    /// Release notes or the package page ("What's New").
+    public var link: String?
 
     public var id: String { "\(source.rawValue):\(name)" }
     public var title: String { current.isEmpty ? name : "\(name) \(current)" }
@@ -52,12 +54,19 @@ public struct SoftwareUpdate: Sendable, Equatable, Identifiable {
         }
     }
 
-    public init(source: Source, name: String, current: String, latest: String, command: [String]?) {
+    public init(source: Source, name: String, current: String, latest: String, command: [String]?, link: String? = nil) {
         self.source = source
         self.name = name
         self.current = current
         self.latest = latest
         self.command = command
+        self.link = link
+    }
+
+    /// Summon's own row: the release page is its "What's New".
+    public static func summon(current: String, latest: String, tag: String) -> SoftwareUpdate {
+        SoftwareUpdate(source: .summon, name: "Summon", current: current, latest: latest, command: nil,
+                       link: "https://github.com/RohiRIK/SummonOS/releases/tag/\(tag)")
     }
 
     /// `brew outdated --json=v2`; pinned formulae stay put.
@@ -75,11 +84,13 @@ public struct SoftwareUpdate: Sendable, Equatable, Identifiable {
         guard let outdated = try? JSONDecoder().decode(Outdated.self, from: jsonObject(json)) else { return [] }
         let formulae = outdated.formulae.filter { $0.pinned != true }.map {
             SoftwareUpdate(source: .homebrew, name: $0.name, current: $0.installed_versions.last ?? "",
-                           latest: $0.current_version, command: [brew, "upgrade", $0.name])
+                           latest: $0.current_version, command: [brew, "upgrade", $0.name],
+                           link: "https://formulae.brew.sh/formula/\($0.name)")
         }
         let casks = outdated.casks.map {
             SoftwareUpdate(source: .homebrew, name: $0.name, current: $0.installed_versions.last ?? "",
-                           latest: $0.current_version, command: [brew, "upgrade", "--cask", $0.name])
+                           latest: $0.current_version, command: [brew, "upgrade", "--cask", $0.name],
+                           link: "https://formulae.brew.sh/cask/\($0.name)")
         }
         return formulae + casks
     }
@@ -91,7 +102,8 @@ public struct SoftwareUpdate: Sendable, Equatable, Identifiable {
             let cells = line.split(separator: "|").map { $0.trimmingCharacters(in: .whitespaces) }
             guard cells.count == 4, cells[0] != "Package", !cells[0].hasPrefix("-"), cells[1] != cells[3] else { return nil }
             return SoftwareUpdate(source: .bun, name: cells[0], current: cells[1], latest: cells[3],
-                                  command: [bun, "add", "-g", "\(cells[0])@latest"])
+                                  command: [bun, "add", "-g", "\(cells[0])@latest"],
+                                  link: "https://www.npmjs.com/package/\(cells[0])")
         }
     }
 
@@ -102,7 +114,8 @@ public struct SoftwareUpdate: Sendable, Equatable, Identifiable {
         return packages.sorted { $0.key < $1.key }.compactMap { name, package in
             guard let latest = package.latest, latest != package.current else { return nil }
             return SoftwareUpdate(source: .npm, name: name, current: package.current ?? "", latest: latest,
-                                  command: [npm, "install", "-g", "\(name)@latest"])
+                                  command: [npm, "install", "-g", "\(name)@latest"],
+                                  link: "https://www.npmjs.com/package/\(name)")
         }
     }
 
@@ -175,46 +188,74 @@ public struct SoftwareUpdateCheck: Sendable {
     }
 }
 
+/// What an update row is doing in the Updates window.
+public enum UpdateRowState: Sendable, Equatable {
+    /// Waiting for the update before it: package managers take a lock, so installs run one at a time.
+    case queued
+    case running
+    case done
+    /// The command's output, for Show Details.
+    case failed(String)
+
+    /// A failure that wants a password (a cask's installer runs sudo): offer Open in Terminal.
+    public var needsTerminal: Bool {
+        guard case .failed(let output) = self else { return false }
+        let text = output.lowercased()
+        return text.contains("sudo") || text.contains("password") || text.contains("a terminal is required")
+    }
+}
+
+/// The Updates window's choices: `~/.config/summon/update-preferences.json`.
+public struct UpdatePreferences: Codable, Sendable, Equatable {
+    /// Groups the check leaves out (Settings › Updates).
+    public var off: Set<String> = []
+    /// Install agent updates as soon as a check finds them.
+    public var autoUpdateAgents = false
+    /// Skip This Version: update id → the version skipped. A newer version shows again.
+    public var skipped: [String: String] = [:]
+
+    public init() {}
+
+    public func includes(_ group: SoftwareUpdate.Group) -> Bool { !off.contains(group.rawValue) }
+
+    /// What the window and the panel count: checked groups, minus skipped versions.
+    public func shown(_ updates: [SoftwareUpdate]) -> [SoftwareUpdate] {
+        updates.filter { includes($0.group) && skipped[$0.id] != $0.latest }
+    }
+}
+
+public struct UpdatePreferencesStore: Sendable {
+    public let paths: SummonPaths
+    public init(paths: SummonPaths) { self.paths = paths }
+    public var file: URL { paths.config.appendingPathComponent("update-preferences.json") }
+
+    public func load() -> UpdatePreferences {
+        (try? JSONDecoder().decode(UpdatePreferences.self, from: Data(contentsOf: file))) ?? UpdatePreferences()
+    }
+
+    public func save(_ preferences: UpdatePreferences) throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try TextFile.write(String(decoding: try encoder.encode(preferences), as: UTF8.self) + "\n", to: file)
+    }
+}
+
 extension MenuTree {
-    /// Fills the panel's Update folder (`update`, the default menu's group; added after Make Something when a
-    /// custom menu has none): Summon as a row, a folder per other group, Update All and Check Now. An update row is
-    /// `<folder>.<n>`, where n indexes `updates`; its tag is the new version.
-    public func withUpdates(_ updates: [SoftwareUpdate]) -> MenuTree {
-        guard !items.contains(where: { $0.id == "update.check" }) else { return self }
+    /// The panel's Update row (`update`, the default menu's group; added after Make Something when a custom menu has
+    /// none), tagged "N new". Choosing it opens the Updates window, which lists them.
+    public func withUpdates(count: Int) -> MenuTree {
+        let tag = count == 0 ? nil : "\(count) new"
         var updated = items
-        var rows: [MenuItem] = []
-        let tag = updates.isEmpty ? nil : "\(updates.count) new"
-        let insertAt: Int
         if let index = updated.firstIndex(where: { $0.id == "update" }) {
             updated[index].badge = tag
-            insertAt = index + 1
         } else {
-            rows.append(MenuItem(id: "update", label: "Update", icon: "arrow.triangle.2.circlepath", aliases: ["upgrade"], badge: tag))
-            insertAt = (items.lastIndex { $0.id == "make" || $0.id.hasPrefix("make.") }).map { $0 + 1 } ?? items.endIndex
+            let row = MenuItem(id: "update", label: "Update", icon: "arrow.triangle.2.circlepath", aliases: ["upgrade"], badge: tag)
+            let afterMake = (items.lastIndex { $0.id == "make" || $0.id.hasPrefix("make.") }).map { $0 + 1 } ?? items.endIndex
+            updated.insert(row, at: afterMake)
         }
-        for group in SoftwareUpdate.Group.allCases {
-            let members = updates.enumerated().filter { $0.element.group == group }
-            guard !members.isEmpty else { continue }
-            let folder = group == .summon ? "update" : "update.\(group.rawValue)"
-            if group != .summon {
-                rows.append(MenuItem(id: folder, label: group.title, icon: group.icon, badge: "\(members.count)"))
-            }
-            for (index, update) in members {
-                rows.append(MenuItem(id: "\(folder).\(index)", label: update.title, icon: group.icon, badge: "New \(update.latest)"))
-            }
-        }
-        if updates.filter({ $0.command != nil }).count > 1 {
-            rows.append(MenuItem(id: "update.all", label: "Update All", icon: "arrow.down.circle"))
-        }
-        if updates.isEmpty { rows.append(MenuItem(id: "update.none", label: "Everything is up to date", icon: "checkmark.circle")) }
-        rows.append(MenuItem(id: "update.check", label: "Check Now", icon: "arrow.clockwise"))
-        updated.insert(contentsOf: rows, at: insertAt)
         return (try? MenuTree(items: updated)) ?? self
     }
 
-    /// The index into `updates` for an update row, nil for every other item (`update.brew` from a menu file too).
-    public static func updateIndex(_ id: String) -> Int? {
-        guard id.hasPrefix("update."), let last = id.split(separator: ".").last else { return nil }
-        return Int(last)
-    }
+    /// `update` opens the Updates window instead of running a shell action or drilling into its children.
+    public static func runsInApp(_ id: String) -> Bool { id == "update" }
 }

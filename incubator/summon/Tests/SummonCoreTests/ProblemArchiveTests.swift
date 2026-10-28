@@ -21,6 +21,15 @@ struct ProblemArchiveTests {
         #expect(try CrashReport.parse(#"{"bug_type":"288","name":"Safari"}"#, file: "/r/x.ips").kind == .hang)
     }
 
+    @Test func aUserFaultIsNotACrashWorthANotification() throws {
+        let header = #"{"app_name":"nsattributedstringagent","bundleID":"com.apple.textkit.nsattributedstringagent","bug_type":"309"}"#
+        let fault = try CrashReport.parse(header, file: "/r/ExcUserFault_nsattributedstringagent-2026-10-28-094155.ips")
+        #expect(fault.isRoutine)
+        #expect(CrashAnnouncementPlan.make([fault], style: .banner, canPostBanners: true).banners.isEmpty)
+        let crash = try CrashReport.parse(header, file: "/r/nsattributedstringagent-2026-10-28-094155.ips")
+        #expect(!crash.isRoutine)
+    }
+
     @Test func jetsamWithoutAKillIsLowMemory() throws {
         let report = try CrashReport.parse(#"{"bug_type":"298"}"# + "\n" + #"{"largestProcess":"Finder","processes":[]}"#, file: "/r/j.ips")
         #expect(report.program == "Low memory")
