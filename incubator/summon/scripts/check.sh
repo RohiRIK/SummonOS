@@ -30,6 +30,7 @@ lint_themes() {
 echo "# Summon check $(date -u +%Y-%m-%dT%H:%MZ)" >"$REPORT"
 step tests scripts/test.sh
 step bundle scripts/bundle.sh
+step siri-actions test -f build/Summon.app/Contents/Resources/Metadata.appintents/extract.actionsdata
 step plist plutil -lint Resources/Info.plist
 step themes lint_themes
 step cli-help build/Summon.app/Contents/MacOS/summon commands --json

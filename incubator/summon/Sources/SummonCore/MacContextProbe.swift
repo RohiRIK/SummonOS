@@ -8,8 +8,34 @@ import SystemConfiguration
 /// Reads `MacContext` from the live system. Each section is read on its own, so one that fails is left out
 /// instead of failing the snapshot. Nothing here prompts for a permission.
 public enum MacContextProbe {
+    /// For a one-shot command (the CLI); the menu app, Siri and MCP use `snapshot`, which keeps the main thread free.
     @MainActor
     public static func live(paths: SummonPaths, tools: ToolLocator, hidden: [ContextField], now: Date = Date()) -> MacContext {
+        var context = basics(paths: paths, tools: tools, now: now)
+        context.apps = apps()
+        context.appearance = appearance(home: paths.home.path)
+        return context.hiding(hidden)
+    }
+
+    /// The same snapshot off the main thread: the file checks (Full Disk Access, volumes, crash reports) wait as long
+    /// as a File Provider takes to answer, which hung the menu (#119). Only the AppKit reads run on the main actor.
+    public static func snapshot(paths: SummonPaths, tools: ToolLocator, hidden: [ContextField], now: Date = Date()) async -> MacContext {
+        let home = paths.home.path
+        let (running, look, front) = await MainActor.run {
+            (Self.apps(title: false), Self.appearance(home: home), NSWorkspace.shared.frontmostApplication?.processIdentifier)
+        }
+        var context = await Task.detached {
+            var context = basics(paths: paths, tools: tools, now: now)
+            context.apps = running
+            context.apps?.windowTitle = front.flatMap(focusedWindowTitle(pid:))
+            return context
+        }.value
+        context.appearance = look
+        return context.hiding(hidden)
+    }
+
+    /// Everything that needs no AppKit; safe off the main thread.
+    static func basics(paths: SummonPaths, tools: ToolLocator, now: Date) -> MacContext {
         let home = paths.home.path
         var context = MacContext(generated: now, hidden: [])
         context.system = system()
@@ -17,8 +43,6 @@ public enum MacContextProbe {
         context.storage = storage(home: home)
         context.network = network()
         context.displays = displays()
-        context.apps = apps()
-        context.appearance = appearance(home: home)
         context.permissions = MacContext.Permissions(
             accessibility: AXIsProcessTrusted(),
             screenRecording: CGPreflightScreenCaptureAccess(),
@@ -28,7 +52,7 @@ public enum MacContextProbe {
             defaultAgent: DefaultAgentStore(paths: paths).load()?.id,
             installed: AgentRegistry.all.filter { tools.find($0.command) != nil }.map(\.id))
         context.recentCrashes = CrashWatcher(paths: paths).reports(since: now.addingTimeInterval(-24 * 60 * 60), limit: 99).count
-        return context.hiding(hidden)
+        return context
     }
 
     static func system() -> MacContext.System {
@@ -121,14 +145,14 @@ public enum MacContextProbe {
     }
 
     @MainActor
-    static func apps() -> MacContext.Apps {
+    static func apps(title: Bool = true) -> MacContext.Apps {
         let workspace = NSWorkspace.shared
         let front = workspace.frontmostApplication
         let running = workspace.runningApplications
             .filter { $0.activationPolicy == .regular }
             .compactMap(\.localizedName)
         return MacContext.Apps(frontmost: front?.localizedName, frontmostBundleID: front?.bundleIdentifier,
-                               windowTitle: front.flatMap { focusedWindowTitle(pid: $0.processIdentifier) },
+                               windowTitle: title ? front.flatMap { focusedWindowTitle(pid: $0.processIdentifier) } : nil,
                                running: Array(Set(running)).sorted())
     }
 

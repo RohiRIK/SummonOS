@@ -130,6 +130,15 @@ struct SoftwareUpdateTests {
         #expect(prompt.count < 4500, "only the end of a long output")
     }
 
+    @Test func spokenUpdatesNameTheFirstThree() {
+        let rows = ["btop", "notion", "omniwm", "npm"].map {
+            SoftwareUpdate(source: .homebrew, name: $0, current: "1", latest: "2", command: nil)
+        }
+        #expect(SoftwareUpdate.spoken([]) == "Everything is up to date.")
+        #expect(SoftwareUpdate.spoken(Array(rows.prefix(1))) == "1 update: btop.")
+        #expect(SoftwareUpdate.spoken(rows) == "4 updates: btop, notion, omniwm and 1 more.")
+    }
+
     @Test func panelUpdateRowIsTaggedAndOpensTheWindow() throws {
         let tree = try MenuTree(items: [MenuItem(id: "make", label: "Make"), MenuItem(id: "make.app", label: "App"),
                                         MenuItem(id: "apps", label: "My Apps")])

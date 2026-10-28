@@ -28,8 +28,12 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
     /// `summon://` URLs that arrived before the panel existed; replayed at the end of applicationDidFinishLaunching.
     private var launchURLs = LaunchURLQueue()
 
+    /// The running app's delegate, for Siri and Shortcuts actions (NSApp.delegate is SwiftUI's adaptor, not this).
+    @MainActor public private(set) static weak var shared: AppDelegate?
+
     public override init() {
         super.init()
+        Self.shared = self
     }
 
     /// summon:// URLs come in as a kAEGetURL Apple event. Handling it here, before AppKit finishes launching, keeps

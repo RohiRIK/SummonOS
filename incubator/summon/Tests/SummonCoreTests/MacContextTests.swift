@@ -34,6 +34,11 @@ struct MacContextTests {
         #expect(!text.contains("Hidden by the user"))
     }
 
+    @Test func spokenIsOneShortSentenceForSiri() {
+        #expect(Self.sample.spoken == "Battery 74%. 796 GB free. 2 crashes or hangs in the last day.")
+        #expect(MacContext(generated: Date(), hidden: []).spoken == "Your Mac looks fine.")
+    }
+
     @Test func hiddenFieldsAreRemovedAndNamed() {
         let hidden = Self.sample.hiding(ContextField.allCases)
         #expect(hidden.system?.hostname == nil)
@@ -100,6 +105,15 @@ struct MacContextTests {
         #expect(system.macOS.first?.isNumber == true)
         #expect(system.hostname == nil)
         #expect(context.agents?.installed == [])
+        #expect(context.hidden == ["hostname"])
+    }
+
+    @Test func snapshotReadsThisMacOffTheMainThread() async throws {
+        let paths = SummonPaths(home: try makeTempHome())
+        let context = await MacContextProbe.snapshot(paths: paths, tools: ToolLocator(searchPath: [], isExecutable: { _ in false }),
+                                                     hidden: [.hostname])
+        #expect(try #require(context.system).memoryGB > 0)
+        #expect(context.apps != nil && context.appearance != nil && context.permissions != nil)
         #expect(context.hidden == ["hostname"])
     }
 }

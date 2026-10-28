@@ -467,14 +467,20 @@ public final class SummonModel {
     // MARK: Crash watching
 
     private var lastMac: MacContext?
+    private var macCheck: Task<Void, Never>?
 
     /// Logs what changed on the Mac since the last look (offline, low disk, hot, battery, displays) for agents.
     /// shortcut: a 30 s poll of the ~60 ms snapshot; switch to SCDynamicStore and ProcessInfo notifications if it
     /// ever shows up in energy use.
+    /// A probe stuck on a slow file system (#119) is skipped, not stacked; the watch loop never waits for it.
     func checkMac() {
-        let snapshot = MacContextProbe.live(paths: paths, tools: ToolLocator.live(), hidden: [])
-        for event in MacEvents.changes(from: lastMac, to: snapshot) { try? EventLog(paths: paths).append(event) }
-        lastMac = snapshot
+        guard macCheck == nil else { return }
+        macCheck = Task {
+            let snapshot = await MacContextProbe.snapshot(paths: paths, tools: ToolLocator.live(), hidden: [])
+            for event in MacEvents.changes(from: lastMac, to: snapshot) { try? EventLog(paths: paths).append(event) }
+            lastMac = snapshot
+            macCheck = nil
+        }
     }
 
     public func startWatching(interval: Duration = .seconds(30)) {
