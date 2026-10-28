@@ -34,6 +34,11 @@ struct MacContextTests {
         #expect(!text.contains("Hidden by the user"))
     }
 
+    @Test func spokenIsOneShortSentenceForSiri() {
+        #expect(Self.sample.spoken == "Battery 74%. 796 GB free. 2 crashes or hangs in the last day.")
+        #expect(MacContext(generated: Date(), hidden: []).spoken == "Your Mac looks fine.")
+    }
+
     @Test func hiddenFieldsAreRemovedAndNamed() {
         let hidden = Self.sample.hiding(ContextField.allCases)
         #expect(hidden.system?.hostname == nil)
