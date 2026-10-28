@@ -85,6 +85,7 @@ Layout (SwiftPM, no `.xcodeproj`): `Sources/<App>/` holds `@main` only, `Sources
 - Glass only on controls, never on content, and only behind `if #available(macOS 26, *)`.
 - Follow the Summon theme (see "The Summon theme" below).
 - Log with `Logger(subsystem: "local.summon.<name>", category: "<area>")`, the app's bundle id as the subsystem.
+- Idle costs nothing: follow "Efficiency" below for every timer, loop, animation and background job.
 
 ### 4. Run the gate
 
@@ -110,7 +111,7 @@ log show --last 5m --predicate 'process == "<App>"'
 
 `pgrep` must show the process. The first `log show` shows the app's own `Logger` lines, the second also system
 messages about it. Then test it with the `mac-app-test` skill: model tests, every way in (launch, My Apps, the
-icon, the hotkey, opening it again), windows, logs, and a click-through the user does when you can't click. The
+icon, the hotkey, opening it again), windows, logs, idle CPU, and a click-through the user does when you can't click. The
 app is not done until that skill's report is green.
 For `cli`: run the built tool with real arguments and `--help`; `scripts/install.sh` puts it in `~/.local/bin`.
 For `screensaver`: `scripts/install.sh` copies it to `~/Library/Screen Savers/`; check the preview pane in
@@ -169,6 +170,28 @@ with @2x, `isTemplate = true`).
     `~/.config/summon/menu.jsonc` (see the `summon-mac` skill).
   - Open at Login: a toggle in the Settings window with `SMAppService.mainApp.register()` /
     `.unregister()`, or System Settings › General › Login Items.
+
+## Efficiency
+
+A Summon app runs all day next to everything else. When nobody looks at it, it should use no CPU and wake the Mac
+as little as possible (`mac-app-test` measures it). `MacAppArchitecture`'s `System.md` has the longer version.
+
+- Events, not polling: `NSWorkspace` notifications (app switches, `didWakeNotification`, `willSleepNotification`),
+  `SCDynamicStore` for network changes, FSEvents or a `DispatchSource` file watcher for files, `IOPSNotificationCreateRunLoopSource`
+  for power, `ProcessInfo.thermalStateDidChangeNotification` and `.NSProcessInfoPowerStateDidChange`.
+- Poll only when no event exists: 1–2 s while the panel or window is open, 10–60 s otherwise, and stop on sleep
+  (resume on wake).
+- Give every timer slack: `Task.sleep(for:tolerance:)` or `Timer.tolerance`, at least 10% of the interval, so macOS
+  can batch wakeups. Periodic background work (a sync, a cleanup) goes to `NSBackgroundActivityScheduler`.
+- Background work runs at `.utility` or `.background` QoS; `.userInitiated` only while the user waits for it.
+- Hidden means stopped: no `TimelineView`, animation or display link ticks while its window or panel is closed or
+  occluded (`NSWindow.occlusionState`). Build the ticking view only while it is visible.
+- The status item changes only when its value changes. No per-second text in the menu bar unless the user asks.
+- No `repeatForever` animation while idle, and none at all with Reduce Motion on.
+- Hotkeys: Carbon `RegisterEventHotKey` (as the templates do) or a local `NSEvent` monitor, never a global monitor
+  that sees every keystroke.
+- Launch light: draw the first frame, then scan, index or call the network. Cache results and refresh them when
+  their source changes, not on every open.
 
 ## The Summon theme
 

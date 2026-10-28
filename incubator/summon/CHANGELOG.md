@@ -15,6 +15,12 @@ see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/rele
   (not 99 crash reports, the frontmost window and every agent CLI), once a minute with slack for macOS to group
   wakeups. The 10 min `summon doctor` became 30 min and reuses the last `macctl doctor`. Updates are checked a day
   after the last check and never in Low Power Mode. Theme cards decode a small wallpaper thumbnail.
+- Apps Summon builds idle cheaper. The templates' permissions page checks again when you come back to the app and
+  every 3 s (was every second); the HUD stopwatch stops redrawing while the HUD is hidden; the launcher keeps its
+  app list and rescans only when an app folder changes or every 5 minutes, at utility priority; every
+  `scripts/bundle.sh` strips local symbols before signing (the release binary is about half the size).
+- The `mac-app` skill has an Efficiency section (events over polling, timer tolerance, nothing ticks while hidden,
+  light launch), and `mac-app-test` has an idle step: 60 s alone, CPU time and idle wakeups measured.
 
 ### Fixed
 

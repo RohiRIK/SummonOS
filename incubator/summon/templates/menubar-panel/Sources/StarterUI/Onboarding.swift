@@ -190,12 +190,16 @@ struct PermissionsPage: View {
         }
         .padding(40)
         .frame(maxWidth: .infinity, alignment: .leading)
-        // The switch is flipped in System Settings: check again every second while this page shows.
+        // The switch is flipped in System Settings: check when the user comes back to this app,
+        // plus a slow loop as a backstop, only while this page shows.
         .task {
             while !Task.isCancelled {
                 granted = Set(permissions.filter(\.isGranted))
-                try? await Task.sleep(for: .seconds(1))
+                try? await Task.sleep(for: .seconds(3), tolerance: .seconds(1))
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            granted = Set(permissions.filter(\.isGranted))
         }
     }
 }

@@ -14,5 +14,6 @@ mkdir -p "$SAVER/Contents/MacOS" "$SAVER/Contents/Resources"
 cp "$BIN/libStarter.dylib" "$SAVER/Contents/MacOS/Starter"
 cp Resources/Info.plist "$SAVER/Contents/Info.plist"
 cp Resources/AppIcon.icns "$SAVER/Contents/Resources/AppIcon.icns"
+strip -x "$SAVER/Contents/MacOS/Starter" # release build: drop local symbols for a smaller binary that loads faster
 codesign --force --sign - "$SAVER"
 echo "$SAVER"

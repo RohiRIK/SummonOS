@@ -18,7 +18,7 @@ public struct HUDView: View {
     public var body: some View {
         HStack(spacing: 10 * size.scale) {
             StateMark(state: model.stopwatch.state, scale: size.scale)
-            ElapsedTime(stopwatch: model.stopwatch, scale: size.scale)
+            ElapsedTime(stopwatch: model.stopwatch, isVisible: model.isHUDVisible, scale: size.scale)
             Spacer(minLength: 4)
             HUDButton(title: model.stopwatch.state == .running ? "Pause" : "Start",
                       symbol: model.stopwatch.state == .running ? "pause.fill" : "play.fill",
@@ -80,13 +80,14 @@ struct StateMark: View {
     }
 }
 
-/// Redraws once a second while running and not at all otherwise.
+/// Redraws once a second while running and on screen, and not at all otherwise: a hidden HUD costs no wakeups.
 struct ElapsedTime: View {
     let stopwatch: Stopwatch
+    let isVisible: Bool
     let scale: CGFloat
 
     var body: some View {
-        if stopwatch.state == .running {
+        if stopwatch.state == .running && isVisible {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 label(at: context.date)
             }
