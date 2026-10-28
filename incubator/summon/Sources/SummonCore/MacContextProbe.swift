@@ -21,17 +21,16 @@ public enum MacContextProbe {
     /// as a File Provider takes to answer, which hung the menu (#119). Only the AppKit reads run on the main actor.
     public static func snapshot(paths: SummonPaths, tools: ToolLocator, hidden: [ContextField], now: Date = Date()) async -> MacContext {
         let home = paths.home.path
-        let main: (MacContext.Apps, MacContext.Appearance, pid_t?) = await MainActor.run {
-            (apps(title: false), appearance(home: home), NSWorkspace.shared.frontmostApplication?.processIdentifier)
+        let (running, look, front) = await MainActor.run {
+            (Self.apps(title: false), Self.appearance(home: home), NSWorkspace.shared.frontmostApplication?.processIdentifier)
         }
-        let (apps, appearance, front) = main
         var context = await Task.detached {
             var context = basics(paths: paths, tools: tools, now: now)
-            context.apps = apps
+            context.apps = running
             context.apps?.windowTitle = front.flatMap(focusedWindowTitle(pid:))
             return context
         }.value
-        context.appearance = appearance
+        context.appearance = look
         return context.hiding(hidden)
     }
 
