@@ -7,6 +7,11 @@ see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/rele
 
 ## 2026-10-28
 
+### Fixed
+
+- Only one Summon runs at a time: a second copy (a dev build with the same bundle id) activates the running one and
+  quits.
+
 ### Added
 
 - A failed update row has Fix with AI: your agent gets the command and the end of its output, fixes the cause and

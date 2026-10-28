@@ -35,6 +35,15 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
     /// summon:// URLs come in as a kAEGetURL Apple event. Handling it here, before AppKit finishes launching, keeps
     /// SwiftUI from also routing it to a scene (which showed the Activity window), and still works on cold launch.
     public func applicationWillFinishLaunching(_ notification: Notification) {
+        // One Summon at a time: a second copy (a dev build with the same bundle id) hands over to the running one.
+        // shortcut: a summon:// URL that launched the second copy is dropped; forward it if that ever matters.
+        if let id = Bundle.main.bundleIdentifier,
+           let running = NSRunningApplication.runningApplications(withBundleIdentifier: id)
+               .first(where: { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }) {
+            PanelTrace.log.notice("another Summon is running (pid \(running.processIdentifier, privacy: .public)); quitting")
+            running.activate()
+            exit(0)
+        }
         NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(handleGetURL(_:withReply:)),
                                                      forEventClass: AEEventClass(kInternetEventClass),
                                                      andEventID: AEEventID(kAEGetURL))

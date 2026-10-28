@@ -4,6 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/RohiRIK/SummonOS/actions/workflows/swift.yml"><img alt="CI" src="https://github.com/RohiRIK/SummonOS/actions/workflows/swift.yml/badge.svg"></a>
+  <a href="https://github.com/RohiRIK/SummonOS/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/RohiRIK/SummonOS?sort=semver&label=release"></a>
   <img alt="Swift 6 | macOS 15+" src="docs/assets/pill-swift-macos.svg">
 </p>
 
@@ -56,8 +57,14 @@ curl -fsSL https://raw.githubusercontent.com/RohiRIK/SummonOS/main/install.sh | 
 
 This installs the newest [release](https://github.com/RohiRIK/SummonOS/releases), including prereleases, and
 does not need Xcode. The installer checks the download against `SHA256SUMS`. It then puts `Summon.app` in
-`~/Applications` and `summon` and `macctl` in `~/.local/bin`, and runs `summon doctor`. Run the same command
-again to update. Your themes, projects and settings are kept.
+`~/Applications` and `summon` and `macctl` in `~/.local/bin`, and runs `summon doctor`.
+
+### Updating
+
+From **0.2.0** on, SummonOS updates itself. Summon checks for a new release at launch and once a day, and the
+Updates window installs it with one click and relaunches. `summon update` does the same from a terminal. In
+0.2.0, clicking the update row in the panel does nothing, so run `summon update` once there. On **0.1.x**, run
+the install command above once more. Your themes, projects and settings are kept either way.
 
 Put options after `bash -s --`, for example `curl -fsSL …/install.sh | bash -s -- --connect`:
 
