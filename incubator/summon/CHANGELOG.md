@@ -10,8 +10,12 @@ see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/rele
 ### Fixed
 - Clicking an Update row did nothing: the rows had no shell action, and the panel ran only rows with one. They
   now install (the panel stays open and shows progress) and search finds them (#115). Released as SummonOS 0.2.1.
-- Each Update folder with two or more has its own Update All (that tool's commands only). The old Update Homebrew
-  Apps row, which started a whole agent session just to run brew, is gone (#115).
+- An Updates window replaces the panel's Update folder: every update with its own Update button and live state,
+  output on failure, Open in Terminal for a password, Update All per section, What's New and Skip This Version, one
+  notification per new set. The old Update Homebrew Apps row, which started a whole agent session just to run
+  brew, is gone (#115).
+- `ExcUserFault_*` reports (EXC_GUARD user faults: the process kept running) no longer notify; they stay in
+  Activity (#115).
 
 ## 2026-10-26
 

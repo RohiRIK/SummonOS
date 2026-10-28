@@ -29,7 +29,7 @@ public struct MenuItem: Sendable, Equatable, Codable, Identifiable {
         self.badge = badge
     }
 
-    /// A row that does something when chosen: a shell `action`, or an Update row the app runs itself.
+    /// A row that does something when chosen: a shell `action`, or the Update row (it opens the Updates window).
     public var isRunnable: Bool { action != nil || MenuTree.runsInApp(id) }
 
     public var parentID: String? {

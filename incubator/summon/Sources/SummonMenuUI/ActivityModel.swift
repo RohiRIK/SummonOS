@@ -51,6 +51,8 @@ public final class ActivityModel {
     public private(set) var settingsRequest = 0
     /// Bumped by `summon://welcome`; the opener shows the first-run setup window again.
     public private(set) var onboardingRequest = 0
+    /// Bumped by the panel's Update row and tag, and the updates notification; the opener shows the Updates window.
+    public private(set) var updatesRequest = 0
 
     /// False for previews: no disk reads, commands or activation-policy changes.
     @ObservationIgnored public internal(set) var live = true
@@ -112,6 +114,10 @@ public final class ActivityModel {
 
     public func requestOnboarding() {
         onboardingRequest += 1
+    }
+
+    public func requestUpdates() {
+        updatesRequest += 1
     }
 
     /// Reloads every source off the main actor. Cheap: small JSON files, no crash parsing.
@@ -290,6 +296,10 @@ public struct ActivityOpener: ViewModifier {
                 openSettings()
                 // The Settings scene's window is titled after the page shown, so it is found by its identifier.
                 bringToFront { $0.identifier?.rawValue.contains("Settings") == true }
+            }
+            .onChange(of: activity.updatesRequest) {
+                openWindow(id: UpdatesView.windowID)
+                bringToFront { $0.title == UpdatesView.title }
             }
             .onChange(of: activity.onboardingRequest) {
                 openWindow(id: OnboardingView.windowID)

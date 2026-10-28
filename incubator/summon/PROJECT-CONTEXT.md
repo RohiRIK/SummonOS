@@ -46,6 +46,12 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-28 — Updates window (0.2.1)
+- Owner asked for a much better update UX: `UpdatesView` (App Store style, sections per `SoftwareUpdate.Group`, per-row
+  `UpdateRowState`, one install at a time, Open in Terminal only for password failures). The panel only has the Update
+  row and the tag; both open the window (`MenuTree.runsInApp("update")`). Prefs: `UpdatePreferencesStore`.
+- `SummonMenu --screenshot <dir>` renders the Updates window (sample data) light/dark: look at UI changes without
+  Screen Recording. User faults (`ExcUserFault_*`) are routine: no notification.
 ### 2026-10-26 — The app updates itself (check + one click)
 - Summon.app checks the remembered channel at launch, then daily (`defaults/update-check`, on by default). A newer
   build shows a panel row "Summon X available · Update"; Settings › General › Updates has the toggle, the channel

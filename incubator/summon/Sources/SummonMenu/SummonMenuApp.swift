@@ -5,6 +5,10 @@ import SwiftUI
 struct SummonMenuApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
+    init() {
+        Screenshots.runIfAsked()
+    }
+
     // The menu bar item is an NSStatusItem + nonactivating panel owned by `AppDelegate.panel` (PanelController),
     // not MenuBarExtra: it takes typing without activating Summon and we own dismissal (docs/menubar-panel.md).
     var body: some Scene {
@@ -35,6 +39,15 @@ struct SummonMenuApp: App {
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
         .defaultWindowPlacement { _, _ in WindowPlacement(.center) }
+        .handlesExternalEvents(matching: [])
+
+        // Every update on this Mac, each with its own Update button (the panel's Update row and tag open it).
+        Window(UpdatesView.title, id: UpdatesView.windowID) {
+            UpdatesView(model: delegate.model)
+        }
+        .defaultSize(width: 620, height: 560)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
         .handlesExternalEvents(matching: [])
 
         // The one Settings window (⌘, from the app menu, Settings… in the panel, summon://settings).

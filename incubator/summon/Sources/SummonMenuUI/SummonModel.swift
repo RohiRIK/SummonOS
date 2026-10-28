@@ -57,15 +57,24 @@ public final class SummonModel {
     public private(set) var isUpdating = false
     /// The last Check Now or install result for Settings ("up to date", an error).
     public private(set) var updateStatus: String?
-    /// Outdated Homebrew, bun and npm packages and macOS updates (`SoftwareUpdateCheck`), checked with Summon's.
+    /// Outdated agents, Homebrew, bun and npm packages and macOS updates (`SoftwareUpdateCheck`), checked with Summon's.
     public private(set) var packageUpdates: [SoftwareUpdate] = []
-    /// Everything the panel's Updates folder lists: Summon first.
+    public private(set) var updatePreferences = UpdatePreferences()
+    /// Each row's install in the Updates window; a new check starts clean.
+    public private(set) var updateStates: [String: UpdateRowState] = [:]
+    public private(set) var lastUpdateCheck: Date?
+    public private(set) var isCheckingUpdates = false
+    /// A check found these (AppDelegate posts at most one notification per new set).
+    @ObservationIgnored public var onUpdatesFound: (([SoftwareUpdate]) -> Void)?
+    @ObservationIgnored private var installQueue: [SoftwareUpdate] = []
+    @ObservationIgnored private var installTask: Task<Void, Never>?
+    /// The Updates window's list: Summon first, then the checked groups, minus skipped versions.
     public var updates: [SoftwareUpdate] {
-        let summon = availableUpdate.map {
-            SoftwareUpdate(source: .summon, name: "Summon", current: $0.current, latest: $0.release.version, command: nil)
-        }
-        return (summon.map { [$0] } ?? []) + packageUpdates
+        let summon = availableUpdate.map { SoftwareUpdate.summon(current: $0.current, latest: $0.release.version, tag: $0.release.tag) }
+        return updatePreferences.shown((summon.map { [$0] } ?? []) + packageUpdates)
     }
+    /// Not installed yet: what the panel and the notification count (an updated row stays until the next check).
+    public var pendingUpdates: [SoftwareUpdate] { updates.filter { updateStates[$0.id] != .done } }
     /// Agents whose CLI is on this Mac, in registry order.
     public private(set) var installedAgentIDs: [String] = []
     /// Installed plugins per agent, and which agents have each catalog plugin (filled on demand).
@@ -220,6 +229,7 @@ public final class SummonModel {
         repoPolicy = RepoPolicyStore(paths: paths).load()
         updateChannel = UpdateChannelStore(paths: paths).load()
         checksForUpdates = AutoUpdateStore(paths: paths).load()
+        updatePreferences = UpdatePreferencesStore(paths: paths).load()
         do { executionMode = try ExecutionPolicyStore(paths: paths).load() }
         catch { lastError = String(describing: error) }
         let locator = ToolLocator.live()
@@ -292,64 +302,93 @@ public final class SummonModel {
     /// Summon's channel and every package manager at once. `quiet` (the daily check) says nothing when Summon's
     /// check fails: offline or GitHub's rate limit is not worth a row.
     public func checkForUpdates(quiet: Bool = false) async {
-        guard !isUpdating else { return }
-        if !quiet { updateStatus = "Checking…" }
+        guard !isUpdating, !isCheckingUpdates, installTask == nil else { return }
+        isCheckingUpdates = true
+        defer { isCheckingUpdates = false }
+        if !quiet { updateStatus = nil }
         async let packages = SoftwareUpdateCheck(runner: userPathRunner(runner), tools: ToolLocator.live()).run()
         do {
             let check = try await Updater(runner: runner, gh: ToolLocator.live().find("gh")).check(updateChannel)
             availableUpdate = check.available ? check : nil
-            if !quiet { updateStatus = check.available ? nil : "Summon \(check.current) is up to date." }
         } catch {
             if !quiet { updateStatus = String(describing: error) }
         }
         packageUpdates = await packages
+        updateStates = [:]
+        lastUpdateCheck = Date()
         loadMenu()
         PanelTrace.log.notice("update check: summon \(self.availableUpdate?.release.version ?? "current", privacy: .public), \(self.packageUpdates.count, privacy: .public) packages")
+        if updatePreferences.autoUpdateAgents { install(updates.filter { $0.group == .agents }) }
+        if !pendingUpdates.isEmpty { onUpdatesFound?(pendingUpdates) }
     }
 
-    /// A row in the panel's Update folder (`MenuTree.withUpdates`): `<folder>.<n>` indexes `updates`.
-    private func runUpdate(_ id: String) {
-        PanelTrace.log.notice("update row \(id, privacy: .public)")
-        switch id {
-        case "update.check": Task { await checkForUpdates() }
-        case "update.all": installPackages(packageUpdates)
-        case _ where id.hasSuffix(".all"):
-            let group = id.dropFirst("update.".count).dropLast(".all".count)
-            installPackages(packageUpdates.filter { $0.group.rawValue == group })
-        default:
-            guard let index = MenuTree.updateIndex(id), updates.indices.contains(index) else { return }
-            let update = updates[index]
-            switch update.source {
-            case .summon: installUpdate()
-            case .macOS: NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Software-Update-Settings.extension")!)
-            default: installPackages([update])
-            }
+    /// A row's Update button: Summon installs and relaunches, macOS opens Software Update, the rest run their command.
+    public func update(_ update: SoftwareUpdate) {
+        switch update.source {
+        case .summon: installUpdate()
+        case .macOS: NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Software-Update-Settings.extension")!)
+        default: install([update])
         }
     }
 
-    /// Runs each package's own upgrade command in turn; a failure keeps its row and is named in the panel.
-    private func installPackages(_ list: [SoftwareUpdate]) {
-        guard !isUpdating, !list.isEmpty else { return }
-        isUpdating = true
+    /// Queues each command-line update; they run one at a time (brew and npm take a lock), each row showing its state.
+    public func install(_ list: [SoftwareUpdate]) {
+        for update in list where update.command != nil {
+            switch updateStates[update.id] {
+            case .queued, .running, .done: continue
+            default: break
+            }
+            updateStates[update.id] = .queued
+            installQueue.append(update)
+        }
+        guard installTask == nil, !installQueue.isEmpty else { return }
         // Upgrades (a cask, a big formula) can take minutes.
-        let install = userPathRunner(Shell.live(timeout: 1800))
-        Task {
-            var failed: [String] = []
-            for update in list {
+        let run = userPathRunner(Shell.live(timeout: 1800))
+        installTask = Task {
+            while !installQueue.isEmpty {
+                let update = installQueue.removeFirst()
                 guard let command = update.command, let tool = command.first else { continue }
-                updateStatus = "Updating \(update.name)…"
+                updateStates[update.id] = .running
                 do {
-                    _ = try await install(tool, Array(command.dropFirst()))
-                    packageUpdates.removeAll { $0.id == update.id }
+                    _ = try await run(tool, Array(command.dropFirst()))
+                    updateStates[update.id] = .done
+                } catch RunnerError.failed(_, _, let output) {
+                    updateStates[update.id] = .failed(output)
                 } catch {
-                    failed.append(update.name)
+                    updateStates[update.id] = .failed(String(describing: error))
                 }
                 loadMenu()
             }
-            isUpdating = false
-            updateStatus = nil
-            lastError = failed.isEmpty ? nil : "Could not update \(failed.joined(separator: ", ")); try it in a terminal."
+            installTask = nil
         }
+    }
+
+    /// For a failure that needs a password: the same command in the default terminal, where sudo can ask.
+    public func openInTerminal(_ update: SoftwareUpdate) {
+        guard let command = update.command else { return }
+        let argv = terminal == .terminal ? command : AgentLauncher.inLoginShell(command, shell: ProcessInfo.processInfo.environment["SHELL"])
+        let plan = AgentLauncher.terminalPlan(agentArgv: argv, directory: NSHomeDirectory(), terminal: terminal)
+        Task {
+            do { _ = try await runner(plan.executable, plan.arguments) } catch { lastError = "Open in Terminal: \(error)" }
+        }
+    }
+
+    public func skip(_ update: SoftwareUpdate) {
+        changeUpdatePreferences { $0.skipped[update.id] = update.latest }
+    }
+
+    public func setUpdateGroup(_ group: SoftwareUpdate.Group, on: Bool) {
+        changeUpdatePreferences { if on { $0.off.remove(group.rawValue) } else { $0.off.insert(group.rawValue) } }
+    }
+
+    public func setAutoUpdateAgents(_ on: Bool) {
+        changeUpdatePreferences { $0.autoUpdateAgents = on }
+    }
+
+    private func changeUpdatePreferences(_ change: (inout UpdatePreferences) -> Void) {
+        change(&updatePreferences)
+        do { try UpdatePreferencesStore(paths: paths).save(updatePreferences) } catch { lastError = String(describing: error) }
+        loadMenu()
     }
 
     /// Package managers need the user's PATH from a GUI app (npm starts with `env node`). The argv is passed as
@@ -415,7 +454,7 @@ public final class SummonModel {
     func loadMenu() {
         let loaded = MenuTree.load(from: paths.menuFile)
         menu = loaded.tree.withProjects(projects, themes: themes, appHealth: appHealth, themeHealth: themeHealth)
-            .withUpdates(updates)
+            .withUpdates(count: pendingUpdates.count)
         menuError = loaded.problem
     }
 
@@ -878,10 +917,6 @@ public final class SummonModel {
     }
 
     public func run(_ item: MenuItem) {
-        if MenuTree.runsInApp(item.id) {
-            runUpdate(item.id)
-            return
-        }
         if item.id.hasPrefix("apps.") {
             let parts = item.id.split(separator: ".")
             if parts.count >= 3 {
@@ -933,6 +968,23 @@ public final class SummonModel {
 
 extension SummonModel {
     /// A model with sample data for previews; it never runs commands.
+    /// The Updates window's preview: one of each group and every row state.
+    public static func previewUpdates() -> SummonModel {
+        let model = preview()
+        model.packageUpdates = [
+            SoftwareUpdate(source: .agent, name: "Codex", current: "0.158.0", latest: "0.164.0", command: ["bun"]),
+            SoftwareUpdate(source: .agent, name: "OpenCode", current: "1.17.11", latest: "1.19.4", command: ["bun"]),
+            SoftwareUpdate(source: .homebrew, name: "btop", current: "1.4.7", latest: "1.4.8", command: ["brew"]),
+            SoftwareUpdate(source: .homebrew, name: "omniwm", current: "0.7.1", latest: "0.7.6", command: ["brew"]),
+            SoftwareUpdate(source: .npm, name: "npm", current: "11.19.1", latest: "12.2.1", command: ["npm"]),
+            SoftwareUpdate(source: .macOS, name: "macOS Tahoe 26.1", current: "", latest: "26.1", command: nil),
+        ]
+        model.updateStates = ["agent:Codex": .running, "agent:OpenCode": .done,
+                              "homebrew:omniwm": .failed("Error: sudo: a terminal is required to read the password")]
+        model.lastUpdateCheck = Date().addingTimeInterval(-120)
+        return model
+    }
+
     public static func preview() -> SummonModel {
         let home = FileManager.default.temporaryDirectory.appendingPathComponent("summon-preview", isDirectory: true)
         let model = SummonModel(paths: SummonPaths(home: home)) { _, _ in "" }

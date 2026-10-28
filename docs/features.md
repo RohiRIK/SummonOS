@@ -192,12 +192,15 @@ sections:
   remembered in `~/.config/summon/defaults/channel`. When the anonymous GitHub API is rate limited (a VPN or office
   IP), the check uses a logged-in `gh`.
 - The app updates itself: Summon.app checks the channel at launch and once a day, together with Homebrew
-  (`brew outdated`), bun and npm globals and macOS (`softwareupdate -l`). The panel's Update folder (the old Update group, back on the home), under Make
-  Something, lists each one with its versions (one click updates it; Summon installs the same way as `summon update`,
-  relaunches and asks for Accessibility again; macOS opens Software Update), plus Update All and Check Now. A count
-  tag in the panel's top right opens it.
-  Settings › General › Updates: Check for updates automatically (on; `~/.config/summon/defaults/update-check`),
-  the channel (Stable / Edge) and Check Now.
+  (`brew outdated`), bun and npm globals (agent CLIs among them shown as Agents) and macOS (`softwareupdate -l`).
+  The **Updates window** (the panel's Update row, "N new", under Make Something; the "N updates" tag at the panel's
+  top right; the notification) lists them like the App Store: Summon's card (What's New, Install and Relaunch:
+  the same install as `summon update`, then Accessibility again), then Agents, Homebrew, bun & npm and macOS. Each
+  row shows current → new and installs on its own (Waiting…, Updating…, ✓ Updated; a failure shows Show Details
+  with the output and Retry, or Open in Terminal when it needs a password). Update All per section and in the
+  toolbar, Check Now, "Checked N min ago"; right-click for What's New and Skip This Version. One notification per
+  new set of updates, with Update All and Show. Settings › General › Updates: Check for updates automatically,
+  the channel (Stable / Edge), Check per group, and Update agents automatically (`~/.config/summon/update-preferences.json`).
 
 ### Themes and look
 

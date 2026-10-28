@@ -371,6 +371,12 @@ struct GeneralSettings: View {
                         Text(status)
                     }
                 }
+                ForEach(SoftwareUpdate.Group.allCases.filter { $0 != .summon }, id: \.self) { group in
+                    Toggle("Check \(group.title)", isOn: Binding(get: { model.updatePreferences.includes(group) },
+                                                                set: { model.setUpdateGroup(group, on: $0) }))
+                }
+                Toggle("Update agents automatically", isOn: Binding(get: { model.updatePreferences.autoUpdateAgents },
+                                                                    set: { model.setAutoUpdateAgents($0) }))
             }
 
             Section("Automation & Storage") {

@@ -85,41 +85,51 @@ struct SoftwareUpdateTests {
         #expect(updates[0].command == ["bun", "add", "-g", "@openai/codex@latest"])
     }
 
-    @Test func updateFolderGroupsWhatIsOutdatedWithNewVersionTags() throws {
+    @Test func everyRowLinksToWhatIsNew() {
+        let brew = SoftwareUpdate.homebrew(#"{"formulae": [{"name": "btop", "installed_versions": ["1"], "current_version": "2"}],"casks": [{"name": "omniwm", "installed_versions": ["1"], "current_version": "2"}]}"#, brew: "brew")
+        #expect(brew.map(\.link) == ["https://formulae.brew.sh/formula/btop", "https://formulae.brew.sh/cask/omniwm"])
+        #expect(SoftwareUpdate.npm(#"{"typescript": {"current": "1", "latest": "2"}}"#, npm: "npm")[0].link == "https://www.npmjs.com/package/typescript")
+        #expect(SoftwareUpdate.summon(current: "0.2.0", latest: "0.2.1", tag: "v0.2.1").link
+                == "https://github.com/RohiRIK/SummonOS/releases/tag/v0.2.1")
+    }
+
+    @Test func preferencesHideOffGroupsAndSkippedVersionsAndPersist() throws {
+        let btop = SoftwareUpdate(source: .homebrew, name: "btop", current: "1", latest: "2", command: ["brew"])
+        let codex = SoftwareUpdate(source: .agent, name: "Codex", current: "1", latest: "2", command: ["bun"])
+        var preferences = UpdatePreferences()
+        #expect(preferences.shown([btop, codex]) == [btop, codex])
+        preferences.off = ["homebrew"]
+        #expect(preferences.shown([btop, codex]) == [codex])
+        preferences.off = []
+        preferences.skipped[codex.id] = "2"
+        #expect(preferences.shown([btop, codex]) == [btop])
+        var newer = codex
+        newer.latest = "3"
+        #expect(preferences.shown([newer]) == [newer], "a newer version than the skipped one shows again")
+
+        let store = UpdatePreferencesStore(paths: SummonPaths(home: try makeTempHome()))
+        #expect(store.load() == UpdatePreferences())
+        preferences.autoUpdateAgents = true
+        try store.save(preferences)
+        #expect(store.load() == preferences)
+    }
+
+    @Test func aPasswordFailureOffersTheTerminal() {
+        #expect(UpdateRowState.failed("sudo: a terminal is required to read the password").needsTerminal)
+        #expect(!UpdateRowState.failed("Error: No such keg").needsTerminal)
+        #expect(!UpdateRowState.running.needsTerminal)
+    }
+
+    @Test func panelUpdateRowIsTaggedAndOpensTheWindow() throws {
         let tree = try MenuTree(items: [MenuItem(id: "make", label: "Make"), MenuItem(id: "make.app", label: "App"),
-                                        MenuItem(id: "update", label: "Update"),
-                                        MenuItem(id: "update.brew", label: "Update Homebrew Apps", action: "x"),
                                         MenuItem(id: "apps", label: "My Apps")])
-        let updates = [SoftwareUpdate(source: .summon, name: "Summon", current: "0.1.1", latest: "0.1.2", command: nil),
-                       SoftwareUpdate(source: .homebrew, name: "btop", current: "1", latest: "2", command: ["brew"]),
-                       SoftwareUpdate(source: .agent, name: "Codex", current: "1", latest: "2", command: ["bun"])]
-        let filled = tree.withUpdates(updates)
-        #expect(filled.items.map(\.id) == ["make", "make.app", "update", "update.0", "update.agents", "update.agents.2",
-                                           "update.homebrew", "update.homebrew.1", "update.all", "update.check",
-                                           "update.brew", "apps"])
-        #expect(filled.item("update")?.badge == "3 new")
-        #expect(filled.item("update.homebrew")?.badge == "1")
-        #expect(filled.item("update.0")?.label == "Summon 0.1.1")
-        #expect(filled.item("update.0")?.badge == "New 0.1.2")
-        #expect(MenuTree.updateIndex("update.agents.2") == 2)
-        #expect(MenuTree.updateIndex("update.brew") == nil)
-
-        // Clicking does something: every row is a folder or runnable, and search finds them (it once did neither).
-        for item in filled.items where item.id.hasPrefix("update") {
-            #expect(item.isRunnable || !filled.children(of: item.id).isEmpty, "\(item.id) does nothing when clicked")
-        }
-        #expect(filled.search("btop").map(\.id) == ["update.homebrew.1"])
-
-        // A folder with two or more gets its own Update All: only that tool's commands, no agent.
-        let brew = [SoftwareUpdate(source: .homebrew, name: "a", current: "1", latest: "2", command: ["brew"]),
-                    SoftwareUpdate(source: .homebrew, name: "b", current: "1", latest: "2", command: ["brew"])]
-        let grouped = tree.withUpdates(brew)
-        #expect(grouped.children(of: "update.homebrew").map(\.id) == ["update.homebrew.all", "update.homebrew.0", "update.homebrew.1"])
-        #expect(MenuTree.runsInApp("update.homebrew.all"))
-        #expect(!MenuTree.runsInApp("update.brew"))
-
-        let none = try MenuTree(items: [MenuItem(id: "make", label: "Make")]).withUpdates([])
-        #expect(none.items.map(\.id) == ["make", "update", "update.none", "update.check"])
-        #expect(none.item("update")?.badge == nil)
+        let tagged = tree.withUpdates(count: 3)
+        #expect(tagged.items.map(\.id) == ["make", "make.app", "update", "apps"])
+        #expect(tagged.item("update")?.badge == "3 new")
+        #expect(tagged.item("update")?.isRunnable == true, "choosing Update must do something")
+        #expect(tree.withUpdates(count: 0).item("update")?.badge == nil)
+        let custom = try MenuTree(items: [MenuItem(id: "update", label: "Update"), MenuItem(id: "update.macos", label: "macOS", action: "open x")])
+        #expect(custom.withUpdates(count: 1).items.map(\.id) == ["update", "update.macos"])
+        #expect(MenuTree.runsInApp("update") && !MenuTree.runsInApp("update.macos"))
     }
 }
