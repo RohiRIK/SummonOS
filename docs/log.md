@@ -1,6 +1,7 @@
 # Docs update log
 
 ## 2026-10-28
+* **Update**: [README](../README.md): latest-release badge and an Updating section (self-update from 0.2.0).
 * **Update**: SummonOS 0.2.2: Fix with AI on a failed update row.
 * **Update**: SummonOS 0.2.1: clicking an Update row installs it.
 
