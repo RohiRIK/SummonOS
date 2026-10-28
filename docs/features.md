@@ -170,7 +170,7 @@ sections:
 ### Activity and status from the command line
 
 - `summon status`: agent, macctl, last change, last checkpoint and recent problems at a glance.
-- `summon version` (or `--version`): prints the SummonOS version (`summon 0.2.3`); `summon doctor` shows it on its
+- `summon version` (or `--version`): prints the SummonOS version (`summon 0.2.4`); `summon doctor` shows it on its
   first line and in `--json`. One version for `summon`, Summon.app and `macctl`, kept in the root `VERSION` file.
 - `summon context [--json] [--only a,b]`: this Mac for agents in one read-only snapshot (about 60 ms): model,
   chip, RAM, macOS, power and thermal state, free space per volume, network and VPN, displays, frontmost app and
