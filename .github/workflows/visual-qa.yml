@@ -60,7 +60,9 @@ jobs:
           swift --version
       - name: Build Summon.app
         working-directory: incubator/summon
-        run: scripts/bundle.sh
+        run: |
+          scripts/bundle.sh
+          test -f build/Summon.app/Contents/Resources/Metadata.appintents/extract.actionsdata
       - name: Off-screen render (template --screenshot)
         working-directory: incubator/summon/templates/menubar
         run: |

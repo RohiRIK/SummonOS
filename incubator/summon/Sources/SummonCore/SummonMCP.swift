@@ -176,7 +176,7 @@ public enum SummonMCP {
 
     static func snapshot(_ env: Environment) async -> MacContext {
         let hidden = AgentSettingsStore(paths: env.paths).load().hiddenContext
-        return await MainActor.run { MacContextProbe.live(paths: env.paths, tools: env.tools, hidden: hidden) }
+        return await MacContextProbe.snapshot(paths: env.paths, tools: env.tools, hidden: hidden)
     }
 
     static func service(_ env: Environment) -> CheckpointService {

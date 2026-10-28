@@ -63,6 +63,15 @@ public struct SoftwareUpdate: Sendable, Equatable, Identifiable {
         self.link = link
     }
 
+    /// What Siri says for "What needs updating?": the count and up to three names.
+    public static func spoken(_ updates: [SoftwareUpdate]) -> String {
+        guard !updates.isEmpty else { return "Everything is up to date." }
+        let names = updates.prefix(3).map(\.name)
+        let more = updates.count > 3 ? " and \(updates.count - 3) more" : ""
+        let count = updates.count == 1 ? "1 update" : "\(updates.count) updates"
+        return "\(count): " + names.joined(separator: ", ") + more + "."
+    }
+
     /// Fix with AI on a failed row: the command, the end of its output, and a narrow brief.
     public func fixPrompt(output: String) -> String {
         let shown = command.map { $0.joined(separator: " ") } ?? name

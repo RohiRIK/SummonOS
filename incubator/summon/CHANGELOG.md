@@ -3,17 +3,21 @@
 All notable changes to Summon. Newest first. Summon is still incubating in the SummonOS workspace; entries are
 grouped by day and point at the pull request. SummonOS releases (one version for `summon`, `macctl` and Summon.app,
 see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/releases): `v0.1.0` (up to #77) and
-`v0.1.1` (#78 to #90), both on 2026-10-25, `v0.2.0` (#91 to #114) on 2026-10-26, `v0.2.1` (#115) and `v0.2.2` (#116). Later changes ship on the rolling `edge` prerelease until the next tag.
+`v0.1.1` (#78 to #90), both on 2026-10-25, `v0.2.0` (#91 to #114) on 2026-10-26, `v0.2.1` (#115), `v0.2.2` (#116) and `v0.2.3` (#117, #118). Later changes ship on the rolling `edge` prerelease until the next tag.
 
 ## 2026-10-28
 
 ### Fixed
 
+- The menu no longer hangs while a File Provider (OneDrive, iCloud) is busy: the Mac snapshot's file checks run
+  off the main thread, and a stuck one skips its next rounds instead of piling up (#119).
 - Only one Summon runs at a time: a second copy (a dev build with the same bundle id) activates the running one and
   quits.
 
 ### Added
 
+- Siri, Shortcuts and Spotlight: Ask Summon, What Needs Updating, Update Everything, How's My Mac and Run Menu
+  Item. `scripts/bundle.sh` writes the App Intents metadata SwiftPM leaves out.
 - A failed update row has Fix with AI: your agent gets the command and the end of its output, fixes the cause and
   runs the update again.
 

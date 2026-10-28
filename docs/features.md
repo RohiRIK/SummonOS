@@ -92,6 +92,10 @@ turns each one off. Crash diagnosis, Activity and tasks keep their own prompts. 
   Show Log and Ask Agent (a plain banner when the app is not running).
 - **Crash commands:** `summon crash list`, `crash show <file.ips>` (parsed facts), `crash diagnose
   --latest`, `crash mute <program>` (and `off`), with muted programs managed in Settings.
+- **Siri, Shortcuts and Spotlight:** Summon's App Intents. "Ask Summon" starts your agent with what you said;
+  "What needs updating in Summon" reads the pending updates; "Update everything with Summon" installs them and opens
+  the Updates window; "How's my Mac in Summon" reads battery, free space, network and recent crashes; "Run <item>
+  in Summon" runs a Summon Menu item. Each is also a Shortcuts action. Builds need Xcode for the metadata.
 - **Debug bundle:** `summon debug [--print] [--save] [--since 1h]` collects the macOS version, hardware,
   recent errors, reports and packages, with best-effort redaction and private saved files. Review before sharing.
 
@@ -166,7 +170,7 @@ sections:
 ### Activity and status from the command line
 
 - `summon status`: agent, macctl, last change, last checkpoint and recent problems at a glance.
-- `summon version` (or `--version`): prints the SummonOS version (`summon 0.2.2`); `summon doctor` shows it on its
+- `summon version` (or `--version`): prints the SummonOS version (`summon 0.2.3`); `summon doctor` shows it on its
   first line and in `--json`. One version for `summon`, Summon.app and `macctl`, kept in the root `VERSION` file.
 - `summon context [--json] [--only a,b]`: this Mac for agents in one read-only snapshot (about 60 ms): model,
   chip, RAM, macOS, power and thermal state, free space per volume, network and VPN, displays, frontmost app and

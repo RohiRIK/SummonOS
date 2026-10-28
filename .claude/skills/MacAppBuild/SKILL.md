@@ -34,6 +34,7 @@ SwiftPM-only build, verify and ship loop. No Xcode project; Xcode is used throug
 - `Process` with `waitUntilExit()` on the main actor freezes the menu. Run commands off-main (`Task.detached` or an actor).
 - Never let SwiftPM write `.build/` inside Google Drive (461 MB for a hello-world app). Both scripts pass `--scratch-path ~/Library/Caches/macplugins/<name>`. Do not run bare `swift build` in a plugin folder.
 - Bun `Bun.spawn` stdin is buffered: call `proc.stdin.flush()` after each write, or an MCP server never sees the request. Send `tools/call` only after the `initialize` reply.
+- App Intents (Siri, Shortcuts, Spotlight) in a SwiftPM app: neither `swift build` nor `xcodebuild` on a package writes `Metadata.appintents`, and macOS only finds intents through it. Gather the module's const values with `swiftc -frontend -typecheck ... -emit-const-values-path X -const-gather-protocols-file P` and run `xcrun appintentsmetadataprocessor --output <App>/Contents/Resources` (Summon `scripts/bundle.sh`). Keep the intents in the `@main` executable target.
 - Command Line Tools only (no Xcode): `swift test` fails with "no such module 'Testing'". CLT ships `Testing.framework` off the search path. Always run tests via `scripts/test.sh`, which adds the `-F`/rpath flags.
 
 ## Examples

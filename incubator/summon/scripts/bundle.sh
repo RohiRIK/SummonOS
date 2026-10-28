@@ -51,6 +51,30 @@ cp -R plugin/skills "$APP/Contents/share/summon/skills"
 cp -R config "$APP/Contents/share/summon/config"
 cp -R design/brand "$APP/Contents/share/summon/assets"
 
+# Siri, Shortcuts and Spotlight find the App Intents in Sources/SummonMenu through Metadata.appintents. Only Xcode
+# projects write it, so gather the module's const values here and run Xcode's processor. Without Xcode (Command
+# Line Tools only) the app still works, just without the Siri actions.
+if PROCESSOR="$(xcrun --find appintentsmetadataprocessor 2>/dev/null)"; then
+  META="$CACHE/appintents"
+  rm -rf "$META" && mkdir -p "$META"
+  echo '["AppEntity","AppEnum","AppIntent","AppShortcutsProvider","DynamicOptionsProvider","EntityQuery","EntityStringQuery","TransientEntity"]' >"$META/protocols.json"
+  ls "$PWD"/Sources/SummonMenu/*.swift >"$META/sources.txt"
+  SDK="$(xcrun --show-sdk-path)"
+  xcrun swiftc -frontend -typecheck -parse-as-library -module-name SummonMenu -target arm64-apple-macos15.0 \
+    -sdk "$SDK" -I "$BIN" -I "$BIN/Modules" \
+    -emit-const-values-path "$META/SummonMenu.swiftconstvalues" -const-gather-protocols-file "$META/protocols.json" \
+    $(cat "$META/sources.txt")
+  echo "$META/SummonMenu.swiftconstvalues" >"$META/constvalues.txt"
+  "$PROCESSOR" --output "$APP/Contents/Resources" --module-name SummonMenu \
+    --toolchain-dir "$(dirname "$(dirname "$(dirname "$(xcrun --find swiftc)")")")" --sdk-root "$SDK" \
+    --xcode-version "$(xcodebuild -version | awk '/Build version/ {print $3}')" --platform-family macOS \
+    --deployment-target 15.0 --target-triple arm64-apple-macos15.0 --binary-file "$APP/Contents/MacOS/SummonMenu" \
+    --source-file-list "$META/sources.txt" --swift-const-vals-list "$META/constvalues.txt" --quiet-warnings >/dev/null
+  [ -d "$APP/Contents/Resources/Metadata.appintents" ] || echo "No Metadata.appintents: Siri will not see Summon" >&2
+else
+  echo "No Xcode: Summon builds without its Siri and Shortcuts actions" >&2
+fi
+
 codesign --force --sign - "$APP/Contents/MacOS/summon"
 codesign --force --sign - "$APP"
 echo "$APP"

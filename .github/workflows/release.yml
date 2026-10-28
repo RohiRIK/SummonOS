@@ -92,7 +92,10 @@ jobs:
           swift build --package-path macctl -c release --arch arm64 --arch x86_64 --product macctl
           echo "MACCTL_BIN=$(swift build --package-path macctl -c release --arch arm64 --arch x86_64 --show-bin-path)/macctl" >> "$GITHUB_ENV"
       - name: Build Summon.app (universal)
-        run: incubator/summon/scripts/bundle.sh --universal
+        run: |
+          incubator/summon/scripts/bundle.sh --universal
+          # Siri and Shortcuts find Summon's actions through this; a release without it loses them.
+          test -f incubator/summon/build/Summon.app/Contents/Resources/Metadata.appintents/extract.actionsdata
       - name: Stage the install layout
         env:
           VERSION: ${{ steps.version.outputs.asset_version }}

@@ -271,3 +271,26 @@ public enum ContextError: Error, Equatable, CustomStringConvertible {
         }
     }
 }
+
+extension MacContext {
+    /// What Siri says for "How's my Mac?": power, the main disk's free space, network and recent problems.
+    public var spoken: String {
+        var parts: [String] = []
+        if let power {
+            if let battery = power.battery {
+                parts.append("Battery \(battery)%" + (power.onAC ? ", on power" : ""))
+            } else if power.onAC {
+                parts.append("On power")
+            }
+            if power.thermal != "nominal" { parts.append("running \(power.thermal)") }
+        }
+        if let disk = storage?.first(where: { $0.path == "/" }) ?? storage?.first {
+            parts.append("\(disk.freeGB) GB free")
+        }
+        if let network, !network.online { parts.append("offline") }
+        if let crashes = recentCrashes, crashes > 0 {
+            parts.append("\(crashes) crash\(crashes == 1 ? "" : "es") or hang\(crashes == 1 ? "" : "s") in the last day")
+        }
+        return parts.isEmpty ? "Your Mac looks fine." : parts.joined(separator: ". ") + "."
+    }
+}
