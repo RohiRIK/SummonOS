@@ -14,5 +14,6 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN/Starter" "$APP/Contents/MacOS/Starter"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+strip -x "$APP/Contents/MacOS/Starter" # release build: drop local symbols for a smaller binary that loads faster
 codesign --force --sign - "$APP"
 echo "$APP"

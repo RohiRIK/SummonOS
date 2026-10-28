@@ -41,6 +41,13 @@ public enum AppCatalog {
         return found.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
     }
 
+    /// The folders' modification dates: they change when an app is added to or removed from a folder, so an
+    /// unchanged stamp means a cached scan is still good (apps inside a subfolder like Utilities are not seen).
+    public static func stamp(_ folders: [URL] = standardFolders) -> [Date?] {
+        // FileManager, not URL.resourceValues: a URL caches its values, so a second read would miss the change.
+        folders.map { (try? FileManager.default.attributesOfItem(atPath: $0.path))?[.modificationDate] as? Date }
+    }
+
     private static func children(of folder: URL) -> [URL] {
         (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.isDirectoryKey],
                                                        options: [.skipsHiddenFiles])) ?? []

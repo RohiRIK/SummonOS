@@ -27,6 +27,8 @@ public final class StarterModel {
 
     @ObservationIgnored var close: @MainActor () -> Void = {}
     private var catalog: [Launchable]
+    @ObservationIgnored private var scannedAt: Date?
+    @ObservationIgnored private var scannedStamp: [Date?] = []
 
     public init(catalog: [Launchable] = []) {
         self.catalog = catalog
@@ -34,13 +36,18 @@ public final class StarterModel {
 
     public var selected: Launchable? { results.indices.contains(selection) ? results[selection] : nil }
 
-    /// Fresh state for each open; the app list is rescanned in the background so new apps show up.
+    /// Fresh state for each open. The app list is rescanned in the background only when an app folder changed or
+    /// the last scan is a few minutes old, so opening the launcher again costs almost nothing.
     func prepareForOpen() {
         query = ""
         droppedFile = nil
         showingActions = false
+        let stamp = AppCatalog.stamp()
+        if let scannedAt, Date().timeIntervalSince(scannedAt) < 300, stamp == scannedStamp { return }
+        scannedAt = Date()
+        scannedStamp = stamp
         Task {
-            let apps = await Task.detached(priority: .userInitiated) { AppCatalog.scan() }.value
+            let apps = await Task.detached(priority: .utility) { AppCatalog.scan() }.value
             catalog = apps
             if !query.isEmpty { results = FuzzyMatch.rank(apps, query: query) }
         }

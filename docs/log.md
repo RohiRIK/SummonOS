@@ -1,6 +1,8 @@
 # Docs update log
 
 ## 2026-10-28
+* **Update**: SummonOS 0.2.4: Summon and the apps it builds use less while idle.
+* **Update**: [Summon CHANGELOG](../incubator/summon/CHANGELOG.md): templates idle cheaper (permission re-check, HUD timer, launcher scan cache, stripped release binaries); the `mac-app` skill gains an Efficiency section and `mac-app-test` an idle step.
 * **Update**: SummonOS 0.2.3: [features](features.md): Siri, Shortcuts and Spotlight actions; [MacAppBuild](../.claude/skills/MacAppBuild/SKILL.md) gotcha: App Intents metadata in SwiftPM apps.
 * **Update**: [README](../README.md): latest-release badge and an Updating section (self-update from 0.2.0).
 * **Update**: SummonOS 0.2.2: Fix with AI on a failed update row.

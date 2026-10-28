@@ -45,7 +45,7 @@ process with `pgrep -fl <App>` and the window with `swift windows.swift <pid>` (
 |---|---|---|
 | Launch | `open build/<App>.app` | Process starts. A menu bar app shows no window and no Dock icon. |
 | My Apps | `summon project open <name>` (what My Apps in Summon's panel runs) | The same app starts. |
-| Menu bar icon | Click it (needs Accessibility for an agent; else step 7) | The panel opens under it; a second click, Esc and a click elsewhere close it. |
+| Menu bar icon | Click it (needs Accessibility for an agent; else step 8) | The panel opens under it; a second click, Esc and a click elsewhere close it. |
 | Hotkey / URL | Press it, or `open <scheme>://…` | Opens the same panel or window. |
 | Open again | `open build/<App>.app` while it runs | Shows the main or editor window (the way in when the icon is hidden). |
 | Settings | ⌘, from the panel, or the right-click menu | The Settings window opens in front. |
@@ -60,25 +60,41 @@ log show --last 5m --predicate 'process == "<App>"' | grep -iE "error|fault"
 
 No error or fault lines that the app caused. A failure the app logged must also show in its UI.
 
-## 5. Screenshots
+## 5. Idle
+
+Launch the app, close its panel or window the way the user would (a menu bar app: panel closed), and leave it alone
+for 60 s. Use absolute paths: on this Mac `ps` and `top` may be aliases for other tools.
+
+```bash
+pid=$(pgrep -n <App>)
+/bin/ps -o cputime= -p $pid; sleep 60; /bin/ps -o cputime= -p $pid
+/usr/bin/top -l 2 -s 30 -pid $pid -stats pid,command,cpu,idlew,power | tail -1
+```
+
+Pass: the CPU time grew by well under a second in 60 s, `%CPU` ≈ 0, and `IDLEW` (idle wakeups in the sample)
+under about 1 per second. More means something ticks while nobody looks: a timer, a poll loop, a `TimelineView` or
+an animation that should stop when hidden (the `mac-app` skill, "Efficiency"). An app whose job is live data checks
+the same with its panel open, at its own refresh rate.
+
+## 6. Screenshots
 
 `summon project shots <name>`, then open every PNG (light and dark). Check the panel width, clipping, real-looking
 data, and the footer. `--screenshot` draws offscreen, where a `NavigationSplitView` or `List` comes out blank:
 check those windows by running the app, never from a blank shot.
 
-## 6. Permissions and first run
+## 7. Permissions and first run
 
 - Only an app that needs a permission has a welcome window (the `mac-app` skill). Test it from a fresh state:
   `defaults delete local.summon.<name>`, then launch.
 - Each permission: denied, then granted while the app runs; the app notices without a relaunch.
 
-## 7. What the user clicks
+## 8. What the user clicks
 
 An agent without Accessibility can't click the menu bar or type into the app. Then give the user a short numbered
 list (open the panel, do the app's job once, switch, quit and reopen, check the data came back) and do not call
-the app done until they answer. Fix what they report, then run steps 2–5 again.
+the app done until they answer. Fix what they report, then run steps 2–6 again.
 
-## 8. Report
+## 9. Report
 
 Say what passed and how (counts, commands), what the user confirmed, and what was not tested and why. Never say
 "works" for a path nobody ran.
