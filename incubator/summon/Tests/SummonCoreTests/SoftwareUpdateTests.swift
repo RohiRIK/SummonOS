@@ -104,6 +104,12 @@ struct SoftwareUpdateTests {
         #expect(MenuTree.updateIndex("update.agents.2") == 2)
         #expect(MenuTree.updateIndex("update.brew") == nil)
 
+        // Clicking does something: every row is a folder or runnable, and search finds them (it once did neither).
+        for item in filled.items where item.id.hasPrefix("update") {
+            #expect(item.isRunnable || !filled.children(of: item.id).isEmpty, "\(item.id) does nothing when clicked")
+        }
+        #expect(filled.search("btop").map(\.id) == ["update.homebrew.1"])
+
         let none = try MenuTree(items: [MenuItem(id: "make", label: "Make")]).withUpdates([])
         #expect(none.items.map(\.id) == ["make", "update", "update.none", "update.check"])
         #expect(none.item("update")?.badge == nil)

@@ -212,6 +212,11 @@ extension MenuTree {
         return (try? MenuTree(items: updated)) ?? self
     }
 
+    /// Update rows have no shell action: the app installs them (`SummonModel.runUpdate`).
+    public static func runsInApp(_ id: String) -> Bool {
+        ["update.all", "update.check"].contains(id) || updateIndex(id) != nil
+    }
+
     /// The index into `updates` for an update row, nil for every other item (`update.brew` from a menu file too).
     public static func updateIndex(_ id: String) -> Int? {
         guard id.hasPrefix("update."), let last = id.split(separator: ".").last else { return nil }

@@ -3,7 +3,13 @@
 All notable changes to Summon. Newest first. Summon is still incubating in the SummonOS workspace; entries are
 grouped by day and point at the pull request. SummonOS releases (one version for `summon`, `macctl` and Summon.app,
 see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/releases): `v0.1.0` (up to #77) and
-`v0.1.1` (#78 to #90), both on 2026-10-25, and `v0.2.0` (#91 to #114) on 2026-10-26. Later changes ship on the rolling `edge` prerelease until the next tag.
+`v0.1.1` (#78 to #90), both on 2026-10-25, `v0.2.0` (#91 to #114) on 2026-10-26, and `v0.2.1` (#115). Later changes ship on the rolling `edge` prerelease until the next tag.
+
+## 2026-10-28
+
+### Fixed
+- Clicking an Update row did nothing: the rows had no shell action, and the panel ran only rows with one. They
+  now install (the panel stays open and shows progress) and search finds them (#115). Released as SummonOS 0.2.1.
 
 ## 2026-10-26
 

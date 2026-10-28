@@ -1,5 +1,8 @@
 # Docs update log
 
+## 2026-10-28
+* **Update**: SummonOS 0.2.1: clicking an Update row installs it.
+
 ## 2026-10-26
 * **Update**: SummonOS 0.2.0 (VERSION, summon, macctl, Summon.app): the app updates itself; Update folder with every outdated tool; crashes as notifications.
 * **Update**: [Summon CHANGELOG](../incubator/summon/CHANGELOG.md): the 2026-10-25 work from #72 to #96 was missing; it now lists it and names the `v0.1.0` and `v0.1.1` releases.

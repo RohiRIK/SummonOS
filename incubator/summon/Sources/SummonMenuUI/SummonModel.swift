@@ -311,7 +311,6 @@ public final class SummonModel {
         switch id {
         case "update.check": Task { await checkForUpdates() }
         case "update.all": installPackages(packageUpdates)
-        case "update.none": break
         default:
             guard let index = MenuTree.updateIndex(id), updates.indices.contains(index) else { return }
             let update = updates[index]
@@ -874,7 +873,7 @@ public final class SummonModel {
     }
 
     public func run(_ item: MenuItem) {
-        if ["update.all", "update.check", "update.none"].contains(item.id) || MenuTree.updateIndex(item.id) != nil {
+        if MenuTree.runsInApp(item.id) {
             runUpdate(item.id)
             return
         }

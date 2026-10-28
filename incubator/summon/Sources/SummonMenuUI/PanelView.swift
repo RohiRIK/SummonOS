@@ -154,7 +154,7 @@ public struct PanelView: View {
                     .padding(.horizontal, 8)
             }
             if isHome { attentionRow }
-            if level?.hasPrefix("update") == true, let status = model.updateStatus, model.isUpdating {
+            if level?.hasPrefix("update") == true, let status = model.updateStatus {
                 Text(status)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -306,7 +306,10 @@ public struct PanelView: View {
         let current = rows
         guard current.indices.contains(selection) else { return }
         let item = current[selection]
-        if item.action != nil {
+        if MenuTree.runsInApp(item.id) {
+            // The panel stays open: the row shows "Updating …" and leaves when its install is done.
+            model.run(item)
+        } else if item.isRunnable {
             actions.finish()
             model.run(item)
         } else if model.hasChildren(item) {
