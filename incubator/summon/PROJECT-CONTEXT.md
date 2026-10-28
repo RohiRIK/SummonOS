@@ -46,6 +46,9 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-10-28 — Fix with AI on failed updates (0.2.2)
+- A failed Updates row has Fix with AI: `SoftwareUpdate.fixPrompt(output:)` (command + last 4000 chars of output)
+  goes to `askAgent`.
 ### 2026-10-28 — Updates window (0.2.1)
 - Owner asked for a much better update UX: `UpdatesView` (App Store style, sections per `SoftwareUpdate.Group`, per-row
   `UpdateRowState`, one install at a time, Open in Terminal only for password failures). The panel only has the Update

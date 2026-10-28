@@ -120,6 +120,16 @@ struct SoftwareUpdateTests {
         #expect(!UpdateRowState.running.needsTerminal)
     }
 
+    @Test func fixPromptCarriesTheCommandAndTheOutputTail() {
+        let update = SoftwareUpdate(source: .homebrew, name: "notion", current: "7.10.0", latest: "7.41.1",
+                                    command: ["/opt/homebrew/bin/brew", "upgrade", "--cask", "notion"])
+        let prompt = update.fixPrompt(output: String(repeating: "x", count: 5000) + "Error: It seems there is already an App")
+        #expect(prompt.contains("notion (Homebrew) from 7.10.0 to 7.41.1"))
+        #expect(prompt.contains("/opt/homebrew/bin/brew upgrade --cask notion"))
+        #expect(prompt.contains("Error: It seems there is already an App"))
+        #expect(prompt.count < 4500, "only the end of a long output")
+    }
+
     @Test func panelUpdateRowIsTaggedAndOpensTheWindow() throws {
         let tree = try MenuTree(items: [MenuItem(id: "make", label: "Make"), MenuItem(id: "make.app", label: "App"),
                                         MenuItem(id: "apps", label: "My Apps")])

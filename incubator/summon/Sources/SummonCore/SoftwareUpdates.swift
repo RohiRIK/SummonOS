@@ -63,6 +63,21 @@ public struct SoftwareUpdate: Sendable, Equatable, Identifiable {
         self.link = link
     }
 
+    /// Fix with AI on a failed row: the command, the end of its output, and a narrow brief.
+    public func fixPrompt(output: String) -> String {
+        let shown = command.map { $0.joined(separator: " ") } ?? name
+        let tail = String(output.trimmingCharacters(in: .whitespacesAndNewlines).suffix(4000))
+        return """
+        Updating \(name) (\(group.title)) from \(current.isEmpty ? "?" : current) to \(latest) failed.
+        Command: \(shown)
+        Output (end):
+        \(tail)
+
+        Find why it failed, fix the cause, and run the update again. Touch only what this update needs.
+        If it needs my password (sudo), tell me the exact command to run instead.
+        """
+    }
+
     /// Summon's own row: the release page is its "What's New".
     public static func summon(current: String, latest: String, tag: String) -> SoftwareUpdate {
         SoftwareUpdate(source: .summon, name: "Summon", current: current, latest: latest, command: nil,
