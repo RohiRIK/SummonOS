@@ -1,4 +1,5 @@
 import AppKit
+import ImageIO
 import ServiceManagement
 import SummonCore
 import SwiftUI
@@ -1171,7 +1172,7 @@ struct ThemePreviewCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if let url = store.wallpaperURL(theme),
-               let nsImage = NSImage(contentsOf: url) {
+               let nsImage = WallpaperThumbnail.image(url) {
                 ZStack(alignment: .bottomTrailing) {
                     Image(nsImage: nsImage)
                         .resizable()
@@ -2294,5 +2295,24 @@ struct SetupSettings: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+/// Theme cards show a small wallpaper: decoding the full image (tens of MB for a 6K HEIC) on every render is waste.
+@MainActor
+enum WallpaperThumbnail {
+    private static let cache = NSCache<NSString, NSImage>()
+
+    static func image(_ url: URL, maxPixels: Int = 800) -> NSImage? {
+        let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+        let key = "\(url.path)\u{0}\(modified?.timeIntervalSince1970 ?? 0)" as NSString
+        if let cached = cache.object(forKey: key) { return cached }
+        let options = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true,
+                       kCGImageSourceThumbnailMaxPixelSize: maxPixels] as CFDictionary
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options) else { return nil }
+        let image = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+        cache.setObject(image, forKey: key)
+        return image
     }
 }

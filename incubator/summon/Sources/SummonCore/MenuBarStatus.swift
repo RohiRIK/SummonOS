@@ -3,9 +3,6 @@ import Foundation
 /// What the status item shows next to Summon's icon, and what VoiceOver reads for it. The menu bar has no
 /// menu-tracking loop to wait for, so the controller can redraw this every second while an agent runs.
 public enum MenuBarStatus {
-    /// How often the event log's modification date is checked while the panel is closed.
-    public static let pollInterval: TimeInterval = 2
-
     /// The text after the icon: the running agent's elapsed `mm:ss`, or nil (icon only).
     public static func title(session: LoggedEvent?, enabled: Bool, now: Date = Date()) -> String? {
         guard enabled, let start = session?.time else { return nil }

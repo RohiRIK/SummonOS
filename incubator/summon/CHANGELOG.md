@@ -7,6 +7,15 @@ see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/rele
 
 ## 2026-10-28
 
+### Changed
+
+- Summon does less while it sits in the menu bar. The menu bar label wakes on event log changes (a kqueue file
+  watch) instead of every second, and ticks only while it shows an agent's clock. New crash reports are found
+  through a folder watch; the poll is a 5 min fallback. The periodic Mac check reads only power, disk and network
+  (not 99 crash reports, the frontmost window and every agent CLI), once a minute with slack for macOS to group
+  wakeups. The 10 min `summon doctor` became 30 min and reuses the last `macctl doctor`. Updates are checked a day
+  after the last check and never in Low Power Mode. Theme cards decode a small wallpaper thumbnail.
+
 ### Fixed
 
 - The menu no longer hangs while a File Provider (OneDrive, iCloud) is busy: the Mac snapshot's file checks run
