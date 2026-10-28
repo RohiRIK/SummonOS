@@ -166,7 +166,7 @@ sections:
 ### Activity and status from the command line
 
 - `summon status`: agent, macctl, last change, last checkpoint and recent problems at a glance.
-- `summon version` (or `--version`): prints the SummonOS version (`summon 0.2.1`); `summon doctor` shows it on its
+- `summon version` (or `--version`): prints the SummonOS version (`summon 0.2.2`); `summon doctor` shows it on its
   first line and in `--json`. One version for `summon`, Summon.app and `macctl`, kept in the root `VERSION` file.
 - `summon context [--json] [--only a,b]`: this Mac for agents in one read-only snapshot (about 60 ms): model,
   chip, RAM, macOS, power and thermal state, free space per volume, network and VPN, displays, frontmost app and
@@ -197,7 +197,7 @@ sections:
   top right; the notification) lists them like the App Store: Summon's card (What's New, Install and Relaunch:
   the same install as `summon update`, then Accessibility again), then Agents, Homebrew, bun & npm and macOS. Each
   row shows current → new and installs on its own (Waiting…, Updating…, ✓ Updated; a failure shows Show Details
-  with the output and Retry, or Open in Terminal when it needs a password). Update All per section and in the
+  with the output, Fix with AI (the agent gets the command and its output) and Retry, or Open in Terminal when it needs a password). Update All per section and in the
   toolbar, Check Now, "Checked N min ago"; right-click for What's New and Skip This Version. One notification per
   new set of updates, with Update All and Show. Settings › General › Updates: Check for updates automatically,
   the channel (Stable / Edge), Check per group, and Update agents automatically (`~/.config/summon/update-preferences.json`).

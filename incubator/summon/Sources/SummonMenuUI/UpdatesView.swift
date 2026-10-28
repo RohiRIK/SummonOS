@@ -182,6 +182,8 @@ public struct UpdatesView: View {
                 }
                 .buttonStyle(.link)
                 .font(.subheadline)
+                Button("Fix with AI") { model.fixWithAI(update) }
+                    .help("Ask your agent to find why it failed and fix it")
                 if state?.needsTerminal == true {
                     Button("Open in Terminal") { model.openInTerminal(update) }
                 } else {

@@ -1,6 +1,7 @@
 # Docs update log
 
 ## 2026-10-28
+* **Update**: SummonOS 0.2.2: Fix with AI on a failed update row.
 * **Update**: SummonOS 0.2.1: clicking an Update row installs it.
 
 ## 2026-10-26

@@ -373,6 +373,12 @@ public final class SummonModel {
         }
     }
 
+    /// A failed row's Fix with AI: the agent gets the command and its output.
+    public func fixWithAI(_ update: SoftwareUpdate) {
+        guard case .failed(let output) = updateStates[update.id] else { return }
+        askAgent(prompt: update.fixPrompt(output: output))
+    }
+
     public func skip(_ update: SoftwareUpdate) {
         changeUpdatePreferences { $0.skipped[update.id] = update.latest }
     }
