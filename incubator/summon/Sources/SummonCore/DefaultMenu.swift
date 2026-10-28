@@ -68,7 +68,6 @@ public enum DefaultMenu {
         { "id": "install.borders", "label": "Window Borders", "icon": "square.dashed", "when": "! command -v borders", "action": "summon agent prompt 'Install JankyBorders with Homebrew and color it from the current Summon theme.'" },
 
         { "id": "update", "label": "Update", "icon": "arrow.triangle.2.circlepath", "aliases": ["upgrade"] },
-        { "id": "update.brew", "label": "Update Homebrew Apps", "icon": "shippingbox.circle", "when": "command -v brew", "action": "summon agent prompt 'Run brew update and brew upgrade, then tell me what changed and whether anything failed.'" },
         { "id": "update.macos", "label": "Check for macOS Updates", "icon": "apple.logo", "action": "open 'x-apple.systempreferences:com.apple.Software-Update-Settings.extension'" },
 
         { "id": "system", "label": "System", "icon": "power", "aliases": ["power"] },

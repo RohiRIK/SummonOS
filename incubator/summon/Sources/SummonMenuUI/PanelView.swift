@@ -336,6 +336,7 @@ public struct PanelView: View {
             // The update tag: one click opens the Updates folder.
             if !model.updates.isEmpty {
                 Button {
+                    PanelTrace.log.notice("update tag: open the Update folder (\(model.updates.count, privacy: .public) updates)")
                     query = ""
                     level = "update"
                     selection = 0

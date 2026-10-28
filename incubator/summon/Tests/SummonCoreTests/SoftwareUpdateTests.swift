@@ -110,6 +110,14 @@ struct SoftwareUpdateTests {
         }
         #expect(filled.search("btop").map(\.id) == ["update.homebrew.1"])
 
+        // A folder with two or more gets its own Update All: only that tool's commands, no agent.
+        let brew = [SoftwareUpdate(source: .homebrew, name: "a", current: "1", latest: "2", command: ["brew"]),
+                    SoftwareUpdate(source: .homebrew, name: "b", current: "1", latest: "2", command: ["brew"])]
+        let grouped = tree.withUpdates(brew)
+        #expect(grouped.children(of: "update.homebrew").map(\.id) == ["update.homebrew.all", "update.homebrew.0", "update.homebrew.1"])
+        #expect(MenuTree.runsInApp("update.homebrew.all"))
+        #expect(!MenuTree.runsInApp("update.brew"))
+
         let none = try MenuTree(items: [MenuItem(id: "make", label: "Make")]).withUpdates([])
         #expect(none.items.map(\.id) == ["make", "update", "update.none", "update.check"])
         #expect(none.item("update")?.badge == nil)

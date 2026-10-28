@@ -198,6 +198,10 @@ extension MenuTree {
             let folder = group == .summon ? "update" : "update.\(group.rawValue)"
             if group != .summon {
                 rows.append(MenuItem(id: folder, label: group.title, icon: group.icon, badge: "\(members.count)"))
+                // Only this tool's own upgrade commands, no agent (owner, 2026-10-28).
+                if members.filter({ $0.element.command != nil }).count > 1 {
+                    rows.append(MenuItem(id: "\(folder).all", label: "Update All \(group.title)", icon: "arrow.down.circle"))
+                }
             }
             for (index, update) in members {
                 rows.append(MenuItem(id: "\(folder).\(index)", label: update.title, icon: group.icon, badge: "New \(update.latest)"))
@@ -214,7 +218,7 @@ extension MenuTree {
 
     /// Update rows have no shell action: the app installs them (`SummonModel.runUpdate`).
     public static func runsInApp(_ id: String) -> Bool {
-        ["update.all", "update.check"].contains(id) || updateIndex(id) != nil
+        id == "update.check" || (id.hasPrefix("update.") && id.hasSuffix(".all")) || updateIndex(id) != nil
     }
 
     /// The index into `updates` for an update row, nil for every other item (`update.brew` from a menu file too).

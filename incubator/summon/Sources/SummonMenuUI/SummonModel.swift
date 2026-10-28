@@ -304,13 +304,18 @@ public final class SummonModel {
         }
         packageUpdates = await packages
         loadMenu()
+        PanelTrace.log.notice("update check: summon \(self.availableUpdate?.release.version ?? "current", privacy: .public), \(self.packageUpdates.count, privacy: .public) packages")
     }
 
     /// A row in the panel's Update folder (`MenuTree.withUpdates`): `<folder>.<n>` indexes `updates`.
     private func runUpdate(_ id: String) {
+        PanelTrace.log.notice("update row \(id, privacy: .public)")
         switch id {
         case "update.check": Task { await checkForUpdates() }
         case "update.all": installPackages(packageUpdates)
+        case _ where id.hasSuffix(".all"):
+            let group = id.dropFirst("update.".count).dropLast(".all".count)
+            installPackages(packageUpdates.filter { $0.group.rawValue == group })
         default:
             guard let index = MenuTree.updateIndex(id), updates.indices.contains(index) else { return }
             let update = updates[index]

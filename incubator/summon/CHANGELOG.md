@@ -10,6 +10,8 @@ see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/rele
 ### Fixed
 - Clicking an Update row did nothing: the rows had no shell action, and the panel ran only rows with one. They
   now install (the panel stays open and shows progress) and search finds them (#115). Released as SummonOS 0.2.1.
+- Each Update folder with two or more has its own Update All (that tool's commands only). The old Update Homebrew
+  Apps row, which started a whole agent session just to run brew, is gone (#115).
 
 ## 2026-10-26
 
