@@ -242,15 +242,16 @@ def recording_output(output, diagnostics_path=None):
                                    ("not authorized", "not permitted", "permission denied", "authorization required"))}
 
 
-def record_instrument(template, pid, helper, target, children):
+def record_instrument(template, pid, helper, target, children, iterations):
     outcome = {"status":"blocked", "recording_ready":False, "interactive_cycle":False,
+               "requested_cycles":iterations, "completed_cycles":0,
                "readiness_source":"xctrace Darwin notification", "stop_requested_after_cycle":False,
                "evidence":"Recording and owned-window interaction only; no frame-time or retained-heap bounds"}
     phase = "notification registration"
     try:
         with recording_notification() as (name, descriptor), tempfile.TemporaryFile() as output:
             phase = "recorder launch"
-            # Stop explicitly after the cycle, not at a fixed six seconds that may expire mid-interaction.
+            # Record the requested workload rather than only one subsecond interaction.
             child = subprocess.Popen(["xcrun", "xctrace", "record", "--template", template,
                                       "--attach", str(pid), "--no-prompt", "--notify-tracing-started", name,
                                       "--output", str(target)], start_new_session=True,
@@ -264,15 +265,20 @@ def record_instrument(template, pid, helper, target, children):
                 if outcome["recording_ready"] and child.poll() is None:
                     phase = "window cycle"
                     cycle_start = time.monotonic()
-                    outcome["cycle"] = trace_window_cycle(pid, helper)
-                    outcome["cycle_ms"] = round((time.monotonic() - cycle_start) * 1000, 3)
-                    active = child.poll() is None and "completed" not in recording_output(output)["output_markers"]
-                    outcome["recorder_active_after_cycle"] = active
-                    outcome["interactive_cycle"] = outcome["cycle"]["status"] == "passed" and active
-                    if outcome["cycle"]["status"] == "failed":
-                        outcome["status"] = "failed"
-                    outcome["reason"] = "Owned panel cycle completed before recorder stop" if outcome["interactive_cycle"] else (
-                        "Recording ended before the owned panel cycle completed" if not active else outcome["cycle"]["reason"])
+                    for _ in range(iterations):
+                        outcome["cycle"] = trace_window_cycle(pid, helper)
+                        active = child.poll() is None and "completed" not in recording_output(output)["output_markers"]
+                        outcome["recorder_active_after_cycle"] = active
+                        passed = outcome["cycle"]["status"] == "passed" and active
+                        if outcome["cycle"]["status"] == "failed":
+                            outcome["status"] = "failed"
+                        outcome["reason"] = "Owned panel workload completed before recorder stop" if passed else (
+                            "Recording ended before the owned panel cycle completed" if not active else outcome["cycle"]["reason"])
+                        if not passed:
+                            break
+                        outcome["completed_cycles"] += 1
+                    outcome["workload_ms"] = round((time.monotonic() - cycle_start) * 1000, 3)
+                    outcome["interactive_cycle"] = outcome["completed_cycles"] == iterations
                 else:
                     outcome["reason"] = "Recording-start notification not observed while recorder was running"
             finally:
@@ -333,23 +339,26 @@ def record_instrument(template, pid, helper, target, children):
     return outcome
 
 
-def instrument(pid, helper, trace, children):
+def instrument(pid, helper, trace, children, iterations):
     outcomes = {}
     for template in ("Logging", "SwiftUI", "Time Profiler", "Allocations"):
         target = trace / (template.lower().replace(" ", "-") + ".trace")
-        outcomes[template] = record_instrument(template, pid, helper, target, children)
+        outcomes[template] = record_instrument(template, pid, helper, target, children, iterations)
     signposts = trace / "panel-signposts.json"
     logging_trace = trace / "logging.trace"
     try:
         parsed = subprocess.run([sys.executable, str(PACKAGE / "scripts/runtime-trace.py"),
                                  str(logging_trace), str(signposts)], capture_output=True, timeout=150)
         outcome = json.loads(signposts.read_text()) if signposts.exists() else {}
-        outcomes["panel signposts"] = {"status":"passed" if parsed.returncode == 0 and outcome.get("status") == "passed" else "blocked",
+        covered = all(len(outcome.get(name, [])) == iterations for name in ("PanelOpen", "PanelWindowUpdate"))
+        outcomes["panel signposts"] = {"status":"passed" if parsed.returncode == 0 and outcome.get("status") == "passed" and covered else "blocked",
+                                       "requested_samples":iterations,
                                        "export_exit_status":parsed.returncode,
                                        "first_window_update_samples":len(outcome.get("PanelWindowUpdate", [])),
                                        "ordered_front_samples":len(outcome.get("PanelOpen", [])),
                                        "diagnostics":outcome.get("diagnostics", {}),
-                                       "reason":outcome.get("reason", "See exact signpost sample counts and prerequisites")}
+                                       "reason":outcome.get("reason", "See exact signpost sample counts and prerequisites") if covered else
+                                                "Requested per-cycle signpost coverage is incomplete"}
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         outcome = {"status":"blocked", "reason":"Panel signpost export failed", "error_type":type(exc).__name__}
         if isinstance(exc, subprocess.TimeoutExpired):
@@ -478,7 +487,7 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
             scenarios.append({"name":"panel open/search/close", "status":"passed", "iterations":iterations,
                               "verified_searches":len(samples)})
         samples.sort()
-        traces, signposts = instrument(pid, helper, trace, children)
+        traces, signposts = instrument(pid, helper, trace, children, iterations)
         scenarios.extend({"name":"Instruments " + template, **result} for template, result in traces.items())
         def percentiles(values):
             return {"median_ms":values[len(values)//2],

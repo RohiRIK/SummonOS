@@ -74,6 +74,9 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   delivery and Logging/Time Profiler/Allocations recording. SwiftUI reported no SwiftUI data and exceeded its
   save deadline; the recorder sample shows symbol serialization, not an application deadlock. Missing SwiftUI
   data is rejected even on zero exit; profiling acceptance remains blocked.
+- The profiler workload now uses the requested iteration count for every recording and requires matching panel
+  interval counts, rather than a single subsecond cycle. Hosted sustained-workload verification is pending.
+  A local independent SwiftUI control exported 1,632 update rows; it does not prove Summon profiling behavior.
 - Hosted `deb7eb1` passed Swift and visual QA on macOS 15/26, lifecycle smoke, release build and CodeQL.
   Genuine panel intervals exported; SwiftUI recorder finalization alone timed out while other recordings and
   subsequent interactions passed. Bounded recorder diagnostics now retain the specific failure without weakening the gate.

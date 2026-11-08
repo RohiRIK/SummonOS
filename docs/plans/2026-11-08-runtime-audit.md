@@ -447,6 +447,14 @@ The audit now rejects that missing-data warning even if the recorder exits zero 
 the false-success regression failed before the correction, and the parser recognized the actual hosted log.
 No timeout inflation or alternate profiler is counted as a SwiftUI pass. That profiling gate remains failed.
 
+Hosted `6e48d75` again passed the app interactions, macOS 15/26 Swift and visual matrices, lifecycle smoke,
+release build and CodeQL, but SwiftUI remained empty and timed out; this run also lacked the panel signposts.
+An independent owned SwiftUI control on the local Xcode 27.1 host saved a three-second recording with 1,632
+exported SwiftUI update rows. It was removed with its processes and trace; this is not Summon performance proof.
+The audit now records the requested iteration count under each profiler instead of one subsecond interaction,
+aborts at the first incomplete cycle and requires per-cycle signpost coverage. Whether short recording duration
+explains the missing hosted data remains unproven; sustained-workload hosted verification is pending.
+
 Release readiness still requires VoiceOver navigation, Reduce Transparency, full notification/crash-burst proof,
 controlled comparative GUI profiling, actual displayed-frame timing and retained-heap bounds. A recording alone
 does not establish these bounds; RSS changes alone do not prove leaks. `PanelWindowUpdate` measures AppKit's update

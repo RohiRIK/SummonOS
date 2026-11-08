@@ -255,7 +255,7 @@ class RuntimeProfilingTests(unittest.TestCase):
                      mock.patch.object(runtime_audit, "wait_recording_notification", return_value=ready), \
                      mock.patch.object(runtime_audit.subprocess, "Popen", side_effect=launch), \
                      mock.patch.object(runtime_audit, "trace_window_cycle", side_effect=cycle) as interaction:
-                    result = runtime_audit.record_instrument("SwiftUI" if missing_swiftui else "Logging", 123, pathlib.Path("helper"), target, [])
+                    result = runtime_audit.record_instrument("SwiftUI" if missing_swiftui else "Logging", 123, pathlib.Path("helper"), target, [], 1)
                 self.assertEqual(result["status"], expected)
                 self.assertEqual(result["exit_status"], recorder_exit)
                 self.assertEqual(result["interactive_cycle"], ready and cycle_status == "passed")
@@ -263,6 +263,41 @@ class RuntimeProfilingTests(unittest.TestCase):
                 self.assertEqual(interaction.call_count, int(ready))
                 child.send_signal.assert_called_once_with(runtime_audit.signal.SIGINT)
                 self.assertNotIn("secret", json.dumps(result))
+
+    def test_profile_requires_one_interval_per_requested_cycle(self):
+        for opens, updates, expected in ((3, 3, "passed"), (2, 3, "blocked"), (3, 4, "blocked")):
+            with self.subTest(opens=opens, updates=updates), tempfile.TemporaryDirectory() as temporary:
+                trace = pathlib.Path(temporary)
+                (trace / "panel-signposts.json").write_text(json.dumps({
+                    "status":"passed", "PanelOpen":[1.0] * opens, "PanelWindowUpdate":[2.0] * updates}))
+                with mock.patch.object(runtime_audit, "record_instrument", return_value={"status":"passed"}), \
+                     mock.patch.object(runtime_audit.subprocess, "run", return_value=subprocess.CompletedProcess([], 0)):
+                    outcomes, _ = runtime_audit.instrument(123, pathlib.Path("helper"), trace, [], 3)
+                self.assertEqual(outcomes["panel signposts"]["status"], expected)
+
+    def test_profile_requires_every_requested_cycle(self):
+        for statuses, expected, completed in ((["passed"] * 3, "passed", 3),
+                                               (["passed", "failed", "passed"], "failed", 1)):
+            with self.subTest(statuses=statuses), tempfile.TemporaryDirectory() as temporary:
+                target = pathlib.Path(temporary) / "logging.trace"
+                child = mock.Mock()
+                child.returncode = None
+                child.poll.side_effect = lambda: child.returncode
+                def stop(**kwargs):
+                    child.returncode = 0
+                    target.mkdir()
+                    return 0
+                child.wait.side_effect = stop
+                with mock.patch.object(runtime_audit, "recording_notification", return_value=contextlib.nullcontext(("ready", 37))), \
+                     mock.patch.object(runtime_audit, "wait_recording_notification", return_value=True), \
+                     mock.patch.object(runtime_audit.subprocess, "Popen", return_value=child), \
+                     mock.patch.object(runtime_audit, "trace_window_cycle", side_effect=[
+                         {"status":status, "reason":"Owned fixture cycle"} for status in statuses]):
+                    result = runtime_audit.record_instrument("Logging", 123, pathlib.Path("helper"), target, [], 3)
+                self.assertEqual(result["status"], expected)
+                self.assertEqual(result["completed_cycles"], completed)
+                self.assertEqual(result["requested_cycles"], 3)
+                self.assertEqual(result["interactive_cycle"], expected == "passed")
 
     def test_recorder_exit_during_cycle_is_not_interactive_capture(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -274,7 +309,7 @@ class RuntimeProfilingTests(unittest.TestCase):
                  mock.patch.object(runtime_audit, "wait_recording_notification", return_value=True), \
                  mock.patch.object(runtime_audit.subprocess, "Popen", return_value=child), \
                  mock.patch.object(runtime_audit, "trace_window_cycle", return_value={"status":"passed", "reason":"Owned fixture cycle"}):
-                result = runtime_audit.record_instrument("Logging", 123, pathlib.Path("helper"), target, [])
+                result = runtime_audit.record_instrument("Logging", 123, pathlib.Path("helper"), target, [], 1)
             self.assertEqual(result["status"], "blocked")
             self.assertFalse(result["interactive_cycle"])
             child.send_signal.assert_not_called()
@@ -304,7 +339,7 @@ class RuntimeProfilingTests(unittest.TestCase):
                      mock.patch.object(runtime_audit, "wait_recording_notification", return_value=True), \
                      mock.patch.object(runtime_audit, "trace_window_cycle", return_value={"status":"passed", "reason":"injected upstream fixture"}):
                     result = runtime_audit.record_instrument("Logging", 123, pathlib.Path("unused"),
-                        pathlib.Path(temporary) / "fixture.trace", [])
+                        pathlib.Path(temporary) / "fixture.trace", [], 1)
                 self.assertEqual(result["status"], "failed")
                 self.assertTrue(result["stop_timed_out"])
                 self.assertEqual(child.returncode, -runtime_audit.signal.SIGKILL)

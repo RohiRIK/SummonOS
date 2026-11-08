@@ -52,6 +52,9 @@ Profiler interactions wait on xctrace's recording-start notification; actual sta
 to the hit-tested owned extra-menu item. Recorder finalization failures retain bounded, private-path-redacted
 `*.recorder*.log` sidecars (tool diagnostics and an owned-recorder stack sample, never target stdout). Hosted
 artifacts include those sidecars; JSON keeps structured statuses/counts. Timeouts remain failures.
+UI `--iterations` applies to the unprofiled interaction loop and separately to each Instruments recording
+(default 100 each). Every recorded cycle must complete; panel timing acceptance requires one successful
+`PanelOpen` and `PanelWindowUpdate` sample per requested cycle, not merely a nonempty trace.
 
 ## mp
 

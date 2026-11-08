@@ -8,6 +8,7 @@ tags: [documentation, history]
 # Docs update log
 
 ## 2026-11-08
+* **Update**: Runtime audit/tooling now record the full requested workload under each profiler and require per-cycle interval coverage. The audit distinguishes a successful local SwiftUI control from still-unverified hosted Summon profiling.
 * **Update**: Hosted revision `9bb3063` verifies 100 actual panel query values, About/Activity keyboard close and terminal delivery. Runtime audit and project memory record the remaining empty SwiftUI-data/save failure and recorder symbol-processing stack; the gate rejects empty SwiftUI recordings rather than accepting a saved directory.
 * **Update**: Runtime audit distinguishes historical sent-keystroke cycles from actual search-value verification; records the hosted capture failure, retained sanitized stderr, owned recorder-group cleanup and local native helper permission boundary.
 * **Update**: [runtime audit](plans/2026-11-08-runtime-audit.md) records hosted GUI100, cross-OS native UI/Swift passes, genuine panel timing samples and the remaining SwiftUI recorder-finalization failure. Local 98 behavioral Python/378 Core/21 CLI tests passed; recorder-only diagnostics preserve the failure without weakening release gates.
