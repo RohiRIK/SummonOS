@@ -58,6 +58,9 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
 - Local evidence: workspace Python 90/90, Summon CLI 20/20, Core 377/377 after two corrected test-fixture assumptions;
   packaged check stages passed with Core audit 30/30 samples. Core audit 100/100 repetitions passed all 11
   scenarios (50 child executions, descriptor slots 3→3); first 30-sample same-host comparison is in the audit plan.
+- Clean revision `8f267fb` produced signed stable/edge candidates: actual CLI/plist/manifest and linked compiled
+  BuildInfo agreed, signatures and App Intents passed. No publication/install; channel-specific native-panel
+  visual proof remains outstanding. Draft PR #124 tracks hosted checks and remaining GUI/heap criteria.
 
 ### 2026-11-08 — Runtime audit and proposed implementation roadmap
 - [Audit and plan](../../docs/plans/2026-11-08-runtime-audit.md), source `3f37adf556b1`: oversized completion details exceed the event cap; cleaner sorts UUID logs instead of timestamps; command completion reloads disk-derived state on MainActor. Core smoke exercised the first two mechanisms; no application crash or memory leak was established.

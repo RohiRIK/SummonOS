@@ -369,10 +369,16 @@ test-fixture assumptions (one torn-line byte count, a test lease retained past i
 passed macctl, signed bundle, App Intents, packaged identity/CLI catalog, plist, themes and Core lifecycle stages;
 its tests stage was intentionally delegated to the preceding suite. The signed candidate passed `install.sh
 --verify-only` in an isolated HOME, plus real-candidate second-stage-allocation failure (exit 71; no stage/lock
-left) and app-promotion failure (exit 72; previous signed app/CLI link restored). Development/stable/edge manifest
-generation checked generated plist fields against each manifest; stable/edge used the immutable clean baseline
-checkout, **not** a fabricated claim that this dirty working branch is releasable. The signed local development
-bundle's manifest/plist/CLI identity was verified; no stable/edge binary was published.
+left) and app-promotion failure (exit 72; previous signed app/CLI link restored). After committing, an isolated
+clean worktree at `8f267fbc1c5d4643a2bd30df4f72472c9437f907` produced signed stable and edge candidates.
+Each passed manifest/plist/actual CLI verification, strict deep signature checks and App Intents presence.
+Verifiers linked to each channel's actual staged Core object matched compiled BuildInfo to the manifest.
+Stable reports `0.2.4`, edge `0.2.4-edge.8f267fb`; both use marketing version `0.2.4` and build `1794150890`.
+Signed candidates and matching JSON remain in `/tmp/summonos-release-identity-artifacts-20261108/`.
+The channel worktree, caches and owned throwaway harnesses were removed. The stable native-panel attempt
+timed out and its partial capture was removed; channel identity proof is not channel-specific visual proof.
+No stable/edge binary was published or installed. The later installer-only empty-assignment quoting correction
+passed `bash -n` and real-candidate `install.sh --verify-only`; local ShellCheck is unavailable.
 
 An owned standalone AppKit harness linked the actual staged SummonCore/SummonMenuUI release objects, confirmed
 `BuildInfo.current` equals the packaged manifest, opened the real native About panel in per-process light, dark and

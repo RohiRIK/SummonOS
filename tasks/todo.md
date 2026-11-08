@@ -320,7 +320,7 @@ and build/deployment/validation/cleanup automation. Implementation detail and ac
 
 - [ ] Phase 0 — Baseline + Core100 driver implemented; full GUI100/heap baseline awaits disposable hosted macOS runner.
 - [x] Phase 1 — Bounded/idempotent terminal outcomes, cancellation/timeout/interruption and leased chronological cleanup; Core/CLI regressions and Core100 scenarios passed locally.
-- [ ] Phase 2 — Staged manifest and native About implemented; local signed development candidate and standalone native panel verified. Stable/edge metadata generated from clean baseline; cross-OS packaged About and VoiceOver await CI.
+- [ ] Phase 2 — Staged manifest and native About implemented; local signed development candidate and standalone native panel verified. Clean implementation revision `8f267fb` produced verified signed stable/edge packages and matching compiled identity; cross-OS packaged About and VoiceOver await CI.
 - [ ] Phase 3 — Off-main shared refresh, stale/cancelled publication and watcher/shutdown fixes implemented; GUI cycles, crash bursts, actual first draw and retained-heap bounds await CI. PanelWindowUpdate is only a pre-display update proxy.
 - [ ] Phase 4 — Signed local gate, isolated verify-only and two injected rollback faults passed; hosted release-smoke, CI workflows and cross-OS installation remain unrun.
 - [x] Independent static reviews integrated; Python 90/90, Summon CLI 20/20, Core 377/377 after two corrected fixture assumptions; 30-sample same-host baseline compared and Core100 11/11 scenarios passed.
