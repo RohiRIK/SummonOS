@@ -1,0 +1,106 @@
+name: Isolated profiler control
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/profiler-control.yml'
+permissions:
+  contents: read
+jobs:
+  control:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Record independent owned SwiftUI updates
+        run: |
+          python3 - <<'PY'
+          import importlib.util, json, os, pathlib, plistlib, select, signal, subprocess, tempfile, time
+          import xml.etree.ElementTree as ET
+          assert os.environ.get('RUNNER_ENVIRONMENT') == 'github-hosted'
+          spec = importlib.util.spec_from_file_location('audit', 'incubator/summon/scripts/runtime-audit.py')
+          audit = importlib.util.module_from_spec(spec); spec.loader.exec_module(audit)
+          result_dir = pathlib.Path(os.environ['RUNNER_TEMP']) / 'profiler-control'
+          result_dir.mkdir()
+          source = r'''
+          import AppKit
+          import SwiftUI
+          struct ControlView: View {
+              @State private var count = 0
+              var body: some View {
+                  Text("Instrumentation control: \(count)").padding()
+                      .onReceive(Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()) { _ in
+                          count += 1
+                          FileHandle.standardOutput.write(Data("tick\n".utf8))
+                      }
+              }
+          }
+          @main struct Entry {
+              @MainActor static func main() {
+                  let app = NSApplication.shared
+                  app.setActivationPolicy(.accessory)
+                  let panel = NSPanel(contentRect: NSRect(x: 80, y: 80, width: 280, height: 100), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+                  panel.contentView = NSHostingView(rootView: ControlView())
+                  panel.orderFrontRegardless()
+                  withExtendedLifetime(panel) { app.run() }
+              }
+          }
+          '''
+          with tempfile.TemporaryDirectory(prefix='owned-profiler-control-') as temporary:
+              root = pathlib.Path(temporary)
+              app = root / 'ProfilerControl.app'
+              binary = app / 'Contents/MacOS/ProfilerControl'
+              binary.parent.mkdir(parents=True)
+              (root / 'Control.swift').write_text(source)
+              (app / 'Contents/Info.plist').write_bytes(plistlib.dumps({
+                  'CFBundleExecutable':'ProfilerControl', 'CFBundleIdentifier':'local.summon.profiler-control',
+                  'CFBundlePackageType':'APPL', 'LSUIElement':True}))
+              subprocess.run(['swiftc','-O','-g','-parse-as-library',str(root/'Control.swift'),'-o',str(binary)], check=True)
+              subprocess.run(['codesign','--force','--sign','-',str(app)], check=True)
+              control = subprocess.Popen([str(binary)], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, start_new_session=True)
+              children = []
+              def observed_updates(pid, helper):
+                  fd = control.stdout.fileno()
+                  while select.select([fd], [], [], 0)[0]:
+                      if not os.read(fd, 8192):
+                          return {'status':'failed','reason':'Owned control exited'}
+                  count = 0
+                  deadline = time.monotonic() + 5
+                  while time.monotonic() < deadline and count < 10:
+                      if select.select([fd], [], [], max(0, deadline-time.monotonic()))[0]:
+                          data = os.read(fd, 8192)
+                          if not data: break
+                          count += data.count(b'tick\n')
+                  return {'status':'passed' if count >= 10 else 'failed',
+                          'reason':'Observed fresh owned SwiftUI state updates', 'updates':count}
+              audit.trace_window_cycle = observed_updates
+              results = {'environment':audit.environment()}
+              try:
+                  target = root / 'control.trace'
+                  results['manual_stop'] = audit.record_instrument('SwiftUI', control.pid, root/'unused', target, children, 3)
+                  if results['manual_stop']['status'] == 'passed':
+                      toc = subprocess.run(['xcrun','xctrace','export','--input',str(target),'--toc'], capture_output=True, text=True, timeout=30, check=True)
+                      number = next(ET.fromstring(toc.stdout).iter('run')).attrib['number']
+                      rows = subprocess.run(['xcrun','xctrace','export','--input',str(target),'--xpath',f'/trace-toc/run[@number="{number}"]/data/table[@schema="swiftui-updates"]'], capture_output=True, text=True, timeout=60, check=True)
+                      results['SwiftUI_update_rows'] = len(list(ET.fromstring(rows.stdout).iter('row')))
+              except Exception as exc:
+                  results['error_type'] = type(exc).__name__
+              finally:
+                  audit.reap(children)
+                  if control.poll() is None:
+                      os.killpg(control.pid, signal.SIGTERM)
+                      try: control.wait(timeout=3)
+                      except subprocess.TimeoutExpired:
+                          os.killpg(control.pid, signal.SIGKILL); control.wait(timeout=3)
+                  control.stdout.close()
+                  for path in root.glob('*.recorder*.log'):
+                      (result_dir / path.name).write_bytes(path.read_bytes())
+                  (result_dir / 'result.json').write_text(json.dumps(results, indent=2))
+          PY
+      - name: Retain scoped control diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: profiler-control-${{ github.run_id }}
+          path: ${{ runner.temp }}/profiler-control
