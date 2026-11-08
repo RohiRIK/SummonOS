@@ -5,6 +5,25 @@ grouped by day and point at the pull request. SummonOS releases (one version for
 see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/releases): `v0.1.0` (up to #77) and
 `v0.1.1` (#78 to #90), both on 2026-10-25, `v0.2.0` (#91 to #114) on 2026-10-26, `v0.2.1` (#115), `v0.2.2` (#116), `v0.2.3` (#117, #118) and `v0.2.4` (#120, #121). Later changes ship on the rolling `edge` prerelease until the next tag.
 
+## 2026-11-08 (unreleased; local verification, no release tag)
+
+### Added
+- A native About Summon panel from Settings and the standard About command, with the shared staged build identity:
+  base marketing version, numeric build, revision, channel, configuration and UTC build time.
+- A guarded Core lifecycle audit and disposable-runner GUI audit; the packaged check validates signatures, compiled
+  version/plist/manifest consistency, and a real Core completion fixture.
+
+### Fixed
+- Scheduled task outcomes are bounded, identified and projected consistently across CLI, Activity and notifications;
+  cancellation, timeout, interruption, preflight failure and notification failure remain distinct. Recovery does
+  not append a contradictory interruption after a committed terminal event.
+- Cleanup ranks UUID logs by actual modification time, protects active/pending runs under a per-task lease, and
+  leaves automatic cleaning due on busy or failed candidates. Partial Trash failures surface to the CLI.
+- The panel uses a shared, off-main, generation-checked activity refresh while visible; event watching handles
+  replacement and out-of-order completion. App-owned work and observers stop explicitly at shutdown.
+- Build metadata is generated only in staged sources; installer verify-only is nonmutating, and build/install
+  cleanup retains failure diagnostics and rollback evidence.
+
 ## 2026-10-28
 
 ### Changed

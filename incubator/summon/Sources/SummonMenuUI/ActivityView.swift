@@ -43,11 +43,11 @@ public struct ActivityView: View {
                 // An accessory app's window gets no Dock icon or ⌘Tab; become a regular app while it is open.
                 NSApp.setActivationPolicy(.regular)
                 NSApp.activate()
-                model.startAutoRefresh()
+                model.startInterest(.window)
             }
             .onDisappear {
                 guard model.live else { return }
-                model.stopAutoRefresh()
+                model.stopInterest(.window)
                 NSApp.setActivationPolicy(.accessory)
             }
             .onChange(of: model.selection) { _, newValue in

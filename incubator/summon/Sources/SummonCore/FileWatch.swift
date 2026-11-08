@@ -11,6 +11,19 @@ public final class FileWatch: @unchecked Sendable {
 
     public var isGone: Bool { gone.withLock { $0 } }
 
+    /// Watch an ancestor until a not-yet-created directory exists, then rearm on the new directory.
+    /// Missing log files need a directory wakeup; kqueue cannot watch a path that does not exist.
+    public static func nearestExistingDirectory(to directory: URL) -> URL? {
+        var candidate = directory.standardizedFileURL
+        var isDirectory: ObjCBool = false
+        while !FileManager.default.fileExists(atPath: candidate.path, isDirectory: &isDirectory) || !isDirectory.boolValue {
+            let parent = candidate.deletingLastPathComponent()
+            guard parent != candidate else { return nil }
+            candidate = parent
+        }
+        return candidate
+    }
+
     public init?(_ url: URL, queue: DispatchQueue = .global(qos: .utility), onChange: @escaping @Sendable () -> Void) {
         let fd = open(url.path, O_EVTONLY | O_CLOEXEC)
         guard fd >= 0 else { return nil }

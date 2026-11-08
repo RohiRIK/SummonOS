@@ -298,6 +298,43 @@ A tiling window manager, restyling system chrome (blocked by SIP), an ISO or ful
    behind its secrets.
 5. The first version is `v0.1.0`. The agent creates a release tag only after the owner's OK for that release.
 
+## Runtime audit and implementation roadmap (2026-11-08)
+
+Requested deliverable: audit and phased plan, not implementation. Preserve the master plan above.
+
+- [x] Audit About/build metadata in the main application.
+- [x] Measure available menu/runtime baselines and identify rendering, state and memory bottlenecks.
+- [x] Trace finish-phase failures, resource lifetime and cleanup races.
+- [x] Specify automation for build, deployment, validation and post-execution cleanup.
+- [x] Publish the evidence, priorities, acceptance criteria and verification limits in the
+      [runtime audit and implementation roadmap](../docs/plans/2026-11-08-runtime-audit.md).
+      At audit completion, application changes were proposals; implementation approval and work are tracked below.
+
+## Runtime hardening implementation (approved 2026-11-08)
+
+Owner approved proceeding after a four-model read-only evaluation. Parent coordinates; scoped workers implement.
+Branch: `feat/runtime-hardening-2026-11-08`. Preserve the master plan and completed audit above.
+
+Explicit requirements: reachable About/build details, measured menu performance improvements, finish-phase stability,
+and build/deployment/validation/cleanup automation. Implementation detail and acceptance: the linked runtime audit.
+
+- [ ] Phase 0 — Baseline + Core100 driver implemented; full GUI100/heap baseline awaits disposable hosted macOS runner.
+- [x] Phase 1 — Bounded/idempotent terminal outcomes, cancellation/timeout/interruption and leased chronological cleanup; Core/CLI regressions and Core100 scenarios passed locally.
+- [ ] Phase 2 — Staged manifest and native About implemented; local signed development candidate and standalone native panel verified. Stable/edge metadata generated from clean baseline; cross-OS packaged About and VoiceOver await CI.
+- [ ] Phase 3 — Off-main shared refresh, stale/cancelled publication and watcher/shutdown fixes implemented; GUI cycles, crash bursts, actual first draw and retained-heap bounds await CI. PanelWindowUpdate is only a pre-display update proxy.
+- [ ] Phase 4 — Signed local gate, isolated verify-only and two injected rollback faults passed; hosted release-smoke, CI workflows and cross-OS installation remain unrun.
+- [x] Independent static reviews integrated; Python 90/90, Summon CLI 20/20, Core 377/377 after two corrected fixture assumptions; 30-sample same-host baseline compared and Core100 11/11 scenarios passed.
+- [ ] Hosted GUI 100-cycle, native keyboard/VoiceOver, Reduce Transparency, macOS 15/26, full-app task/crash notification and heap proof remain required before release readiness.
+- [x] Updated existing docs/indexes; workspace, README-art and OKF checks passed after local integration evidence.
+
+Operational decisions: model routing remains session-only; one integration owner; no release tag or publication authorized.
+Local full-app GUI profiling is constrained by an already-running personal instance; GitHub-hosted macOS 15/26 GUI jobs
+provide the isolated route. A missing profiling/GUI prerequisite must be reported, not counted as a pass.
+
 ## Review
 
-(fill in when done)
+ReviewFinish found five lifecycle/cleanup/notification defects; ReviewAutomation found two release blockers,
+one Instruments parser concern and five automation issues; ReviewMenu found eight panel/crash/cursor/startup
+correctness and measurement issues. Integration repaired the actionable source paths, replaced the fabricated
+trace fixture with an excerpt from an actual owned Xcode Instruments export, and retained the unverified hosted
+GUI/VoiceOver/heap criteria above. No independent reviewer ran tests or controlled the personal app.

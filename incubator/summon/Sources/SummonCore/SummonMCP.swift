@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// The tools `summon mcp` serves: this Mac's context, macctl settings (journaled, undoable), checkpoints and crash
 /// reports. Kept to a handful so agents choose well; everything else is `summon commands --json` in a shell.
@@ -241,6 +242,7 @@ public enum SummonMCP {
 /// in Activity as that agent's session, and `summon checkpoint undo <id>` (or the panel) undoes all of them.
 public actor MCPSession {
     public private(set) var agent = "An agent"
+    private static let log = Logger(subsystem: "local.macplugins.summon", category: "mcp-session")
     public private(set) var taken: Checkpoint?
     let id = UUID().uuidString
 
@@ -254,17 +256,25 @@ public actor MCPSession {
         if let taken { return taken }
         let (checkpoint, _) = await SummonMCP.service(env).create(label: "\(agent) via MCP")
         taken = checkpoint
-        try? EventLog(paths: env.paths).append(LoggedEvent(
-            kind: EventKind.sessionStart, title: "\(agent) session started (MCP)",
-            refs: ["session": id, "checkpoint": checkpoint.id, "agent": agent]))
+        record(LoggedEvent(kind: EventKind.sessionStart, title: "\(agent) session started (MCP)",
+                           refs: ["session": id, "checkpoint": checkpoint.id, "agent": agent]), paths: env.paths)
         return checkpoint
     }
 
     /// Called when the client closes the connection; nothing is logged for a session that changed nothing.
     public func end(_ env: SummonMCP.Environment) {
         guard let taken else { return }
-        try? EventLog(paths: env.paths).append(LoggedEvent(
-            kind: EventKind.sessionEnd, title: "\(agent) session ended (MCP)",
-            refs: ["session": id, "checkpoint": taken.id, "agent": agent]))
+        record(LoggedEvent(kind: EventKind.sessionEnd, title: "\(agent) session ended (MCP)",
+                           refs: ["session": id, "checkpoint": taken.id, "agent": agent]), paths: env.paths)
+    }
+    private func record(_ event: LoggedEvent, paths: SummonPaths) {
+        do {
+            let receipt = try EventLog(paths: paths).append(event)
+            if let failure = receipt.maintenanceFailure {
+                Self.log.error("MCP session event committed, but log maintenance failed: \(failure, privacy: .private)")
+            }
+        } catch {
+            Self.log.error("MCP session event could not be recorded: \(String(describing: error), privacy: .private)")
+        }
     }
 }

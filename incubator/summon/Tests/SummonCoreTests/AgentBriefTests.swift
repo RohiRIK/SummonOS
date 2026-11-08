@@ -90,6 +90,31 @@ struct AgentBriefTests {
         #expect(empty.body.contains("Activity"))
     }
 
+    @Test func runsInTheSameSecondNeverShareANotificationAndReplaysDoNotRepeat() throws {
+        func run(_ id: String, _ kind: String, outcome: TaskOutcome) -> LoggedEvent {
+            LoggedEvent(time: Date(timeIntervalSince1970: 500), kind: kind, title: "Task \(outcome.label): Brew",
+                        refs: ["task": "brew", "run": id, "outcome": outcome.rawValue, "file": "/T/brew/\(id).log"])
+        }
+        let first = run("A", EventKind.taskDone, outcome: .done)
+        let second = run("B", EventKind.taskDone, outcome: .done)
+        let replay = run("A", EventKind.taskFailed, outcome: .interrupted)
+        let announced = EventAnnouncer.announcements(in: [first, second, replay], after: .distantPast)
+        #expect(announced.map(\.id) == ["summon.run.A", "summon.run.B"])
+        #expect(announced.map(\.outcome) == [.done, .done])
+        let cancelled = try #require(EventAnnouncer.announcement(run("C", EventKind.taskFailed, outcome: .cancelled)))
+        #expect(cancelled.title == "Task cancelled: Brew")
+        #expect(cancelled.category == .taskFailed)
+        #expect(cancelled.runID == "C")
+        // Legacy records without run identity: deterministic, and distinct when their content differs.
+        let legacy = LoggedEvent(time: Date(timeIntervalSince1970: 500), kind: EventKind.taskFailed, title: "Task failed: Brew",
+                                 detail: "exit 1", refs: ["task": "brew"])
+        var other = legacy
+        other.detail = "exit 2"
+        #expect(EventAnnouncer.notificationID(legacy) == EventAnnouncer.notificationID(legacy))
+        #expect(EventAnnouncer.notificationID(legacy) != EventAnnouncer.notificationID(other))
+        #expect(EventAnnouncer.notificationID(legacy).hasPrefix("summon.event.task.failed.brew.500."))
+    }
+
     @Test func askPromptPointsAtTheLogAsEvidence() {
         let announcement = EventAnnouncement(id: "x", category: .taskFailed, title: "Task failed: Brew", body: "",
                                              thread: "t", logFile: "/l.log", taskID: "brew")
@@ -97,6 +122,21 @@ struct AgentBriefTests {
         #expect(prompt.contains("failed"))
         #expect(prompt.contains("log:   /l.log"))
         #expect(prompt.contains("untrusted evidence"))
+    }
+
+    @Test func notificationActionsRetainNonSuccessOutcome() throws {
+        for outcome in [TaskOutcome.timedOut, .cancelled, .interrupted] {
+            let event = LoggedEvent(kind: EventKind.taskFailed, title: "Task \(outcome.label): Brew",
+                                    refs: ["task": "brew", "run": UUID().uuidString, "outcome": outcome.rawValue,
+                                           "file": "/fixtures/brew.log"])
+            let announcement = try #require(EventAnnouncer.announcement(event))
+            let restored = EventAnnouncer.fromNotification(EventAnnouncer.notificationInfo(announcement))
+            let prompt = EventAnnouncer.askPrompt(restored)
+            #expect(restored.outcome == outcome)
+            #expect(prompt.contains("(\(outcome.label))"))
+            #expect(prompt.contains("/fixtures/brew.log"))
+            #expect(!prompt.contains("(failed)"))
+        }
     }
 
     // MARK: Crash announcements

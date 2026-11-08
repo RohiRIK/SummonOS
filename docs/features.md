@@ -88,8 +88,11 @@ turns each one off. Crash diagnosis, Activity and tasks keep their own prompts. 
   or a Summon alert (Settings › Notifications), never both; the panel shows no crash row. The alert never takes the keyboard from the app you
   are typing in; a burst shows one alert ("N more"), banners group per program. Diagnose with AI hands the report
   to the agent with the `diagnose-crash-mac` skill.
-- **Task results:** each scheduled run ends with a "Task done" or "Task failed" notification from Summon, with
-  Show Log and Ask Agent (a plain banner when the app is not running).
+- **Task results:** each scheduled run records one identified terminal outcome (done, failed, cancelled,
+  timed out or interrupted), including failures before the agent starts. Summon announces recorded results with
+  Show Log and Ask Agent; the CLI uses a bounded fallback banner when the app cannot deliver them. A failed
+  notification never rewrites an execution result. Full output stays in the private log; the event summary is
+  bounded, including encoded Unicode and escaped text.
 - **Crash commands:** `summon crash list`, `crash show <file.ips>` (parsed facts), `crash diagnose
   --latest`, `crash mute <program>` (and `off`), with muted programs managed in Settings.
 - **Siri, Shortcuts and Spotlight:** Summon's App Intents. "Ask Summon" starts your agent with what you said;
@@ -140,6 +143,9 @@ sections:
   Summon Menu (Style, Setup, Trigger, Install, Update, System, Agent), and Settings › Setup lists those groups with
   Run buttons. With no default agent, the header offers "Choose an agent". The menu bar shows Summon's icon only (the
   agent clock is an option in Settings › General), and it turns orange while the status line has something.
+- **Open and refresh:** the panel presents its last valid menu immediately and keeps one shared Activity refresh
+  interest while open. File watches wake changed logs and crash reports; hidden panels do not run the visible
+  one-second guard/activity loop. `summon://menu/<id>` resolves a newly added entry after its disk reload.
 - **Welcome window** (first launch only, 720 × 480, close only): a brand header and what Summon does; choose the
   default agent from rows showing each agent's login (Log In… when logged out) or how to install one; allow
   Accessibility with a live check (Skip while off; one click re-grants after an update); then try ⌃⌥Space and
@@ -166,6 +172,10 @@ sections:
   - Notifications: crash and hang alerts (Summon alert or macOS banner), task results, sound, muted programs with Unmute.
   - Appearance: the theme.
   - Tasks: each recurring task with its schedule, agent and last result (view only).
+
+- **About Summon:** Settings › General and the standard application About command share the native AppKit panel.
+  It shows the base version, numeric build, revision, channel, configuration and UTC build time; a development
+  build says when revision or time is unknown. The panel does not start an update or network check.
 
 ### Activity and status from the command line
 
@@ -317,9 +327,11 @@ Every `summon` command, with arguments and examples: `summon commands --json`.
   (wallpaper and icon candidates), `Tasks/<id>` (a log per task run), `Themes` (a link to the installed themes).
   Agents start there. `~/Summon/.gitignore` keeps the generated parts out of git. `summon home` sets it up and moves
   older Summon files in.
-- Kept tidy once a day (or `summon clean --apply`, Settings › General › Clean Now…): old task logs, art jobs untouched
-  30 days and Antigravity originals after 14 days go to the Trash; apps are never touched; unfinished or broken
-  themes are reported. `summon clean` previews.
+- Kept tidy once a day (or `summon clean --apply`, Settings › General › Clean Now…): task logs retain the actual
+  newest 20 by modification time and none older than 30 days; removed-task folders wait seven days. Active runs and
+  pending recovery logs are protected by a per-task lease, and busy tasks leave automatic cleanup due. Old art jobs
+  and Antigravity originals go to the Trash; apps are never touched; unfinished themes are reported.
+  `summon clean --json` previews candidates. A partial Trash failure is reported rather than stamped complete.
 
 ### Screenshots and the showcase
 
@@ -341,6 +353,8 @@ Every `summon` command, with arguments and examples: `summon commands --json`.
   after a checkpoint, with a 30-minute deadline. Overlapping runs are refused; failures return nonzero and
   appear in Activity. Bounded private logs live in `~/Summon/Tasks/<id>/`. Deadline/cancellation clean up the
   invocation's process group; deliberately detached processes and completed external effects are excluded.
+- Task and Activity results use the same terminal projection; log rotation and equal-timestamp runs retain distinct
+  identities. A recovered run is not falsely marked interrupted if its result was already committed.
 
 ### Planned
 

@@ -26,6 +26,29 @@ Agents follow [`docs/install-ai.md`](install-ai.md) instead, which wraps the sam
 curl -fsSL https://raw.githubusercontent.com/RohiRIK/SummonOS/main/install.sh | bash
 ```
 
+## Summon build identity and isolated validation
+
+`incubator/summon/scripts/bundle.sh` copies the Swift package into a private staging tree, generates the compiled
+`SummonVersion`, `BuildInfo.json` and bundle Info.plist from one manifest, builds and signs `build/Summon.app`, and
+verifies packaged CLI identity. It does **not** rewrite the tracked development `Version.swift`. The full edge
+display version has a revision suffix; the marketing version remains the base `VERSION` and the bundle build is
+numeric. `tools/build-metadata.py generate` requires a clean identified checkout for stable/edge; a dirty
+development build identifies its source as dirty. `verify --manifest ... --app ... --summon ... [--macctl ...]`
+checks compiled CLI output and the signed candidate's manifest/plist against one another.
+
+`incubator/summon/scripts/install.sh --verify-only` checks a supplied signed candidate and its packaged command
+without replacing a live app or CLI. Source installs with Command Line Tools may omit optional Siri/App Intents
+metadata; release gates require it. A normal install stages the app and restores prior files if promotion fails;
+do not run it against a personal installation for an audit. `incubator/summon/scripts/check.sh --runtime-smoke`
+records separate gate stages, validates the packaged signature and identity, and runs an actual Core lifecycle
+fixture. `--skip-tests` is only for a job that already ran the same Swift suites.
+
+`incubator/summon/scripts/runtime-audit.py --mode core --iterations 100 --out DIR` runs real optimized Core source
+against temporary event/log/snapshot/checkpoint fixtures; `--mode ui --app APP` is guarded to a disposable hosted
+runner or an explicitly authorized test account and refuses an existing SummonMenu. A blocked GUI prerequisite is
+exit 2, not a passed result. PanelWindowUpdate measures AppKit's first window-update pass **before** display;
+it is not proof of a first drawn or composited frame. Only owned fixture/process resources may be removed.
+
 ## mp
 
 Manages the plugin home: the registry `plugins.json` (source of truth), the generated `plugins.md`, and

@@ -11,6 +11,7 @@ import SummonCore
 public final class SummonModel {
     public let paths: SummonPaths
     let runner: Runner
+    private let live: Bool
 
     public private(set) var defaultAgent: Agent? = nil
     public private(set) var agentInstalled = false
@@ -27,7 +28,7 @@ public final class SummonModel {
     public private(set) var installedTerminals: [TerminalApp] = [.terminal]
     /// Programs whose crash notifications the user muted, sorted.
     public private(set) var mutedPrograms: [String] = []
-    /// Recurring agent tasks (`tasks.json`) and each one's last result ("done"/"failed"), from the event log.
+    /// Recurring tasks and their last terminal outcome, projected from the one shared activity read.
     public private(set) var tasks: [RecurringTask] = []
     public private(set) var taskResults: [String: String] = [:]
     /// Per-agent model and skill choices (`~/.config/summon/agents.json`), read here, changed through the CLI.
@@ -68,6 +69,9 @@ public final class SummonModel {
     @ObservationIgnored public var onUpdatesFound: (([SoftwareUpdate]) -> Void)?
     @ObservationIgnored private var installQueue: [SoftwareUpdate] = []
     @ObservationIgnored private var installTask: Task<Void, Never>?
+    @ObservationIgnored private var updateInstallTask: Task<Void, Never>?
+    @ObservationIgnored private var updateCheckTask: Task<Void, Never>?
+    @ObservationIgnored private var updateCheckGeneration = 0
     /// The Updates window's list: Summon first, then the checked groups, minus skipped versions.
     public var updates: [SoftwareUpdate] {
         let summon = availableUpdate.map { SoftwareUpdate.summon(current: $0.current, latest: $0.release.version, tag: $0.release.tag) }
@@ -83,6 +87,14 @@ public final class SummonModel {
     public private(set) var pluginWork: String? = nil
     public private(set) var menu: MenuTree
     public private(set) var menuError: String? = nil
+    public private(set) var menuRevision = 0
+    @ObservationIgnored private var baseMenu: MenuTree = .standard
+    @ObservationIgnored private weak var activity: ActivityModel?
+    @ObservationIgnored private var reloadGeneration = 0
+    @ObservationIgnored private var reloadTask: Task<Void, Never>?
+    @ObservationIgnored private var reloadWorker: Task<SummonDiskSnapshot, Never>?
+    @ObservationIgnored private var stopped = false
+    @ObservationIgnored private var loadError: String?
     /// Apps made with Summon (`~/.config/summon/projects.json`), shown in the panel.
     public private(set) var projects: [Project] = []
     /// Last action error, shown under the row that caused it.
@@ -104,10 +116,12 @@ public final class SummonModel {
     /// Shell guard results by item id. Missing means not evaluated yet (shown, unchecked).
     public private(set) var visibility: [String: Bool] = [:]
     public private(set) var checks: [String: Bool] = [:]
+    @ObservationIgnored private var guardGeneration = 0
 
     /// Bumped each time the panel opens, so the view resets its search and level.
     public private(set) var launcherSession = 0
     public private(set) var launcherStartLevel: String? = nil
+    @ObservationIgnored private var requestedLauncherLevel: String?
 
     public var crashCaptureEnabled: Bool {
         didSet { UserDefaults.standard.set(crashCaptureEnabled, forKey: Self.crashCaptureKey) }
@@ -180,6 +194,8 @@ public final class SummonModel {
     @ObservationIgnored private var watchTask: Task<Void, Never>? = nil
     @ObservationIgnored private var crashFolders: [FileWatch] = []
     @ObservationIgnored private var pendingCrashScan: Task<Void, Never>?
+    @ObservationIgnored private var crashScanGeneration = 0
+    @ObservationIgnored private var crashRescanRequested = false
 
     static let crashCaptureKey = "crashCaptureEnabled"
     static let crashAlertStyleKey = "summon.notifications.crashStyle"
@@ -191,9 +207,10 @@ public final class SummonModel {
     static let globalAgentShortcutKey = "summon.shortcut.globalAgent"
     static let previousThemeKey = "summon.appearance.previousTheme"
 
-    public init(paths: SummonPaths = .live, runner: @escaping Runner = Shell.live) {
+    public init(paths: SummonPaths = .live, runner: @escaping Runner = Shell.live, live: Bool = true) {
         self.paths = paths
         self.runner = runner
+        self.live = live
         self.menu = MenuTree.standard
         self.crashCaptureEnabled = UserDefaults.standard.object(forKey: Self.crashCaptureKey) as? Bool ?? true
         self.crashAlertStyle = UserDefaults.standard.string(forKey: Self.crashAlertStyleKey)
@@ -221,49 +238,122 @@ public final class SummonModel {
         } else {
             self.panelAgentShortcut = .defaultPanelAgent
         }
-        reload()
+        if live { reload() }
     }
 
     // MARK: Loading
 
+    /// The panel keeps the last valid menu while file-derived state is collected off the main actor.
+    /// Only the latest generation may publish; an invalid store never erases its last good value.
     public func reload() {
-        defaultAgent = DefaultAgentStore(paths: paths).load()
-        repoPolicy = RepoPolicyStore(paths: paths).load()
-        updateChannel = UpdateChannelStore(paths: paths).load()
-        checksForUpdates = AutoUpdateStore(paths: paths).load()
-        updatePreferences = UpdatePreferencesStore(paths: paths).load()
-        do { executionMode = try ExecutionPolicyStore(paths: paths).load() }
-        catch { lastError = String(describing: error) }
-        let locator = ToolLocator.live()
-        installedAgentIDs = AgentRegistry.all.filter { locator.find($0.command) != nil }.map(\.id)
-        // With exactly one agent installed there is nothing to choose: make it the default.
-        if defaultAgent == nil, installedAgentIDs.count == 1, let only = installedAgentIDs.first {
-            setDefaultAgent(only)
+        guard !stopped else { return }
+        reloadGeneration += 1
+        let generation = reloadGeneration
+        reloadTask?.cancel()
+        reloadWorker?.cancel()
+        let paths = paths
+        let crashes = recentCrashes
+        let worker = Task.detached(priority: .utility) {
+            let interval = PanelTrace.signposter.beginInterval("SourceCollection", id: PanelTrace.signposter.makeSignpostID())
+            defer { PanelTrace.signposter.endInterval("SourceCollection", interval, "menu") }
+            return SummonDiskSnapshot.collect(paths: paths, crashes: crashes)
         }
-        if let agent = defaultAgent {
-            agentInstalled = ToolLocator.live().find(agent.command) != nil
-        } else {
-            agentInstalled = false
+        reloadWorker = worker
+        reloadTask = Task { [weak self] in
+            let snapshot = await worker.value
+            guard !Task.isCancelled, let self, self.reloadGeneration == generation else { return }
+            let interval = PanelTrace.signposter.beginInterval("MainPublication", id: PanelTrace.signposter.makeSignpostID())
+            self.publish(snapshot)
+            PanelTrace.signposter.endInterval("MainPublication", interval, "menu")
+            self.reloadWorker = nil
+            self.reloadTask = nil
         }
-        let themeStore = ThemeStore(paths: paths)
-        themes = themeStore.all()
-        currentThemeSlug = themeStore.currentSlug()
-        do { tasks = try TaskStore(paths: paths).loadValidated() }
-        catch { lastError = String(describing: error) }
-        let events = EventLog(paths: paths).read()
-        taskResults = Dictionary(events.compactMap { event in
-            event.refs["task"].map { ($0, event.kind == EventKind.taskFailed ? "failed" : "done") }
-        }, uniquingKeysWith: { _, newer in newer })
-        let installed = TerminalApp.installed
-        installedTerminals = TerminalApp.allCases.filter { installed.contains($0) }
-        terminal = AgentLauncher.preferredTerminal(saved: DefaultTerminalStore(paths: paths).load(), installed: installed)
-        mutedPrograms = CrashWatcher(paths: paths).muted().sorted()
-        do { agentSettings = try AgentSettingsStore(paths: paths).loadValidated() }
-        catch { lastError = String(describing: error) }
-        undoOffer = UndoOffer.latest(ActivitySources.load(paths: paths, crashLimit: 0))
+    }
+
+    /// AppDelegate supplies the one activity owner after both models exist.
+    public func bindActivity(_ activity: ActivityModel) {
+        self.activity = activity
+        activity.markDirty()
+    }
+
+    /// Settings' Tasks page joins the shared reader without starting a second activity owner.
+    public func refreshActivity() async {
+        guard live, !stopped else { return }
+        _ = await activity?.refresh()
+    }
+
+    private func publish(_ snapshot: SummonDiskSnapshot) {
+        let previousAgent = defaultAgent
+        let previousInstallation = agentInstalled
+        if defaultAgent != snapshot.defaultAgent { defaultAgent = snapshot.defaultAgent }
+        if repoPolicy != snapshot.repoPolicy { repoPolicy = snapshot.repoPolicy }
+        if updateChannel != snapshot.updateChannel { updateChannel = snapshot.updateChannel }
+        if checksForUpdates != snapshot.checksForUpdates { checksForUpdates = snapshot.checksForUpdates }
+        if updatePreferences != snapshot.updatePreferences { updatePreferences = snapshot.updatePreferences }
+        if let mode = snapshot.executionMode, executionMode != mode { executionMode = mode }
+        if installedAgentIDs != snapshot.installedAgentIDs { installedAgentIDs = snapshot.installedAgentIDs }
+        let installed = snapshot.defaultAgent.map { snapshot.installedAgentIDs.contains($0.id) } ?? false
+        if agentInstalled != installed { agentInstalled = installed }
+        if themes != snapshot.themes { themes = snapshot.themes }
+        if currentThemeSlug != snapshot.currentThemeSlug { currentThemeSlug = snapshot.currentThemeSlug }
+        if let loaded = snapshot.tasks, tasks != loaded { tasks = loaded }
+        if installedTerminals != snapshot.installedTerminals { installedTerminals = snapshot.installedTerminals }
+        if terminal != snapshot.terminal { terminal = snapshot.terminal }
+        if mutedPrograms != snapshot.mutedPrograms { mutedPrograms = snapshot.mutedPrograms }
+        if let loaded = snapshot.agentSettings, agentSettings != loaded { agentSettings = loaded }
+        if let loaded = snapshot.projects, projects != loaded { projects = loaded }
+        if snapshot.projects != nil, appHealth != snapshot.appHealth { appHealth = snapshot.appHealth }
+        if artJobs != snapshot.artJobs { artJobs = snapshot.artJobs }
+        if artJobHealth != snapshot.artJobHealth { artJobHealth = snapshot.artJobHealth }
+        if themeHealth != snapshot.themeHealth { themeHealth = snapshot.themeHealth }
+        if snapshot.menuError == nil { baseMenu = snapshot.menu }
+        if menuError != snapshot.menuError { menuError = snapshot.menuError }
+        if lastError == loadError { lastError = nil }
+        loadError = snapshot.errors.first
+        if let loadError { lastError = loadError }
         accessibilityGranted = AXIsProcessTrusted()
-        reloadProjects()
         loadMenu()
+        if let requestedLauncherLevel {
+            self.requestedLauncherLevel = nil
+            if launcherStartLevel == nil, menu.item(requestedLauncherLevel) != nil {
+                launcherStartLevel = requestedLauncherLevel
+                launcherSession += 1
+            }
+        }
+        if previousAgent != defaultAgent || previousInstallation != agentInstalled { activity?.refreshStatus() }
+        if snapshot.defaultAgent == nil, defaultAgent == nil, installedAgentIDs.count == 1,
+           let only = installedAgentIDs.first { setDefaultAgent(only) }
+    }
+
+    /// Called only after the activity owner's current generation was published.
+    func acceptActivity(taskResults latest: [String: String], undoOffer latestOffer: UndoOffer?) {
+        if taskResults != latest { taskResults = latest }
+        if undoOffer != latestOffer { undoOffer = latestOffer }
+    }
+
+    public func stop() {
+        guard !stopped else { return }
+        stopped = true
+        invalidateGuards()
+        reloadGeneration += 1
+        reloadTask?.cancel()
+        reloadWorker?.cancel()
+        reloadTask = nil
+        reloadWorker = nil
+        stopWatching()
+        installTask?.cancel()
+        installTask = nil
+        installQueue.removeAll()
+        updateInstallTask?.cancel()
+        updateInstallTask = nil
+        updateCheckTask?.cancel()
+        updateCheckGeneration += 1
+        updateCheckTask = nil
+        onNewCrashes = nil
+        onUpdatesFound = nil
+        onUpdateGlobalHotKeys = nil
+        onMenuBarLabelChanged = nil
+        activity = nil
     }
 
     /// macOS's own request: it adds Summon to Privacy & Security › Accessibility (switched off) and offers to open
@@ -296,26 +386,40 @@ public final class SummonModel {
     }
 
     public func setUpdateChannel(_ channel: UpdateChannel) {
+        guard !stopped else { return }
         do { try UpdateChannelStore(paths: paths).save(channel) } catch { lastError = String(describing: error) }
         updateChannel = channel
-        Task { await checkForUpdates() }
+        updateCheckGeneration += 1
+        let generation = updateCheckGeneration
+        let previous = updateCheckTask
+        previous?.cancel()
+        updateCheckTask = Task { [weak self] in
+            if let previous { await previous.value }
+            guard !Task.isCancelled else { return }
+            await self?.checkForUpdates()
+            if self?.updateCheckGeneration == generation { self?.updateCheckTask = nil }
+        }
     }
 
     /// Summon's channel and every package manager at once. `quiet` (the daily check) says nothing when Summon's
     /// check fails: offline or GitHub's rate limit is not worth a row.
     public func checkForUpdates(quiet: Bool = false) async {
-        guard !isUpdating, !isCheckingUpdates, installTask == nil else { return }
+        guard !stopped, !Task.isCancelled, !isUpdating, !isCheckingUpdates, installTask == nil else { return }
         isCheckingUpdates = true
         defer { isCheckingUpdates = false }
         if !quiet { updateStatus = nil }
         async let packages = SoftwareUpdateCheck(runner: userPathRunner(runner), tools: ToolLocator.live()).run()
+        var checkedUpdate = availableUpdate
         do {
             let check = try await Updater(runner: runner, gh: ToolLocator.live().find("gh")).check(updateChannel)
-            availableUpdate = check.available ? check : nil
+            checkedUpdate = check.available ? check : nil
         } catch {
-            if !quiet { updateStatus = String(describing: error) }
+            if !quiet, !stopped, !Task.isCancelled { updateStatus = String(describing: error) }
         }
-        packageUpdates = await packages
+        let checkedPackages = await packages
+        guard !stopped, !Task.isCancelled else { return }
+        if availableUpdate != checkedUpdate { availableUpdate = checkedUpdate }
+        if packageUpdates != checkedPackages { packageUpdates = checkedPackages }
         updateStates = [:]
         lastUpdateCheck = Date()
         loadMenu()
@@ -335,6 +439,7 @@ public final class SummonModel {
 
     /// Queues each command-line update; they run one at a time (brew and npm take a lock), each row showing its state.
     public func install(_ list: [SoftwareUpdate]) {
+        guard !stopped else { return }
         for update in list where update.command != nil {
             switch updateStates[update.id] {
             case .queued, .running, .done: continue
@@ -347,16 +452,19 @@ public final class SummonModel {
         // Upgrades (a cask, a big formula) can take minutes.
         let run = userPathRunner(Shell.live(timeout: 1800))
         installTask = Task {
-            while !installQueue.isEmpty {
+            while !installQueue.isEmpty, !Task.isCancelled, !stopped {
                 let update = installQueue.removeFirst()
                 guard let command = update.command, let tool = command.first else { continue }
                 updateStates[update.id] = .running
                 do {
                     _ = try await run(tool, Array(command.dropFirst()))
+                    guard !Task.isCancelled, !stopped else { return }
                     updateStates[update.id] = .done
                 } catch RunnerError.failed(_, _, let output) {
+                    guard !Task.isCancelled, !stopped else { return }
                     updateStates[update.id] = .failed(output)
                 } catch {
+                    guard !Task.isCancelled, !stopped else { return }
                     updateStates[update.id] = .failed(String(describing: error))
                 }
                 loadMenu()
@@ -408,17 +516,21 @@ public final class SummonModel {
 
     /// The same install as `summon update` (checksum, staged installer with rollback), then Summon relaunches.
     public func installUpdate() {
-        guard let release = availableUpdate?.release, !isUpdating else { return }
+        guard !stopped, let release = availableUpdate?.release, !isUpdating else { return }
         isUpdating = true
         updateStatus = "Installing Summon \(release.version)…"
-        Task {
+        let updater = Updater(runner: Shell.live(timeout: 900))
+        updateInstallTask = Task { [weak self] in
             do {
-                // A download can outlast the default deadline on a slow connection.
-                _ = try await Updater(runner: Shell.live(timeout: 900)).install(release)
-                relaunchInstalledApp()
+                _ = try await updater.install(release)
+                guard !Task.isCancelled, let self, !self.stopped else { return }
+                self.updateInstallTask = nil
+                self.relaunchInstalledApp()
             } catch {
-                isUpdating = false
-                updateStatus = "Update failed: \(error)"
+                guard !Task.isCancelled, let self, !self.stopped else { return }
+                self.updateInstallTask = nil
+                self.isUpdating = false
+                self.updateStatus = "Update failed: \(error)"
             }
         }
     }
@@ -460,29 +572,52 @@ public final class SummonModel {
     }
 
     func loadMenu() {
-        let loaded = MenuTree.load(from: paths.menuFile)
-        menu = loaded.tree.withProjects(projects, themes: themes, appHealth: appHealth, themeHealth: themeHealth)
+        let updated = baseMenu.withProjects(projects, themes: themes, appHealth: appHealth, themeHealth: themeHealth)
             .withUpdates(count: pendingUpdates.count)
-        menuError = loaded.problem
+        if menu != updated {
+            menu = updated
+            menuRevision += 1
+        }
     }
 
     // MARK: Crash watching
 
     @ObservationIgnored private var lastMac: MacContext?
     @ObservationIgnored private var macCheck: Task<Void, Never>?
+    @ObservationIgnored private var macProbe: Task<MacContext, Never>?
+    @ObservationIgnored private var macAppend: Task<[String], Never>?
 
-    /// Logs what changed on the Mac since the last look (offline, low disk, hot, battery, displays) for agents.
-    /// shortcut: a 30 s poll of the ~60 ms snapshot; switch to SCDynamicStore and ProcessInfo notifications if it
-    /// ever shows up in energy use.
-    /// A probe stuck on a slow file system (#119) is skipped, not stacked; the watch loop never waits for it.
+    /// Probe and append on utility workers; the event lease must never block the UI actor.
     func checkMac() {
         guard macCheck == nil else { return }
         let paths = paths
-        macCheck = Task {
-            let snapshot = await Task.detached(priority: .utility) { MacContextProbe.vitals(paths: paths) }.value
-            for event in MacEvents.changes(from: lastMac, to: snapshot) { try? EventLog(paths: paths).append(event) }
-            lastMac = snapshot
-            macCheck = nil
+        let probe = Task.detached(priority: .utility) { MacContextProbe.vitals(paths: paths) }
+        macProbe = probe
+        macCheck = Task { [weak self] in
+            let snapshot = await probe.value
+            guard !Task.isCancelled, let self else { return }
+            let changes = MacEvents.changes(from: self.lastMac, to: snapshot)
+            let append = Task.detached(priority: .utility) { () -> [String] in
+                var errors: [String] = []
+                for event in changes {
+                    guard !Task.isCancelled else { return errors }
+                    do {
+                        let receipt = try EventLog(paths: paths).append(event)
+                        if let failure = receipt.maintenanceFailure { errors.append(failure) }
+                    } catch {
+                        errors.append(String(describing: error))
+                    }
+                }
+                return errors
+            }
+            self.macAppend = append
+            let errors = await append.value
+            guard !Task.isCancelled else { return }
+            if let error = errors.first { self.lastError = "Mac status event could not be saved: \(error)" }
+            self.lastMac = snapshot
+            self.macProbe = nil
+            self.macAppend = nil
+            self.macCheck = nil
         }
     }
 
@@ -494,16 +629,16 @@ public final class SummonModel {
     /// One slow loop for what has no notification: Mac vitals, a fallback crash scan, the doctor and updates.
     /// New crash reports arrive sooner through `crashFolders` (a folder watch).
     public func startWatching(interval: Duration = .seconds(60)) {
-        guard watchTask == nil else { return }
+        guard !stopped, watchTask == nil else { return }
         // A new report is written in pieces: scan once the folder has been quiet for 3 s.
         crashFolders = paths.diagnosticReportDirs.compactMap { dir in
             FileWatch(dir) { [weak self] in
                 Task { @MainActor in
                     guard let self else { return }
                     self.pendingCrashScan?.cancel()
-                    self.pendingCrashScan = Task {
+                    self.pendingCrashScan = Task { [weak self] in
                         try? await Task.sleep(for: .seconds(3), tolerance: .seconds(1))
-                        if !Task.isCancelled { await self.scanCrashes() }
+                        if !Task.isCancelled { await self?.scanCrashes() }
                     }
                 }
             }
@@ -511,23 +646,27 @@ public final class SummonModel {
         watchTask = Task { [weak self] in
             var round = 0
             while !Task.isCancelled {
-                guard let model = self else { return }
-                // The folder watch finds new reports; this is the fallback (also for a folder that did not exist).
-                if round % 5 == 0 || model.crashFolders.count < model.paths.diagnosticReportDirs.count {
-                    await model.scanCrashes()
-                }
-                model.checkMac()
-                // Summon's own setup (`summon doctor`) for the panel's Needs attention: in full at launch, then every
-                // 30 min without re-running `macctl doctor`.
-                if round % 30 == 0 { await model.checkHealth(full: round == 0) }
-                // Updates once a day, counted from the last check (it survives relaunches), never in Low Power Mode.
-                if model.checksForUpdates, model.updateCheckDue(), !ProcessInfo.processInfo.isLowPowerModeEnabled {
-                    await model.checkForUpdates(quiet: true)
-                }
+                await self?.watchRound(round)
+                guard !Task.isCancelled else { return }
                 round += 1
-                // The slack lets macOS group this wakeup with others.
+                // The slack lets macOS group this wakeup with others, without retaining the model.
                 try? await Task.sleep(for: interval, tolerance: .seconds(10))
             }
+        }
+    }
+
+    private func watchRound(_ round: Int) async {
+        guard !Task.isCancelled else { return }
+        // The folder watch finds new reports; this is also the fallback for a missing folder.
+        if round % 5 == 0 || crashFolders.count < paths.diagnosticReportDirs.count {
+            await scanCrashes()
+        }
+        guard !Task.isCancelled else { return }
+        checkMac()
+        if round % 30 == 0 { await checkHealth(full: round == 0) }
+        guard !Task.isCancelled else { return }
+        if checksForUpdates, updateCheckDue(), !ProcessInfo.processInfo.isLowPowerModeEnabled {
+            await checkForUpdates(quiet: true)
         }
     }
 
@@ -536,35 +675,59 @@ public final class SummonModel {
         watchTask = nil
         crashFolders = []
         pendingCrashScan?.cancel()
+        pendingCrashScan = nil
+        crashRescanRequested = false
+        crashScanGeneration += 1
+        scanningCrashes = false
+        macCheck?.cancel()
+        macProbe?.cancel()
+        macAppend?.cancel()
+        macCheck = nil
+        macProbe = nil
+        macAppend = nil
     }
 
     func scanCrashes() async {
-        guard !scanningCrashes else { return }
+        if scanningCrashes { crashRescanRequested = true; return }
         scanningCrashes = true
-        defer { scanningCrashes = false }
+        let expected = crashScanGeneration
+        defer {
+            if expected == crashScanGeneration {
+                scanningCrashes = false
+                if crashRescanRequested {
+                    crashRescanRequested = false
+                    Task { await scanCrashes() }
+                }
+            }
+        }
         let watcher = CrashWatcher(paths: paths)
         var found: [CrashReport] = []
-        defer { if !found.isEmpty { onNewCrashes?(found) } }
+        defer { if expected == crashScanGeneration, !found.isEmpty { onNewCrashes?(found) } }
         do {
             var hasMore: Bool
             repeat {
                 let previousKey = recentKey
                 let result = try await Task.detached { () -> ([CrashReport]?, CrashWatcher.Batch, [String]) in
-                    // Reports can be megabytes each: re-parse only when metadata or mutes change.
                     let key = watcher.reportCacheKey()
                     let recent = key == previousKey ? nil : watcher.reports(since: nil, limit: 10)
                     return (recent, try watcher.scanNewReports(limit: 5), key)
                 }.value
-                if let recent = result.0 { recentCrashes = recent }
-                recentKey = result.2
-                if crashCaptureEnabled {
-                    found += result.1.reports
+                guard expected == crashScanGeneration else { return }
+                if let recent = result.0, recentCrashes != recent {
+                    recentCrashes = recent
+                    activity?.markDirty()
+                    reloadProjects()
                 }
+                recentKey = result.2
+                if crashCaptureEnabled { found += result.1.reports }
+                guard !Task.isCancelled else { return }
                 hasMore = result.1.hasMore
                 if hasMore { await Task.yield() }
             } while hasMore && !Task.isCancelled
         } catch {
-            lastError = "Could not scan diagnostic reports: \(error)"
+            if !Task.isCancelled, expected == crashScanGeneration {
+                lastError = "Could not scan diagnostic reports: \(error)"
+            }
         }
     }
 
@@ -578,17 +741,17 @@ public final class SummonModel {
     }
 
     func summon(_ arguments: [String]) async {
-        guard let summonPath else {
-            lastError = "The summon command is missing. Reinstall Summon."
+        guard !stopped, let summonPath else {
+            if !stopped { lastError = "The summon command is missing. Reinstall Summon." }
             return
         }
         do {
             _ = try await runner(summonPath, arguments)
-            lastError = nil
+            if !Task.isCancelled, !stopped { lastError = nil }
         } catch {
-            lastError = String(describing: error)
+            if !Task.isCancelled, !stopped { lastError = String(describing: error) }
         }
-        reload()
+        if !Task.isCancelled, !stopped { reload() }
     }
 
     /// The hotkey and the panel's Ask Agent: the agent starts with what is on screen as its first message.
@@ -613,7 +776,7 @@ public final class SummonModel {
 
     /// `full: false` keeps the last `macctl` result (the periodic re-check); Settings and launch run everything.
     public func checkHealth(full: Bool = true) async {
-        guard !isCheckingHealth else { return }
+        guard !stopped, !Task.isCancelled, !isCheckingHealth else { return }
         isCheckingHealth = true
         defer { isCheckingHealth = false }
         let environment = ProcessInfo.processInfo.environment
@@ -633,6 +796,7 @@ public final class SummonModel {
             isProcessRunning: { pid in pid > 0 && kill(pid, 0) == 0 }
         )
         let report = await doctor.run(reuseMacctl: full ? nil : doctorReport?.check("macctl"))
+        guard !stopped, !Task.isCancelled else { return }
         if report != doctorReport { doctorReport = report }
     }
 
@@ -666,34 +830,8 @@ public final class SummonModel {
         self.panelAgentShortcut = .defaultPanelAgent
     }
 
-    public func reloadProjects() {
-        let loaded = (try? ProjectStore(paths: paths).load().projects) ?? []
-        projects = loaded
-        checkAppsAndThemesHealth()
-        loadMenu()
-    }
-
-    public func checkAppsAndThemesHealth() {
-        var newAppHealth: [String: ItemHealth] = [:]
-        for project in projects {
-            newAppHealth[project.name] = AppHealthChecker.check(project: project, recentCrashes: recentCrashes)
-        }
-        appHealth = newAppHealth
-
-        var newThemeHealth: [String: ItemHealth] = [:]
-        for theme in themes {
-            newThemeHealth[theme.slug] = AppHealthChecker.check(theme: theme, themesFolder: paths.themes)
-        }
-        themeHealth = newThemeHealth
-
-        let scannedJobs = AppHealthChecker.scanArtJobs(artFolder: paths.art)
-        artJobs = scannedJobs
-        var newArtHealth: [String: ItemHealth] = [:]
-        for job in scannedJobs {
-            newArtHealth[job.name] = AppHealthChecker.check(artJob: job)
-        }
-        artJobHealth = newArtHealth
-    }
+    /// Reconcile the project registry and health without blocking Settings or panel presentation.
+    public func reloadProjects() { reload() }
 
     public func fixArtJobWithAI(_ job: ArtJob) {
         let health = artJobHealth[job.name] ?? AppHealthChecker.check(artJob: job)
@@ -936,9 +1074,11 @@ public final class SummonModel {
     // MARK: Summon Menu (in the panel)
 
     public func prepareLauncher(startAt level: String?) {
-        loadMenu()
+        // Use the last valid menu for the first frame; disk refresh follows presentation.
         launcherStartLevel = level.flatMap { menu.item($0) == nil ? nil : $0 }
+        requestedLauncherLevel = launcherStartLevel == nil ? level : nil
         launcherSession += 1
+        reload()
     }
 
     /// Children of `parent` whose `when` guard did not fail.
@@ -950,14 +1090,28 @@ public final class SummonModel {
         !menu.children(of: item.id).isEmpty
     }
 
-    /// Runs the `when` and `checked` guards of these items.
-    public func evaluateGuards(_ items: [MenuItem]) async {
+    /// One generation owns both level and search checks; a cancelled command never becomes false.
+    public func beginGuardEvaluation() -> Int {
+        guardGeneration += 1
+        return guardGeneration
+    }
+
+    public func invalidateGuards() { guardGeneration += 1 }
+
+    public func evaluateGuards(_ items: [MenuItem], generation: Int) async {
+        let prefix = shellPrefix
         for item in items {
-            if let guardCommand = item.when {
-                visibility[item.id] = await succeeds(guardCommand)
+            guard !Task.isCancelled, generation == guardGeneration else { return }
+            if let command = item.when {
+                guard let value = try? await succeeds(command, prefix: prefix),
+                      !Task.isCancelled, generation == guardGeneration else { return }
+                if visibility[item.id] != value { visibility[item.id] = value }
             }
-            if let checkCommand = item.checked {
-                checks[item.id] = await succeeds(checkCommand)
+            guard !Task.isCancelled, generation == guardGeneration else { return }
+            if let command = item.checked {
+                guard let value = try? await succeeds(command, prefix: prefix),
+                      !Task.isCancelled, generation == guardGeneration else { return }
+                if checks[item.id] != value { checks[item.id] = value }
             }
         }
     }
@@ -985,11 +1139,14 @@ public final class SummonModel {
         }
     }
 
-    private func succeeds(_ command: String) async -> Bool {
+    private func succeeds(_ command: String, prefix: String) async throws -> Bool {
+        try Task.checkCancellation()
         do {
-            _ = try await runner("/bin/zsh", ["-c", shellPrefix + command])
+            _ = try await runner("/bin/zsh", ["-c", prefix + command])
+            try Task.checkCancellation()
             return true
         } catch {
+            try Task.checkCancellation()
             return false
         }
     }
@@ -1009,6 +1166,80 @@ public final class SummonModel {
         }
         let quoted = dirs.map { "'" + $0.replacingOccurrences(of: "'", with: "'\\''") + "'" }.joined(separator: ":")
         return "export PATH=" + quoted + ":\"$PATH\"; "
+    }
+}
+
+/// No AppKit or permission reads here. Collection is intentionally independent of the UI actor;
+/// even a discarded generation must never mutate observable state.
+private struct SummonDiskSnapshot: Sendable {
+    let defaultAgent: Agent?
+    let repoPolicy: RepoPolicy
+    let updateChannel: UpdateChannel
+    let checksForUpdates: Bool
+    let updatePreferences: UpdatePreferences
+    let executionMode: AgentExecutionMode?
+    let installedAgentIDs: [String]
+    let themes: [Theme]
+    let currentThemeSlug: String?
+    let tasks: [RecurringTask]?
+    let installedTerminals: [TerminalApp]
+    let terminal: TerminalApp
+    let mutedPrograms: [String]
+    let agentSettings: AgentSettings?
+    let projects: [Project]?
+    let appHealth: [String: ItemHealth]
+    let themeHealth: [String: ItemHealth]
+    let artJobs: [ArtJob]
+    let artJobHealth: [String: ItemHealth]
+    let menu: MenuTree
+    let menuError: String?
+    let errors: [String]
+
+    static func collect(paths: SummonPaths, crashes: [CrashReport]) -> Self {
+        var errors: [String] = []
+        let mode: AgentExecutionMode?
+        do { mode = try ExecutionPolicyStore(paths: paths).load() }
+        catch { mode = nil; errors.append("Execution mode: \(error)") }
+        let tasks: [RecurringTask]?
+        do { tasks = try TaskStore(paths: paths).loadValidated() }
+        catch { tasks = nil; errors.append("Tasks: \(error)") }
+        let settings: AgentSettings?
+        do { settings = try AgentSettingsStore(paths: paths).loadValidated() }
+        catch { settings = nil; errors.append("Agent settings: \(error)") }
+        let projects: [Project]?
+        do { projects = try ProjectStore(paths: paths).load().projects }
+        catch { projects = nil; errors.append("Projects: \(error)") }
+
+        let themeStore = ThemeStore(paths: paths)
+        let themes = themeStore.all()
+        var appHealth: [String: ItemHealth] = [:]
+        for project in projects ?? [] where !Task.isCancelled {
+            appHealth[project.name] = AppHealthChecker.check(project: project, recentCrashes: crashes)
+        }
+        var themeHealth: [String: ItemHealth] = [:]
+        for theme in themes where !Task.isCancelled {
+            themeHealth[theme.slug] = AppHealthChecker.check(theme: theme, themesFolder: paths.themes)
+        }
+        let artJobs = Task.isCancelled ? [] : AppHealthChecker.scanArtJobs(artFolder: paths.art)
+        var artJobHealth: [String: ItemHealth] = [:]
+        for job in artJobs where !Task.isCancelled {
+            artJobHealth[job.name] = AppHealthChecker.check(artJob: job)
+        }
+        let locator = ToolLocator.live()
+        let installedAgentIDs = AgentRegistry.all.filter { locator.find($0.command) != nil }.map(\.id)
+        let installedTerminals = TerminalApp.installed
+        let menu = MenuTree.load(from: paths.menuFile)
+        return Self(defaultAgent: DefaultAgentStore(paths: paths).load(), repoPolicy: RepoPolicyStore(paths: paths).load(),
+                    updateChannel: UpdateChannelStore(paths: paths).load(),
+                    checksForUpdates: AutoUpdateStore(paths: paths).load(),
+                    updatePreferences: UpdatePreferencesStore(paths: paths).load(), executionMode: mode,
+                    installedAgentIDs: installedAgentIDs, themes: themes, currentThemeSlug: themeStore.currentSlug(),
+                    tasks: tasks, installedTerminals: TerminalApp.allCases.filter { installedTerminals.contains($0) },
+                    terminal: AgentLauncher.preferredTerminal(saved: DefaultTerminalStore(paths: paths).load(),
+                                                               installed: installedTerminals),
+                    mutedPrograms: CrashWatcher(paths: paths).muted().sorted(), agentSettings: settings,
+                    projects: projects, appHealth: appHealth, themeHealth: themeHealth,
+                    artJobs: artJobs, artJobHealth: artJobHealth, menu: menu.tree, menuError: menu.problem, errors: errors)
     }
 }
 
@@ -1033,7 +1264,7 @@ extension SummonModel {
 
     public static func preview() -> SummonModel {
         let home = FileManager.default.temporaryDirectory.appendingPathComponent("summon-preview", isDirectory: true)
-        let model = SummonModel(paths: SummonPaths(home: home)) { _, _ in "" }
+        let model = SummonModel(paths: SummonPaths(home: home), runner: { _, _ in "" }, live: false)
         model.recentCrashes = [
             CrashReport(
                 file: "/tmp/Example-2026-10-17-101500.ips", kind: .crash, bugType: "309", appName: "Example",

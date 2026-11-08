@@ -308,6 +308,7 @@ public struct CrashWatcher: Sendable {
 
     /// Parsed reports, newest first, skipping muted programs and unreadable files.
     public func reports(since: Date?, limit: Int = 20) -> [CrashReport] {
+        guard limit > 0 else { return [] }
         let mutedNames = muted()
         var result: [CrashReport] = []
         for url in reportFiles(since: since) {

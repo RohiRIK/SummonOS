@@ -19,6 +19,7 @@ public struct PanelView: View {
     /// E5: the `PanelState.session` whose first Activity refresh has finished. Until it matches, the agent line
     /// doesn't show the previous open's "running" state.
     @State private var refreshedSession = 0
+    @State private var openingBaseline = 0
     @FocusState private var searchFocused: Bool
 
     public init(model: SummonModel, activity: ActivityModel, panel: PanelState, actions: PanelActions) {
@@ -68,28 +69,37 @@ public struct PanelView: View {
         // A1/A2/G1: focus once the panel is key (the controller bumps this after makeKeyAndOrderFront).
         .onChange(of: panel.focusRequest) { _, _ in searchFocused = true }
         .onChange(of: query) { _, _ in selection = 0 }
-        // Re-check `when`/`checked` guards whenever the level changes or the panel opens again.
-        .task(id: GuardKey(level: level, session: model.launcherSession)) {
-            await model.evaluateGuards(model.menu.children(of: level))
+        .onChange(of: activity.lastPublishedGeneration) { _, published in
+            if panel.isOpen, published > openingBaseline, refreshedSession != panel.session {
+                refreshedSession = panel.session
+            }
         }
-        .task(id: query) {
-            guard !query.isEmpty else { return }
-            await model.evaluateGuards(model.menu.search(query))
+        .onChange(of: panel.isOpen) { _, open in
+            if !open { model.invalidateGuards() }
         }
-        // E1/E5: refresh at once on open, then every 1 s while open; cancelled on close.
-        .task(id: panel.isOpen) {
+        // Query, level, session, and visibility share one guard generation: no cancelled result
+        // from the previous search or panel opening can overwrite a newer check.
+        .task(id: GuardKey(level: level, query: query, session: model.launcherSession,
+                           menuRevision: model.menuRevision, visible: panel.isOpen)) {
             guard panel.isOpen else { return }
-            model.reloadProjects()
+            let generation = model.beginGuardEvaluation()
+            let items = query.isEmpty ? model.menu.children(of: level) : model.menu.search(query)
+            await model.evaluateGuards(items, generation: generation)
+        }
+        // Refresh once per opening and acknowledge only the generation that actually published.
+        // The shared activity owner observes source changes and reconciles slowly while interested.
+        .task(id: PanelRefreshKey(open: panel.isOpen, session: panel.session)) {
+            guard panel.isOpen else { return }
             let session = panel.session
+            openingBaseline = activity.lastPublishedGeneration
             guard activity.live else {
                 refreshedSession = session
                 return
             }
-            while !Task.isCancelled {
-                await activity.refresh()
-                if refreshedSession != session { refreshedSession = session }
-                try? await Task.sleep(for: .seconds(1))
-            }
+            activity.startInterest(.panel)
+            guard let _ = await activity.refresh(whileInterested: .panel), !Task.isCancelled,
+                  panel.isOpen, panel.session == session else { return }
+            refreshedSession = session
         }
     }
 
@@ -262,6 +272,14 @@ public struct PanelView: View {
 
     private struct GuardKey: Hashable {
         let level: String?
+        let query: String
+        let session: Int
+        let menuRevision: Int
+        let visible: Bool
+    }
+
+    private struct PanelRefreshKey: Hashable {
+        let open: Bool
         let session: Int
     }
 
@@ -269,7 +287,6 @@ public struct PanelView: View {
         query = ""
         level = model.launcherStartLevel
         selection = 0
-        model.reloadProjects()
     }
 
     private func move(_ delta: Int) {

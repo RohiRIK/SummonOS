@@ -16,6 +16,7 @@ on:
       - incubator/summon/design/brand/**
       - incubator/summon/scripts/bundle.sh
       - incubator/summon/scripts/visual-qa/**
+      - incubator/summon/scripts/runtime-audit-core.swift
       - incubator/summon/templates/menubar-panel/**
       - .github/workflows/visual-qa.yml
 

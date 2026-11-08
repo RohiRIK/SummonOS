@@ -46,6 +46,22 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-11-08 — Runtime hardening implementation (unreleased)
+- The approved audit's Core completion path now fits encoded terminal events, differentiates committed persistence
+  from maintenance/notification failures, and recovers pending run markers without duplicating a committed outcome.
+  Cleaner ranks UUID logs by modification time and protects active/pending run evidence under the task lease.
+- Panel and Activity share an off-main refresh owner, discard stale publications and watch replaced event logs;
+  opening a panel keeps activity interest until actual close. The native About panel reads staged build identity.
+- `bundle.sh` builds from staged source/manifest and signs one candidate; the gate verifies packaged identity and
+  runs an isolated Core lifecycle audit. `install.sh --verify-only` never replaces live files. CI full GUI/heap and
+  macOS 15/26 visual/VoiceOver evidence remain outstanding; no tagged release or installed app was changed.
+- Local evidence: workspace Python 90/90, Summon CLI 20/20, Core 377/377 after two corrected test-fixture assumptions;
+  packaged check stages passed with Core audit 30/30 samples. Core audit 100/100 repetitions passed all 11
+  scenarios (50 child executions, descriptor slots 3→3); first 30-sample same-host comparison is in the audit plan.
+
+### 2026-11-08 — Runtime audit and proposed implementation roadmap
+- [Audit and plan](../../docs/plans/2026-11-08-runtime-audit.md), source `3f37adf556b1`: oversized completion details exceed the event cap; cleaner sorts UUID logs instead of timestamps; command completion reloads disk-derived state on MainActor. Core smoke exercised the first two mechanisms; no application crash or memory leak was established.
+- Proposed phases cover controlled profiling, finish correctness/log protection, About/build identity, bounded refresh and automation. Documentation only; no runtime fixes or new automation scripts shipped.
 ### 2026-10-28 — Idle efficiency
 - `FileWatch` (Core): kqueue vnode source for files and folders. `MenuBarStatusWatcher` waits on it plus model
   observation (`Doorbell`); 1 s ticks only with a visible session clock. Crash folders are watched (3 s debounce).

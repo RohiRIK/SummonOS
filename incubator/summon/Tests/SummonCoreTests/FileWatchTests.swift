@@ -5,6 +5,14 @@ import Testing
 
 @Suite("FileWatch: changes without polling")
 struct FileWatchTests {
+    @Test func missingNestedDirectoryUsesExistingAncestorUntilCreated() throws {
+        let home = try makeTempHome()
+        let state = home.appendingPathComponent(".local/state/summon", isDirectory: true)
+        #expect(FileWatch.nearestExistingDirectory(to: state) == home)
+        try FileManager.default.createDirectory(at: state, withIntermediateDirectories: true)
+        #expect(FileWatch.nearestExistingDirectory(to: state) == state)
+    }
+
     @Test func reportsANewFileInAFolderAndAWriteToAFile() async throws {
         let dir = try makeTempHome()
         let file = dir.appendingPathComponent("log.jsonl")

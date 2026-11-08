@@ -158,15 +158,45 @@ capture_windows() {
       sleep 1.5   # the page swaps in place; agent status checks finish loading
       capture "$theme-settings-$section" "$settings"
     done
+    # The native About panel must be reached through the actual Settings action, not an offscreen replica.
+    open -g "summon://settings/general" >>"$LOG" 2>&1
+    sleep 1.5
+    before=$(ids)
+    if osascript -e 'tell application "System Events" to tell process "SummonMenu"' \
+      -e 'repeat with elementRef in (entire contents of window "Settings")' \
+      -e 'if role of elementRef is "AXButton" and name of elementRef is "About Summon" then' \
+      -e 'click elementRef' -e 'return' -e 'end if' -e 'end repeat' \
+      -e 'error "About Summon button missing"' -e 'end tell' >>"$LOG" 2>&1; then
+      opened=$(opened_since "$before")
+      if [ -n "$opened" ]; then
+        capture "$theme-about" "$opened"
+        [ -s "$OUT/$TAG-$theme-about.png" ] && check_luma "$OUT/$TAG-$theme-about.png" "$theme"
+        for id in $opened; do close_window "$id"; done
+      else
+        failed "$theme: About Summon button opened no native About window"
+      fi
+    else
+      failed "$theme: Settings About Summon action is not accessible"
+    fi
     check_luma "$OUT/$TAG-$theme-settings-general.png" "$theme"
     close_window "$settings"
   fi
 
+  if ! "$CORE_AUDIT" fixture-terminal "$HOME" >>"$LOG" 2>&1; then
+    failed "$theme: Core terminal completion fixture could not persist"
+  fi
   before=$(ids)
   open -g "summon://activity" >>"$LOG" 2>&1
   opened=$(opened_since "$before")
   if [ -n "$opened" ]; then
     capture "$theme-activity" "$opened"
+    if [ -f "$OUT/$TAG-$theme-activity.png" ]; then
+      if ! "$WINDOW_TEXT" "$OUT/$TAG-$theme-activity.png" | grep -qF "Audit completion fixture"; then
+        failed "$theme: Activity did not show persisted terminal completion"
+      fi
+    else
+      failed "$theme: Activity capture missing terminal result evidence"
+    fi
     for id in $opened; do close_window "$id"; done
   else
     failed "$theme: summon://activity opened nothing"
@@ -201,6 +231,12 @@ hotkey_ready() { grep -q "\"pid\" : $PID" "$HEALTH" 2>/dev/null && grep -q '"⌃
 wait_for 30 hotkey_ready || failed "app.json never showed ⌃⌥Space registered for pid $PID"
 log "app health (hotkey registration): $(tr -d '\n' <"$HEALTH" 2>/dev/null || echo missing)"
 log "windows at start (id layer x y w h):"; "$WINDOWS" "$PID" | tee -a "$LOG"
+PACKAGE="$(cd "$(dirname "$0")/../.." && pwd -P)"
+CORE_AUDIT="$OUT/core-audit"
+WINDOW_TEXT="$OUT/window-text"
+swiftc -O -swift-version 6 -parse-as-library "$PACKAGE"/Sources/SummonCore/*.swift \
+  "$PACKAGE/scripts/runtime-audit-core.swift" -o "$CORE_AUDIT" >>"$LOG" 2>&1 || failed "could not compile actual Core completion fixture"
+swiftc -O "$PACKAGE/scripts/visual-qa/window-text.swift" -o "$WINDOW_TEXT" >>"$LOG" 2>&1 || failed "could not compile window OCR helper"
 
 echo "## Visual QA: $TAG" >>"$SUMMARY"
 for theme in light dark; do

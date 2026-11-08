@@ -179,7 +179,10 @@ public enum ActivityFeed {
         crashDates: [String: Date] = [:]
     ) -> [ActivityEvent] {
         var events: [ActivityEvent] = []
+        var seenRuns: Set<String> = []
         for entry in log {
+            if entry.kind == EventKind.taskDone || entry.kind == EventKind.taskFailed,
+               let run = TaskResults.runID(of: entry), !seenRuns.insert(run).inserted { continue }
             events.append(event(from: entry))
         }
         for snapshot in snapshots where !snapshot.changes.isEmpty || snapshot.undoes != nil {
@@ -222,10 +225,14 @@ public enum ActivityFeed {
         case let kind where kind.hasPrefix("mac."): category = .mac
         default: category = .agent
         }
-        // Not the line number: trimming the log would shift it and lose the selection.
+        // A run has one terminal outcome. Keep selection stable when the log is trimmed or two
+        // completions happen within one timestamp; legacy records retain their original identity.
         let millis = Int((entry.time.timeIntervalSince1970 * 1000).rounded())
+        let recordID = (entry.kind == EventKind.taskDone || entry.kind == EventKind.taskFailed)
+            ? TaskResults.runID(of: entry) : nil
+        let id = recordID.map { "log:task:\($0)" } ?? "log:\(millis):\(entry.kind):\(entry.title)"
         return ActivityEvent(
-            id: "log:\(millis):\(entry.kind):\(entry.title)",
+            id: id,
             date: entry.time,
             category: category,
             kind: entry.kind,
@@ -344,9 +351,9 @@ public struct ActivitySources: Sendable, Equatable {
         self.configIsRepo = configIsRepo
     }
 
-    public static func load(paths: SummonPaths, crashLimit: Int = 20) -> ActivitySources {
+    public static func load(paths: SummonPaths, crashLimit: Int = 20, log: [LoggedEvent]? = nil) -> ActivitySources {
         let checkpointService = CheckpointService(paths: paths, runner: { _, _ in "" }, gitPath: nil, macctlPath: nil)
-        let crashes = CrashWatcher(paths: paths).reports(since: nil, limit: crashLimit)
+        let crashes = crashLimit > 0 ? CrashWatcher(paths: paths).reports(since: nil, limit: crashLimit) : []
         var crashDates: [String: Date] = [:]
         for report in crashes {
             if let date = ActivityFeed.crashDate(report) {
@@ -356,7 +363,7 @@ public struct ActivitySources: Sendable, Equatable {
             }
         }
         return ActivitySources(
-            log: EventLog(paths: paths).read(),
+            log: log ?? EventLog(paths: paths).read(),
             snapshots: MacctlSnapshot.load(from: paths.macctlSnapshots),
             checkpoints: checkpointService.list(),
             crashes: crashes,

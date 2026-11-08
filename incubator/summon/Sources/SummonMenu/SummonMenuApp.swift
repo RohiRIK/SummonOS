@@ -7,6 +7,7 @@ struct SummonMenuApp: App {
 
     init() {
         Screenshots.runIfAsked()
+        AboutPresenter.showIfAsked()
     }
 
     // The menu bar item is an NSStatusItem + nonactivating panel owned by `AppDelegate.panel` (PanelController),
@@ -53,6 +54,11 @@ struct SummonMenuApp: App {
         // The one Settings window (⌘, from the app menu, Settings… in the panel, summon://settings).
         Settings {
             SettingsView(model: delegate.model)
+        }
+        .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("About Summon") { AboutPresenter.show() }
+            }
         }
     }
 }

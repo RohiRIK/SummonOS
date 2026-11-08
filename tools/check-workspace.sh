@@ -76,14 +76,15 @@ else
   echo "note: python3 is not installed; skipped the docs bundle check"
 fi
 
-# 5. One SummonOS version: VERSION is the source; summon, Summon.app and macctl carry it as a literal.
+# 5. VERSION is the shared marketing version. Edge display and numeric bundle build are generated only in staging.
 version=$(tr -d '[:space:]' < "$root/VERSION")
 for pair in \
-  "incubator/summon/Sources/SummonCore/Version.swift:public static let current = \"$version\"" \
+  "incubator/summon/Sources/SummonCore/Version.swift:public static let current: String = \"$version\"" \
+  "incubator/summon/Sources/SummonCore/Version.swift:public static let marketingVersion: String = \"$version\"" \
   "incubator/summon/Resources/Info.plist:<key>CFBundleShortVersionString</key><string>$version</string>" \
   "macctl/Sources/MacCtlCLI/MacCtl.swift:version: \"macctl $version\","; do
   file=${pair%%:*}
-  grep -qF "${pair#*:}" "$root/$file" || { echo "error: $file does not carry version $version from VERSION" >&2; fail=1; }
+  grep -qF "${pair#*:}" "$root/$file" || { echo "error: $file does not carry VERSION $version" >&2; fail=1; }
 done
 
 if [ "$fail" -ne 0 ]; then

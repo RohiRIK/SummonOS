@@ -33,6 +33,82 @@ struct ActivityTests {
         #expect(titles.last == "event 9")
     }
 
+    @Test func appendReceiptSeparatesTheCommitFromAFailedTrim() throws {
+        let home = try makeTempHome()
+        let folder = home.appendingPathComponent("state")
+        let log = EventLog(file: folder.appendingPathComponent("events.jsonl"), keep: 3, maxBytes: 200)
+        let first = try log.append(LoggedEvent(time: t0, kind: "test", title: "first"))
+        #expect(first.offset == 0 && first.maintenanceFailure == nil && !first.trimmed)
+        // The trim replaces the file through its folder; a read-only folder makes only that step fail.
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: folder.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.path) }
+        let second = try log.append(LoggedEvent(time: t0, kind: "test", title: String(repeating: "x", count: 300)))
+        #expect(second.offset == UInt64(first.length))
+        #expect(second.maintenanceFailure != nil)
+        #expect(log.read().map(\.kind) == ["test", "test"])
+    }
+
+    @Test func aLineLeftByACrashedWriterDoesNotSwallowTheNextEvent() throws {
+        let home = try makeTempHome()
+        let log = EventLog(file: home.appendingPathComponent("events.jsonl"))
+        let torn = Data(#"{"kind":"task.do"#.utf8)
+        try torn.write(to: log.file)
+        let receipt = try log.append(LoggedEvent(time: t0, kind: EventKind.themeSet, title: "Theme"))
+        #expect(receipt.offset == UInt64(torn.count + 1)) // One separator after the unfinished line.
+        #expect(log.read().map(\.kind) == [EventKind.themeSet])
+    }
+
+    @Test func longEscapedTextIsFittedToTheEncodedLimit() throws {
+        let home = try makeTempHome()
+        let log = EventLog(file: home.appendingPathComponent("events.jsonl"))
+        let detail = String(repeating: "é\"\\\u{1}\n", count: 14_000) + "the end"
+        let event = LoggedEvent(time: t0, kind: EventKind.taskDone, title: "Task done: Brew", detail: detail,
+                                refs: ["task": "brew", "run": "R"])
+        #expect(throws: EventLogError.self) { try log.append(event) }
+        let fitted = try event.fitted()
+        #expect(try fitted.encodedLineBytes() <= EventLog.maxEventBytes)
+        #expect(fitted.detail?.hasSuffix("the end") == true)
+        #expect(fitted.refs == event.refs && fitted.title == event.title)
+        try log.append(fitted)
+        #expect(log.read() == [fitted])
+        let hugeRefs = LoggedEvent(time: t0, kind: "x", title: "t", refs: ["file": String(repeating: "a", count: 70_000)])
+        #expect(throws: EventLogError.self) { try hugeRefs.fitted() }
+    }
+
+    @Test func taskResultsProjectOnlyTerminalRecordsOncePerRun() {
+        func event(_ kind: String, _ refs: [String: String]) -> LoggedEvent {
+            LoggedEvent(time: t0, kind: kind, title: "t", refs: refs)
+        }
+        let legacyFile = "/Users/u/Summon/Tasks/b/\(UUID().uuidString).log"
+        let events = [
+            event(EventKind.taskDone, ["task": "a", "run": "R1"]),
+            event(EventKind.taskFailed, ["task": "a", "run": "R2", "outcome": "timed-out"]),
+            // A replay of R2 (an interrupted-run recovery after it had finished) changes nothing.
+            event(EventKind.taskFailed, ["task": "a", "run": "R2", "outcome": "interrupted"]),
+            event(EventKind.taskFailed, ["task": "b", "file": legacyFile]),
+            event(EventKind.taskDone, ["task": "b", "file": legacyFile]),
+            event(EventKind.agentLaunch, ["task": "c"]),
+            event(EventKind.taskFailed, ["task": "d"]),
+            event(EventKind.taskDone, ["task": "d"]),
+            event(EventKind.taskFailed, ["task": "e", "run": "R5", "outcome": "something-newer"]),
+        ]
+        #expect(TaskResults.latest(in: events) == ["a": "timed-out", "b": "failed", "d": "done", "e": "failed"])
+        #expect(TaskResults.runID(of: events[3]) == URL(fileURLWithPath: legacyFile).deletingPathExtension().lastPathComponent)
+        #expect(TaskResults.terminals(in: events).count == 6)
+    }
+
+    @Test func logTailIsBoundedAndNeverSplitsACharacter() throws {
+        let home = try makeTempHome()
+        let file = home.appendingPathComponent("run.log")
+        try Data(("first\nsecond\n" + String(repeating: "é", count: 35_000) + "\n").utf8).write(to: file)
+        let tail = try #require(LogTail.lastLines(of: file, count: 3, maxBytes: 4_096))
+        #expect(tail.hasPrefix("…é"))
+        #expect(!tail.contains("\u{FFFD}") && !tail.contains("second"))
+        #expect(tail.utf8.count <= 4_096 + "…".utf8.count)
+        try Data("one\n\ntwo\nthree\n  \n".utf8).write(to: file)
+        #expect(LogTail.lastLines(of: file, count: 2) == "two\nthree")
+    }
+
     @Test func readsMacctlSnapshotFiles() throws {
         let home = try makeTempHome()
         let paths = SummonPaths(home: home)

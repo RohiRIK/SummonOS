@@ -12,7 +12,18 @@ on:
         description: Release tag to install, such as v0.1.0 ("latest" = the newest release, prereleases included)
         default: latest
   pull_request:
-    paths: ['.github/workflows/release-smoke.yml']
+    paths:
+      - .github/workflows/release-smoke.yml
+      - .github/workflows/release.yml
+      - tools/build-metadata.py
+      - incubator/summon/scripts/bundle.sh
+      - incubator/summon/scripts/install.sh
+      - incubator/summon/scripts/runtime-audit.py
+      - incubator/summon/scripts/runtime-audit-core.swift
+      - incubator/summon/scripts/runtime-trace.py
+      - incubator/summon/scripts/visual-qa/window-text.swift
+      - incubator/summon/Sources/SummonMenuUI/AboutPresenter.swift
+      - incubator/summon/Sources/SummonCore/Version.swift
 
 permissions:
   contents: read
@@ -25,7 +36,34 @@ jobs:
       # A PR run checks the newest release; a published release checks itself.
       TAG: ${{ github.event.release.tag_name || inputs.tag || 'latest' }}
     steps:
+      - name: Require disposable hosted runner
+        if: runner.environment != 'github-hosted'
+        run: echo 'Full GUI smoke requires a disposable GitHub-hosted runner' >&2; exit 2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build and verify PR candidate on disposable runner
+        if: github.event_name == 'pull_request'
+        run: |
+          version=$(xcodebuild -version)
+          if ! grep -q '^Xcode 26' <<<"$version"; then
+            xcode=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+            [ -n "$xcode" ] || exit 1
+            sudo xcode-select -s "$xcode"
+          fi
+          swift build --package-path macctl -c release --product macctl
+          macctl="$(swift build --package-path macctl -c release --show-bin-path)/macctl"
+          incubator/summon/scripts/bundle.sh
+          SUMMONOS_APP_SOURCE="$PWD/incubator/summon/build/Summon.app" \
+            SUMMONOS_MACCTL_SOURCE="$macctl" incubator/summon/scripts/install.sh --verify-only
+          SUMMONOS_APP_SOURCE="$PWD/incubator/summon/build/Summon.app" \
+            SUMMONOS_MACCTL_SOURCE="$macctl" incubator/summon/scripts/install.sh
+          python3 tools/build-metadata.py verify \
+            --manifest "$HOME/Applications/Summon.app/Contents/Resources/BuildInfo.json" \
+            --app "$HOME/Applications/Summon.app" \
+            --summon "$HOME/Applications/Summon.app/Contents/MacOS/summon" --macctl "$HOME/.local/bin/macctl"
       - name: Install with the public installer
+        if: github.event_name != 'pull_request'
         run: |
           args=(--yes)
           [ "$TAG" = latest ] || args+=(--version "$TAG")
@@ -46,3 +84,20 @@ jobs:
           [ "$TAG" = latest ] || grep -qF "${TAG#v}" <<<"$out" || { echo "::error::macctl --version does not name $TAG"; exit 1; }
       - name: macctl doctor
         run: ~/.local/bin/macctl doctor
+      - name: About and panel lifecycle on isolated runner
+        if: runner.environment == 'github-hosted' && github.event_name != 'workflow_dispatch'
+        run: |
+          python3 incubator/summon/scripts/runtime-audit.py --mode ui \
+            --app "$HOME/Applications/Summon.app" --iterations 100 --out "$RUNNER_TEMP/release-audit"
+      - name: Upload disposable runtime evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-runtime-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/release-audit/**/environment.json
+            ${{ runner.temp }}/release-audit/**/metrics.json
+            ${{ runner.temp }}/release-audit/**/scenarios.json
+            ${{ runner.temp }}/release-audit/**/traces/*.png
+            ${{ runner.temp }}/release-audit/**/traces/*.json
+          if-no-files-found: warn

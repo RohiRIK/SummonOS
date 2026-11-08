@@ -380,6 +380,16 @@ struct GeneralSettings: View {
                                                                     set: { model.setAutoUpdateAgents($0) }))
             }
 
+            Section("About") {
+                LabeledContent {
+                    Button("About Summon") { AboutPresenter.show() }
+                } label: {
+                    Text("Summon \(BuildInfo.current.marketingVersion) (\(BuildInfo.current.buildNumber))")
+                    Text("\(BuildInfo.current.channelText) · \(BuildInfo.current.configurationText)")
+                }
+                .accessibilityElement(children: .contain)
+            }
+
             Section("Automation & Storage") {
                 Picker("Agent execution", selection: Binding(get: { model.executionMode }, set: { model.setExecutionMode($0) })) {
                     ForEach(AgentExecutionMode.allCases, id: \.self) { mode in
@@ -2062,8 +2072,8 @@ struct TasksSettings: View {
                 ForEach(model.tasks) { task in
                     LabeledContent {
                         if let result = model.taskResults[task.id] {
-                            Text(result == "failed" ? "Last run failed" : "Last run done")
-                                .foregroundStyle(result == "failed" ? .red : .secondary)
+                            Text("Last run \(TaskOutcome(rawValue: result)?.label ?? result)")
+                                .foregroundStyle(TaskOutcome(rawValue: result).map { $0 != .done } == true ? .red : .secondary)
                         }
                     } label: {
                         Text(verbatim: task.name)
@@ -2074,6 +2084,8 @@ struct TasksSettings: View {
             }
         }
         .formStyle(.grouped)
+        // Direct Settings opens (app menu) bypass the panel and Activity window, so ask the shared refresh once.
+        .task { await model.refreshActivity() }
     }
 }
 

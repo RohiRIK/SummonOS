@@ -1,5 +1,9 @@
 # Docs update log
 
+## 2026-11-08
+* **Update**: [runtime audit](plans/2026-11-08-runtime-audit.md), [features](features.md), [tools](tools.md), [Summon project context](../incubator/summon/PROJECT-CONTEXT.md) and [changelog](../incubator/summon/CHANGELOG.md): unreleased runtime hardening, staged build identity/native About, owned Core100 and signed installer fault evidence, same-host benchmark deltas and explicit hosted GUI/heap/VoiceOver prerequisites. The original source audit below remains a historical record.
+* **New**: [Summon runtime audit and implementation roadmap](plans/2026-11-08-runtime-audit.md): measured Core baselines, completion-event and UUID-log-retention defects, About/build identity, phased menu/lifecycle improvements, and automation contracts. Application behavior is unchanged; GUI crash/leak attribution remains unconfirmed.
+
 ## 2026-10-28
 * **Update**: SummonOS 0.2.4: Summon and the apps it builds use less while idle.
 * **Update**: [Summon CHANGELOG](../incubator/summon/CHANGELOG.md): templates idle cheaper (permission re-check, HUD timer, launcher scan cache, stripped release binaries); the `mac-app` skill gains an Efficiency section and `mac-app-test` an idle step.
