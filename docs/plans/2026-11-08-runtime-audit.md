@@ -434,8 +434,18 @@ Recorder timeout cleanup terminates its owned process group, including descendan
 child regression passed. Search verification now explicitly focuses the owned field, posts PID-targeted
 keyboard events and requires its actual value to equal the fixture query. Earlier cycles sent keystrokes
 without checking the resulting value and are not proof of search input. The helper compiled and its local
-native-window smoke correctly reported missing Accessibility permission without sending keys; the stricter
-full-app scenario requires a fresh disposable hosted run.
+native-window smoke correctly reported missing Accessibility permission without sending keys.
+
+Subsequent hosted [run `42508048500`](https://github.com/RohiRIK/SummonOS/actions/runs/42508048500), revision
+`9bb3063`, passed packaged About metadata, About/Activity Command-W, actual terminal-event delivery and all
+100 open/search/close cycles **with 100 verified query values**. About and panel screenshots were inspected.
+Logging, Time Profiler and Allocations also completed their owned-input cycles and saved successfully.
+SwiftUI alone reported `Trace file had no SwiftUI data`, then exceeded the 45-second save deadline. Its sampled
+stack was in Instruments `XRTrace saveDocument` / `XRSymbolStoreManager` / `CoreSymbolicationDT` symbol processing;
+this identifies recorder finalization work, not an application deadlock or the cause of the missing SwiftUI data.
+The audit now rejects that missing-data warning even if the recorder exits zero and saves a trace directory;
+the false-success regression failed before the correction, and the parser recognized the actual hosted log.
+No timeout inflation or alternate profiler is counted as a SwiftUI pass. That profiling gate remains failed.
 
 Release readiness still requires VoiceOver navigation, Reduce Transparency, full notification/crash-burst proof,
 controlled comparative GUI profiling, actual displayed-frame timing and retained-heap bounds. A recording alone

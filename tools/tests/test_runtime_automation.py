@@ -225,11 +225,12 @@ class RuntimeProfilingTests(unittest.TestCase):
             self.assertFalse(runtime_audit.wait_recording_notification(child, 37))
 
     def test_recording_stops_only_after_notified_cycle_and_retains_failures(self):
-        cases = ((True, "passed", 0, "passed"), (False, "passed", 0, "blocked"),
-                 (True, "failed", 0, "failed"), (True, "blocked", 0, "blocked"),
-                 (True, "failed", 1, "failed"), (True, "passed", 1, "blocked"))
-        for ready, cycle_status, recorder_exit, expected in cases:
-            with self.subTest(ready=ready, cycle=cycle_status, exit=recorder_exit), tempfile.TemporaryDirectory() as temporary:
+        cases = ((True, "passed", 0, "passed", False), (False, "passed", 0, "blocked", False),
+                 (True, "failed", 0, "failed", False), (True, "blocked", 0, "blocked", False),
+                 (True, "failed", 1, "failed", False), (True, "passed", 1, "blocked", False),
+                 (True, "passed", 0, "failed", True))
+        for ready, cycle_status, recorder_exit, expected, missing_swiftui in cases:
+            with self.subTest(ready=ready, cycle=cycle_status, exit=recorder_exit, missing_swiftui=missing_swiftui), tempfile.TemporaryDirectory() as temporary:
                 target = pathlib.Path(temporary) / "logging.trace"
                 child = mock.Mock()
                 child.returncode = None
@@ -238,6 +239,8 @@ class RuntimeProfilingTests(unittest.TestCase):
                     kwargs["stdout"].write(b"Ctrl-C to stop the recording\nprivate path /Users/secret/example\n")
                     if recorder_exit:
                         kwargs["stdout"].write(b"permission denied\n")
+                    if missing_swiftui:
+                        kwargs["stdout"].write(b"[Warning] Trace file had no SwiftUI data\n")
                     kwargs["stdout"].flush()
                     return child
                 def cycle(*args):
@@ -252,7 +255,7 @@ class RuntimeProfilingTests(unittest.TestCase):
                      mock.patch.object(runtime_audit, "wait_recording_notification", return_value=ready), \
                      mock.patch.object(runtime_audit.subprocess, "Popen", side_effect=launch), \
                      mock.patch.object(runtime_audit, "trace_window_cycle", side_effect=cycle) as interaction:
-                    result = runtime_audit.record_instrument("Logging", 123, pathlib.Path("helper"), target, [])
+                    result = runtime_audit.record_instrument("SwiftUI" if missing_swiftui else "Logging", 123, pathlib.Path("helper"), target, [])
                 self.assertEqual(result["status"], expected)
                 self.assertEqual(result["exit_status"], recorder_exit)
                 self.assertEqual(result["interactive_cycle"], ready and cycle_status == "passed")

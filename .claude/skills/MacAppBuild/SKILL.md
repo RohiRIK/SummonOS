@@ -28,6 +28,7 @@ SwiftPM-only build, verify and ship loop. No Xcode project; Xcode is used throug
 - Native resource sampling: macOS `ps` has no `thcount` field. `ps -M -p PID` emits one header and one row per thread; verify the counter with an owned child containing a known number of threads.
 - GUI QA: a first-run Welcome window can satisfy a broad window-size query before About. Summon's existing `-VisualQA YES` argument-domain setting suppresses onboarding for an owned disposable audit without persisting preferences. AppleScript compilation does not validate runtime Accessibility object specifiers; exercise navigation on the real surface.
 - xctrace automation: register its `--notify-tracing-started` Darwin notification before launch, exercise the owned UI only after readiness, then send SIGINT and require a successful saved trace. A stdout banner, trace-directory existence or completed interaction alone is not recording proof; retain bounded, path-redacted recorder diagnostics and sample only the owned recorder if finalization stalls.
+- SwiftUI recording can report `Trace file had no SwiftUI data` after a successful interaction. Reject it even if saving succeeds; an exit code or trace directory is not SwiftUI-data proof. A recorder stack in Instruments symbol serialization is not an application deadlock.
 
 - `LSUIElement=true` hides the Dock icon. Without it the menu bar app also shows in the Dock and Cmd-Tab.
 - Permission usage strings (`NSLocationUsageDescription`, etc.) only work from the bundle's Info.plist. A bare `swift run` binary never gets the prompt.

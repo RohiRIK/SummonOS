@@ -234,7 +234,8 @@ def recording_output(output, diagnostics_path=None):
     text = text.lower()
     markers = {"starting":"starting recording with", "stdout_ready":"ctrl-c to stop the recording",
                "completed":"recording completed", "saved":"output file saved",
-               "time_limit":"reached specified time limit", "error":"error", "warning":"warning"}
+               "time_limit":"reached specified time limit", "error":"error", "warning":"warning",
+               "missing_swiftui_data":"trace file had no swiftui data"}
     return {"output_bytes":size, "output_truncated":size > 16384,
             "output_markers":[name for name, phrase in markers.items() if phrase in text],
             "permission_error":any(phrase in text for phrase in
@@ -311,6 +312,8 @@ def record_instrument(template, pid, helper, target, children):
                 if outcome["status"] != "failed":
                     outcome.update(status=outcome["recorder_status"],
                                    reason="Recorder exited unsuccessfully; see sanitized exit/output diagnostics")
+            elif template == "SwiftUI" and "missing_swiftui_data" in outcome["output"]["output_markers"]:
+                outcome.update(status="failed", reason="Recorder reported no SwiftUI data")
             elif outcome["interactive_cycle"] and target.is_dir() and outcome["status"] != "failed":
                 outcome["status"] = "passed"
             elif not target.is_dir():

@@ -69,8 +69,11 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   Transparency, displayed-frame and retained-heap acceptance remain release gates, not inferred passes.
 - Runtime evidence now retains sanitized capture stderr and kills only the recorder's owned process group on
   timeout. Search cycles require actual AX query read-back, not merely sent keystrokes; earlier GUI100 evidence
-  does not establish that stronger assertion. Local native helper input is permission-blocked without sending
-  keys; fresh disposable hosted verification is required.
+  does not establish that stronger assertion. Local native input was permission-blocked without sending keys.
+  Hosted `9bb3063` subsequently passed all 100 query read-backs, About/Activity keyboard close, terminal
+  delivery and Logging/Time Profiler/Allocations recording. SwiftUI reported no SwiftUI data and exceeded its
+  save deadline; the recorder sample shows symbol serialization, not an application deadlock. Missing SwiftUI
+  data is rejected even on zero exit; profiling acceptance remains blocked.
 - Hosted `deb7eb1` passed Swift and visual QA on macOS 15/26, lifecycle smoke, release build and CodeQL.
   Genuine panel intervals exported; SwiftUI recorder finalization alone timed out while other recordings and
   subsequent interactions passed. Bounded recorder diagnostics now retain the specific failure without weakening the gate.
