@@ -164,11 +164,11 @@ capture_windows() {
     before=$(ids)
     if osascript -e 'tell application "System Events" to tell process "SummonMenu"' \
       -e 'set settingsWindow to window "General"' \
-      -e 'repeat with elementRef in (entire contents of settingsWindow)' \
+      -e 'repeat with elementRef in (get entire contents of settingsWindow)' \
       -e 'if role of elementRef is "AXScrollBar" then' \
       -e 'if value of attribute "AXOrientation" of elementRef is "AXVerticalOrientation" then set value of elementRef to 1' \
       -e 'end if' -e 'end repeat' -e 'delay 0.3' \
-      -e 'repeat with elementRef in (entire contents of settingsWindow)' \
+      -e 'repeat with elementRef in (get entire contents of settingsWindow)' \
       -e 'if role of elementRef is "AXButton" and name of elementRef is "About Summon" then' \
       -e 'click elementRef' -e 'return' -e 'end if' -e 'end repeat' \
       -e 'error "About Summon button missing"' -e 'end tell' >>"$LOG" 2>&1; then

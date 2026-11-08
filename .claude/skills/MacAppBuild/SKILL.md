@@ -25,6 +25,8 @@ SwiftPM-only build, verify and ship loop. No Xcode project; Xcode is used throug
 
 - CI caches: compiled Swift/Clang modules embed absolute checkout and SDK paths. Cache dependency sources/artifacts, not the whole `.build/`; changing repository paths or toolchains otherwise restores invalid modules.
 - Public commits: verify both author and committer before pushing (`git show -s --format='%an <%ae>%n%cn <%ce>' HEAD`). An unset committer identity can become an email containing the machine hostname even when the author is configured. Use an explicit per-command GitHub noreply identity when needed; do not batch the first commit and push before inspecting identity.
+- Native resource sampling: macOS `ps` has no `thcount` field. `ps -M -p PID` emits one header and one row per thread; verify the counter with an owned child containing a known number of threads.
+- GUI QA: a first-run Welcome window can satisfy a broad window-size query before About. Summon's existing `-VisualQA YES` argument-domain setting suppresses onboarding for an owned disposable audit without persisting preferences. AppleScript compilation does not validate runtime Accessibility object specifiers; exercise navigation on the real surface.
 
 - `LSUIElement=true` hides the Dock icon. Without it the menu bar app also shows in the Dock and Cmd-Tab.
 - Permission usage strings (`NSLocationUsageDescription`, etc.) only work from the bundle's Info.plist. A bare `swift run` binary never gets the prompt.

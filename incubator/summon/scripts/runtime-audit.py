@@ -205,7 +205,8 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
             raise ValueError("Screen Recording permission did not yield an app-window capture")
         return command([str(ocr), str(image)], timeout=30)
     # Open the exact supplied bundle; find only its new executable, never identify by an unrelated PID.
-    launch = owned_process(["/usr/bin/open", "-n", "-a", str(app), "--args", "--show-about"])
+    launch = owned_process(["/usr/bin/open", "-n", "-a", str(app), "--args",
+                            "-VisualQA", "YES", "--show-about"])
     children.append(launch)
     launch.wait(timeout=10)
     if launch.returncode != 0:
@@ -279,7 +280,7 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
             samples.append((time.monotonic()-start)*1000)
             if index % 10 == 0 or index == iterations - 1:
                 rss = int(command(["/bin/ps", "-o", "rss=", "-p", str(pid)], timeout=5))
-                threads = int(command(["/bin/ps", "-o", "thcount=", "-p", str(pid)], timeout=5))
+                threads = len(command(["/bin/ps", "-M", "-p", str(pid)], timeout=5).splitlines()) - 1
                 descriptors = sum(line.startswith("f") for line in command(
                     ["/usr/sbin/lsof", "-nP", "-p", str(pid), "-Ff"], timeout=10).splitlines())
                 resources.append({"cycle":index,"rss_kib":rss,"threads":threads,"fd_records":descriptors})
