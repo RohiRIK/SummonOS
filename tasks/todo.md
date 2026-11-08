@@ -323,7 +323,7 @@ and build/deployment/validation/cleanup automation. Implementation detail and ac
 - [ ] Phase 2 — Signed stable/edge identity verified at `8f267fb`; packaged About metadata and cross-OS light keyboard close/reopen verified at `e94dbfa`. VoiceOver remains required.
 - [ ] Phase 3 — Off-main shared refresh and watcher/shutdown fixes implemented; actual terminal delivery and GUI100 passed. Crash bursts, displayed-frame timing and retained-heap bounds remain release gates; PanelWindowUpdate is pre-display only.
 - [ ] Phase 4 — Signed local gate, isolated verify-only and two rollback faults passed; hosted macOS 26 packaged installation/CLI and GUI lifecycle exercised. Current automated gates are tracked in draft PR #124.
-- [x] Independent static reviews integrated; latest Python 99/99, CLI 21/21 and Core 378/378 passed. Explicit lease-release regression and real signed lifecycle smoke passed; historical Core100 passed 11/11 scenarios.
+- [x] Independent static reviews integrated; latest Python 98/98, CLI 21/21 and Core 378/378 passed. Explicit lease-release regression and real signed lifecycle smoke passed; historical Core100 passed 11/11 scenarios.
 - [ ] VoiceOver, Reduce Transparency, controlled comparative GUI/displayed-frame profiling, full-app notification/crash bursts and retained-heap proof remain required before release readiness.
 - [x] Updated existing docs/indexes; workspace, README-art and OKF checks passed after local integration evidence.
 

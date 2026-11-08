@@ -8,6 +8,7 @@ import json
 import os
 import pathlib
 import platform
+import re
 import select
 import signal
 import subprocess
@@ -209,15 +210,24 @@ def wait_recording_notification(child, descriptor, timeout=15):
     return False
 
 
-def recording_output(output):
-    # Retain only fixed lifecycle/error labels and byte counts, never tool text, paths or trace messages.
+def save_tool_diagnostics(path, text):
+    # Recorder/sample diagnostics only, never target stdout. JSON still contains fixed labels/counts only.
+    text = re.sub(r"/(?:Users|home|private|var|tmp)/[^\r\n]*", "<private path redacted>", text)
+    path.write_text(text[:16384])
+
+
+def recording_output(output, diagnostics_path=None):
+    # JSON retains fixed labels/counts; disposable-runner sidecars retain bounded, path-redacted tool diagnostics.
     descriptor = output.fileno()
     size = os.fstat(descriptor).st_size
     # pread leaves the child's shared file offset alone while it may still be writing.
     text = os.pread(descriptor, 8192, 0)
     if size > 8192:
         text += os.pread(descriptor, 8192, max(8192, size - 8192))
-    text = text.decode(errors="replace").lower()
+    text = text.decode(errors="replace")
+    if diagnostics_path is not None:
+        save_tool_diagnostics(diagnostics_path, text)
+    text = text.lower()
     markers = {"starting":"starting recording with", "stdout_ready":"ctrl-c to stop the recording",
                "completed":"recording completed", "saved":"output file saved",
                "time_limit":"reached specified time limit", "error":"error", "warning":"warning"}
@@ -261,6 +271,7 @@ def record_instrument(template, pid, helper, target, children):
                 else:
                     outcome["reason"] = "Recording-start notification not observed while recorder was running"
             finally:
+                phase = "recorder finalization"
                 try:
                     if child.poll() is None:
                         child.send_signal(signal.SIGINT)
@@ -268,6 +279,13 @@ def record_instrument(template, pid, helper, target, children):
                     child.wait(timeout=45)
                 except subprocess.TimeoutExpired:
                     outcome.update(status="failed", reason="Recorder did not stop/save within its deadline", stop_timed_out=True)
+                    try:
+                        sample = subprocess.run(["/usr/bin/sample", str(child.pid), "1", "10"],
+                                                text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=5)
+                        save_tool_diagnostics(target.with_suffix(".recorder-sample.log"), sample.stdout)
+                        outcome["recorder_sample_exit_status"] = sample.returncode
+                    except (OSError, subprocess.SubprocessError) as exc:
+                        outcome["recorder_sample_error"] = type(exc).__name__
                     child.terminate()
                     try:
                         child.wait(timeout=3)
@@ -276,7 +294,7 @@ def record_instrument(template, pid, helper, target, children):
                         child.wait(timeout=3)
                 finally:
                     outcome["exit_status"] = child.poll()
-                    outcome["output"] = recording_output(output)
+                    outcome["output"] = recording_output(output, target.with_suffix(".recorder.log"))
             if outcome["exit_status"] != 0:
                 outcome["recorder_status"] = "blocked" if outcome["output"]["permission_error"] else "failed"
                 if outcome["status"] != "failed":

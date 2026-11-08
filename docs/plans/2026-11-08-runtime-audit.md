@@ -403,7 +403,7 @@ The dark-mode driver correctly refused two empty-titled windows; it now joins pu
 without substituting a click for keyboard dismissal. A separate macOS 26 notification-lease regression exposed
 the lack of a guaranteed release boundary: `FileLease` now explicitly releases its descriptor, idempotently and
 under synchronization, at every caller's defer. Retained-object/concurrent-release and blocked-notification
-acquisition regressions passed locally. Latest local totals: Core 378, CLI 21 and Python tooling 99, all passing;
+acquisition regressions passed locally. Latest local totals: Core 378, CLI 21 and Python tooling 98, all passing;
 the signed `build/lease-profiling-check` gate and real Core lifecycle smoke also passed.
 
 Historical Logging/SwiftUI recordings were not uploaded, so their failure cause is not established by the old
@@ -412,6 +412,21 @@ to the hit-tested owned status item, verifies the panel cycle, then stops the re
 the mouse-down `PanelOpen` interval. Sanitized readiness, recorder and export diagnostics are retained; missing
 samples remain blocked, never fabricated. Current hosted results are tracked in
 [draft PR #124](https://github.com/RohiRIK/SummonOS/pull/124).
+
+Hosted `deb7eb1` passed both macOS 15/26 Swift suites and visual-QA matrices, lifecycle smoke, release build and
+CodeQL. Logging, Time Profiler and Allocations each recorded an actual owned mouse-input panel cycle and exited
+successfully. Logging exported these single samples:
+
+| Interval | Observed ms | Samples |
+|---|---:|---:|
+| Mouse-down to ordered front (`PanelOpen`) | 56.922 | 1 |
+| Mouse-down to pre-display update (`PanelWindowUpdate`) | 62.965 | 1 |
+
+These are not a p95, a speedup comparison or displayed-frame evidence. SwiftUI recording reached readiness and
+completed the interaction but did not save/exit within 45 seconds; the owned recorder was terminated. Later
+Time Profiler/Allocations interactions passed, so this is not evidence that the app itself hung. The failure
+remains a failed gate. Bounded recorder-only logs and a stack sample, with private paths redacted, are now retained
+to diagnose finalization; raw target stdout is not collected. The capture path was exercised with an owned child.
 
 Release readiness still requires VoiceOver navigation, Reduce Transparency, full notification/crash-burst proof,
 controlled comparative GUI profiling, actual displayed-frame timing and retained-heap bounds. A recording alone

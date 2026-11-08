@@ -48,6 +48,10 @@ against temporary event/log/snapshot/checkpoint fixtures; `--mode ui --app APP` 
 runner or an explicitly authorized test account and refuses an existing SummonMenu. A blocked GUI prerequisite is
 exit 2, not a passed result. PanelWindowUpdate measures AppKit's first window-update pass **before** display;
 it is not proof of a first drawn or composited frame. Only owned fixture/process resources may be removed.
+Profiler interactions wait on xctrace's recording-start notification; actual status-item mouse input is restricted
+to the hit-tested owned extra-menu item. Recorder finalization failures retain bounded, private-path-redacted
+`*.recorder*.log` sidecars (tool diagnostics and an owned-recorder stack sample, never target stdout). Hosted
+artifacts include those sidecars; JSON keeps structured statuses/counts. Timeouts remain failures.
 
 ## mp
 

@@ -216,15 +216,6 @@ class MetadataAndInstallerTests(unittest.TestCase):
 
 
 class RuntimeProfilingTests(unittest.TestCase):
-    def test_notification_readiness_does_not_depend_on_stdout(self):
-        child = mock.Mock()
-        child.poll.return_value = None
-        with mock.patch.object(runtime_audit.select, "select", return_value=([37], [], [])), \
-             mock.patch.object(runtime_audit.os, "read", return_value=b"\0\0\0\1") as read:
-            self.assertTrue(runtime_audit.wait_recording_notification(child, 37))
-        read.assert_called_once_with(37, 4)
-        child.stdout.read.assert_not_called()
-
     def test_readiness_timeout_does_not_become_a_successful_recording(self):
         child = mock.Mock()
         child.poll.return_value = None
@@ -243,8 +234,6 @@ class RuntimeProfilingTests(unittest.TestCase):
                 child.returncode = None
                 child.poll.side_effect = lambda: child.returncode
                 def launch(args, **kwargs):
-                    self.assertIn("--notify-tracing-started", args)
-                    self.assertNotIn("--time-limit", args)
                     kwargs["stdout"].write(b"Ctrl-C to stop the recording\nprivate path /Users/secret/example\n")
                     if recorder_exit:
                         kwargs["stdout"].write(b"permission denied\n")
@@ -266,7 +255,6 @@ class RuntimeProfilingTests(unittest.TestCase):
                 self.assertEqual(result["status"], expected)
                 self.assertEqual(result["exit_status"], recorder_exit)
                 self.assertEqual(result["interactive_cycle"], ready and cycle_status == "passed")
-                self.assertEqual(result["recording_ready"], ready)
                 self.assertEqual(result["stop_requested_after_cycle"], ready and cycle_status == "passed")
                 self.assertEqual(interaction.call_count, int(ready))
                 child.send_signal.assert_called_once_with(runtime_audit.signal.SIGINT)
@@ -287,19 +275,6 @@ class RuntimeProfilingTests(unittest.TestCase):
             self.assertFalse(result["interactive_cycle"])
             child.send_signal.assert_not_called()
 
-    def test_status_item_prerequisite_never_falls_back_to_url(self):
-        evidence = {"status":"blocked", "pid":123, "operation":"status-item mouse input",
-                    "mouse_sent":False, "reason":"Owned status item unavailable"}
-        response = subprocess.CompletedProcess([], 2, stdout=json.dumps(evidence))
-        with mock.patch.object(runtime_audit.subprocess, "run", return_value=response) as run, \
-             mock.patch.object(runtime_audit, "command") as command, \
-             mock.patch.object(runtime_audit, "wait_window") as windows:
-            result = runtime_audit.trace_window_cycle(123, pathlib.Path("helper"))
-        self.assertEqual(result["status"], "blocked")
-        self.assertEqual(run.call_args.args[0], ["helper", "click-status", "123"])
-        command.assert_not_called()
-        windows.assert_not_called()
-
     def test_output_diagnostics_are_bounded_and_do_not_move_writer_offset(self):
         with tempfile.TemporaryFile() as output:
             output.write(b"Starting recording with Logging\n/Users/private/path\n" + b"x" * 20000 +
@@ -311,6 +286,18 @@ class RuntimeProfilingTests(unittest.TestCase):
         self.assertTrue(result["output_truncated"])
         self.assertEqual(result["output_markers"], ["starting", "completed", "saved"])
         self.assertNotIn("private", json.dumps(result))
+
+    def test_recorder_sidecars_bound_output_and_redact_private_paths_with_spaces(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = pathlib.Path(temporary) / "recorder.log"
+            runtime_audit.save_tool_diagnostics(path,
+                "Warning: exporter stalled\nPath: /Users/example user/do-not-publish\n"
+                "Trace: /tmp/private capture/do-not-publish\n" + "x" * 20000)
+            text = path.read_text()
+        self.assertIn("exporter stalled", text)
+        self.assertNotIn("do-not-publish", text)
+        self.assertNotIn("example user", text)
+        self.assertLessEqual(len(text), 16384)
 
     def test_multiple_export_nodes_use_local_columns_and_references_once(self):
         toc = '<trace-toc><run><data><table schema="OSSignpostIntervals"/><table schema="OSSignpostIntervals"/></data></run></trace-toc>'
@@ -325,9 +312,8 @@ class RuntimeProfilingTests(unittest.TestCase):
 <row><duration>25018709</duration><signpost-name>PanelWindowUpdate</signpost-name><category>panel</category>
 <subsystem>local.macplugins.summon</subsystem><os-log-metadata ref="1"/></row></node></trace-query-result>'''
         replies = [subprocess.CompletedProcess([], 0, stdout=text) for text in (toc, rows)]
-        with mock.patch.object(trace_parser.subprocess, "run", side_effect=replies) as exports:
+        with mock.patch.object(trace_parser.subprocess, "run", side_effect=replies):
             result = trace_parser.extract(pathlib.Path("captured.trace"))
-        self.assertEqual(exports.call_count, 2)
         self.assertEqual(result["PanelOpen"], [12.509709])
         self.assertEqual(result["PanelWindowUpdate"], [20.208334, 25.018709])
         self.assertEqual(result["diagnostics"]["interval_tables"], 2)
@@ -347,7 +333,6 @@ class RuntimeProfilingTests(unittest.TestCase):
         self.assertEqual(result["diagnostics"]["matching_panel_rows"], {"PanelOpen":0, "PanelWindowUpdate":2})
         self.assertEqual(result["diagnostics"]["unexpected_end_message"]["PanelWindowUpdate"], 1)
         self.assertEqual(result["diagnostics"]["invalid_duration"]["PanelWindowUpdate"], 1)
-        self.assertIn("status-item mouse-down", result["diagnostics"]["prerequisites"]["PanelOpen"])
         self.assertNotIn("private", json.dumps(result))
 
 

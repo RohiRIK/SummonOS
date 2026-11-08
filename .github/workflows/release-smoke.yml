@@ -100,4 +100,5 @@ jobs:
             ${{ runner.temp }}/release-audit/**/scenarios.json
             ${{ runner.temp }}/release-audit/**/traces/*.png
             ${{ runner.temp }}/release-audit/**/traces/*.json
+            ${{ runner.temp }}/release-audit/**/traces/*.recorder*.log
           if-no-files-found: warn

@@ -65,8 +65,11 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   native About light/dark captures and cross-OS light close/reopen were verified. Follow-up fixes explicitly release
   leases (ARC is not a scope boundary), distinguish duplicate window titles with public geometry, and synchronize
   profiling on Darwin recording notifications plus genuine owned status-item input. Local Core 378/378, CLI 21/21,
-  Python 99/99 and signed lifecycle gate passed; current hosted results are in draft PR #124. VoiceOver, Reduce
+  Python 98/98 and signed lifecycle gate passed; current hosted results are in draft PR #124. VoiceOver, Reduce
   Transparency, displayed-frame and retained-heap acceptance remain release gates, not inferred passes.
+- Hosted `deb7eb1` passed Swift and visual QA on macOS 15/26, lifecycle smoke, release build and CodeQL.
+  Genuine panel intervals exported; SwiftUI recorder finalization alone timed out while other recordings and
+  subsequent interactions passed. Bounded recorder diagnostics now retain the specific failure without weakening the gate.
 
 ### 2026-11-08 — Runtime audit and proposed implementation roadmap
 - [Audit and plan](../../docs/plans/2026-11-08-runtime-audit.md), source `3f37adf556b1`: oversized completion details exceed the event cap; cleaner sorts UUID logs instead of timestamps; command completion reloads disk-derived state on MainActor. Core smoke exercised the first two mechanisms; no application crash or memory leak was established.
