@@ -318,13 +318,13 @@ Branch: `feat/runtime-hardening-2026-11-08`. Preserve the master plan and comple
 Explicit requirements: reachable About/build details, measured menu performance improvements, finish-phase stability,
 and build/deployment/validation/cleanup automation. Implementation detail and acceptance: the linked runtime audit.
 
-- [ ] Phase 0 — Baseline + Core100 driver implemented; full GUI100/heap baseline awaits disposable hosted macOS runner.
+- [ ] Phase 0 — Core baseline/Core100 complete; hosted candidate GUI100 passed. Controlled comparative GUI and retained-heap baselines remain required.
 - [x] Phase 1 — Bounded/idempotent terminal outcomes, cancellation/timeout/interruption and leased chronological cleanup; Core/CLI regressions and Core100 scenarios passed locally.
-- [ ] Phase 2 — Staged manifest and native About implemented; local signed development candidate and standalone native panel verified. Clean implementation revision `8f267fb` produced verified signed stable/edge packages and matching compiled identity; cross-OS packaged About and VoiceOver await CI.
-- [ ] Phase 3 — Off-main shared refresh, stale/cancelled publication and watcher/shutdown fixes implemented; GUI cycles, crash bursts, actual first draw and retained-heap bounds await CI. PanelWindowUpdate is only a pre-display update proxy.
-- [ ] Phase 4 — Signed local gate, isolated verify-only and two injected rollback faults passed; hosted release-smoke, CI workflows and cross-OS installation remain unrun.
-- [x] Independent static reviews integrated; Python 90/90, Summon CLI 20/20, Core 377/377 after two corrected fixture assumptions; 30-sample same-host baseline compared and Core100 11/11 scenarios passed.
-- [ ] Hosted GUI 100-cycle, native keyboard/VoiceOver, Reduce Transparency, macOS 15/26, full-app task/crash notification and heap proof remain required before release readiness.
+- [ ] Phase 2 — Signed stable/edge identity verified at `8f267fb`; packaged About metadata and cross-OS light keyboard close/reopen verified at `e94dbfa`. VoiceOver remains required.
+- [ ] Phase 3 — Off-main shared refresh and watcher/shutdown fixes implemented; actual terminal delivery and GUI100 passed. Crash bursts, displayed-frame timing and retained-heap bounds remain release gates; PanelWindowUpdate is pre-display only.
+- [ ] Phase 4 — Signed local gate, isolated verify-only and two rollback faults passed; hosted macOS 26 packaged installation/CLI and GUI lifecycle exercised. Current automated gates are tracked in draft PR #124.
+- [x] Independent static reviews integrated; latest Python 99/99, CLI 21/21 and Core 378/378 passed. Explicit lease-release regression and real signed lifecycle smoke passed; historical Core100 passed 11/11 scenarios.
+- [ ] VoiceOver, Reduce Transparency, controlled comparative GUI/displayed-frame profiling, full-app notification/crash bursts and retained-heap proof remain required before release readiness.
 - [x] Updated existing docs/indexes; workspace, README-art and OKF checks passed after local integration evidence.
 
 Operational decisions: model routing remains session-only; one integration owner; no release tag or publication authorized.

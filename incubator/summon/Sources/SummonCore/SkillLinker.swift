@@ -34,7 +34,7 @@ public struct SkillLinker: Sendable {
     public func link(from source: URL, settings: AgentSettings, isInstalled: (Agent) -> Bool = { _ in true }) throws -> Result {
         let fm = FileManager.default
         let lease = try FileLease.acquireSync(home.appendingPathComponent(".local/state/summon/locks/skills.lock"))
-        defer { lease.hold() }
+        defer { lease.release() }
         var result = Result()
         var owned = try loadOwnership()
         let shipped = Self.skillNames(in: source)

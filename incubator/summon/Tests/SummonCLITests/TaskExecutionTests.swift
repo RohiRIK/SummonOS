@@ -271,22 +271,75 @@ struct TaskExecutionTests {
         #expect(logs.count == 1)
     }
 
+    @Test func anExplicitlyReleasedLeaseCanRemainRetained() async throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: home) }
+        let file = TaskRunLease.file(SummonPaths(home: home), task: "retained")
+        let released = try FileLease.acquireSync(file, timeout: 0)
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<4 { group.addTask { released.release() } }
+        }
+        // The original object is still strongly held, but a subsequent owner can acquire immediately.
+        let subsequent = try FileLease.acquireSync(file, timeout: 0)
+        defer { subsequent.release() }
+        withExtendedLifetime(released) {
+            // A repeated release must not close a descriptor now owned by the subsequent lease.
+            released.release()
+            #expect(throws: FileLeaseError.self) { try FileLease.acquireSync(file, timeout: 0) }
+        }
+    }
+
     @MainActor @Test func slowNotificationRunsAfterTheLeaseAndIsBounded() async throws {
         let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: home) }
         let lease = TaskRunLease.file(SummonPaths(home: home), task: "slow")
         let calls = NotificationProbe()
+        let started = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
         let fixture = try makeFixture("printf ok", task: "slow", home: home, runner: { path, _ in
             guard path == "/usr/bin/osascript" else { return "" }
-            // The next run must be able to start while the banner is still being delivered.
-            await calls.leaseFree((try? FileLease.acquireSync(lease, timeout: 0)) != nil)
-            try await Task.sleep(for: .seconds(30))
+            // Stay suspended until the next acquirer has checked the lease, even if the deadline has fired.
+            await calls.block(started: started.continuation)
+            do {
+                try await Task.sleep(for: .seconds(30))
+            } catch is CancellationError {
+                await calls.recordCancellation()
+                throw CancellationError()
+            }
             return ""
         })
         let began = ContinuousClock.now
-        try await TaskCommands.runTask("slow", fixture.context, notificationDeadline: .milliseconds(200))
+        let operation = Task {
+            defer { started.continuation.finish() }
+            try await TaskCommands.runTask("slow", fixture.context, notificationDeadline: .milliseconds(200))
+        }
+        defer { operation.cancel() }
+        var readiness = started.stream.makeAsyncIterator()
+        guard await readiness.next() != nil else {
+            try await operation.value
+            Issue.record("The notification runner never started")
+            return
+        }
+        // This task, not the notification runner, acquires while notification delivery is blocked.
+        let free: Bool
+        var acquisitionError: String?
+        do {
+            let subsequent = try FileLease.acquireSync(lease, timeout: 0)
+            subsequent.release()
+            free = true
+        } catch {
+            free = false
+            acquisitionError = String(describing: error)
+        }
+        // Observe the committed terminal while notification delivery is still blocked.
+        let terminalsWhileBlocked = TaskResults.terminals(in: EventLog(paths: fixture.paths).read()).map(\.outcome)
+        await calls.leaseFree(free)
+        await calls.unblock()
+        try await operation.value
+        #expect(terminalsWhileBlocked == [.done])
         #expect(began.duration(to: .now) < .seconds(10))
-        #expect(await calls.leaseWasFree == true)
+        let leaseWasFree = await calls.leaseWasFree
+        #expect(leaseWasFree == true, "Observed leaseWasFree: \(String(describing: leaseWasFree)); acquisition error: \(acquisitionError ?? "none")")
+        #expect(await calls.cancellationWasObserved)
         #expect(TaskResults.terminals(in: EventLog(paths: fixture.paths).read()).map(\.outcome) == [.done])
     }
 
@@ -333,6 +386,21 @@ private actor FixtureScheduler {
 private actor NotificationProbe {
     var paths: [String] = []
     var leaseWasFree: Bool?
+    var cancellationWasObserved = false
+    private var resumeNotification: CheckedContinuation<Void, Never>?
     func record(_ path: String) { paths.append(path) }
     func leaseFree(_ free: Bool) { leaseWasFree = free }
+    func recordCancellation() { cancellationWasObserved = true }
+
+    func block(started: AsyncStream<Void>.Continuation) async {
+        await withCheckedContinuation { continuation in
+            resumeNotification = continuation
+            started.yield(())
+        }
+    }
+
+    func unblock() {
+        resumeNotification?.resume()
+        resumeNotification = nil
+    }
 }

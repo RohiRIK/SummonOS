@@ -270,7 +270,7 @@ enum AgentCommands {
         let dryRun = args.flag("--dry-run")
         let id = args.next()
         let lease = try await service.acquireMutationLease()
-        defer { lease.hold() }
+        defer { lease.release() }
         let checkpoints = try service.listValidated()
         guard let checkpoint = id.flatMap({ wanted in checkpoints.last { $0.id == wanted } }) ?? (id == nil ? checkpoints.last : nil) else {
             if let id { throw CLIError("No checkpoint \(id). See: summon checkpoint list") }

@@ -4,6 +4,7 @@
 //   windows luma <png>   mean luma (0-255) of the image's non-transparent pixels, to sanity-check light vs dark
 //   windows close <pid> <id>   focus that exact owned window, send real Command-W, and require its dismissal
 //   windows about <pid> <id>   press the meaningfully named About Summon button in that Settings window
+//   windows click-status <pid>   hit-test the owned extra-menu item, then send real mouse-down/up for timing
 // Actions emit bounded JSON diagnostics, never window titles, text contents, paths or unrelated process data.
 // Window bounds and ids come from CGWindowList and need no Screen Recording permission.
 import AppKit
@@ -22,6 +23,90 @@ func ownedWindows(_ pid: pid_t) -> [[String: Any]] {
     let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
         as? [[String: Any]] ?? []
     return windows.filter { ($0[kCGWindowOwnerPID as String] as? Int) == Int(pid) }
+}
+
+func cgFrame(_ window: [String: Any]) -> CGRect? {
+    guard let bounds = window[kCGWindowBounds as String] as? [String: Double],
+          let x = bounds["X"], let y = bounds["Y"],
+          let width = bounds["Width"], let height = bounds["Height"] else { return nil }
+    return CGRect(x: x, y: y, width: width, height: height)
+}
+
+func axFrame(_ window: AXUIElement) -> CGRect? {
+    guard let position = attribute(window, kAXPositionAttribute), CFGetTypeID(position) == AXValueGetTypeID(),
+          let size = attribute(window, kAXSizeAttribute), CFGetTypeID(size) == AXValueGetTypeID() else { return nil }
+    var origin = CGPoint.zero
+    var dimensions = CGSize.zero
+    guard AXValueGetValue(position as! AXValue, .cgPoint, &origin),
+          AXValueGetValue(size as! AXValue, .cgSize, &dimensions) else { return nil }
+    return CGRect(origin: origin, size: dimensions)
+}
+
+func matchesFrame(_ candidate: CGRect?, _ target: CGRect) -> Bool {
+    guard let candidate else { return false }
+    // Both public APIs use global screen points; tolerate only their integral rounding.
+    return abs(candidate.minX - target.minX) <= 1 && abs(candidate.minY - target.minY) <= 1
+        && abs(candidate.width - target.width) <= 1 && abs(candidate.height - target.height) <= 1
+}
+
+func clickStatusItem(pid: pid_t) -> Never {
+    var evidence: [String: Any] = ["operation": "status-item mouse input", "pid": Int(pid), "mouse_sent": false]
+    func finish(_ status: String, _ reason: String) -> Never {
+        evidence["status"] = status
+        evidence["reason"] = reason
+        if let data = try? JSONSerialization.data(withJSONObject: evidence, options: [.sortedKeys]),
+           let text = String(data: data, encoding: .utf8) { print(text) }
+        exit(status == "passed" ? 0 : status == "blocked" ? 2 : 1)
+    }
+    let environment = ProcessInfo.processInfo.environment
+    guard (environment["GITHUB_ACTIONS"] == "true" && environment["RUNNER_ENVIRONMENT"] == "github-hosted")
+            || environment["VQA_ALLOW_LOCAL"] == "1" else {
+        finish("blocked", "Mouse profiling requires a disposable runner or explicitly allowed test account")
+    }
+    guard AXIsProcessTrusted(), CGPreflightPostEventAccess() else {
+        finish("blocked", "Accessibility or input-posting permission unavailable")
+    }
+    let app = AXUIElementCreateApplication(pid)
+    _ = AXUIElementSetMessagingTimeout(app, 0.5)
+    guard let extras = attribute(app, kAXExtrasMenuBarAttribute), CFGetTypeID(extras) == AXUIElementGetTypeID(),
+          let children = attribute(extras as! AXUIElement, kAXChildrenAttribute) as? [AXUIElement] else {
+        finish("blocked", "Owned application does not expose an extra menu bar")
+    }
+    let items = children.filter { (attribute($0, kAXRoleAttribute) as? String) == kAXMenuBarItemRole }
+    evidence["status_item_matches"] = items.count
+    guard items.count == 1, let item = items.first,
+          let frame = axFrame(item), !frame.isEmpty, !frame.isInfinite,
+          frame.midX.isFinite, frame.midY.isFinite else {
+        finish("blocked", "Owned status item or its public geometry is missing or ambiguous")
+    }
+    let point = CGPoint(x: frame.midX, y: frame.midY)
+    let system = AXUIElementCreateSystemWide()
+    _ = AXUIElementSetMessagingTimeout(system, 0.5)
+    var hit: AXUIElement?
+    guard AXUIElementCopyElementAtPosition(system, Float(point.x), Float(point.y), &hit) == .success,
+          let hit else { finish("blocked", "Status item could not be hit-tested") }
+    var owner: pid_t = 0
+    guard AXUIElementGetPid(hit, &owner) == .success, owner == pid else {
+        finish("blocked", "Another process covers the owned status item; no mouse event sent")
+    }
+    var candidate = hit
+    var matched = false
+    for _ in 0..<8 {
+        if CFEqual(candidate, item) { matched = true; break }
+        guard let parent = attribute(candidate, kAXParentAttribute), CFGetTypeID(parent) == AXUIElementGetTypeID() else { break }
+        candidate = parent as! AXUIElement
+    }
+    guard matched else { finish("blocked", "Hit-tested element is not the owned status item; no mouse event sent") }
+    guard let down = CGEvent(mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: point, mouseButton: .left),
+          let up = CGEvent(mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: point, mouseButton: .left) else {
+        finish("blocked", "Could not create status-item mouse events")
+    }
+    // PanelOpen starts in the actual mouse-down monitor. AXPress/URL opening cannot measure that interval.
+    // Only this hit-tested, owned status-item action uses pointer geometry; keyboard dismissal never does.
+    down.post(tap: .cghidEventTap)
+    up.post(tap: .cghidEventTap)
+    evidence["mouse_sent"] = true
+    finish("passed", "Sent mouse-down/up to the owned hit-tested status item; caller must verify panel opening")
 }
 
 func windowAction(_ action: String, pid: pid_t, id: Int) -> Never {
@@ -51,20 +136,27 @@ func windowAction(_ action: String, pid: pid_t, id: Int) -> Never {
     guard let title = info[kCGWindowName as String] as? String else {
         finish("blocked", "identity", "Window title metadata unavailable; Screen Recording access is required")
     }
-    // Public APIs expose a CG window ID and an AX title, but no public AX window-number attribute.
-    // Join by title only when unique in BOTH owned lists; never guess with front-window order or coordinates.
+    guard let frame = cgFrame(info) else {
+        finish("blocked", "identity", "Owned CG window geometry unavailable")
+    }
+    // About and crash panels can share an empty title. Join public title AND geometry uniquely in
+    // both owned lists. Geometry establishes identity only: no coordinate clicks or private AX IDs.
     let sameTitle = windows.filter { ($0[kCGWindowName as String] as? String) == title }
     evidence["cg_title_matches"] = sameTitle.count
-    guard sameTitle.count == 1 else {
-        finish("blocked", "identity", "Owned CG window title is ambiguous")
+    let cgMatches = sameTitle.filter { matchesFrame(cgFrame($0), frame) }
+    evidence["cg_identity_matches"] = cgMatches.count
+    guard cgMatches.count == 1 else {
+        finish("blocked", "identity", "Owned CG window title and geometry are ambiguous")
     }
     guard let axWindows = attribute(app, kAXWindowsAttribute) as? [AXUIElement] else {
         finish("blocked", "identity", "Owned application does not expose AX windows")
     }
-    let matches = axWindows.filter { (attribute($0, kAXTitleAttribute) as? String) == title }
-    evidence["ax_title_matches"] = matches.count
+    let axTitles = axWindows.filter { (attribute($0, kAXTitleAttribute) as? String) == title }
+    evidence["ax_title_matches"] = axTitles.count
+    let matches = axTitles.filter { matchesFrame(axFrame($0), frame) }
+    evidence["ax_identity_matches"] = matches.count
     guard matches.count == 1, let window = matches.first else {
-        finish("blocked", "identity", "Owned AX window title is missing or ambiguous")
+        finish("blocked", "identity", "Owned AX window title and geometry are missing or ambiguous")
     }
     _ = AXUIElementSetMessagingTimeout(window, 0.5)
 
@@ -160,6 +252,9 @@ func windowAction(_ action: String, pid: pid_t, id: Int) -> Never {
 
 let args = Array(CommandLine.arguments.dropFirst())
 switch args.first {
+case "click-status":
+    guard args.count == 2, let pid = Int32(args[1]), pid > 0 else { exit(64) }
+    clickStatusItem(pid: pid)
 case "close", "about":
     guard args.count == 3, let pid = Int32(args[1]), pid > 0, let id = Int(args[2]), id > 0 else { exit(64) }
     windowAction(args[0], pid: pid, id: id)

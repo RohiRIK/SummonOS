@@ -27,6 +27,9 @@ see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/rele
   instead of assuming delivery after 300 ms. Settings exposes the About action by its own accessible name.
   Native About temporarily enables regular-window activation; GUI audits verify exact owned-window keyboard
   dismissal with bounded deadlines and retain structured failure/prerequisite evidence.
+- Interprocess leases release explicitly and idempotently at operation boundaries, rather than relying on ARC
+  to close their descriptors before notification delivery. Profiling waits for actual recorder readiness and
+  measures real owned status-item input; duplicate-titled windows are identified by public title plus geometry.
 
 ## 2026-10-28
 

@@ -393,10 +393,28 @@ The follow-up reconciles watcher state after asynchronous registration, awaits r
 write/deletion notifications, and gives About its own accessible button name. Owned-window GUI actions now
 use unique public CG/AX identities, bounded focus/keyboard checks and structured blocked/failure evidence.
 Local integration passed Core 378/378, CLI 20/20 and runtime-automation 8/8; the native helper compiled.
-About's activation-policy correction is not yet a hosted keyboard pass.
+At that stage, About's activation-policy correction had not yet passed hosted keyboard verification.
 
-Still required on disposable macOS 15/26 CI: full application GUI 100 open/search/close cycles, live refresh and
-notification/crash-burst behavior, keyboard/VoiceOver, Reduce Transparency, actual first draw/display timing,
-Instruments allocations/retained heap growth and cross-OS release/install checks. `PanelWindowUpdate` measures
-AppKit's update pass **before** display, not a first rendered or composited frame. Local production GUI startup
-was refused because the personal instance was running; no crash or memory-leak attribution is claimed.
+Hosted wave `e94dbfa` subsequently passed actual packaged About metadata, native About and Activity Command-W,
+terminal persistence into Activity, and all 100 panel open/search/close cycles on the disposable macOS 26 runner
+([runtime evidence](https://github.com/RohiRIK/SummonOS/actions/runs/42500518688)). Actual macOS 15 light and
+macOS 26 dark native About captures were inspected; light-mode close/reopen passed on both OS versions.
+The dark-mode driver correctly refused two empty-titled windows; it now joins public title and geometry uniquely,
+without substituting a click for keyboard dismissal. A separate macOS 26 notification-lease regression exposed
+the lack of a guaranteed release boundary: `FileLease` now explicitly releases its descriptor, idempotently and
+under synchronization, at every caller's defer. Retained-object/concurrent-release and blocked-notification
+acquisition regressions passed locally. Latest local totals: Core 378, CLI 21 and Python tooling 99, all passing;
+the signed `build/lease-profiling-check` gate and real Core lifecycle smoke also passed.
+
+Historical Logging/SwiftUI recordings were not uploaded, so their failure cause is not established by the old
+boolean-only evidence. Profiling now waits on xctrace's Darwin recording-start notification, sends genuine input
+to the hit-tested owned status item, verifies the panel cycle, then stops the recorder. URL opens do not produce
+the mouse-down `PanelOpen` interval. Sanitized readiness, recorder and export diagnostics are retained; missing
+samples remain blocked, never fabricated. Current hosted results are tracked in
+[draft PR #124](https://github.com/RohiRIK/SummonOS/pull/124).
+
+Release readiness still requires VoiceOver navigation, Reduce Transparency, full notification/crash-burst proof,
+controlled comparative GUI profiling, actual displayed-frame timing and retained-heap bounds. A recording alone
+does not establish these bounds; RSS changes alone do not prove leaks. `PanelWindowUpdate` measures AppKit's update
+pass **before** display, not a rendered/composited frame. Local production GUI startup was refused while the
+personal instance was running; no crash or memory-leak attribution is claimed.

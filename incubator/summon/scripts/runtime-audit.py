@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Controlled Core lifecycle benchmark and disposable-account UI audit (no agent execution)."""
 import argparse
+import contextlib
+import ctypes
 import datetime as dt
 import json
 import os
@@ -148,55 +150,180 @@ def stop_owned_app(pid, binary):
 
 
 def trace_window_cycle(pid, helper):
-    command(["/usr/bin/open", "summon://menu/"], timeout=5)
+    result = subprocess.run([str(helper), "click-status", str(pid)], text=True, capture_output=True, timeout=15)
+    try:
+        mouse = json.loads(result.stdout)
+        expected = {"passed":0, "failed":1, "blocked":2}.get(mouse.get("status"))
+        if (expected != result.returncode or mouse.get("pid") != pid
+                or mouse.get("operation") != "status-item mouse input"
+                or (mouse.get("status") == "passed" and mouse.get("mouse_sent") is not True)):
+            raise ValueError("Invalid owned status-item result")
+    except (ValueError, AttributeError):
+        return {"status":"failed", "stage":"status-item input", "reason":"Helper returned invalid status-item evidence",
+                "exit_status":result.returncode}
+    if mouse["status"] != "passed":
+        return {"status":mouse["status"], "stage":"status-item input", "reason":mouse.get("reason", "Status-item input unavailable"),
+                "mouse":mouse}
     panel = wait_window(helper, pid, lambda windows: [w for w in windows if 270 <= w[4] <= 400 and w[5] > 180])
     if not panel:
-        return False
+        return {"status":"failed", "stage":"panel open", "reason":"Owned panel did not appear during recording", "mouse":mouse}
     command(["/usr/bin/osascript", "-e", 'tell application "System Events" to keystroke "audit"'], timeout=5)
     command(["/usr/bin/osascript", "-e", 'tell application "System Events" to key code 53'], timeout=5)
-    return bool(wait_window(helper, pid, lambda windows: not any(w[0] == panel[0][0] for w in windows)))
+    closed = bool(wait_window(helper, pid, lambda windows: not any(w[0] == panel[0][0] for w in windows)))
+    return {"status":"passed" if closed else "failed", "stage":"panel close", "window_id":panel[0][0],
+            "reason":"Owned panel opened, received search keystrokes and disappeared" if closed else
+                     "Owned panel did not disappear during recording", "open_source":"status-item mouse input", "mouse":mouse}
+
+
+@contextlib.contextmanager
+def recording_notification():
+    # Register before launching xctrace. Its documented notification is independent of stdout buffering.
+    library = ctypes.CDLL("/usr/lib/libSystem.B.dylib")
+    library.notify_register_file_descriptor.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_int),
+                                                       ctypes.c_int, ctypes.POINTER(ctypes.c_int)]
+    library.notify_register_file_descriptor.restype = ctypes.c_uint32
+    library.notify_cancel.argtypes = [ctypes.c_int]
+    library.notify_cancel.restype = ctypes.c_uint32
+    name = "local.macplugins.summon.runtime-audit." + uuid.uuid4().hex
+    descriptor, token = ctypes.c_int(-1), ctypes.c_int()
+    status = library.notify_register_file_descriptor(name.encode(), ctypes.byref(descriptor), 0, ctypes.byref(token))
+    if status:
+        raise OSError(status, "Recording-notification registration failed")
+    try:
+        yield name, descriptor.value
+    finally:
+        # notify_cancel owns and closes this descriptor; do not close it a second time.
+        status = library.notify_cancel(token.value)
+        if status:
+            raise OSError(status, "Recording-notification cancellation failed")
+
+
+def wait_recording_notification(child, descriptor, timeout=15):
+    until = time.monotonic() + timeout
+    while child.poll() is None:
+        remaining = until - time.monotonic()
+        if remaining <= 0:
+            return False
+        if select.select([descriptor], [], [], min(.1, remaining))[0]:
+            return len(os.read(descriptor, 4)) == 4
+    return False
+
+
+def recording_output(output):
+    # Retain only fixed lifecycle/error labels and byte counts, never tool text, paths or trace messages.
+    descriptor = output.fileno()
+    size = os.fstat(descriptor).st_size
+    # pread leaves the child's shared file offset alone while it may still be writing.
+    text = os.pread(descriptor, 8192, 0)
+    if size > 8192:
+        text += os.pread(descriptor, 8192, max(8192, size - 8192))
+    text = text.decode(errors="replace").lower()
+    markers = {"starting":"starting recording with", "stdout_ready":"ctrl-c to stop the recording",
+               "completed":"recording completed", "saved":"output file saved",
+               "time_limit":"reached specified time limit", "error":"error", "warning":"warning"}
+    return {"output_bytes":size, "output_truncated":size > 16384,
+            "output_markers":[name for name, phrase in markers.items() if phrase in text],
+            "permission_error":any(phrase in text for phrase in
+                                   ("not authorized", "not permitted", "permission denied", "authorization required"))}
+
+
+def record_instrument(template, pid, helper, target, children):
+    outcome = {"status":"blocked", "recording_ready":False, "interactive_cycle":False,
+               "readiness_source":"xctrace Darwin notification", "stop_requested_after_cycle":False,
+               "evidence":"Recording and owned-window interaction only; no frame-time or retained-heap bounds"}
+    phase = "notification registration"
+    try:
+        with recording_notification() as (name, descriptor), tempfile.TemporaryFile() as output:
+            phase = "recorder launch"
+            # Stop explicitly after the cycle, not at a fixed six seconds that may expire mid-interaction.
+            child = subprocess.Popen(["xcrun", "xctrace", "record", "--template", template,
+                                      "--attach", str(pid), "--no-prompt", "--notify-tracing-started", name,
+                                      "--output", str(target)], start_new_session=True,
+                                     stdout=output, stderr=subprocess.STDOUT)
+            children.append(child)
+            started = time.monotonic()
+            try:
+                phase = "recording readiness"
+                outcome["recording_ready"] = wait_recording_notification(child, descriptor)
+                outcome["readiness_wait_ms"] = round((time.monotonic() - started) * 1000, 3)
+                if outcome["recording_ready"] and child.poll() is None:
+                    phase = "window cycle"
+                    cycle_start = time.monotonic()
+                    outcome["cycle"] = trace_window_cycle(pid, helper)
+                    outcome["cycle_ms"] = round((time.monotonic() - cycle_start) * 1000, 3)
+                    active = child.poll() is None and "completed" not in recording_output(output)["output_markers"]
+                    outcome["recorder_active_after_cycle"] = active
+                    outcome["interactive_cycle"] = outcome["cycle"]["status"] == "passed" and active
+                    if outcome["cycle"]["status"] == "failed":
+                        outcome["status"] = "failed"
+                    outcome["reason"] = "Owned panel cycle completed before recorder stop" if outcome["interactive_cycle"] else (
+                        "Recording ended before the owned panel cycle completed" if not active else outcome["cycle"]["reason"])
+                else:
+                    outcome["reason"] = "Recording-start notification not observed while recorder was running"
+            finally:
+                try:
+                    if child.poll() is None:
+                        child.send_signal(signal.SIGINT)
+                        outcome["stop_requested_after_cycle"] = outcome["interactive_cycle"]
+                    child.wait(timeout=45)
+                except subprocess.TimeoutExpired:
+                    outcome.update(status="failed", reason="Recorder did not stop/save within its deadline", stop_timed_out=True)
+                    child.terminate()
+                    try:
+                        child.wait(timeout=3)
+                    except subprocess.TimeoutExpired:
+                        child.kill()
+                        child.wait(timeout=3)
+                finally:
+                    outcome["exit_status"] = child.poll()
+                    outcome["output"] = recording_output(output)
+            if outcome["exit_status"] != 0:
+                outcome["recorder_status"] = "blocked" if outcome["output"]["permission_error"] else "failed"
+                if outcome["status"] != "failed":
+                    outcome.update(status=outcome["recorder_status"],
+                                   reason="Recorder exited unsuccessfully; see sanitized exit/output diagnostics")
+            elif outcome["interactive_cycle"] and target.is_dir() and outcome["status"] != "failed":
+                outcome["status"] = "passed"
+            elif not target.is_dir():
+                outcome.update(status="failed", reason="Recorder did not save a trace directory")
+            phase = "notification cancellation"
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        outcome.update(status="blocked" if phase == "notification registration" or isinstance(exc, (ValueError, FileNotFoundError)) else "failed",
+                       reason="Recording prerequisite unavailable" if phase == "notification registration" else "Recording operation failed",
+                       error_type=type(exc).__name__, stage=phase)
+        if isinstance(exc, OSError) and exc.errno is not None:
+            outcome["error_code"] = exc.errno
+        if isinstance(exc, subprocess.CalledProcessError):
+            outcome.update(executable=pathlib.Path(exc.cmd[0]).name, command_exit_status=exc.returncode)
+        if isinstance(exc, subprocess.TimeoutExpired):
+            outcome["timeout_seconds"] = exc.timeout
+    outcome["trace_present"] = target.is_dir()
+    return outcome
 
 
 def instrument(pid, helper, trace, children):
     outcomes = {}
     for template in ("Logging", "SwiftUI", "Time Profiler", "Allocations"):
         target = trace / (template.lower().replace(" ", "-") + ".trace")
-        child = subprocess.Popen(["xcrun", "xctrace", "record", "--template", template,
-                                  "--attach", str(pid), "--time-limit", "6s", "--no-prompt",
-                                  "--output", str(target)], start_new_session=True,
-                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        children.append(child)
-        started = False
-        banner = ""
-        until = time.monotonic() + 15
-        while time.monotonic() < until and child.poll() is None:
-            if select.select([child.stdout], [], [], max(0, until - time.monotonic()))[0]:
-                banner = (banner + os.read(child.stdout.fileno(), 4096).decode(errors="replace"))[-512:]
-                if "Ctrl-C to stop the recording" in banner:
-                    started = True
-                    break
-        # A window cycle only after Instruments confirms recording, not after a blind sleep.
-        cycle = started and trace_window_cycle(pid, helper)
-        try:
-            child.wait(timeout=45)
-        except subprocess.TimeoutExpired:
-            os.killpg(child.pid, signal.SIGTERM)
-            try: child.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                os.killpg(child.pid, signal.SIGKILL)
-                child.wait()
-            cycle = False
-        child.stdout.close()
-        outcomes[template] = {"status":"passed" if cycle and child.returncode == 0 and target.is_dir() else "blocked",
-                              "interactive_cycle":cycle, "trace_present":target.is_dir()}
+        outcomes[template] = record_instrument(template, pid, helper, target, children)
     signposts = trace / "panel-signposts.json"
     logging_trace = trace / "logging.trace"
-    parsed = subprocess.run([sys.executable, str(PACKAGE / "scripts/runtime-trace.py"),
-                             str(logging_trace), str(signposts)], capture_output=True, timeout=150)
-    outcome = json.loads(signposts.read_text()) if signposts.exists() else {}
-    outcomes["panel signposts"] = {"status":"passed" if parsed.returncode == 0 else "blocked",
-                                   "first_window_update_samples":len(outcome.get("PanelWindowUpdate", [])),
-                                   "ordered_front_samples":len(outcome.get("PanelOpen", []))}
+    try:
+        parsed = subprocess.run([sys.executable, str(PACKAGE / "scripts/runtime-trace.py"),
+                                 str(logging_trace), str(signposts)], capture_output=True, timeout=150)
+        outcome = json.loads(signposts.read_text()) if signposts.exists() else {}
+        outcomes["panel signposts"] = {"status":"passed" if parsed.returncode == 0 and outcome.get("status") == "passed" else "blocked",
+                                       "export_exit_status":parsed.returncode,
+                                       "first_window_update_samples":len(outcome.get("PanelWindowUpdate", [])),
+                                       "ordered_front_samples":len(outcome.get("PanelOpen", [])),
+                                       "diagnostics":outcome.get("diagnostics", {}),
+                                       "reason":outcome.get("reason", "See exact signpost sample counts and prerequisites")}
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        outcome = {"status":"blocked", "reason":"Panel signpost export failed", "error_type":type(exc).__name__}
+        if isinstance(exc, subprocess.TimeoutExpired):
+            outcome["timeout_seconds"] = exc.timeout
+        write(signposts, outcome)
+        outcomes["panel signposts"] = outcome
     return outcomes, outcome
 
 
@@ -324,8 +451,10 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
                                                 "ordered_front":percentiles(signposts.get("PanelOpen", [])),
                                                 "first_window_update":percentiles(signposts.get("PanelWindowUpdate", [])),
                                                 "measurement_boundary":"AppKit first window update pass before display, not a drawn or composited frame",
-                                                "retained_heap":"Allocations trace required; RSS changes alone do not prove leaks"}})
+                                                "retained_heap":"Not measured: saved Allocations trace alone does not establish a retained-heap bound"}})
         write(run / "scenarios.json", {"ui":scenarios})
+        if any(s["status"] == "failed" for s in scenarios):
+            return False
         if any(s["status"] == "blocked" for s in scenarios):
             return None
         return all(s["status"] == "passed" for s in scenarios)

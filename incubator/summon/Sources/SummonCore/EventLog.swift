@@ -154,7 +154,7 @@ public struct EventLog: Sendable {
         line.append(0x0A)
         guard line.count <= Self.maxEventBytes else { throw EventLogError.tooLarge(bytes: line.count, limit: Self.maxEventBytes) }
         let lease = try FileLease.acquireSync(file.appendingPathExtension("lock"))
-        defer { lease.hold() }
+        defer { lease.release() }
         let fd = open(file.path, O_RDWR | O_CREAT | O_APPEND | O_CLOEXEC | O_NOFOLLOW, 0o600)
         guard fd >= 0 else { throw Self.posixError(errno) }
         defer { close(fd) }

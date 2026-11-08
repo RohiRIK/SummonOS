@@ -228,7 +228,7 @@ public struct CrashWatcher: Sendable {
     public func scanNewReports(limit: Int = 5, now: Date = Date()) throws -> Batch {
         guard limit > 0 else { return Batch(reports: [], hasMore: false) }
         let lease = try FileLease.acquireSync(paths.state.appendingPathComponent("locks/crashes.lock"))
-        defer { lease.hold() }
+        defer { lease.release() }
         guard var cursor = try loadCursor() else {
             let existingAtBoundary = Set(fileRecords().filter { $0.modified == now }.map { $0.url.path })
             try saveCursor(Cursor(modified: now, files: existingAtBoundary))

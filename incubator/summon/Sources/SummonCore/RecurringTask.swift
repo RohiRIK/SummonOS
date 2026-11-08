@@ -111,7 +111,7 @@ public struct TaskStore: Sendable {
 
     public func update(_ transform: ([RecurringTask]) throws -> [RecurringTask]) throws {
         let lease = try FileLease.acquireSync(paths.state.appendingPathComponent("locks/tasks.lock"))
-        defer { lease.hold() }
+        defer { lease.release() }
         try write(transform(loadValidated()))
     }
 

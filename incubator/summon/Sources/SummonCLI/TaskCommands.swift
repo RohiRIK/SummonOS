@@ -41,7 +41,7 @@ enum TaskCommands {
     @MainActor
     static func add(_ args: inout Arguments, _ context: Context) async throws {
         let lifecycle = try await FileLease.acquire(context.paths.state.appendingPathComponent("locks/task-scheduling.lock"))
-        defer { lifecycle.hold() }
+        defer { lifecycle.release() }
         let weekdays = args.flag("--weekdays")
         let at = args.option("--at")
         let every = args.option("--every")
@@ -133,7 +133,7 @@ enum TaskCommands {
     @MainActor
     static func remove(_ args: inout Arguments, _ context: Context) async throws {
         let lifecycle = try await FileLease.acquire(context.paths.state.appendingPathComponent("locks/task-scheduling.lock"))
-        defer { lifecycle.hold() }
+        defer { lifecycle.release() }
         guard let id = args.next() else { throw CLIError("Usage: summon task remove <id>") }
         let store = TaskStore(paths: context.paths)
         let tasks = try store.loadValidated()
@@ -209,7 +209,7 @@ enum TaskCommands {
         let report: RunReport
         do {
             let lease = try await FileLease.acquire(TaskRunLease.file(context.paths, task: id), timeout: leaseWait)
-            defer { lease.hold() }
+            defer { lease.release() }
             report = try await execute(id, context)
         }
         let record = report.record

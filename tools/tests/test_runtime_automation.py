@@ -1,4 +1,5 @@
 """Behavioral failure-boundary tests. All install fixtures use a disposable HOME."""
+import contextlib
 import importlib.util
 import json
 import os
@@ -20,6 +21,11 @@ trace_spec = importlib.util.spec_from_file_location("summon_runtime_trace",
     ROOT / "incubator/summon/scripts/runtime-trace.py")
 trace_parser = importlib.util.module_from_spec(trace_spec)
 trace_spec.loader.exec_module(trace_parser)
+
+audit_spec = importlib.util.spec_from_file_location("summon_runtime_audit",
+    ROOT / "incubator/summon/scripts/runtime-audit.py")
+runtime_audit = importlib.util.module_from_spec(audit_spec)
+audit_spec.loader.exec_module(runtime_audit)
 
 class MetadataAndInstallerTests(unittest.TestCase):
     def setUp(self):
@@ -205,6 +211,144 @@ class MetadataAndInstallerTests(unittest.TestCase):
             measured = trace_parser.extract(pathlib.Path("captured.trace"))
         self.assertEqual(measured["PanelOpen"], [20.093125, 23.396083])
         self.assertEqual(measured["PanelWindowUpdate"], [28.388708])
+        self.assertEqual(measured["status"], "passed")
+        self.assertEqual(measured["diagnostics"]["sample_counts"], {"PanelOpen":2, "PanelWindowUpdate":1})
+
+
+class RuntimeProfilingTests(unittest.TestCase):
+    def test_notification_readiness_does_not_depend_on_stdout(self):
+        child = mock.Mock()
+        child.poll.return_value = None
+        with mock.patch.object(runtime_audit.select, "select", return_value=([37], [], [])), \
+             mock.patch.object(runtime_audit.os, "read", return_value=b"\0\0\0\1") as read:
+            self.assertTrue(runtime_audit.wait_recording_notification(child, 37))
+        read.assert_called_once_with(37, 4)
+        child.stdout.read.assert_not_called()
+
+    def test_readiness_timeout_does_not_become_a_successful_recording(self):
+        child = mock.Mock()
+        child.poll.return_value = None
+        with mock.patch.object(runtime_audit.time, "monotonic", side_effect=[0, 0, 16]), \
+             mock.patch.object(runtime_audit.select, "select", return_value=([], [], [])):
+            self.assertFalse(runtime_audit.wait_recording_notification(child, 37))
+
+    def test_recording_stops_only_after_notified_cycle_and_retains_failures(self):
+        cases = ((True, "passed", 0, "passed"), (False, "passed", 0, "blocked"),
+                 (True, "failed", 0, "failed"), (True, "blocked", 0, "blocked"),
+                 (True, "failed", 1, "failed"), (True, "passed", 1, "blocked"))
+        for ready, cycle_status, recorder_exit, expected in cases:
+            with self.subTest(ready=ready, cycle=cycle_status, exit=recorder_exit), tempfile.TemporaryDirectory() as temporary:
+                target = pathlib.Path(temporary) / "logging.trace"
+                child = mock.Mock()
+                child.returncode = None
+                child.poll.side_effect = lambda: child.returncode
+                def launch(args, **kwargs):
+                    self.assertIn("--notify-tracing-started", args)
+                    self.assertNotIn("--time-limit", args)
+                    kwargs["stdout"].write(b"Ctrl-C to stop the recording\nprivate path /Users/secret/example\n")
+                    if recorder_exit:
+                        kwargs["stdout"].write(b"permission denied\n")
+                    kwargs["stdout"].flush()
+                    return child
+                def cycle(*args):
+                    child.send_signal.assert_not_called()
+                    return {"status":cycle_status, "reason":"Owned fixture cycle"}
+                def stop(**kwargs):
+                    child.returncode = recorder_exit
+                    target.mkdir()
+                    return recorder_exit
+                child.wait.side_effect = stop
+                with mock.patch.object(runtime_audit, "recording_notification", return_value=contextlib.nullcontext(("ready", 37))), \
+                     mock.patch.object(runtime_audit, "wait_recording_notification", return_value=ready), \
+                     mock.patch.object(runtime_audit.subprocess, "Popen", side_effect=launch), \
+                     mock.patch.object(runtime_audit, "trace_window_cycle", side_effect=cycle) as interaction:
+                    result = runtime_audit.record_instrument("Logging", 123, pathlib.Path("helper"), target, [])
+                self.assertEqual(result["status"], expected)
+                self.assertEqual(result["exit_status"], recorder_exit)
+                self.assertEqual(result["interactive_cycle"], ready and cycle_status == "passed")
+                self.assertEqual(result["recording_ready"], ready)
+                self.assertEqual(result["stop_requested_after_cycle"], ready and cycle_status == "passed")
+                self.assertEqual(interaction.call_count, int(ready))
+                child.send_signal.assert_called_once_with(runtime_audit.signal.SIGINT)
+                self.assertNotIn("secret", json.dumps(result))
+
+    def test_recorder_exit_during_cycle_is_not_interactive_capture(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            target = pathlib.Path(temporary) / "logging.trace"
+            target.mkdir()
+            child = mock.Mock()
+            child.poll.side_effect = [None, 0, 0, 0]
+            with mock.patch.object(runtime_audit, "recording_notification", return_value=contextlib.nullcontext(("ready", 37))), \
+                 mock.patch.object(runtime_audit, "wait_recording_notification", return_value=True), \
+                 mock.patch.object(runtime_audit.subprocess, "Popen", return_value=child), \
+                 mock.patch.object(runtime_audit, "trace_window_cycle", return_value={"status":"passed", "reason":"Owned fixture cycle"}):
+                result = runtime_audit.record_instrument("Logging", 123, pathlib.Path("helper"), target, [])
+            self.assertEqual(result["status"], "blocked")
+            self.assertFalse(result["interactive_cycle"])
+            child.send_signal.assert_not_called()
+
+    def test_status_item_prerequisite_never_falls_back_to_url(self):
+        evidence = {"status":"blocked", "pid":123, "operation":"status-item mouse input",
+                    "mouse_sent":False, "reason":"Owned status item unavailable"}
+        response = subprocess.CompletedProcess([], 2, stdout=json.dumps(evidence))
+        with mock.patch.object(runtime_audit.subprocess, "run", return_value=response) as run, \
+             mock.patch.object(runtime_audit, "command") as command, \
+             mock.patch.object(runtime_audit, "wait_window") as windows:
+            result = runtime_audit.trace_window_cycle(123, pathlib.Path("helper"))
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(run.call_args.args[0], ["helper", "click-status", "123"])
+        command.assert_not_called()
+        windows.assert_not_called()
+
+    def test_output_diagnostics_are_bounded_and_do_not_move_writer_offset(self):
+        with tempfile.TemporaryFile() as output:
+            output.write(b"Starting recording with Logging\n/Users/private/path\n" + b"x" * 20000 +
+                         b"\nRecording completed. Output file saved as: private.trace\n")
+            output.flush()
+            position = output.tell()
+            result = runtime_audit.recording_output(output)
+            self.assertEqual(output.tell(), position)
+        self.assertTrue(result["output_truncated"])
+        self.assertEqual(result["output_markers"], ["starting", "completed", "saved"])
+        self.assertNotIn("private", json.dumps(result))
+
+    def test_multiple_export_nodes_use_local_columns_and_references_once(self):
+        toc = '<trace-toc><run><data><table schema="OSSignpostIntervals"/><table schema="OSSignpostIntervals"/></data></run></trace-toc>'
+        # Synthetic multi-table variation of the observed xctrace schema, including reordered columns.
+        rows = '''<trace-query-result><node><schema>
+<col mnemonic="name"/><col mnemonic="duration"/><col mnemonic="category"/><col mnemonic="subsystem"/><col mnemonic="end-message"/>
+</schema><row><signpost-name>PanelOpen</signpost-name><duration>12509709</duration><category>panel</category>
+<subsystem>local.macplugins.summon</subsystem><os-log-metadata id="1" fmt="ordered front"/></row></node>
+<node><schema><col mnemonic="duration"/><col mnemonic="name"/><col mnemonic="category"/><col mnemonic="subsystem"/><col mnemonic="end-message"/></schema>
+<row><duration>20208334</duration><signpost-name>PanelWindowUpdate</signpost-name><category>panel</category>
+<subsystem>local.macplugins.summon</subsystem><os-log-metadata id="1" fmt="window update after order-front"/></row>
+<row><duration>25018709</duration><signpost-name>PanelWindowUpdate</signpost-name><category>panel</category>
+<subsystem>local.macplugins.summon</subsystem><os-log-metadata ref="1"/></row></node></trace-query-result>'''
+        replies = [subprocess.CompletedProcess([], 0, stdout=text) for text in (toc, rows)]
+        with mock.patch.object(trace_parser.subprocess, "run", side_effect=replies) as exports:
+            result = trace_parser.extract(pathlib.Path("captured.trace"))
+        self.assertEqual(exports.call_count, 2)
+        self.assertEqual(result["PanelOpen"], [12.509709])
+        self.assertEqual(result["PanelWindowUpdate"], [20.208334, 25.018709])
+        self.assertEqual(result["diagnostics"]["interval_tables"], 2)
+
+    def test_missing_and_rejected_signposts_explain_prerequisites_without_raw_data(self):
+        toc = '<trace-toc><run><data><table schema="OSSignpostIntervals"/></data></run></trace-toc>'
+        rows = '''<trace-query-result><node><row><name>PanelWindowUpdate</name><duration>1000000</duration>
+<category>panel</category><subsystem>local.macplugins.summon</subsystem><end-message>no update /Users/private/path</end-message></row>
+<row><name>PanelWindowUpdate</name><duration>0</duration><category>panel</category>
+<subsystem>local.macplugins.summon</subsystem><end-message>window update after order-front</end-message></row>
+<row><name>PanelFirstFrame</name><duration>1000000</duration><category>panel</category>
+<subsystem>local.macplugins.summon</subsystem><end-message>window updated</end-message></row></node></trace-query-result>'''
+        replies = [subprocess.CompletedProcess([], 0, stdout=text) for text in (toc, rows)]
+        with mock.patch.object(trace_parser.subprocess, "run", side_effect=replies):
+            result = trace_parser.extract(pathlib.Path("captured.trace"))
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["diagnostics"]["matching_panel_rows"], {"PanelOpen":0, "PanelWindowUpdate":2})
+        self.assertEqual(result["diagnostics"]["unexpected_end_message"]["PanelWindowUpdate"], 1)
+        self.assertEqual(result["diagnostics"]["invalid_duration"]["PanelWindowUpdate"], 1)
+        self.assertIn("status-item mouse-down", result["diagnostics"]["prerequisites"]["PanelOpen"])
+        self.assertNotIn("private", json.dumps(result))
 
 
 if __name__ == "__main__":
