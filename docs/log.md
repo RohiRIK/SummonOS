@@ -8,6 +8,7 @@ tags: [documentation, history]
 # Docs update log
 
 ## 2026-11-08
+* **Update**: Sustained hosted verification completed all 500 panel/search cycles and passed every non-profiling check. Runtime audit and project memory retain the three recorder stop/save failures and blocked timing coverage; no application-hang or performance claim is inferred.
 * **Update**: Runtime audit/tooling now record the full requested workload under each profiler and require per-cycle interval coverage. The audit distinguishes a successful local SwiftUI control from still-unverified hosted Summon profiling.
 * **Update**: Hosted revision `9bb3063` verifies 100 actual panel query values, About/Activity keyboard close and terminal delivery. Runtime audit and project memory record the remaining empty SwiftUI-data/save failure and recorder symbol-processing stack; the gate rejects empty SwiftUI recordings rather than accepting a saved directory.
 * **Update**: Runtime audit distinguishes historical sent-keystroke cycles from actual search-value verification; records the hosted capture failure, retained sanitized stderr, owned recorder-group cleanup and local native helper permission boundary.

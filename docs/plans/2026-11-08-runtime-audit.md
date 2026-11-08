@@ -453,7 +453,17 @@ An independent owned SwiftUI control on the local Xcode 27.1 host saved a three-
 exported SwiftUI update rows. It was removed with its processes and trace; this is not Summon performance proof.
 The audit now records the requested iteration count under each profiler instead of one subsecond interaction,
 aborts at the first incomplete cycle and requires per-cycle signpost coverage. Whether short recording duration
-explains the missing hosted data remains unproven; sustained-workload hosted verification is pending.
+explains the missing hosted data remains unproven.
+
+Hosted [run `42511922877`](https://github.com/RohiRIK/SummonOS/actions/runs/42511922877), revision `7edce37`,
+completed all 500 panel cycles: 100 unprofiled and 100 under each of four profilers, with actual search-value
+verification. About metadata, About/Activity keyboard close and terminal delivery passed. Time Profiler saved;
+Logging, SwiftUI and Allocations exceeded their stop/save deadlines, so panel timing coverage remained blocked.
+Logging/SwiftUI recorder samples showed `DTXConnectionServices` semaphore waits; the Allocations recorder also
+waited in its processing queue. These are recorder observations, not proof of an application hang or its cause.
+All non-profiling hosted checks passed, including both OS Swift/visual matrices, templates, lifecycle smoke,
+release build and CodeQL. Local tooling is 101/101 with the workspace gate passing. The draft must not be merged
+as fully verified: native isolated-session profiling and the remaining acceptance checks below are still needed.
 
 Release readiness still requires VoiceOver navigation, Reduce Transparency, full notification/crash-burst proof,
 controlled comparative GUI profiling, actual displayed-frame timing and retained-heap bounds. A recording alone
