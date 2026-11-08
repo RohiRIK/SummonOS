@@ -23,6 +23,10 @@ see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/rele
   replacement and out-of-order completion. App-owned work and observers stop explicitly at shutdown.
 - Build metadata is generated only in staged sources; installer verify-only is nonmutating, and build/install
   cleanup retains failure diagnostics and rollback evidence.
+- File watches reconcile state once registration completes; actual change tests wait for readiness and events
+  instead of assuming delivery after 300 ms. Settings exposes the About action by its own accessible name.
+  Native About temporarily enables regular-window activation; GUI audits verify exact owned-window keyboard
+  dismissal with bounded deadlines and retain structured failure/prerequisite evidence.
 
 ## 2026-10-28
 

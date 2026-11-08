@@ -1,6 +1,14 @@
+---
+type: log
+title: Docs update log
+description: Notable changes to SummonOS documentation and verification evidence.
+tags: [documentation, history]
+---
+
 # Docs update log
 
 ## 2026-11-08
+* **Update**: Runtime audit and project memory record the first complete hosted wave, remaining native About failures, registration-ready watcher reconciliation and local 378 Core/20 CLI/8 automation passes. MacAppArchitecture records the asynchronous Dispatch registration contract; hosted GUI acceptance remains pending.
 * **Update**: [runtime audit](plans/2026-11-08-runtime-audit.md) and Summon project memory: signed stable/edge packages from clean implementation revision `8f267fb`, matching compiled identity, owned-artifact cleanup and channel-specific visual limits; [draft PR #124](https://github.com/RohiRIK/SummonOS/pull/124). MacAppBuild now records checking both Git author and committer before public pushes.
 * **Update**: [runtime audit](plans/2026-11-08-runtime-audit.md), [features](features.md), [tools](tools.md), [Summon project context](../incubator/summon/PROJECT-CONTEXT.md) and [changelog](../incubator/summon/CHANGELOG.md): unreleased runtime hardening, staged build identity/native About, owned Core100 and signed installer fault evidence, same-host benchmark deltas and explicit hosted GUI/heap/VoiceOver prerequisites. The original source audit below remains a historical record.
 * **New**: [Summon runtime audit and implementation roadmap](plans/2026-11-08-runtime-audit.md): measured Core baselines, completion-event and UUID-log-retention defects, About/build identity, phased menu/lifecycle improvements, and automation contracts. Application behavior is unchanged; GUI crash/leak attribution remains unconfirmed.

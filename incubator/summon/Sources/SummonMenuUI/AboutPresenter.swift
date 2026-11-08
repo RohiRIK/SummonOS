@@ -7,10 +7,27 @@ import SummonCore
 @MainActor
 public enum AboutPresenter {
     public static func show(_ build: BuildInfo = .current) {
-        // An accessory app has no app menu or focus; activate so the panel takes keyboard and VoiceOver focus.
-        NSApp.activate()
+        // A regular window needs application activation, unlike the nonactivating menu panel. Merely
+        // calling activate() while still accessory can leave the native About panel without keyboard focus.
+        if NSApp.activationPolicy() == .accessory, NSApp.setActivationPolicy(.regular), closeObserver == nil {
+            closeObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.willCloseNotification, object: nil, queue: .main) { notification in
+                guard let closing = notification.object as? NSWindow else { return }
+                MainActor.assumeIsolated {
+                    guard !NSApp.windows.contains(where: {
+                              $0 !== closing && $0.styleMask.contains(.titled) && ($0.isVisible || $0.isMiniaturized)
+                          }) else { return }
+                    if let token = closeObserver { NotificationCenter.default.removeObserver(token) }
+                    closeObserver = nil
+                    NSApp.setActivationPolicy(.accessory)
+                }
+            }
+        }
         NSApp.orderFrontStandardAboutPanel(options: options(for: build))
+        NSApp.activate()
     }
+
+    private static var closeObserver: NSObjectProtocol?
 
     private static var launchObserver: NSObjectProtocol?
 

@@ -387,6 +387,14 @@ Its captured window-content images are under `/tmp/summonos-about-evidence-20261
 are needed for legible visual inspection, not a replica view. This does **not** prove VoiceOver navigation or a
 physical display frame.
 
+Hosted wave `c078b03` passed macOS 26 Swift tests, templates, the release build and CodeQL. It exposed a macOS 15
+watcher assertion after a fixed 300 ms wait, inherited About-button naming and an unbounded foreground wait.
+The follow-up reconciles watcher state after asynchronous registration, awaits readiness separately from actual
+write/deletion notifications, and gives About its own accessible button name. Owned-window GUI actions now
+use unique public CG/AX identities, bounded focus/keyboard checks and structured blocked/failure evidence.
+Local integration passed Core 378/378, CLI 20/20 and runtime-automation 8/8; the native helper compiled.
+About's activation-policy correction is not yet a hosted keyboard pass.
+
 Still required on disposable macOS 15/26 CI: full application GUI 100 open/search/close cycles, live refresh and
 notification/crash-burst behavior, keyboard/VoiceOver, Reduce Transparency, actual first draw/display timing,
 Instruments allocations/retained heap growth and cross-OS release/install checks. `PanelWindowUpdate` measures

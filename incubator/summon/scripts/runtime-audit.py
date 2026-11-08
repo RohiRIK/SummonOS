@@ -110,6 +110,27 @@ def wait_window(helper, pid, condition, timeout=10):
     return None
 
 
+def owned_window_action(helper, pid, window_id, action):
+    # The helper joins public CG/AX window identities only when unique, verifies keyboard focus,
+    # and posts Command-W to this PID. Do not substitute a close-button click when keyboard handling fails.
+    try:
+        result = subprocess.run([str(helper), action, str(pid), str(window_id)],
+                                text=True, capture_output=True, timeout=15)
+    except subprocess.TimeoutExpired:
+        return {"status":"failed", "stage":"helper deadline", "operation":action,
+                "reason":"Owned-window action exceeded its 15-second deadline", "window_id":window_id}
+    try:
+        evidence = json.loads(result.stdout)
+        expected = {"passed":0, "failed":1, "blocked":2}.get(evidence.get("status"))
+        if expected != result.returncode or evidence.get("pid") != pid or evidence.get("window_id") != window_id:
+            raise ValueError("invalid owned-window result")
+        return evidence
+    except (ValueError, AttributeError):
+        return {"status":"failed", "stage":"helper result", "operation":action,
+                "reason":"Owned-window helper did not return valid structured evidence",
+                "exit_status":result.returncode, "window_id":window_id}
+
+
 def stop_owned_app(pid, binary):
     # LaunchServices owns its process group. Recheck executable immediately before signaling this PID.
     def matches():
@@ -229,17 +250,11 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
     samples = []
     resources = []
     scenarios = []
-    def close_front_window():
-        script = f'''tell application "System Events"
-tell (first application process whose unix id is {pid})
-set frontmost to true
-repeat until frontmost
-delay 0.05
-end repeat
-keystroke "w" using command down
-end tell
-end tell'''
-        command(["/usr/bin/osascript", "-e", script], timeout=5)
+    def close_window(window, name):
+        evidence = owned_window_action(helper, pid, window[0], "close")
+        scenarios.append({"name":name, **evidence})
+        write(run / "scenarios.json", {"ui":scenarios})
+        return evidence["status"]
     try:
         about = wait_window(helper, pid, lambda windows: [w for w in windows if w[4] > 220 and w[5] > 150])
         if not about:
@@ -252,11 +267,9 @@ end tell'''
                           "captured_bytes":(trace / "about.png").stat().st_size})
         if not ready:
             write(run / "scenarios.json", {"ui":scenarios}); return False
-        close_front_window()
-        if not wait_window(helper, pid, lambda windows: not any(w[0] == about[0][0] for w in windows)):
-            scenarios.append({"name":"native About close", "status":"failed"})
-            write(run / "scenarios.json", {"ui":scenarios}); return False
-        scenarios.append({"name":"native About close", "status":"passed"})
+        closed = close_window(about[0], "native About close")
+        if closed != "passed":
+            return None if closed == "blocked" else False
         # A harmless shell child exits, Core writes its actual terminal JSONL record, and the real UI reads it.
         command([str(core_binary), "fixture-terminal", str(pathlib.Path.home())], timeout=30)
         command(["/usr/bin/open", "summon://activity"], timeout=5)
@@ -272,7 +285,9 @@ end tell'''
                           "status":"passed" if observed else "failed"})
         if not observed:
             write(run / "scenarios.json", {"ui":scenarios}); return False
-        close_front_window()
+        closed = close_window(activity[0], "Activity keyboard close")
+        if closed != "passed":
+            return None if closed == "blocked" else False
         for index in range(iterations):
             start = time.monotonic()
             command(["/usr/bin/open", "summon://menu/"], timeout=5)
@@ -315,6 +330,7 @@ end tell'''
             return None
         return all(s["status"] == "passed" for s in scenarios)
     finally:
+        write(run / "scenarios.json", {"ui":scenarios})
         stop_owned_app(pid, binary)
 
 
@@ -342,7 +358,8 @@ def main():
         return 2 if passed is None else 0 if passed else 1
     except (ValueError, FileNotFoundError) as exc:
         reason = "required executable or fixture missing" if isinstance(exc, FileNotFoundError) else str(exc)
-        write(run / "scenarios.json", {"prerequisite":{"status":"blocked","reason":reason}})
+        previous = json.loads((run / "scenarios.json").read_text()) if (run / "scenarios.json").exists() else {}
+        write(run / "scenarios.json", {**previous, "prerequisite":{"status":"blocked","reason":reason}})
         print("runtime-audit: prerequisite blocked (see scenarios.json)", file=sys.stderr)
         print(run)
         return 2
@@ -350,7 +367,8 @@ def main():
         evidence = {"status":"failed", "error_type":type(exc).__name__}
         if isinstance(exc, subprocess.CalledProcessError):
             evidence.update(executable=pathlib.Path(exc.cmd[0]).name, exit_status=exc.returncode)
-        write(run / "scenarios.json", {"driver":evidence})
+        previous = json.loads((run / "scenarios.json").read_text()) if (run / "scenarios.json").exists() else {}
+        write(run / "scenarios.json", {**previous, "driver":evidence})
         print("runtime-audit: audit failed (see scenarios.json)", file=sys.stderr)
         print(run)
         return 1

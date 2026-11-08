@@ -61,6 +61,10 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
 - Clean revision `8f267fb` produced signed stable/edge candidates: actual CLI/plist/manifest and linked compiled
   BuildInfo agreed, signatures and App Intents passed. No publication/install; channel-specific native-panel
   visual proof remains outstanding. Draft PR #124 tracks hosted checks and remaining GUI/heap criteria.
+- Hosted wave `c078b03` passed macOS 26 Swift tests, templates, release build and CodeQL, but exposed a macOS 15
+  watcher timing failure and native About accessibility/focus failures. Registration-ready reconciliation,
+  event-driven watcher tests and PID/window-owned GUI actions now compile locally: Core 378/378, CLI 20/20,
+  runtime-automation 8/8. Hosted acceptance remains pending; no GUI pass is inferred from compilation.
 
 ### 2026-11-08 — Runtime audit and proposed implementation roadmap
 - [Audit and plan](../../docs/plans/2026-11-08-runtime-audit.md), source `3f37adf556b1`: oversized completion details exceed the event cap; cleaner sorts UUID logs instead of timestamps; command completion reloads disk-derived state on MainActor. Core smoke exercised the first two mechanisms; no application crash or memory leak was established.

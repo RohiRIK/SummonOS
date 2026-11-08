@@ -134,18 +134,38 @@ close_panel() {
 
 appearance() { defaults read -g AppleInterfaceStyle 2>/dev/null || echo Light; }
 
-# Closes <id> (a Summon window) with its close button, found by the window's title through Accessibility.
+# The helper maps this CG ID to one unique owned AX window, verifies focus, sends Command-W to our PID,
+# and checks that exact window disappeared. Never close an arbitrary front window or downgrade to a click.
 close_window() {
-  local id=$1 title
-  title=$(osascript -e "tell application \"System Events\" to tell process \"$OWNER\" to get name of front window" 2>>"$LOG")
-  osascript -e "tell application \"System Events\" to tell process \"$OWNER\" to click (first button of front window whose subrole is \"AXCloseButton\")" >>"$LOG" 2>&1
-  window_gone() { ! is_open "$id"; }
-  wait_for 3 window_gone || warned "window $id ($title) still open after its close button"
+  local id=$1
+  if ! "$WINDOWS" close "$PID" "$id" >>"$LOG" 2>&1; then
+    failed "window $id did not close with owned Command-W (see structured window diagnostics)"
+    return 1
+  fi
+}
+
+check_about_metadata() {
+  local image=$1
+  if ! python3 - "$APP/Contents/Resources/BuildInfo.json" "$WINDOW_TEXT" "$image" >>"$LOG" 2>&1 <<'PY'
+import json, pathlib, subprocess, sys
+try:
+    manifest = json.loads(pathlib.Path(sys.argv[1]).read_text())
+    result = subprocess.run([sys.argv[2], sys.argv[3]], text=True, capture_output=True, timeout=30, check=True)
+    matches = {key: manifest[key] in result.stdout for key in ("marketingVersion", "buildNumber")}
+except (OSError, ValueError, KeyError, subprocess.SubprocessError):
+    print("About metadata capture or manifest prerequisite unavailable")
+    sys.exit(2)
+print(json.dumps({"native_about_visible_metadata": matches}, sort_keys=True))
+sys.exit(0 if all(matches.values()) else 1)
+PY
+  then
+    failed "native About screenshot does not visibly match packaged version/build metadata"
+  fi
 }
 
 # Every Settings page, Activity and the crash alert in <theme>: each surface a UI change can touch.
 capture_windows() {
-  local theme=$1 before opened settings="" section
+  local theme=$1 before opened settings="" section opening
   before=$(ids)
   open -g "summon://settings/general" >>"$LOG" 2>&1
   opened=$(opened_since "$before")
@@ -161,30 +181,26 @@ capture_windows() {
     # The native About panel must be reached through the actual Settings action, not an offscreen replica.
     open -g "summon://settings/general" >>"$LOG" 2>&1
     sleep 1.5
-    before=$(ids)
-    if osascript -e 'tell application "System Events" to tell process "SummonMenu"' \
-      -e 'set settingsWindow to window "General"' \
-      -e 'repeat with elementRef in (get entire contents of settingsWindow)' \
-      -e 'if role of elementRef is "AXScrollBar" then' \
-      -e 'if value of attribute "AXOrientation" of elementRef is "AXVerticalOrientation" then set value of elementRef to 1' \
-      -e 'end if' -e 'end repeat' -e 'delay 0.3' \
-      -e 'repeat with elementRef in (get entire contents of settingsWindow)' \
-      -e 'if role of elementRef is "AXButton" then log {name of elementRef, description of elementRef}' \
-      -e 'if role of elementRef is "AXButton" and (name of elementRef is "About Summon" or description of elementRef is "About Summon") then' \
-      -e 'click elementRef' -e 'return' -e 'end if' -e 'end repeat' \
-      -e 'error "About Summon button missing"' -e 'end tell' >>"$LOG" 2>&1; then
-      opened=$(opened_since "$before")
-      if [ -n "$opened" ]; then
-        capture "$theme-about" "$opened"
-        [ -s "$OUT/$TAG-$theme-about.png" ] && check_luma "$OUT/$TAG-$theme-about.png" "$theme"
-        for id in $opened; do close_window "$id"; done
+    # Open, keyboard-close, and reopen through the same actual Settings action: AppKit reuses its native panel.
+    for opening in about about-reopened; do
+      before=$(ids)
+      if "$WINDOWS" about "$PID" "$settings" >>"$LOG" 2>&1; then
+        opened=$(opened_since "$before")
+        if [ -n "$opened" ] && [ "$(echo "$opened" | grep -c .)" -eq 1 ]; then
+          capture "$theme-$opening" "$opened"
+          check_luma "$OUT/$TAG-$theme-$opening.png" "$theme"
+          check_about_metadata "$OUT/$TAG-$theme-$opening.png"
+          close_window "$opened" || break
+        else
+          failed "$theme: About Summon action must open exactly one native About window"
+          break
+        fi
       else
-        failed "$theme: About Summon button opened no native About window"
+        capture "$theme-settings-about-action" "$settings"
+        failed "$theme: Settings About Summon action is not accessible (see structured AX diagnostics)"
+        break
       fi
-    else
-      capture "$theme-settings-about-action" "$settings"
-      failed "$theme: Settings About Summon action is not accessible"
-    fi
+    done
     check_luma "$OUT/$TAG-$theme-settings-general.png" "$theme"
     close_window "$settings"
   fi

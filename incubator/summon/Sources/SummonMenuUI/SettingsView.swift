@@ -381,11 +381,17 @@ struct GeneralSettings: View {
             }
 
             Section("About") {
-                LabeledContent {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Summon \(BuildInfo.current.marketingVersion) (\(BuildInfo.current.buildNumber))")
+                        Text("\(BuildInfo.current.channelText) · \(BuildInfo.current.configurationText)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    Spacer()
                     Button("About Summon") { AboutPresenter.show() }
-                } label: {
-                    Text("Summon \(BuildInfo.current.marketingVersion) (\(BuildInfo.current.buildNumber))")
-                    Text("\(BuildInfo.current.channelText) · \(BuildInfo.current.configurationText)")
+                        .accessibilityLabel("About Summon")
                 }
                 .accessibilityElement(children: .contain)
             }
