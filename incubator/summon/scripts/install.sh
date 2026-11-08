@@ -20,7 +20,7 @@ BIN="$HOME/.local/bin"
 if [[ $verify_only -eq 0 ]]; then
   [[ ! -L $DEST ]] || { echo "Refusing to replace a symlink at $DEST." >&2; exit 1; }
 fi
-APP_STAGE= BIN_STAGE= LOCK=
+APP_STAGE='' BIN_STAGE='' LOCK=''
 app_changed=0 cli_changed=0 macctl_changed=0 committed=0
 cleanup() {
   local result=$? rollback_failed=0 cleanup_failed=0
