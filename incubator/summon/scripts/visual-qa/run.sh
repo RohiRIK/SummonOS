@@ -169,7 +169,8 @@ capture_windows() {
       -e 'if value of attribute "AXOrientation" of elementRef is "AXVerticalOrientation" then set value of elementRef to 1' \
       -e 'end if' -e 'end repeat' -e 'delay 0.3' \
       -e 'repeat with elementRef in (get entire contents of settingsWindow)' \
-      -e 'if role of elementRef is "AXButton" and name of elementRef is "About Summon" then' \
+      -e 'if role of elementRef is "AXButton" then log {name of elementRef, description of elementRef}' \
+      -e 'if role of elementRef is "AXButton" and (name of elementRef is "About Summon" or description of elementRef is "About Summon") then' \
       -e 'click elementRef' -e 'return' -e 'end if' -e 'end repeat' \
       -e 'error "About Summon button missing"' -e 'end tell' >>"$LOG" 2>&1; then
       opened=$(opened_since "$before")
@@ -181,6 +182,7 @@ capture_windows() {
         failed "$theme: About Summon button opened no native About window"
       fi
     else
+      capture "$theme-settings-about-action" "$settings"
       failed "$theme: Settings About Summon action is not accessible"
     fi
     check_luma "$OUT/$TAG-$theme-settings-general.png" "$theme"

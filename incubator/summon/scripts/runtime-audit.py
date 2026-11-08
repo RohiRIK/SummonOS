@@ -229,6 +229,17 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
     samples = []
     resources = []
     scenarios = []
+    def close_front_window():
+        script = f'''tell application "System Events"
+tell (first application process whose unix id is {pid})
+set frontmost to true
+repeat until frontmost
+delay 0.05
+end repeat
+keystroke "w" using command down
+end tell
+end tell'''
+        command(["/usr/bin/osascript", "-e", script], timeout=5)
     try:
         about = wait_window(helper, pid, lambda windows: [w for w in windows if w[4] > 220 and w[5] > 150])
         if not about:
@@ -241,7 +252,7 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
                           "captured_bytes":(trace / "about.png").stat().st_size})
         if not ready:
             write(run / "scenarios.json", {"ui":scenarios}); return False
-        command(["/usr/bin/osascript", "-e", 'tell application "System Events" to tell process "SummonMenu" to keystroke "w" using command down'], timeout=5)
+        close_front_window()
         if not wait_window(helper, pid, lambda windows: not any(w[0] == about[0][0] for w in windows)):
             scenarios.append({"name":"native About close", "status":"failed"})
             write(run / "scenarios.json", {"ui":scenarios}); return False
@@ -261,7 +272,7 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
                           "status":"passed" if observed else "failed"})
         if not observed:
             write(run / "scenarios.json", {"ui":scenarios}); return False
-        command(["/usr/bin/osascript", "-e", 'tell application "System Events" to tell process "SummonMenu" to keystroke "w" using command down'], timeout=5)
+        close_front_window()
         for index in range(iterations):
             start = time.monotonic()
             command(["/usr/bin/open", "summon://menu/"], timeout=5)
