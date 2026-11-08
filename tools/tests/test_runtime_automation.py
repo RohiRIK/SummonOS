@@ -7,6 +7,7 @@ import pathlib
 import plistlib
 import subprocess
 import tempfile
+import types
 import unittest
 from unittest import mock
 
@@ -274,6 +275,45 @@ class RuntimeProfilingTests(unittest.TestCase):
             self.assertEqual(result["status"], "blocked")
             self.assertFalse(result["interactive_cycle"])
             child.send_signal.assert_not_called()
+
+    def test_recorder_timeout_stops_its_term_ignoring_process_group(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            child = subprocess.Popen(["/bin/sh", "-c", 'trap "" INT TERM; /bin/sleep 60 & echo $!; wait'],
+                                     stdout=subprocess.PIPE, text=True, start_new_session=True)
+            descendant = int(child.stdout.readline())
+            class ExpiredRecorder:
+                expired = False
+                def __getattr__(self, name):
+                    return getattr(child, name)
+                def wait(self, timeout=None):
+                    if not self.expired:
+                        self.expired = True
+                        raise subprocess.TimeoutExpired("owned-recorder-fixture", timeout)
+                    return child.wait(timeout=timeout)
+            recorder = ExpiredRecorder()
+            # Inject only the recorder deadline/upstream UI; termination acts on real owned processes.
+            proxy = types.SimpleNamespace(Popen=lambda *a, **k: recorder, run=subprocess.run,
+                PIPE=subprocess.PIPE, STDOUT=subprocess.STDOUT, TimeoutExpired=subprocess.TimeoutExpired,
+                SubprocessError=subprocess.SubprocessError, CalledProcessError=subprocess.CalledProcessError)
+            try:
+                with mock.patch.object(runtime_audit, "subprocess", proxy), \
+                     mock.patch.object(runtime_audit, "recording_notification", return_value=contextlib.nullcontext(("ready", 37))), \
+                     mock.patch.object(runtime_audit, "wait_recording_notification", return_value=True), \
+                     mock.patch.object(runtime_audit, "trace_window_cycle", return_value={"status":"passed", "reason":"injected upstream fixture"}):
+                    result = runtime_audit.record_instrument("Logging", 123, pathlib.Path("unused"),
+                        pathlib.Path(temporary) / "fixture.trace", [])
+                self.assertEqual(result["status"], "failed")
+                self.assertTrue(result["stop_timed_out"])
+                self.assertEqual(child.returncode, -runtime_audit.signal.SIGKILL)
+                state = subprocess.run(["/bin/ps", "-o", "stat=", "-p", str(descendant)], text=True, capture_output=True)
+                self.assertTrue(not state.stdout.strip() or state.stdout.strip().startswith("Z"), state.stdout)
+            finally:
+                try:
+                    os.killpg(child.pid, runtime_audit.signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                child.wait(timeout=5)
+                child.stdout.close()
 
     def test_output_diagnostics_are_bounded_and_do_not_move_writer_offset(self):
         with tempfile.TemporaryFile() as output:

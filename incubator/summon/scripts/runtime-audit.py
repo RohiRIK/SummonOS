@@ -168,12 +168,16 @@ def trace_window_cycle(pid, helper):
     panel = wait_window(helper, pid, lambda windows: [w for w in windows if 270 <= w[4] <= 400 and w[5] > 180])
     if not panel:
         return {"status":"failed", "stage":"panel open", "reason":"Owned panel did not appear during recording", "mouse":mouse}
-    command(["/usr/bin/osascript", "-e", 'tell application "System Events" to keystroke "audit"'], timeout=5)
+    search = owned_window_action(helper, pid, panel[0][0], "search")
+    if search["status"] != "passed":
+        return {"status":search["status"], "stage":"panel search", "reason":search["reason"],
+                "mouse":mouse, "search":search}
     command(["/usr/bin/osascript", "-e", 'tell application "System Events" to key code 53'], timeout=5)
     closed = bool(wait_window(helper, pid, lambda windows: not any(w[0] == panel[0][0] for w in windows)))
     return {"status":"passed" if closed else "failed", "stage":"panel close", "window_id":panel[0][0],
             "reason":"Owned panel opened, received search keystrokes and disappeared" if closed else
-                     "Owned panel did not disappear during recording", "open_source":"status-item mouse input", "mouse":mouse}
+                     "Owned panel did not disappear during recording", "open_source":"status-item mouse input",
+            "mouse":mouse, "search":search}
 
 
 @contextlib.contextmanager
@@ -211,7 +215,7 @@ def wait_recording_notification(child, descriptor, timeout=15):
 
 
 def save_tool_diagnostics(path, text):
-    # Recorder/sample diagnostics only, never target stdout. JSON still contains fixed labels/counts only.
+    # Owned-tool diagnostics only, never target stdout. JSON still contains fixed labels/counts only.
     text = re.sub(r"/(?:Users|home|private|var|tmp)/[^\r\n]*", "<private path redacted>", text)
     path.write_text(text[:16384])
 
@@ -286,11 +290,18 @@ def record_instrument(template, pid, helper, target, children):
                         outcome["recorder_sample_exit_status"] = sample.returncode
                     except (OSError, subprocess.SubprocessError) as exc:
                         outcome["recorder_sample_error"] = type(exc).__name__
-                    child.terminate()
+                    # The recorder owns a new session; terminate its helpers too, never unrelated processes.
+                    try:
+                        os.killpg(child.pid, signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
                     try:
                         child.wait(timeout=3)
                     except subprocess.TimeoutExpired:
-                        child.kill()
+                        try:
+                            os.killpg(child.pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
                         child.wait(timeout=3)
                 finally:
                     outcome["exit_status"] = child.poll()
@@ -443,7 +454,12 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
                 first_text = screenshot(panel[0], "panel-first-captured-frame")
                 scenarios.append({"name":"first captured panel frame", "status":"passed" if first_text else "failed",
                                   "evidence":"screenshot + OCR; capture latency is not first-frame time"})
-            command(["/usr/bin/osascript", "-e", 'tell application "System Events" to keystroke "audit"'], timeout=5)
+                if not first_text:
+                    return False
+            search = owned_window_action(helper, pid, panel[0][0], "search")
+            if search["status"] != "passed":
+                scenarios.append({"name":"panel search", "iteration":index, **search})
+                return None if search["status"] == "blocked" else False
             command(["/usr/bin/osascript", "-e", 'tell application "System Events" to key code 53'], timeout=5)
             closed = wait_window(helper, pid, lambda windows: not any(w[0] == panel[0][0] for w in windows))
             if not closed:
@@ -456,7 +472,8 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
                     ["/usr/sbin/lsof", "-nP", "-p", str(pid), "-Ff"], timeout=10).splitlines())
                 resources.append({"cycle":index,"rss_kib":rss,"threads":threads,"fd_records":descriptors})
         else:
-            scenarios.append({"name":"panel open/search/close", "status":"passed", "iterations":iterations})
+            scenarios.append({"name":"panel open/search/close", "status":"passed", "iterations":iterations,
+                              "verified_searches":len(samples)})
         samples.sort()
         traces, signposts = instrument(pid, helper, trace, children)
         scenarios.extend({"name":"Instruments " + template, **result} for template, result in traces.items())
@@ -514,6 +531,7 @@ def main():
         evidence = {"status":"failed", "error_type":type(exc).__name__}
         if isinstance(exc, subprocess.CalledProcessError):
             evidence.update(executable=pathlib.Path(exc.cmd[0]).name, exit_status=exc.returncode)
+            save_tool_diagnostics(run / "driver.log", exc.stderr or "")
         previous = json.loads((run / "scenarios.json").read_text()) if (run / "scenarios.json").exists() else {}
         write(run / "scenarios.json", {**previous, "driver":evidence})
         print("runtime-audit: audit failed (see scenarios.json)", file=sys.stderr)

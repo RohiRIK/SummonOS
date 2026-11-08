@@ -67,6 +67,10 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   profiling on Darwin recording notifications plus genuine owned status-item input. Local Core 378/378, CLI 21/21,
   Python 98/98 and signed lifecycle gate passed; current hosted results are in draft PR #124. VoiceOver, Reduce
   Transparency, displayed-frame and retained-heap acceptance remain release gates, not inferred passes.
+- Runtime evidence now retains sanitized capture stderr and kills only the recorder's owned process group on
+  timeout. Search cycles require actual AX query read-back, not merely sent keystrokes; earlier GUI100 evidence
+  does not establish that stronger assertion. Local native helper input is permission-blocked without sending
+  keys; fresh disposable hosted verification is required.
 - Hosted `deb7eb1` passed Swift and visual QA on macOS 15/26, lifecycle smoke, release build and CodeQL.
   Genuine panel intervals exported; SwiftUI recorder finalization alone timed out while other recordings and
   subsequent interactions passed. Bounded recorder diagnostics now retain the specific failure without weakening the gate.

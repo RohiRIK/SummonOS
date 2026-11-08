@@ -8,6 +8,7 @@ tags: [documentation, history]
 # Docs update log
 
 ## 2026-11-08
+* **Update**: Runtime audit distinguishes historical sent-keystroke cycles from actual search-value verification; records the hosted capture failure, retained sanitized stderr, owned recorder-group cleanup and local native helper permission boundary.
 * **Update**: [runtime audit](plans/2026-11-08-runtime-audit.md) records hosted GUI100, cross-OS native UI/Swift passes, genuine panel timing samples and the remaining SwiftUI recorder-finalization failure. Local 98 behavioral Python/378 Core/21 CLI tests passed; recorder-only diagnostics preserve the failure without weakening release gates.
 * **Update**: Runtime audit and project memory record the first complete hosted wave, remaining native About failures, registration-ready watcher reconciliation and local 378 Core/20 CLI/8 automation passes. MacAppArchitecture records the asynchronous Dispatch registration contract; hosted GUI acceptance remains pending.
 * **Update**: [runtime audit](plans/2026-11-08-runtime-audit.md) and Summon project memory: signed stable/edge packages from clean implementation revision `8f267fb`, matching compiled identity, owned-artifact cleanup and channel-specific visual limits; [draft PR #124](https://github.com/RohiRIK/SummonOS/pull/124). MacAppBuild now records checking both Git author and committer before public pushes.

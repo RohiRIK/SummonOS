@@ -396,7 +396,7 @@ Local integration passed Core 378/378, CLI 20/20 and runtime-automation 8/8; the
 At that stage, About's activation-policy correction had not yet passed hosted keyboard verification.
 
 Hosted wave `e94dbfa` subsequently passed actual packaged About metadata, native About and Activity Command-W,
-terminal persistence into Activity, and all 100 panel open/search/close cycles on the disposable macOS 26 runner
+terminal persistence into Activity, and all 100 scripted panel open/type/close cycles on the disposable macOS 26 runner
 ([runtime evidence](https://github.com/RohiRIK/SummonOS/actions/runs/42500518688)). Actual macOS 15 light and
 macOS 26 dark native About captures were inspected; light-mode close/reopen passed on both OS versions.
 The dark-mode driver correctly refused two empty-titled windows; it now joins public title and geometry uniquely,
@@ -427,6 +427,15 @@ completed the interaction but did not save/exit within 45 seconds; the owned rec
 Time Profiler/Allocations interactions passed, so this is not evidence that the app itself hung. The failure
 remains a failed gate. Bounded recorder-only logs and a stack sample, with private paths redacted, are now retained
 to diagnose finalization; raw target stdout is not collected. The capture path was exercised with an owned child.
+
+Hosted `6e642da` passed the Swift and visual matrices, but runtime smoke stopped at `screencapture` exit 1.
+The driver now retains bounded, path-redacted stderr for this failure instead of only its exit status.
+Recorder timeout cleanup terminates its owned process group, including descendants; a real TERM-ignoring
+child regression passed. Search verification now explicitly focuses the owned field, posts PID-targeted
+keyboard events and requires its actual value to equal the fixture query. Earlier cycles sent keystrokes
+without checking the resulting value and are not proof of search input. The helper compiled and its local
+native-window smoke correctly reported missing Accessibility permission without sending keys; the stricter
+full-app scenario requires a fresh disposable hosted run.
 
 Release readiness still requires VoiceOver navigation, Reduce Transparency, full notification/crash-burst proof,
 controlled comparative GUI profiling, actual displayed-frame timing and retained-heap bounds. A recording alone

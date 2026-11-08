@@ -98,6 +98,7 @@ jobs:
             ${{ runner.temp }}/release-audit/**/environment.json
             ${{ runner.temp }}/release-audit/**/metrics.json
             ${{ runner.temp }}/release-audit/**/scenarios.json
+            ${{ runner.temp }}/release-audit/**/driver.log
             ${{ runner.temp }}/release-audit/**/traces/*.png
             ${{ runner.temp }}/release-audit/**/traces/*.json
             ${{ runner.temp }}/release-audit/**/traces/*.recorder*.log

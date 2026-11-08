@@ -5,6 +5,7 @@
 //   windows close <pid> <id>   focus that exact owned window, send real Command-W, and require its dismissal
 //   windows about <pid> <id>   press the meaningfully named About Summon button in that Settings window
 //   windows click-status <pid>   hit-test the owned extra-menu item, then send real mouse-down/up for timing
+//   windows search <pid> <id>   focus Search Summon, type audit with owned key events, require its actual value
 // Actions emit bounded JSON diagnostics, never window titles, text contents, paths or unrelated process data.
 // Window bounds and ids come from CGWindowList and need no Screen Recording permission.
 import AppKit
@@ -109,8 +110,30 @@ func clickStatusItem(pid: pid_t) -> Never {
     finish("passed", "Sent mouse-down/up to the owned hit-tested status item; caller must verify panel opening")
 }
 
+func namedControls(_ window: AXUIElement, role: String, label: String) -> (matches: [AXUIElement], count: Int)? {
+    var pending = [window]
+    var matches: [AXUIElement] = []
+    var count = 0
+    var visited = 0
+    let deadline = ProcessInfo.processInfo.systemUptime + 5
+    while let element = pending.popLast() {
+        visited += 1
+        guard visited <= 4096, ProcessInfo.processInfo.systemUptime < deadline else { return nil }
+        if (attribute(element, kAXRoleAttribute) as? String) == role {
+            count += 1
+            if (attribute(element, kAXTitleAttribute) as? String) == label
+                || (attribute(element, kAXDescriptionAttribute) as? String) == label { matches.append(element) }
+        }
+        if let children = attribute(element, kAXChildrenAttribute) as? [AXUIElement] {
+            pending.append(contentsOf: children)
+        }
+    }
+    return (matches, count)
+}
+
 func windowAction(_ action: String, pid: pid_t, id: Int) -> Never {
-    var evidence: [String: Any] = ["operation": action == "close" ? "Command-W" : "About Summon action",
+    let operation = action == "close" ? "Command-W" : action == "search" ? "Panel search input" : "About Summon action"
+    var evidence: [String: Any] = ["operation": operation,
                                    "pid": Int(pid), "window_id": id, "keyboard_sent": false]
     func finish(_ status: String, _ stage: String, _ reason: String) -> Never {
         evidence["status"] = status
@@ -164,29 +187,12 @@ func windowAction(_ action: String, pid: pid_t, id: Int) -> Never {
         guard title == "General" else {
             finish("failed", "action", "About action requires the General Settings window")
         }
-        var pending = [window]
-        var buttons: [AXUIElement] = []
-        var buttonCount = 0
-        var visited = 0
-        let deadline = ProcessInfo.processInfo.systemUptime + 5
-        while let element = pending.popLast() {
-            visited += 1
-            guard visited <= 4096, ProcessInfo.processInfo.systemUptime < deadline else {
-                finish("failed", "action", "Settings AX traversal exceeded its bounded deadline")
-            }
-            if (attribute(element, kAXRoleAttribute) as? String) == kAXButtonRole {
-                buttonCount += 1
-                let name = attribute(element, kAXTitleAttribute) as? String
-                let description = attribute(element, kAXDescriptionAttribute) as? String
-                if name == "About Summon" || description == "About Summon" { buttons.append(element) }
-            }
-            if let children = attribute(element, kAXChildrenAttribute) as? [AXUIElement] {
-                pending.append(contentsOf: children)
-            }
+        guard let controls = namedControls(window, role: kAXButtonRole, label: "About Summon") else {
+            finish("failed", "action", "Settings AX traversal exceeded its bounded deadline")
         }
-        evidence["settings_button_count"] = buttonCount
-        evidence["about_button_matches"] = buttons.count
-        guard buttons.count == 1, let button = buttons.first else {
+        evidence["settings_button_count"] = controls.count
+        evidence["about_button_matches"] = controls.matches.count
+        guard controls.matches.count == 1, let button = controls.matches.first else {
             finish("failed", "action", "Expected one button actually named About Summon")
         }
         // Materialize the properties, not AppleScript object specifiers. Only fixed expected labels are emitted.
@@ -204,6 +210,53 @@ func windowAction(_ action: String, pid: pid_t, id: Int) -> Never {
     evidence["post_event_access"] = CGPreflightPostEventAccess()
     guard CGPreflightPostEventAccess() else {
         finish("blocked", "permission", "Keyboard event posting access unavailable")
+    }
+    if action == "search" {
+        guard let controls = namedControls(window, role: kAXTextFieldRole, label: "Search Summon"),
+              controls.matches.count == 1, let field = controls.matches.first else {
+            finish("failed", "search", "Expected one accessible Search Summon text field")
+        }
+        let resetDeadline = ProcessInfo.processInfo.systemUptime + 2
+        while (attribute(field, kAXValueAttribute) as? String) != "" && ProcessInfo.processInfo.systemUptime < resetDeadline {
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.02))
+        }
+        guard (attribute(field, kAXValueAttribute) as? String) == "" else {
+            finish("failed", "search", "Panel query did not reset on opening")
+        }
+        // URL opens intentionally do not focus search. Model the user's explicit focus, not an AX value write.
+        evidence["raise_ax_error"] = AXUIElementPerformAction(window, kAXRaiseAction as CFString).rawValue
+        evidence["window_focus_ax_error"] = AXUIElementSetAttributeValue(window, kAXFocusedAttribute as CFString, kCFBooleanTrue).rawValue
+        evidence["focus_ax_error"] = AXUIElementSetAttributeValue(field, kAXFocusedAttribute as CFString, kCFBooleanTrue).rawValue
+        let focusDeadline = ProcessInfo.processInfo.systemUptime + 2
+        while (attribute(field, kAXFocusedAttribute) as? Bool) != true && ProcessInfo.processInfo.systemUptime < focusDeadline {
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.02))
+        }
+        guard (attribute(field, kAXFocusedAttribute) as? Bool) == true else {
+            finish("failed", "search", "Owned search field did not acquire keyboard focus; no key sent")
+        }
+        for character in "audit".utf16 {
+            var unit = character
+            guard let down = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true),
+                  let up = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: false) else {
+                finish("blocked", "keyboard", "Could not create search keyboard events")
+            }
+            down.flags = []
+            up.flags = []
+            down.keyboardSetUnicodeString(stringLength: 1, unicodeString: &unit)
+            up.keyboardSetUnicodeString(stringLength: 1, unicodeString: &unit)
+            down.postToPid(pid)
+            up.postToPid(pid)
+        }
+        evidence["keyboard_sent"] = true
+        let inputDeadline = ProcessInfo.processInfo.systemUptime + 2
+        while (attribute(field, kAXValueAttribute) as? String) != "audit" && ProcessInfo.processInfo.systemUptime < inputDeadline {
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.02))
+        }
+        evidence["search_query_matches"] = (attribute(field, kAXValueAttribute) as? String) == "audit"
+        guard evidence["search_query_matches"] as? Bool == true else {
+            finish("failed", "search", "Owned field did not contain the typed query")
+        }
+        finish("passed", "search", "Owned field reset, focused and exposed the actual typed query")
     }
     guard let running = NSRunningApplication(processIdentifier: pid), !running.isTerminated else {
         finish("failed", "activation", "Owned application exited before keyboard dismissal")
@@ -255,7 +308,7 @@ switch args.first {
 case "click-status":
     guard args.count == 2, let pid = Int32(args[1]), pid > 0 else { exit(64) }
     clickStatusItem(pid: pid)
-case "close", "about":
+case "close", "about", "search":
     guard args.count == 3, let pid = Int32(args[1]), pid > 0, let id = Int(args[2]), id > 0 else { exit(64) }
     windowAction(args[0], pid: pid, id: id)
 case "screen":
