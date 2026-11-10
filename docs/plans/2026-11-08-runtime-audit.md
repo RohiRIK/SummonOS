@@ -465,6 +465,14 @@ All non-profiling hosted checks passed, including both OS Swift/visual matrices,
 release build and CodeQL. Local tooling is 101/101 with the workspace gate passing. The draft must not be merged
 as fully verified: native isolated-session profiling and the remaining acceptance checks below are still needed.
 
+Independent hosted [control run `42514060671`](https://github.com/RohiRIK/SummonOS/actions/runs/42514060671)
+reproduced the empty SwiftUI-data warning and stop/save timeout in a minimal SwiftUI app without Summon.
+All three update-observation cycles completed; the recorder was killed after its deadline. The diagnostic
+workflow's green status meant evidence collection succeeded, not profiling. This rules out a Summon-only
+failure but does not distinguish runner, toolchain and recording-driver causes. The temporary control workflow
+was removed after evidence collection. Next comparison requires a native isolated GUI session; no profiler
+failure is waived and no production installation has been replaced.
+
 Release readiness still requires VoiceOver navigation, Reduce Transparency, full notification/crash-burst proof,
 controlled comparative GUI profiling, actual displayed-frame timing and retained-heap bounds. A recording alone
 does not establish these bounds; RSS changes alone do not prove leaks. `PanelWindowUpdate` measures AppKit's update

@@ -328,8 +328,9 @@ and build/deployment/validation/cleanup automation. Implementation detail and ac
 - [x] Updated existing docs/indexes; workspace, README-art and OKF checks passed after local integration evidence.
 
 Operational decisions: model routing remains session-only; one integration owner; no release tag or publication authorized.
-Local full-app GUI profiling is constrained by an already-running personal instance; GitHub-hosted macOS 15/26 GUI jobs
-provide the isolated route. A missing profiling/GUI prerequisite must be reported, not counted as a pass.
+The independent hosted SwiftUI control also failed to record/save; repeated hosted runs do not establish
+profiling acceptance. Continue in a native isolated GUI test session without replacing the personal install.
+A missing profiling/GUI prerequisite must be reported, not counted as a pass.
 
 ## Review
 

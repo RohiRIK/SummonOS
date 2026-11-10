@@ -79,6 +79,9 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   every non-profiling check. Time Profiler saved; three other recorders exceeded their stop/save deadlines,
   leaving timing coverage blocked. Local tooling 101/101 and workspace gate passed. No release/install occurred.
   A local independent SwiftUI control exported 1,632 update rows; it does not prove Summon profiling behavior.
+- Independent hosted control `42514060671` reproduced empty SwiftUI data and recorder timeout without Summon;
+  its green diagnostic job is not a profiling pass. Temporary workflow removed. Native isolated-session
+  profiling remains necessary; runner/toolchain/driver causality is not yet isolated.
 - Hosted `deb7eb1` passed Swift and visual QA on macOS 15/26, lifecycle smoke, release build and CodeQL.
   Genuine panel intervals exported; SwiftUI recorder finalization alone timed out while other recordings and
   subsequent interactions passed. Bounded recorder diagnostics now retain the specific failure without weakening the gate.
