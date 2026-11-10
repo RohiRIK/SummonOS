@@ -1,7 +1,7 @@
 import Foundation
 
-/// Runs `killall <process>` once per distinct restart effect, in name order.
-/// `.logout` is ignored here; the engine turns it into a note for the user.
+/// Refreshes appearance and runs `killall <process>` once per distinct effect.
+/// Logout/relaunch are advisory; the engine turns them into notes for the user.
 public struct KillallRestarter: Restarter {
     private let runner: Runner
 
@@ -10,6 +10,16 @@ public struct KillallRestarter: Restarter {
     }
 
     public func run(_ effects: Set<SideEffect>) async throws {
+        #if os(macOS)
+        if effects.contains(.refreshAppearance) {
+            // CoreUI listens for both names. Keep this in the audited effect path so undo/recovery
+            // refresh colors too; apps that ignore the notifications still need reopening.
+            let center = DistributedNotificationCenter.default()
+            for name in ["AppleAquaColorVariantChanged", "AppleColorPreferencesChangedNotification"] {
+                center.postNotificationName(Notification.Name(name), object: nil, userInfo: nil, deliverImmediately: true)
+            }
+        }
+        #endif
         var processes = Set<String>()
         for effect in effects {
             guard case .restart(let process) = effect else { continue }

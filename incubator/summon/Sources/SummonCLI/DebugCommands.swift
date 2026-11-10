@@ -81,11 +81,29 @@ enum MenuCommands {
     /// The user's menu when it exists and parses; otherwise the bundled default.
     static func loadTree(_ context: Context) throws -> MenuTree {
         let loaded = MenuTree.load(from: context.paths.menuFile)
-        let projects = (try? ProjectStore(paths: context.paths).load().projects) ?? []
-        let themes = ThemeStore(paths: context.paths).all()
+        let inventory = try loadInventory(context)
         if let problem = loaded.problem {
             context.warn(problem)
         }
-        return loaded.tree.withProjects(projects, themes: themes)
+        return loaded.tree.withProjects(inventory.projects, themes: inventory.themes,
+                                        artJobs: inventory.artJobs, health: inventory.health)
+    }
+
+    static func loadInventory(_ context: Context) throws -> (projects: [Project], themes: [Theme], artJobs: [ArtJob], health: AppInventoryHealth) {
+        let projects = try ProjectStore(paths: context.paths).load().projects
+        let themes = ThemeStore(paths: context.paths).all()
+        let artJobs = AppHealthChecker.scanArtJobs(artFolder: context.paths.art)
+        let crashes = CrashWatcher(paths: context.paths).reports(since: nil, limit: 10)
+        var appHealth: [String: ItemHealth] = [:]
+        var themeHealth: [String: ItemHealth] = [:]
+        var artJobHealth: [String: ItemHealth] = [:]
+        for project in projects {
+            appHealth[project.name] = AppHealthChecker.check(project: project, recentCrashes: crashes,
+                buildCache: context.paths.home.appendingPathComponent("Library/Caches/macplugins/\(project.name)/build"))
+        }
+        for theme in themes { themeHealth[theme.slug] = AppHealthChecker.check(theme: theme, themesFolder: context.paths.themes) }
+        for job in artJobs { artJobHealth[job.name] = AppHealthChecker.check(artJob: job) }
+        return (projects, themes, artJobs, AppInventoryHealth(projects: projects, themes: themes, artJobs: artJobs,
+                    appHealth: appHealth, themeHealth: themeHealth, artJobHealth: artJobHealth))
     }
 }

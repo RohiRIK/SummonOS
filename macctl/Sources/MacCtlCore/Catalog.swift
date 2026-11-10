@@ -285,10 +285,10 @@ public enum Catalog {
         ),
         Setting(
             id: "appearance.accent-color",
-            summary: "Accent color: -1 graphite, 0 red, 1 orange, 2 yellow, 3 green, 4 blue, 5 purple, 6 pink (unset = multicolor). Apps pick it up when reopened.",
+            summary: "Accent color: -1 graphite, 0 red, 1 orange, 2 yellow, 3 green, 4 blue, 5 purple, 6 pink (unset = multicolor). Notifies running apps; reopen apps that retain cached colors.",
             type: .int(min: -1, max: 6),
             backend: .defaults(domain: Backend.globalDomain, key: "AppleAccentColor", type: .int),
-            after: [.relaunchApps]
+            after: [.refreshAppearance, .relaunchApps]
         ),
     ]
 

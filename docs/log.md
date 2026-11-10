@@ -7,6 +7,11 @@ tags: [documentation, history]
 
 # Docs update log
 
+## 2026-11-10
+* **Update**: [Features](features.md), [macctl catalog](../macctl/docs/settings.md) and Summon changelog distinguish live app tint, native system accent and Automatic folder color. Recorded observed AppKit apply/undo refresh on macOS 27.2; custom folder colors remain independent.
+* **Update**: [Features](features.md), Summon changelog and project memory distinguish repair defects from theme/readability and optional-art recommendations. Recorded the complete nine-theme audit, corrected bundle detection, scoped `summon fix --apps`, 38 passing regressions and live-inventory light/dark content renders.
+* **Update**: [Features](features.md) and [Summon changelog](../incubator/summon/CHANGELOG.md) describe the shared six-category My Apps inventory, visible built-in/custom themes and matching affected-item totals in the panel and Settings.
+
 ## 2026-11-08
 * **Update**: Sustained hosted verification completed all 500 panel/search cycles and passed every non-profiling check. Runtime audit and project memory retain the three recorder stop/save failures and blocked timing coverage; no application-hang or performance claim is inferred.
 * **Update**: Runtime audit/tooling now record the full requested workload under each profiler and require per-cycle interval coverage. The audit distinguishes a successful local SwiftUI control from still-unverified hosted Summon profiling.

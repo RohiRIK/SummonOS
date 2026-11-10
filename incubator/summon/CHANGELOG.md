@@ -5,6 +5,25 @@ grouped by day and point at the pull request. SummonOS releases (one version for
 see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/releases): `v0.1.0` (up to #77) and
 `v0.1.1` (#78 to #90), both on 2026-10-25, `v0.2.0` (#91 to #114) on 2026-10-26, `v0.2.1` (#115), `v0.2.2` (#116), `v0.2.3` (#117, #118) and `v0.2.4` (#120, #121). Later changes ship on the rolling `edge` prerelease until the next tag.
 
+## 2026-11-10 (unreleased; local test build)
+
+### Fixed
+- Summon's controls now follow the active theme accent immediately. Both Style and My Apps theme entries use
+  the model's active selection and previous-theme tracking; choosing a preview no longer reports “Applied!”.
+- Theme application uses macctl's live color-refresh notifications. Finder's Automatic folder tint follows the
+  system accent; explicit folder colors remain untouched. Catppuccin's accent/active border use mauve (`#cba6f7`)
+  as requested, without changing its other palette colors.
+- My Apps now uses the same six categories in the panel and Settings, including empty categories.
+- Built-in themes remain visible alongside custom themes; Art & Wallpapers is included in the panel inventory.
+  A shared summary counts each repairable item once, separately from theme/readability and optional-art recommendations.
+- Theme and art entries no longer dispatch as a project when their names match a registered app.
+- Theme checks distinguish contrast findings from terminal-hue preferences. All numeric diagnostics remain available
+  for review; missing optional wallpapers are not repairs, and preset palettes are not automatically rewritten.
+- Project checks recognize PascalCase `.app` and `.saver` bundles plus actual cached CLI executables, eliminating
+  false Needs Build warnings and rejecting empty build-cache directories as proof of a built tool.
+- My Apps' Fix with AI now targets the counted inventory defects; `summon fix --apps` provides the same scope.
+  General Mac diagnostics remain a separate action. Theme lint failures no longer get mislabeled as invalid JSON.
+
 ## 2026-11-08 (unreleased; local verification, no release tag)
 
 ### Added

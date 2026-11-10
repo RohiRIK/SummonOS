@@ -108,6 +108,7 @@ public final class SummonModel {
 
     /// Per-app and per-theme health status for instant indicators and AI fixes.
     public private(set) var appHealth: [String: ItemHealth] = [:]
+    public private(set) var inventoryHealth = AppInventoryHealth()
     public private(set) var themeHealth: [String: ItemHealth] = [:]
     /// Art jobs in ~/Summon/Art and their inspection health.
     public private(set) var artJobs: [ArtJob] = []
@@ -572,7 +573,10 @@ public final class SummonModel {
     }
 
     func loadMenu() {
-        let updated = baseMenu.withProjects(projects, themes: themes, appHealth: appHealth, themeHealth: themeHealth)
+        let summary = AppInventoryHealth(projects: projects, themes: themes, artJobs: artJobs,
+                                         appHealth: appHealth, themeHealth: themeHealth, artJobHealth: artJobHealth)
+        if inventoryHealth != summary { inventoryHealth = summary }
+        let updated = baseMenu.withProjects(projects, themes: themes, artJobs: artJobs, health: summary)
             .withUpdates(count: pendingUpdates.count)
         if menu != updated {
             menu = updated
@@ -806,6 +810,11 @@ public final class SummonModel {
         }
     }
 
+    public func fixInventoryWithAI() {
+        guard let prompt = inventoryHealth.repairPrompt else { return }
+        askAgent(prompt: prompt)
+    }
+
     public func setGlobalMenuShortcut(_ shortcut: PanelShortcut) {
         self.globalMenuShortcut = shortcut
     }
@@ -835,40 +844,28 @@ public final class SummonModel {
 
     public func fixArtJobWithAI(_ job: ArtJob) {
         let health = artJobHealth[job.name] ?? AppHealthChecker.check(artJob: job)
-        let prompt = health.fixPrompt ?? "Investigate and complete the art job in ~/Summon/Art/\(job.name) using summon-art skill."
+        guard health.needsRepair, let prompt = health.fixPrompt else { return }
         askAgent(prompt: prompt)
     }
 
     public func fixAppWithAI(_ project: Project) {
         let health = appHealth[project.name] ?? AppHealthChecker.check(project: project, recentCrashes: recentCrashes)
-        let prompt = health.fixPrompt ?? "Investigate and fix any issues in project '\(project.name)' at \(project.path)."
+        guard health.needsRepair, let prompt = health.fixPrompt else { return }
         askAgent(prompt: prompt)
     }
 
     public func fixThemeWithAI(_ theme: Theme) {
         let health = themeHealth[theme.slug] ?? AppHealthChecker.check(theme: theme, themesFolder: paths.themes)
-        let prompt = health.fixPrompt ?? "Investigate and fix any issues in theme '\(theme.name)' at ~/.config/summon/themes/\(theme.slug)."
+        guard health.needsRepair, let prompt = health.fixPrompt else { return }
         askAgent(prompt: prompt)
     }
 
     public func health(for item: MenuItem) -> ItemHealth? {
-        if item.id == "apps" {
-            let all = Array(appHealth.values) + Array(themeHealth.values)
-            if all.contains(where: { $0.level == .error }) {
-                return ItemHealth(level: .error, badge: "Issues", detail: "Some apps or themes have errors")
-            }
-            if all.contains(where: { $0.level == .warning }) {
-                return ItemHealth(level: .warning, badge: "Warnings", detail: "Some apps or themes have warnings")
-            }
-            return all.isEmpty ? nil : .healthy
+        if item.id == "apps" || item.id.hasPrefix("apps.") {
+            return inventoryHealth.health(forMenuID: item.id)
         }
-        if item.id.hasPrefix("apps.panel.") || item.id.hasPrefix("apps.app.") || item.id.hasPrefix("apps.cli.") || item.id.hasPrefix("apps.screensaver.") {
-            let name = String(item.id.split(separator: ".").last ?? "")
-            return appHealth[name]
-        }
-        if item.id.hasPrefix("apps.theme.") || item.id.hasPrefix("style.theme.") {
-            let slug = String(item.id.split(separator: ".").last ?? "")
-            return themeHealth[slug]
+        if item.id.hasPrefix("style.theme.") {
+            return themeHealth[String(item.id.dropFirst("style.theme.".count))]
         }
         return nil
     }
@@ -1087,7 +1084,8 @@ public final class SummonModel {
     }
 
     public func hasChildren(_ item: MenuItem) -> Bool {
-        !menu.children(of: item.id).isEmpty
+        // Categories remain navigable when empty, so the panel can show its empty state.
+        !item.isRunnable || !menu.children(of: item.id).isEmpty
     }
 
     /// One generation owns both level and search checks; a cancelled command never becomes false.
@@ -1097,6 +1095,19 @@ public final class SummonModel {
     }
 
     public func invalidateGuards() { guardGeneration += 1 }
+
+    private func themeSlug(for item: MenuItem) -> String? {
+        guard let parent = item.parentID,
+              parent == "style.theme" || parent == AppSectionCategory.themes.menuID else { return nil }
+        return String(item.id.dropFirst(parent.count + 1))
+    }
+
+    public func isChecked(_ item: MenuItem) -> Bool {
+        if let slug = themeSlug(for: item) {
+            return currentThemeSlug == slug
+        }
+        return checks[item.id] == true
+    }
 
     public func evaluateGuards(_ items: [MenuItem], generation: Int) async {
         let prefix = shellPrefix
@@ -1108,7 +1119,7 @@ public final class SummonModel {
                 if visibility[item.id] != value { visibility[item.id] = value }
             }
             guard !Task.isCancelled, generation == guardGeneration else { return }
-            if let command = item.checked {
+            if let command = item.checked, themeSlug(for: item) == nil {
                 guard let value = try? await succeeds(command, prefix: prefix),
                       !Task.isCancelled, generation == guardGeneration else { return }
                 if checks[item.id] != value { checks[item.id] = value }
@@ -1117,14 +1128,21 @@ public final class SummonModel {
     }
 
     public func run(_ item: MenuItem) {
-        if item.id.hasPrefix("apps.") {
-            let parts = item.id.split(separator: ".")
-            if parts.count >= 3 {
-                let projectName = String(parts[2])
-                if let project = projects.first(where: { $0.name == projectName }) {
-                    openProject(project)
-                    return
-                }
+        if let slug = themeSlug(for: item) {
+            setTheme(slug)
+            return
+        }
+        if item.id == "apps.fix" {
+            fixInventoryWithAI()
+            return
+        }
+        let parentID = item.parentID
+        if let category = AppSectionCategory.allCases.first(where: { $0.menuID == parentID }),
+           let kind = category.projectKind {
+            let projectName = String(item.id.dropFirst(category.menuID.count + 1))
+            if let project = projects.first(where: { $0.kind == kind && $0.name == projectName }) {
+                openProject(project)
+                return
             }
         }
         guard let action = item.action else { return }
@@ -1214,7 +1232,8 @@ private struct SummonDiskSnapshot: Sendable {
         let themes = themeStore.all()
         var appHealth: [String: ItemHealth] = [:]
         for project in projects ?? [] where !Task.isCancelled {
-            appHealth[project.name] = AppHealthChecker.check(project: project, recentCrashes: crashes)
+            appHealth[project.name] = AppHealthChecker.check(project: project, recentCrashes: crashes,
+                buildCache: paths.home.appendingPathComponent("Library/Caches/macplugins/\(project.name)/build"))
         }
         var themeHealth: [String: ItemHealth] = [:]
         for theme in themes where !Task.isCancelled {

@@ -25,18 +25,21 @@ enum ThemeCommands {
             guard let slug = args.next() else { throw CLIError("Usage: summon theme check <slug>") }
             let file = context.paths.themes.appendingPathComponent(slug).appendingPathComponent("theme.json")
             guard let data = FileManager.default.contents(atPath: file.path) else { throw CLIError("No \(file.path)") }
+            let theme: Theme
             do {
-                let theme = try Theme.decode(data)
-                let problems = ThemeLint.problems(theme)
-                for problem in problems { print("\(problem.severity.rawValue): \(problem.message)") }
-                let errors = problems.filter { $0.severity == .error }.count
-                if errors > 0 { throw CLIError("\(theme.name): \(errors) problem\(errors == 1 ? "" : "s") to fix before summon theme set") }
-                print(problems.isEmpty ? "\(theme.name): valid, contrast and colors fine" : "\(theme.name): valid, \(problems.count) warning\(problems.count == 1 ? "" : "s")")
+                theme = try Theme.decode(data)
             } catch let error as Theme.ValidationError {
                 throw CLIError("\(file.path): \(error) — colors are #RRGGBB, 16 terminal colors, slug a-z 0-9 -")
             } catch {
                 throw CLIError("\(file.path) is not valid JSON (no comments, no trailing commas): \(error.localizedDescription)")
             }
+            let problems = ThemeLint.problems(theme)
+            for problem in problems { print("\(problem.kind.rawValue) \(problem.severity.rawValue): \(problem.message)") }
+            let errors = problems.count { $0.severity == .error }
+            if errors > 0 {
+                throw CLIError("\(theme.name): valid theme file; \(errors) contrast finding\(errors == 1 ? "" : "s") below minimum need review. The palette has not been changed.")
+            }
+            print(problems.isEmpty ? "\(theme.name): valid, contrast and colors fine" : "\(theme.name): valid, \(problems.count) recommendations (not repair defects)")
         case "current":
             if let slug = store.currentSlug() { print(slug) }
         case "set":
@@ -99,7 +102,7 @@ enum ThemeCommands {
             }
         }
 
-        // The accent too, through macctl (snapshotted); open apps show it when reopened.
+        // The accent goes through macctl too: snapshotted, with running apps notified to refresh.
         if let macctl = context.macctl {
             do {
                 _ = try await context.runner(macctl, ["set", "appearance.accent-color", String(ThemeCompiler.accentIndex(theme)), "--json"])

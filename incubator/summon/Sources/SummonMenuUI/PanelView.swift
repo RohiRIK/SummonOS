@@ -60,6 +60,7 @@ public struct PanelView: View {
         .frame(width: PanelConfig.width, height: max(1, min(contentHeight, panel.maxHeight)))
         .background(PanelBackground())
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .summonTheme(model)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Summon")
         // A1/E5: every open (and `summon://menu/<id>`) starts clean at its level. Focus comes only from
@@ -142,7 +143,7 @@ public struct PanelView: View {
                 MenuTreeRow(item: item,
                             breadcrumb: query.isEmpty ? nil : model.menu.path(to: item.parentID ?? "").joined(separator: " › "),
                             isSelected: index == selection,
-                            isChecked: model.checks[item.id] == true,
+                            isChecked: model.isChecked(item),
                             hasChildren: model.hasChildren(item),
                             health: model.health(for: item)) {
                     selection = index
@@ -356,7 +357,7 @@ public struct PanelView: View {
                         .font(.subheadline.weight(.semibold))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(Color.accentColor, in: Capsule())
+                        .background(.tint, in: Capsule())
                         .foregroundStyle(.white)
                 }
                 .buttonStyle(.plain)
@@ -453,12 +454,12 @@ struct MenuTreeRow: View {
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color.accentColor.opacity(0.18), in: Capsule())
-                    .foregroundStyle(Color.accentColor)
+                    .background(.tint.opacity(0.18), in: Capsule())
+                    .foregroundStyle(.tint)
             }
             if let health {
                 Circle()
-                    .fill(health.level == .healthy ? Color.green : (health.level == .warning ? Color.orange : Color.red))
+                    .fill(health.level.indicatorColor)
                     .frame(width: 6, height: 6)
             }
             if isChecked {
@@ -472,6 +473,7 @@ struct MenuTreeRow: View {
         }
         // The health dot is color only; VoiceOver hears its badge ("Healthy", "2 warnings") instead.
         .accessibilityValue(health?.badge ?? "")
+        .help(health?.detail ?? item.label)
     }
 }
 

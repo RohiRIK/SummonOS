@@ -88,7 +88,7 @@ public struct CrashAlertView: View {
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Circle().fill(Color.accentColor))
+                    .background(Circle().fill(.tint))
             }
         }
     }
@@ -241,6 +241,7 @@ public final class CrashAlertController {
                 self?.dismiss()
             }
         )
+        .summonTheme(model)
 
         panel.contentView = NSHostingView(rootView: view)
 

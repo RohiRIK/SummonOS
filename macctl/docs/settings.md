@@ -1,3 +1,10 @@
+---
+type: reference
+title: macctl settings catalog
+description: Typed macOS settings, side effects, version requirements and verification status.
+tags: [macctl, settings, reference]
+---
+
 # Settings catalog
 
 Source of truth: `Sources/MacCtlCore/Catalog.swift`. `macctl describe <id>` shows the full schema.
@@ -36,7 +43,7 @@ Source of truth: `Sources/MacCtlCore/Catalog.swift`. `macctl describe <id>` show
 | `screenshots.include-date` | `com.apple.screencapture` / `include-date` | bool | restart SystemUIServer | no | 15+ |
 | `appearance.scroll-bars` | `NSGlobalDomain` / `AppleShowScrollBars` | enum Automatic, WhenScrolling, Always | relaunch apps | no | 15+ |
 | `appearance.menu-icons` | `NSGlobalDomain` / `NSMenuEnableActionImages` | bool | relaunch apps | no | 26+ |
-| `appearance.accent-color` | `NSGlobalDomain` / `AppleAccentColor` | int -1…6 (unset = multicolor) | relaunch apps | no | 15+ |
+| `appearance.accent-color` | `NSGlobalDomain` / `AppleAccentColor` | int -1…6 (unset = multicolor) | notify running apps; reopen if cached | no | 15+ |
 | `windows.click-desktop-to-reveal` | `com.apple.WindowManager` / `EnableStandardClickToShowDesktop` | bool | none | no | 15+ |
 | `windows.tile-by-edge-drag` | `com.apple.WindowManager` / `EnableTilingByEdgeDrag` | bool | none | no | 15+ |
 | `windows.tile-margins` | `com.apple.WindowManager` / `EnableTiledWindowMargins` | bool | none | no | 15+ |
@@ -44,6 +51,16 @@ Source of truth: `Sources/MacCtlCore/Catalog.swift`. `macctl describe <id>` show
 | `menubar.keyboard-navigation` | `NSGlobalDomain` / `NSMenuBarUseAgentNavigation` | bool | logout | no | 27+ |
 | `documents.save-to-icloud` | `NSGlobalDomain` / `NSDocumentSaveNewDocumentsToCloud` | bool | relaunch apps | no | 15+ |
 | `documents.autocorrect` | `NSGlobalDomain` / `NSAutomaticSpellingCorrectionEnabled` | bool | relaunch apps | no | 15+ |
+
+`appearance.accent-color` posts both CoreUI color-change notifications after apply and on undo/recovery.
+Live macOS 27.2 checks observed an already-running AppKit client switch blue → purple → blue without restart.
+The notification names are private implementation details; apps that ignore them may need reopening.
+Finder's separate Folder color control follows this accent when set to Automatic; explicit/custom folder colors
+are preserved. Native configuration readback confirmed Automatic resolved to the changed accent, not an actual
+Finder-window screenshot. [Apple documents the separate controls](https://support.apple.com/guide/mac-help/change-appearance-settings-mchlp1225/mac).
+Refresh protocol research: [Chromium CoreUI note](https://chromium.googlesource.com/chromium/src.git/+/62.0.3202.58/content/renderer/theme_helper_mac.mm#31)
+and [Monterey observation](https://alexwlchan.net/2022/changing-the-macos-accent-colour/); no upstream code copied.
+Native `NSWorkspace` renders of the same ordinary folder also changed from blue to purple after theme application.
 
 `desktop.wallpaper` refuses a missing file or a folder before anything is written (also on undo, if the
 old picture was deleted since). It has no system default, so `reset` is unsupported; `undo` restores the

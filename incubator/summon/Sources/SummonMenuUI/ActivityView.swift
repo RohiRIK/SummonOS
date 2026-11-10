@@ -37,6 +37,7 @@ public struct ActivityView: View {
             } message: { undo in
                 Text(undo.message)
             }
+            .summonTheme(model.summon)
             .onAppear {
                 if let id = model.selection { selected = [id] }
                 guard model.live else { return }

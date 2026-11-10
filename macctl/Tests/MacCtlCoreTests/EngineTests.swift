@@ -156,6 +156,32 @@ struct EngineTests {
         #expect(await h.restarter.calls.isEmpty)
     }
 
+    @Test func appearanceRefreshFollowsCommittedChangesAndUndoOnly() async throws {
+        let setting = Setting(id: "appearance.accent-color", summary: "Accent", type: .int(min: -1, max: 6),
+                              backend: .defaults(domain: Backend.globalDomain, key: "AppleAccentColor", type: .int),
+                              after: [.refreshAppearance, .relaunchApps])
+        let backend = FakeBackend(stored: [setting.id: .int(4)])
+        let restarter = FakeRestarter()
+        let engine = Engine(registry: Registry([setting]), backend: backend, restarter: restarter,
+                            probe: FakeProbe(), snapshots: InMemorySnapshotStore(), journal: MemoryJournalStore(),
+                            osVersion: { "27.2" })
+        let purple = Profile(name: "purple", settings: [setting.id: .int(5)])
+
+        _ = try await engine.apply(purple, dryRun: true, confirmed: false)
+        #expect(try await backend.read(setting) == .int(4))
+        #expect(await restarter.calls.isEmpty)
+
+        let applied = try await engine.apply(purple, dryRun: false, confirmed: false)
+        #expect(try await backend.read(setting) == .int(5))
+        #expect(await restarter.calls == [[.refreshAppearance]])
+        _ = try await engine.apply(purple, dryRun: false, confirmed: false)
+        #expect(await restarter.calls == [[.refreshAppearance]])
+
+        _ = try await engine.undo(snapshotID: applied.snapshotID)
+        #expect(try await backend.read(setting) == .int(4))
+        #expect(await restarter.calls == [[.refreshAppearance], [.refreshAppearance]])
+    }
+
     // MARK: undo
 
     @Test func undoRestoresAndResetsUnsetKeys() async throws {

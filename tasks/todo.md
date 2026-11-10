@@ -332,6 +332,28 @@ The independent hosted SwiftUI control also failed to record/save; repeated host
 profiling acceptance. Continue in a native isolated GUI test session without replacing the personal install.
 A missing profiling/GUI prerequisite must be reported, not counted as a pass.
 
+## My Apps category consistency (approved 2026-11-10)
+
+- [x] Show the same six categories in panel and Settings, including empty categories.
+- [x] Include built-in/custom themes and Art & Wallpapers in both inventories and attention counts.
+- [x] Menu regressions (12/12), signed bundle and installed CLI inventory verified; owner-approved test build updated.
+- Visual limit: Settings launched, but native window capture failed through both screencapture and ScreenCaptureKit.
+
+## My Apps health classification and counts (approved 2026-11-10)
+
+- [x] Account for the old nine: seven bundled-theme lint findings, one optional wallpaper and one false project-build warning.
+- [x] Review all nine shipped themes and their referenced assets without changing the palettes.
+- [x] Share repair/advisory counts and exact AI repair targets across panel, Settings and CLI; recognize actual template build outputs.
+- [x] 38 focused tests, live-model/installed-CLI counts, light/dark live-inventory content renders and signed installation verified (build 1794316868).
+- Installed Settings launched; content renders do not claim installed-window capture or broader release-readiness verification.
+
+## Theme accent synchronization (requested 2026-11-10)
+
+- [x] Traced active Nord, blue Catppuccin preset and separate native controls; this Mac's Automatic folder tint resolves to the system accent.
+- [x] Summon observes the active accent; Catppuccin uses mauve for accent/active border only. Style and My Apps checkmarks share current state.
+- [x] Added snapshotted macctl appearance refresh; running AppKit and Automatic folder tint changed blue → purple → blue across apply/undo. No guessed folder preference keys or forced icon style.
+- [x] Verified four focused tests, Nord → Catppuccin → Nord model/checkmark transitions, light/dark content renders and native apply/undo; installed build 1794318081 plus macctl and applied Catppuccin (system accent 5).
+
 ## Review
 
 ReviewFinish found five lifecycle/cleanup/notification defects; ReviewAutomation found two release blockers,

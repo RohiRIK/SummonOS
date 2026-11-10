@@ -116,15 +116,25 @@ VoiceOver cursor.
 At the top of the panel is the Summon Menu: a searchable, keyboard-first menu tree defined in
 `~/.config/summon/menu.jsonc` (`summon menu init`, `menu list`, `menu summon [id]`, which opens the panel at that
 entry). There's no separate launcher window. Entries can be hidden, checked or disabled by shell guards.
-Apps built through Summon (`~/.config/summon/projects.json`) are automatically listed under a "My Apps" menu item
-in the menu tree, allowing you to click or drill down into your apps and launch their built `.app` bundle or open
-their project folder. Default
-sections:
+My Apps uses the same six categories in the menu panel and Settings: Panel Apps, Themes, Art & Wallpapers,
+Window Apps, Command-Line Tools and Screensavers. Empty categories remain visible with an empty state.
+Registered projects (`~/.config/summon/projects.json`), all built-in/custom themes and art jobs are included.
+Repair totals count unique inventory items with operational defects, not individual diagnostics or stale health
+entries. Category badges and Settings use the same summary. My Apps' Fix with AI targets exactly those repair
+items (`summon fix --apps`), not the separate general Mac diagnostics handled by `summon fix`.
+
+Theme contrast measurements and terminal-hue preferences are recommendations, with all findings available in
+Settings' Review details and panel tooltips. Palette-only themes need no wallpaper; missing *referenced* images
+remain repair defects. Optional app icons/showcase screenshots are recommendations too. Preset colors are not
+automatically changed. Build detection recognizes PascalCase app/saver bundles and real CLI executables in
+SwiftPM's external cache; an empty `.build` directory is not proof of a built tool.
+
+Projects open their built `.app` or project folder; themes apply the selected palette; art entries open their folders. Default sections:
 
 | Section | Entries |
 |---|---|
 | Agent | Ask Agent, Diagnose Last Crash, Save Debug Bundle, Undo Last Agent Session, Default Agent |
-| My Apps | Your built apps (opens the built .app or reveals the project folder) |
+| My Apps | All six app/theme/art categories, with shared repair counts and separately identified recommendations |
 | Style | Theme, Dark Mode, Light Mode, Start Screensaver |
 | Setup | Show Profile Drift, Check Permissions, Edit This Menu, Open Hooks Folder, System Settings |
 | Trigger | Screenshot Area, Screenshot to Desktop, Stay Awake for 1 Hour, Lock Screen |
@@ -167,7 +177,7 @@ sections:
     window title, running apps, file paths: all on, each can be turned off), and shared plugins (OpenLTM: Install in All).
     Each agent's page has the same sections: Account (Connected, or Log In…), Model (from that agent's real model
     list, or Custom…), Skills (same as All Agents, or Custom), Plugins (installed, recommended, Add).
-  - My Apps: apps and menu bar widgets built in `~/Summon/Apps`.
+  - My Apps: the same complete app/theme/art inventory and repair count as the panel, including built-in themes; recommendations are separate and expandable.
   - Terminal: the default terminal, launch behavior and window styling.
   - Notifications: crash and hang alerts (Summon alert or macOS banner), task results, sound, muted programs with Unmute.
   - Appearance: the theme.
@@ -227,6 +237,11 @@ sections:
   `summon checkpoint undo <id>`, which undoes the whole look, including removing the files the theme created
   (generated configs, the editor themes). A folder you have added your own files to stays. The panel offers "Undo Theme <name> (N changes)…".
   There is also `theme list` and `theme current`. Settings › Appearance provides full 16:9 wallpaper previews, color swatches, one-click Apply, and an Undo button to revert to the previous theme.
+- **Live accent synchronization:** Summon's controls use the active theme's exact accent; macOS uses the nearest
+  system palette color. `macctl` notifies running apps after apply and undo. Finder folders set to Automatic follow
+  that system accent; explicit folder colors/custom icons are preserved. Apps that cache colors may need reopening.
+  Catppuccin now uses its mauve (`#cba6f7`) for the accent and active border; its remaining palette is unchanged.
+  Theme checkmarks and Apply state follow the active theme, not a preview selection or stale shell guard.
 - **Default terminal with auto-installer:** Settings › Terminal lets you select Ghostty, kitty, or Apple Terminal. If Ghostty or kitty is not installed, install it directly with one click via Homebrew.
 - **Custom icons** on any file, folder or app: `summon icon set <image> <path>`, `icon reset`.
 - **Hooks:** scripts in `~/.config/summon/hooks/<event>.d/` for `theme-set`, `post-login`,

@@ -46,6 +46,48 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-11-10 — Theme accent synchronization
+- `ThemeAccent.swift` propagates the active palette to Summon's interactive chrome. Style and My Apps theme
+  actions/checkmarks use the same observed selection; Settings distinguishes preview from applied state.
+- Catppuccin's accent/active border now use mauve (`#cba6f7`), as requested; all other palette colors stay unchanged.
+  The owner's unchanged installed preset was explicitly aligned; the installer still preserves custom themes.
+- macctl now posts both CoreUI color-change notifications on apply/undo/recovery. Running AppKit and Automatic
+  folder-color resolution changed blue → purple → blue during live verification; no Finder restart or guessed keys.
+- Three existing theme tests and one new native-effect lifecycle regression passed. The same model passed
+  Nord → Catppuccin → Nord accent/checkmark transitions; actual Appearance content rendered in light/dark.
+- Installed local development build 1794318081 with the updated macctl and applied Catppuccin; native accent readback
+  is purple (5). Config checkpoint before edits: `20261110-133239`; theme-apply undo checkpoint: `20261110-134257`.
+  Content/native API proof is not an installed-window capture or broader release-readiness certification.
+- Owner confirmed the installed appearance looks good and approved committing/pushing to draft PR #124.
+  Merge, release tag and publication remain excluded until the outstanding release gates are satisfied.
+
+### 2026-11-10 — Repair counts versus theme recommendations
+- Audited all nine bundled themes and 12 referenced wallpapers: no missing assets or installed palette drift.
+  Catppuccin/Summon Night pass; Everforest/Gruvbox/Tokyo Night have hue advice only; Kanagawa/Nord/Rosé Pine
+  Dawn/Summon Dawn have measured readability findings. Preset palettes remain unchanged.
+- `AppInventoryHealth` now owns deduplicated repair/review counts, category health and exact AI repair prompts;
+  `summon fix --apps` separates these from general Mac diagnostics. Optional artwork is advisory, missing referenced
+  files remain defects. Project checks recognize actual PascalCase bundles and cached CLI executables.
+- Installed development build 1794316868 (0.2.4, dirty revision `8387d1e`): 38 focused tests passed; signed
+  release bundle/installer passed; live model and installed CLI agree on zero repairs and eight recommendations.
+  Real Settings/theme rows rendered and inspected in light/dark using live inventory; installed Settings launched.
+  These content renders do not claim installed-window capture, VoiceOver or broader release-readiness proof.
+
+### 2026-11-10 — Consistent My Apps inventory
+- Panel and Settings share six category definitions, including empty categories. All built-in/custom themes and
+  art jobs remain visible, and both attention totals count the same affected inventory. Project launch dispatch
+  is restricted to project categories, so matching theme/art names cannot open an unrelated app.
+- Installed local development build 1794311855 (0.2.4, dirty revision `8387d1e`). Menu regressions: 12/12 passed;
+  signed release bundle/installer identity checks passed. The installed CLI shows 1 panel app, 10 themes, 1 art
+  job and all three empty categories. The Settings window launched, but visual capture remains unverified:
+  `screencapture` could not capture it; ScreenCaptureKit returned capture failure -3811 despite preflight approval.
+
+### 2026-11-10 — Owner-approved local test installation
+- Installed development build 1794298613 (0.2.4, revision `8387d1e`) through the existing installer after
+  preserving the previous app and user state locally. No tagged release was published.
+- Installed signature/identity verified; live app health reports both hotkeys registered and notifications
+  authorized. Opened and visually inspected the installed panel. Profiling and remaining release acceptance
+  are still unresolved; successful installation is not a performance or stability certification.
 ### 2026-11-08 — Runtime hardening implementation (unreleased)
 - The approved audit's Core completion path now fits encoded terminal events, differentiates committed persistence
   from maintenance/notification failures, and recovers pending run markers without duplicating a committed outcome.

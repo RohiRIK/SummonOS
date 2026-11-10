@@ -52,11 +52,13 @@ public enum OKLCH {
     }
 }
 
-/// What makes a theme hard to use, beyond a valid file: text that cannot be read, borders that vanish, a terminal
-/// palette whose "red" is not red. `summon theme check` prints these; errors mean the theme should not be set.
+/// Readability and palette diagnostics, separate from broken theme files or missing referenced assets.
+/// Severity describes the measured finding; it does not authorize changing an intentionally chosen palette.
 public enum ThemeLint {
     public struct Problem: Sendable, Equatable {
         public enum Severity: String, Sendable { case error, warning }
+        public enum Kind: String, Sendable { case contrast, palette }
+        public var kind: Kind
         public var severity: Severity
         public var message: String
     }
@@ -82,14 +84,14 @@ public enum ThemeLint {
 
     public static func problems(_ theme: Theme) -> [Problem] {
         var problems: [Problem] = []
-        guard let background = HexColor(theme.colors.background) else { return [Problem(severity: .error, message: "background is not a color")] }
+        guard let background = HexColor(theme.colors.background) else { return [Problem(kind: .contrast, severity: .error, message: "background is not a color")] }
         func check(_ name: String, _ value: String, need: Double, error: Double) {
             guard let color = HexColor(value) else { return }
             let ratio = contrast(color, background)
             if ratio < error {
-                problems.append(Problem(severity: .error, message: "\(name) \(value) is \(String(format: "%.1f", ratio)):1 on the background (needs \(need))"))
+                problems.append(Problem(kind: .contrast, severity: .error, message: "\(name) \(value) is \(String(format: "%.1f", ratio)):1 on the background (needs \(need))"))
             } else if ratio < need {
-                problems.append(Problem(severity: .warning, message: "\(name) \(value) is \(String(format: "%.1f", ratio)):1 on the background (aim for \(need))"))
+                problems.append(Problem(kind: .contrast, severity: .warning, message: "\(name) \(value) is \(String(format: "%.1f", ratio)):1 on the background (aim for \(need))"))
             }
         }
         check("foreground", theme.colors.foreground, need: 7, error: 4.5)
@@ -103,7 +105,7 @@ public enum ThemeLint {
                 guard let color = HexColor(theme.terminal[index]) else { continue }
                 let (_, chroma, degrees) = OKLCH.from(color)
                 if chroma < 0.04 || !hue.ranges.contains(where: { $0.contains(degrees) }) {
-                    problems.append(Problem(severity: .warning,
+                    problems.append(Problem(kind: .palette, severity: .warning,
                         message: "terminal[\(index)] should read as \(hue.name) but its hue is \(Int(degrees))° (chroma \(String(format: "%.2f", chroma)))"))
                 }
             }

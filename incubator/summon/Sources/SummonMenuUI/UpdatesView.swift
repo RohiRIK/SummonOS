@@ -61,6 +61,7 @@ public struct UpdatesView: View {
                 .disabled(commandUpdates.isEmpty)
             }
         }
+        .summonTheme(model)
         .onAppear {
             // An accessory app's window gets no Dock icon or ⌘Tab; become a regular app while it is open.
             wasAccessory = NSApp.activationPolicy() == .accessory

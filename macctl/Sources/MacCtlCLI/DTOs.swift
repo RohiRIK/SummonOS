@@ -139,6 +139,7 @@ struct SettingInfo: Encodable {
         case .restart(let process): "restart:\(process)"
         case .logout: "logout"
         case .relaunchApps: "relaunch-apps"
+        case .refreshAppearance: "refresh-appearance"
         }
     }
 
