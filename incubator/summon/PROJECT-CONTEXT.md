@@ -46,6 +46,10 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-11-11 — Ask Agent troubleshooting
+- `AgentLaunchProblem.swift` turns a failed terminal launch into a fix (Automation `-1743`, timeouts). `summon agent`
+  logs `agent.launch.failed`; the app notifies through `onAgentFailure`. Doctor's `config.terminal` checks the
+  app's own Automation permission (`automationStatus`, set only in the app: from a shell macOS answers for the terminal).
 ### 2026-11-10 — Theme accent synchronization
 - `ThemeAccent.swift` propagates the active palette to Summon's interactive chrome. Style and My Apps theme
   actions/checkmarks use the same observed selection; Settings distinguishes preview from applied state.

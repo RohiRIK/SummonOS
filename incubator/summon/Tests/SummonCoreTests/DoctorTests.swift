@@ -82,6 +82,20 @@ struct DoctorTests {
         #expect(report.check("config.themes")?.detail.contains("current summon-night") == true)
     }
 
+    @Test func terminalAutomationPermissionDecidesAskAgent() async throws {
+        let home = try healthyHome()
+        var doctor = try makeDoctor(home: home, tools: ["summon", "claude", "macctl", "git"],
+                                    runner: fakeRunner(CallLog(), responses: ["macctl": Self.macctlOK]))
+        doctor.automationStatus = { _ in AgentLaunchProblem.notPermitted }
+        let blocked = await doctor.run().check("config.terminal")
+        #expect(blocked?.status == .fail)
+        #expect(blocked?.fix?.contains("Automation › Summon › Terminal") == true)
+        doctor.automationStatus = { _ in AgentLaunchProblem.needsConsent }
+        #expect(await doctor.run().check("config.terminal")?.status == .warn)
+        doctor.automationStatus = { bundleID in bundleID == "com.apple.Terminal" ? 0 : -1 }
+        #expect(await doctor.run().check("config.terminal")?.status == .pass)
+    }
+
     @Test func claudeConnectedBySummonConnectNeedsNoPlugin() async throws {
         let home = try healthyHome()
         try fm.removeItem(at: home.appendingPathComponent(".claude/plugins/installed_plugins.json"))

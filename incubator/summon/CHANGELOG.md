@@ -5,6 +5,17 @@ grouped by day and point at the pull request. SummonOS releases (one version for
 see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/releases): `v0.1.0` (up to #77) and
 `v0.1.1` (#78 to #90), both on 2026-10-25, `v0.2.0` (#91 to #114) on 2026-10-26, `v0.2.1` (#115), `v0.2.2` (#116), `v0.2.3` (#117, #118) and `v0.2.4` (#120, #121) and `v0.2.5` (#124). Later changes ship on the rolling `edge` prerelease until the next tag.
 
+## 2026-11-11 (unreleased)
+
+### Fixed
+- Ask Agent no longer fails silently. When the agent's terminal cannot open, Summon posts a notification and
+  Activity logs "Could not open <agent>" with the fix. A refused Apple Event (`-1743`) points to System Settings ›
+  Privacy & Security › Automation › Summon; a launch that runs out of time says macOS may be waiting on a dialog.
+- Ask Agent's screen context (browser page, Finder selection) gives up after 5 s instead of 60 s, so an
+  unanswered Automation dialog for that app no longer stalls the launch.
+- Settings › health checks Summon's Automation permission for the agent terminal (Ghostty, Terminal) without
+  prompting: refused fails with the fix, not yet asked warns.
+
 ## 2026-11-11 (v0.2.5, #124)
 
 ### Fixed

@@ -122,6 +122,9 @@ public struct Doctor: Sendable {
     public var appLocations: [URL]
     public var installedTerminals: Set<TerminalApp>
     public var isProcessRunning: @Sendable (Int32) -> Bool
+    /// Summon.app's own Automation permission for a terminal (`AgentLaunchProblem.automationStatus`). Only the app
+    /// sets it: from a shell, macOS would answer for the terminal app instead of Summon.
+    public var automationStatus: (@Sendable (String) -> Int32)?
 
     public init(
         paths: SummonPaths,
@@ -283,6 +286,18 @@ public struct Doctor: Sendable {
         if let saved, saved != used {
             return DoctorCheck("config.terminal", .warn, "\(saved.name) is the default terminal but is not installed; agents open in \(used.name)",
                                fix: "Install \(saved.name), or: summon default terminal \(used.rawValue)")
+        }
+        if let automationStatus, let target = AgentLaunchProblem.automationTarget(used) {
+            switch automationStatus(target) {
+            case AgentLaunchProblem.notPermitted:
+                return DoctorCheck("config.terminal", .fail, "Summon may not control \(used.name), so Ask Agent opens nothing",
+                                   fix: AgentLaunchProblem.blocked(used))
+            case AgentLaunchProblem.needsConsent:
+                return DoctorCheck("config.terminal", .warn, "Agents open in \(used.name); macOS asks once to let Summon control it",
+                                   fix: "Ask Agent, then click Allow in the macOS dialog")
+            default:
+                break
+            }
         }
         return DoctorCheck("config.terminal", .pass, "Agents open in \(used.name)")
     }
