@@ -17,8 +17,9 @@ tags: [documentation, history]
 * **Update**: Root, Summon, macctl, feature, install, security, contributor and tooling references audited against
   source through `18c7688`. Corrected version/agent counts, update channels, recovery boundaries, inventory health,
   theme accents and current build/CI behavior; November implementation remains explicitly unreleased.
-* **New**: Strict wiki builds check local files, rendered links, heading anchors and assets; a least-privilege
-  Pages workflow separates validation from publication. Repository Pages settings and application releases are unchanged.
+* **New**: Strict wiki builds check local files, rendered links, heading anchors and assets.
+  The read-only documentation workflow validates the site; Vercel publication targets the owner-selected
+  `sumonos.rohi-lab.org` domain. Application releases are unchanged.
 
 ## 2026-11-10
 * **Update**: [Runtime audit](plans/2026-11-08-runtime-audit.md) records native About/Activity captures, the real 13-report crash-burst alert/dismissal/search proof, fixture-home isolation and outstanding profiler, heap, displayed-frame and accessibility gates. Native input uses owned PID-targeted keys rather than global System Events keystrokes.

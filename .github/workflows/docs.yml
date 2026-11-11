@@ -18,6 +18,7 @@ on:
       - 'macctl/docs/**'
       - 'mkdocs.yml'
       - 'requirements-docs.txt'
+      - 'vercel.json'
       - 'tools/docs-site.py'
       - 'tools/tests/test_docs_site.py'
       - '.github/workflows/docs.yml'
@@ -38,16 +39,11 @@ on:
       - 'macctl/docs/**'
       - 'mkdocs.yml'
       - 'requirements-docs.txt'
+      - 'vercel.json'
       - 'tools/docs-site.py'
       - 'tools/tests/test_docs_site.py'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
-    inputs:
-      deploy:
-        description: Publish the selected ref to the configured GitHub Pages environment
-        type: boolean
-        default: false
-        required: true
 
 permissions:
   contents: read
@@ -77,28 +73,3 @@ jobs:
         env:
           DOCS_SOURCE_REF: ${{ github.head_ref || github.ref_name }}
         run: python tools/docs-site.py build --site-dir "$RUNNER_TEMP/summonos-docs-site" --ref "$DOCS_SOURCE_REF"
-      - name: Upload Pages artifact on authorized publishing events only
-        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.deploy)
-        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
-        with:
-          path: ${{ runner.temp }}/summonos-docs-site
-          retention-days: 1
-
-  deploy:
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.deploy)
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    concurrency:
-      group: docs-pages-deploy
-      cancel-in-progress: false
-    steps:
-      - name: Deploy configured Pages site
-        id: deployment
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

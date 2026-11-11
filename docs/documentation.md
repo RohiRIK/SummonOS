@@ -43,7 +43,7 @@ change.
 python tools/docs-site.py serve
 ```
 
-Open <http://127.0.0.1:8000/SummonOS/>. The `/SummonOS/` prefix mirrors the configured project Pages URL.
+Open <http://127.0.0.1:8000/>. Preview uses the same root path as the custom Vercel domain.
 The server watches canonical documents and refreshes the staging tree and discovered navigation on
 rebuild. Stop it with Control-C. To choose another address:
 
@@ -175,39 +175,30 @@ network access. Navigation, search, theme assets and ordinary document content a
 
 ## CI and publishing
 
-The [Documentation workflow](../.github/workflows/docs.yml) validates documentation-related pushes on any
-branch and pull requests with the same strict build. PRs and ordinary non-main pushes **do not upload a
-Pages artifact or deploy**, and the build job has read-only repository access. Relevant root documents,
-public docs trees/assets, template READMEs, and site tooling/configuration trigger it.
+The [Documentation workflow](../.github/workflows/docs.yml) validates documentation-related pushes,
+pull requests and manual runs with the same strict build. Its repository permission is read-only;
+it does not publish artifacts to GitHub Pages or request deployment privileges.
 
-Publishing is separate from application releases:
+### Vercel
 
-- A documentation push to `main` uploads the built Pages artifact and requests deployment.
-- A maintainer can run **Documentation → Run workflow** on a deliberately selected ref. With **deploy**
-  left false, this only validates; selecting **deploy** requests publication of that ref.
-- Only the deployment job receives `pages: write` and `id-token: write`. It uses the `github-pages`
-  environment and does not check out or execute source. Publishing jobs are serialized.
-- The workflow uses pinned action commit IDs and does not edit repository settings, create a `gh-pages`
-  branch, publish Swift binaries, or modify application-release channels.
+The canonical website URL is **https://sumonos.rohi-lab.org/**. The hostname deliberately uses
+`sumonos`, as selected by the owner. [`vercel.json`](../vercel.json) configures a static site:
 
-### Owner prerequisites
+- Framework preset: **Other**; use the repository root, not `docs/`.
+- Install: pinned documentation dependencies into the ignored `.vercel/python` directory.
+- Build: the canonical `tools/docs-site.py` wrapper generates and validates the complete site in a
+  fresh external temporary directory, then copies the finished HTML/assets into ignored `public/`.
+- Output: `public/`, served with trailing-slash document URLs.
+- Production branch: `main`; other branches can produce review previews when Git integration is connected.
 
-As of the documentation refresh, GitHub Pages was not available through the repository Pages API. The
-presence of this workflow is **not evidence that the site is deployed**. Before publishing, an owner must:
+The custom domain must be attached to this Vercel project and its exact DNS record must match Vercel's
+project-specific recommendation. Do not change the apex domain or another project's DNS records.
+GitHub Pages is not required and the old Pages deploy job has been removed to avoid competing publishers.
+Application releases and their Stable/Edge channels remain separate from website deployments.
 
-1. Enable Pages for the repository in **Settings → Pages → Build and deployment → Source → GitHub Actions**,
-   subject to repository visibility, account-plan, and organization policy restrictions.
-2. Configure or approve the `github-pages` environment and its branch protection/reviewer rules. A
-   dispatch from a feature branch must be intentionally permitted by those rules if it is to deploy.
-3. Confirm the expected public URL. The configuration targets
-   `https://RohiRIK.github.io/SummonOS/`; update `site_url` before publishing to a custom domain or another
-   repository path.
-4. Confirm the selected documents and assets are appropriate for a public website. Read-only CI
-   validation does not authorize disclosing private state or publishing experimental acceptance claims.
-5. Run the workflow, review the deployment result and actual site in a browser, and only then advertise
-   the live URL.
+A successful local build is not proof of publication. Verify the Vercel deployment's commit and Ready
+state, the custom domain's DNS/TLS, and the actual homepage, reading routes, images and search in a browser.
+Before advertising the domain, confirm anonymous access without a Vercel sign-in redirect.
 
-Until those prerequisites are met, local preview and PR validation remain usable; a requested deployment
-may fail at the Pages service rather than making the site public. This task does not change those settings.
-See GitHub's [custom Pages workflow guide](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
-for the deployment permission and environment contract.
+Local Vercel linkage/credentials, generated HTML and internal review reports must never be committed or
+copied into the public documentation tree. Only the selected public source mapping above is published.

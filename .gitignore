@@ -22,6 +22,11 @@
 !/VERSION
 !/mkdocs.yml
 !/requirements-docs.txt
+!/vercel.json
+
+# Local Vercel credentials/linkage and generated static output stay untracked.
+/.vercel/
+/public/
 
 # Still in this repo until they move to their own repos (needs the owner's OK).
 # Remove these two lines when macctl/ and incubator/summon/ have moved out.

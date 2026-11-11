@@ -56,5 +56,22 @@ class DocumentationLinkTests(unittest.TestCase):
             self.rewrite("[Outside](../../private.md)")
 
 
+class VercelDeploymentTests(unittest.TestCase):
+    def test_static_deployment_uses_canonical_builder_and_requested_domain(self):
+        import json
+        config_path = ROOT / "vercel.json"
+        self.assertTrue(config_path.is_file(), "Vercel static deployment configuration is missing")
+        config = json.loads(config_path.read_text())
+        self.assertIsNone(config["framework"])
+        self.assertEqual(config["outputDirectory"], "public")
+        self.assertIn("requirements-docs.txt", config["installCommand"])
+        self.assertIn("tools/docs-site.py build --site-dir", config["buildCommand"])
+        self.assertIn("mktemp -d", config["buildCommand"])
+        self.assertIn("https://sumonos.rohi-lab.org/", (ROOT / "mkdocs.yml").read_text())
+        workflow = (ROOT / ".github/workflows/docs.yml").read_text()
+        self.assertNotIn("actions/deploy-pages@", workflow)
+        self.assertNotIn("pages: write", workflow)
+
+
 if __name__ == "__main__":
     unittest.main()

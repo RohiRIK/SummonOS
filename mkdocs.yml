@@ -2,7 +2,7 @@
 # docs_dir, complete discovered navigation, and source-correct edit links.
 site_name: SummonOS Docs
 site_description: Guides, command references, architecture, and historical research for SummonOS.
-site_url: https://RohiRIK.github.io/SummonOS/
+site_url: https://sumonos.rohi-lab.org/
 repo_url: https://github.com/RohiRIK/SummonOS
 repo_name: RohiRIK/SummonOS
 edit_uri: edit/main/
