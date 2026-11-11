@@ -92,6 +92,25 @@ point to reach the app rather than resetting all preferences.
 The panel is nonactivating and preserves the previous app's focus. Use **Activity**, **Updates** and the
 separate **Settings** window for their respective tasks; they are not subpanels containing every preference.
 
+## Ask Agent does nothing
+
+Ask Agent opens your default agent in Ghostty or Terminal through AppleScript, so macOS must allow Summon to
+control that terminal. Summon preview builds are ad-hoc signed, so after an update or on a new Mac macOS can ask
+again, or keep an old refusal.
+
+```sh
+summon doctor                    # default agent installed, terminal chosen
+summon agent prompt "hello"      # shows the real launch error in this terminal
+```
+
+1. Open System Settings › Privacy & Security › Automation › Summon and turn on Ghostty (or Terminal).
+2. If Summon is not listed, reset its Automation answers, then use Ask Agent again and click **Allow**:
+   `tccutil reset AppleEvents local.macplugins.summon`
+3. If a permission dialog is open behind other windows, answer it. Ask Agent waits for it.
+
+After the next release (#126), a failed launch posts an "Ask Agent could not start" notification, Activity logs
+"Could not open <agent>" with the fix, and Settings › health flags a refused Automation permission.
+
 ## Updates fail or the update row does nothing
 
 - **0.2.0:** run `summon update` once; 0.2.1 fixes the panel action.
