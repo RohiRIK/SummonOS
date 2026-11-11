@@ -485,6 +485,16 @@ public final class PanelController: NSObject {
         panel.orderOut(nil)
         state.isOpen = false
         onClose()
+        // A hidden window gets no display cycle, so SwiftUI would apply the close/reset at the next order-front.
+        // Two passes: the first runs PanelView's onChange(isOpen), the second applies the state it reset.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, !self.isOpen else { return }
+            self.panel.contentView?.layoutSubtreeIfNeeded()
+            DispatchQueue.main.async { [weak self] in
+                guard let self, !self.isOpen else { return }
+                self.panel.contentView?.layoutSubtreeIfNeeded()
+            }
+        }
         let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier
         if PanelDismissal.focusAction(after: reason, frontmostPID: frontmost, session: session) == .activatePrevious,
            let previous = previousApp, !previous.isTerminated {

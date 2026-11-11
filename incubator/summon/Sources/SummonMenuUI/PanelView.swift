@@ -6,6 +6,23 @@ import SwiftUI
 /// (ask the agent, Activity), with the Settings…/Quit footer (AGENTS.md). Hosted once by `PanelController` in a
 /// nonactivating `StatusPanel`; it stays one SwiftUI view and keeps updating while open (spec v1.5, E1–E5).
 /// Every row that does something calls `actions.finish` so the panel closes (D3).
+/// E5: marks the open session refreshed once any newer Activity generation publishes (the shared owner may publish
+/// before this panel's own refresh returns).
+private struct PublicationWatcher: View {
+    let activity: ActivityModel
+    let panel: PanelState
+    let openingBaseline: Int
+    @Binding var refreshedSession: Int
+
+    var body: some View {
+        Color.clear.onChange(of: activity.lastPublishedGeneration) { _, published in
+            if panel.isOpen, published > openingBaseline, refreshedSession != panel.session {
+                refreshedSession = panel.session
+            }
+        }
+    }
+}
+
 public struct PanelView: View {
     let model: SummonModel
     let activity: ActivityModel
@@ -70,13 +87,13 @@ public struct PanelView: View {
         // A1/A2/G1: focus once the panel is key (the controller bumps this after makeKeyAndOrderFront).
         .onChange(of: panel.focusRequest) { _, _ in searchFocused = true }
         .onChange(of: query) { _, _ in selection = 0 }
-        .onChange(of: activity.lastPublishedGeneration) { _, published in
-            if panel.isOpen, published > openingBaseline, refreshedSession != panel.session {
-                refreshedSession = panel.session
-            }
-        }
+        // Only this watcher reads the publication counter, so a background publish doesn't re-render the panel.
+        .background(PublicationWatcher(activity: activity, panel: panel, openingBaseline: openingBaseline,
+                                       refreshedSession: $refreshedSession))
         .onChange(of: panel.isOpen) { _, open in
-            if !open { model.invalidateGuards() }
+            // Reset while hidden: the controller lays the closed panel out, so the next open has nothing to rebuild
+            // inside makeKeyAndOrderFront (each rebuild there was a dropped frame).
+            if !open { model.invalidateGuards(); query = ""; level = nil; selection = 0 }
         }
         // Query, level, session, and visibility share one guard generation: no cancelled result
         // from the previous search or panel opening can overwrite a newer check.
@@ -134,7 +151,8 @@ public struct PanelView: View {
     }
 
     private var content: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        let rows = self.rows // a search walks the whole menu tree; run it once per update
+        return VStack(alignment: .leading, spacing: 2) {
             header
             // Always visible (owner, 2026-10-26), so people know they can type.
             search
