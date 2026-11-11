@@ -25,6 +25,8 @@ public struct LoggedEvent: Sendable, Equatable, Codable {
 public enum EventKind {
     /// `summon agent` opened the agent in a terminal (after its checkpoint).
     public static let agentLaunch = "agent.launch"
+    /// `summon agent` could not open the terminal; the detail says what to do.
+    public static let agentLaunchFailed = "agent.launch.failed"
     /// An agent session began or ended (written by the Claude Code plugin hooks).
     public static let sessionStart = "session.start"
     public static let sessionEnd = "session.end"
