@@ -272,10 +272,13 @@ def recording_output(output, diagnostics_path=None):
                                    ("not authorized", "not permitted", "permission denied", "authorization required"))}
 
 
-# The SwiftUI template also bundles Hitches/GPU/Display instruments. Xcode 26.6 on the GPU-less hosted runner
-# never finalizes it after SIGINT (DTX tap waits forever); the SwiftUI instrument alone records the same tables.
-# Displayed-frame timing is the separate opt-in Animation Hitches recording on a real display (--frames).
+# The SwiftUI template also bundles Hitches/GPU/Display instruments; the SwiftUI instrument alone records the
+# same tables. Displayed-frame timing is the separate opt-in Animation Hitches recording on a real display (--frames).
 RECORDING_SOURCE = {"SwiftUI": ["--instrument", "SwiftUI"]}
+# Save time grows with trace size: after 100 cycles a SwiftUI trace (532 MB) had not saved in 600 s and a Hitches
+# trace (1.4 GB) took 596 s, on Xcode 27.1 with a real GPU. These record a short sample; the 100-cycle stress run
+# stays on Logging, Time Profiler and Allocations.
+SAMPLE_CYCLES = {"SwiftUI": 10, "Animation Hitches": 10}
 
 
 def record_instrument(template, pid, helper, target, children, iterations):
@@ -395,7 +398,8 @@ def instrument(pid, helper, trace, children, iterations, frames=False):
     outcomes = {}
     for template in ("Logging", "SwiftUI", "Time Profiler", "Allocations") + (("Animation Hitches",) if frames else ()):
         target = trace / (template.lower().replace(" ", "-") + ".trace")
-        outcomes[template] = record_instrument(template, pid, helper, target, children, iterations)
+        cycles = min(iterations, SAMPLE_CYCLES.get(template, iterations))
+        outcomes[template] = record_instrument(template, pid, helper, target, children, cycles)
     if frames:
         outcomes["displayed frames"] = displayed_frames(trace, pid, outcomes["Animation Hitches"])
     signposts = trace / "panel-signposts.json"

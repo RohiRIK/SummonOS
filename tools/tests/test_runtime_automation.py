@@ -268,6 +268,16 @@ class RuntimeProfilingTests(unittest.TestCase):
         self.assertEqual(runtime_audit.RECORDING_SOURCE.get("SwiftUI"), ["--instrument", "SwiftUI"])
         self.assertNotIn("Logging", runtime_audit.RECORDING_SOURCE)
 
+    def test_heavy_recordings_sample_while_stress_recordings_run_every_cycle(self):
+        with tempfile.TemporaryDirectory() as temporary, \
+             mock.patch.object(runtime_audit, "record_instrument", return_value={"status":"passed"}) as record, \
+             mock.patch.object(runtime_audit, "displayed_frames", return_value={"status":"passed"}), \
+             mock.patch.object(runtime_audit.subprocess, "run", side_effect=OSError):
+            runtime_audit.instrument(1, pathlib.Path("helper"), pathlib.Path(temporary), [], 100, frames=True)
+        cycles = {call.args[0]: call.args[5] for call in record.call_args_list}
+        self.assertEqual(cycles, {"Logging":100, "SwiftUI":10, "Time Profiler":100, "Allocations":100,
+                                  "Animation Hitches":10})
+
     def test_hitch_ratio_counts_only_app_hitches_against_budget(self):
         row = ('<row><start-time>1</start-time><duration{d}>{ns}</duration><process{p}><pid>{pid}</pid></process>'
                '<boolean{b}>{system}</boolean></row>')
