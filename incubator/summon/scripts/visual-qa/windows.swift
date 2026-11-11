@@ -7,6 +7,7 @@
 //   windows about <pid> <id>   press the meaningfully named About Summon button in that Settings window
 //   windows click-status <pid>   hit-test the owned extra-menu item, then send real mouse-down/up for timing
 //   windows search <pid> <id>   focus Search Summon, type audit with owned key events, require its actual value
+//   windows ax-audit <pid>   count controls in every owned AX window that VoiceOver could not name (counts only)
 // Actions emit bounded JSON diagnostics, never window titles, text contents, paths or unrelated process data.
 // Window bounds and ids come from CGWindowList and need no Screen Recording permission.
 import AppKit
@@ -338,6 +339,38 @@ case "diagnose":
              "onscreen": item[kCGWindowIsOnscreen as String] as? Bool ?? false,
              "width": cgFrame(item)?.width ?? 0, "height": cgFrame(item)?.height ?? 0]
         }
+    ]
+    print(String(data: try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys]), encoding: .utf8)!)
+case "ax-audit":
+    guard args.count == 2, let pid = Int32(args[1]), pid > 0 else { exit(64) }
+    let app = AXUIElementCreateApplication(pid)
+    _ = AXUIElementSetMessagingTimeout(app, 0.5)
+    let windows = attribute(app, kAXWindowsAttribute) as? [AXUIElement] ?? []
+    // Controls VoiceOver announces by name. Static text and groups speak their own content.
+    let actionable: Set<String> = [kAXButtonRole, kAXTextFieldRole, kAXCheckBoxRole, kAXRadioButtonRole,
+                                   kAXPopUpButtonRole, kAXMenuButtonRole, kAXSliderRole, kAXComboBoxRole, "AXLink",
+                                   "AXSwitch", "AXSearchField", kAXDisclosureTriangleRole]
+    func spoken(_ element: AXUIElement) -> Bool {
+        for name in [kAXTitleAttribute, kAXDescriptionAttribute, kAXPlaceholderValueAttribute] {
+            if let text = attribute(element, name) as? String, !text.trimmingCharacters(in: .whitespaces).isEmpty { return true }
+        }
+        return attribute(element, kAXTitleUIElementAttribute) != nil
+    }
+    var pending = windows, visited = 0, controls = 0, unlabeled: [String: Int] = [:]
+    let deadline = ProcessInfo.processInfo.systemUptime + 10
+    while let element = pending.popLast(), visited < 8192, ProcessInfo.processInfo.systemUptime < deadline {
+        visited += 1
+        if let role = attribute(element, kAXRoleAttribute) as? String, actionable.contains(role) {
+            controls += 1
+            if !spoken(element) { unlabeled[role, default: 0] += 1 }
+        }
+        pending.append(contentsOf: attribute(element, kAXChildrenAttribute) as? [AXUIElement] ?? [])
+    }
+    let complete = pending.isEmpty
+    let result: [String: Any] = [
+        "accessibility_trusted": AXIsProcessTrusted(), "windows": windows.count, "elements": visited,
+        "controls": controls, "unlabeled_by_role": unlabeled, "complete": complete,
+        "status": !complete || windows.isEmpty || controls == 0 ? "blocked" : unlabeled.isEmpty ? "passed" : "failed",
     ]
     print(String(data: try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys]), encoding: .utf8)!)
 case "click-status":
