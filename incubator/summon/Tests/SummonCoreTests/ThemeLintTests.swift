@@ -29,7 +29,7 @@ struct ThemeLintTests {
         theme.colors.accent = theme.colors.background
         theme.terminal[1] = theme.terminal[4]   // "red" is blue
         let problems = ThemeLint.problems(theme)
-        #expect(problems.contains { $0.severity == .error && $0.message.contains("accent") })
-        #expect(problems.contains { $0.message.contains("red") && $0.message.contains("hue") })
+        #expect(problems.contains { $0.kind == .contrast && $0.severity == .error })
+        #expect(problems.contains { $0.kind == .palette && $0.severity == .warning })
     }
 }

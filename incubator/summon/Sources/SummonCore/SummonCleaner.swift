@@ -17,12 +17,33 @@ public enum SummonCleaner {
     public struct Item: Sendable, Equatable, Codable {
         public var path: String
         public var reason: String
+        /// The task whose run lease guards this item: its logs, or its folder after it was removed.
+        public var task: String?
+
+        public init(path: String, reason: String, task: String? = nil) {
+            self.path = path
+            self.reason = reason
+            self.task = task
+        }
     }
 
     public struct Plan: Sendable, Equatable, Codable {
         public var trash: [Item] = []
         /// Things to look at, never removed.
         public var notes: [String] = []
+    }
+
+    /// What `apply` did. Skipped and failed items stay where they were.
+    public struct Applied: Sendable, Equatable {
+        public struct Failure: Sendable, Equatable {
+            public var path: String
+            public var message: String
+        }
+
+        public var moved: [Item] = []
+        /// Left in place on purpose: the task was running, or the item no longer qualifies.
+        public var skipped: [Item] = []
+        public var failures: [Failure] = []
     }
 
     public static func plan(_ paths: SummonPaths, tasks: [RecurringTask], now: Date = Date()) -> Plan {
@@ -33,19 +54,8 @@ public enum SummonCleaner {
         // Tasks: logs per task; folders of tasks that no longer exist.
         let known = Set(tasks.map(\.id))
         for folder in children(paths.taskLogs) where isDirectory(folder) {
-            guard known.contains(folder.lastPathComponent) else {
-                if age(folder) > removedTaskDays { plan.trash.append(Item(path: folder.path, reason: "its task was removed")) }
-                continue
-            }
-            let logs = children(folder).filter { $0.pathExtension == "log" && $0.lastPathComponent != "launchd.log" }
-                .sorted { $0.lastPathComponent > $1.lastPathComponent }
-            for (index, log) in logs.enumerated() {
-                if index >= keepLogs {
-                    plan.trash.append(Item(path: log.path, reason: "older than the newest \(keepLogs) runs"))
-                } else if age(log) > logDays {
-                    plan.trash.append(Item(path: log.path, reason: "older than \(Int(logDays)) days"))
-                }
-            }
+            do { plan.trash += try taskItems(folder, known: known, paths: paths, now: now) }
+            catch { plan.notes.append("Tasks/\(folder.lastPathComponent) was left as is: \(error)") }
         }
 
         // Art: whole jobs; Antigravity's originals per session.
@@ -80,21 +90,80 @@ public enum SummonCleaner {
         return plan
     }
 
-    /// Moves every planned item to the Trash (`trash` is injectable for tests) and records the run.
-    @discardableResult
-    public static func apply(_ plan: Plan, paths: SummonPaths, now: Date = Date(),
-                             trash: (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) }) -> Int {
-        var count = 0
-        for item in plan.trash {
-            do {
-                try trash(URL(fileURLWithPath: item.path))
-                count += 1
-            } catch {
-                continue
+    /// One task folder's items. Logs rank by modification time (newest first, the name breaking ties), never by
+    /// name: run logs are named by UUID. A log an interrupted run's recovery still needs is kept.
+    static func taskItems(_ folder: URL, known: Set<String>, paths: SummonPaths, now: Date) throws -> [Item] {
+        let task = folder.lastPathComponent
+        let pending = try TaskRunJournal(paths: paths, task: task).pending()
+        guard known.contains(task) else {
+            let age = now.timeIntervalSince(newest(folder)) / 86_400
+            return age > removedTaskDays && pending.isEmpty
+                ? [Item(path: folder.path, reason: "its task was removed", task: task)] : []
+        }
+        let recovering = Set(pending.compactMap { marker in
+            marker.file.map { URL(fileURLWithPath: $0).lastPathComponent }
+        })
+        let logs = children(folder)
+            .filter { $0.pathExtension == "log" && $0.lastPathComponent != "launchd.log" && !isDirectory($0) }
+            .map { (url: $0, modified: modified($0)) }
+            .sorted { $0.modified != $1.modified ? $0.modified > $1.modified : $0.url.lastPathComponent > $1.url.lastPathComponent }
+        var items: [Item] = []
+        for (index, log) in logs.enumerated() where !recovering.contains(log.url.lastPathComponent) {
+            if index >= keepLogs {
+                items.append(Item(path: log.url.path, reason: "older than the newest \(keepLogs) runs", task: task))
+            } else if now.timeIntervalSince(log.modified) / 86_400 > logDays {
+                items.append(Item(path: log.url.path, reason: "older than \(Int(logDays)) days", task: task))
             }
         }
-        try? TextFile.write(ISO8601DateFormatter().string(from: now) + "\n", to: stampFile(paths))
-        return count
+        return items
+    }
+
+    /// Moves planned items to the Trash (`trash` is injectable for tests) and stamps the run when nothing failed.
+    /// Task items move only under their task's run lease, taken without waiting: a running task is skipped, and
+    /// the plan is checked again under the lease, because a run may have started or finished since it was made.
+    @discardableResult
+    public static func apply(_ plan: Plan, paths: SummonPaths, now: Date = Date(),
+                             trash: (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) }) -> Applied {
+        var applied = Applied()
+        func move(_ item: Item) {
+            do {
+                try trash(URL(fileURLWithPath: item.path))
+                applied.moved.append(item)
+            } catch {
+                applied.failures.append(Applied.Failure(path: item.path, message: String(describing: error)))
+            }
+        }
+        for item in plan.trash where item.task == nil { move(item) }
+        let byTask = Dictionary(grouping: plan.trash.filter { $0.task != nil }, by: { $0.task ?? "" })
+        var eligibleBusy = false
+        for task in byTask.keys.sorted() {
+            let items = byTask[task] ?? []
+            func skip(_ reason: String) { applied.skipped += items.map { Item(path: $0.path, reason: reason, task: task) } }
+            func fail(_ error: any Error) { applied.failures += items.map { Applied.Failure(path: $0.path, message: String(describing: error)) } }
+            guard TaskStore.isSafeID(task) else { skip("not a task folder Summon made"); continue }
+            let lease: FileLease
+            do { lease = try FileLease.acquireSync(TaskRunLease.file(paths, task: task), timeout: 0) }
+            catch FileLeaseError.busy { eligibleBusy = true; skip("its task is running"); continue }
+            catch { fail(error); continue }
+            withExtendedLifetime(lease) {
+                do {
+                    let known = Set(try TaskStore(paths: paths).loadValidated().map(\.id))
+                    let folder = paths.taskLogs.appendingPathComponent(task, isDirectory: true)
+                    let current = Set(try taskItems(folder, known: known, paths: paths, now: now).map(\.path))
+                    for item in items {
+                        if current.contains(item.path) { move(item) }
+                        else { applied.skipped.append(Item(path: item.path, reason: "no longer qualifies", task: task)) }
+                    }
+                } catch {
+                    fail(error)
+                }
+            }
+        }
+        if applied.failures.isEmpty && !eligibleBusy {
+            do { try TextFile.write(ISO8601DateFormatter().string(from: now) + "\n", to: stampFile(paths)) }
+            catch { applied.failures.append(Applied.Failure(path: stampFile(paths).path, message: String(describing: error))) }
+        }
+        return applied
     }
 
     public static func isDue(_ paths: SummonPaths, now: Date = Date()) -> Bool {
@@ -115,6 +184,10 @@ public enum SummonCleaner {
     static func isDirectory(_ url: URL) -> Bool {
         var flag: ObjCBool = false
         return FileManager.default.fileExists(atPath: url.path, isDirectory: &flag) && flag.boolValue
+    }
+
+    static func modified(_ url: URL) -> Date {
+        (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date) ?? .distantPast
     }
 
     /// The newest modification time of a file, or of anything inside a folder.

@@ -94,6 +94,7 @@ public struct SettingsView: View {
         // Sidebar Settings are 760–820 pt wide (docs/ux-surfaces/03-settings-window.md); only the height grows.
         .frame(minWidth: 780, idealWidth: 800, maxWidth: 820, minHeight: 520, idealHeight: 620)
         .closeOnlyWindow()
+        .summonTheme(model)
         .task {
             await model.loadShippedSkills()
             for id in model.installedAgentIDs where model.agentStatus[id] == nil {
@@ -193,6 +194,7 @@ struct SettingsSectionView: View {
         content
             .navigationTitle(section.title)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .summonTheme(model)
     }
 
     @ViewBuilder private var content: some View {
@@ -378,6 +380,22 @@ struct GeneralSettings: View {
                 }
                 Toggle("Update agents automatically", isOn: Binding(get: { model.updatePreferences.autoUpdateAgents },
                                                                     set: { model.setAutoUpdateAgents($0) }))
+            }
+
+            Section("About") {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Summon \(BuildInfo.current.marketingVersion) (\(BuildInfo.current.buildNumber))")
+                        Text("\(BuildInfo.current.channelText) · \(BuildInfo.current.configurationText)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    Spacer()
+                    Button("About Summon") { AboutPresenter.show() }
+                        .accessibilityLabel("About Summon")
+                }
+                .accessibilityElement(children: .contain)
             }
 
             Section("Automation & Storage") {
@@ -928,10 +946,10 @@ struct TerminalSettings: View {
                         if isDefault {
                             Text("Default")
                                 .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(.tint)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Color.blue.opacity(0.12), in: Capsule())
+                                .background(.tint.opacity(0.12), in: Capsule())
                         }
 
                         Spacer()
@@ -1056,7 +1074,6 @@ struct NotificationSettings: View {
 struct AppearanceSettings: View {
     @Bindable var model: SummonModel
     @State private var previewSlug: String = ""
-    @State private var applySuccess = false
 
     private var store: ThemeStore {
         ThemeStore(paths: model.paths)
@@ -1081,12 +1098,15 @@ struct AppearanceSettings: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 8) {
                         Image(systemName: "paintpalette.fill")
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(.tint)
                         Text("System-Wide Aesthetic")
                             .font(.headline)
                     }
-                    Text("Applying a theme automatically sets your desktop wallpaper, switches macOS light/dark mode, updates your terminal colors (Ghostty), and tints window borders.")
+                    Text("Applying a theme updates Summon's accent, the macOS control color, light/dark mode, wallpaper, terminal colors, and window borders.")
                         .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text("Finder folders follow the macOS accent when Folder color is Automatic. Custom folder colors stay unchanged.")
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 .padding(.vertical, 4)
@@ -1119,25 +1139,23 @@ struct AppearanceSettings: View {
 
                         HStack(spacing: 12) {
                             if theme.slug == model.currentThemeSlug {
-                                Label("Currently Active", systemImage: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
-                                    .font(.subheadline.weight(.medium))
+                                Label {
+                                    Text("Currently Active").foregroundStyle(.primary)
+                                } icon: {
+                                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.tint)
+                                }
+                                .font(.subheadline.weight(.medium))
                             } else {
                                 Button {
                                     model.setTheme(theme.slug)
-                                    applySuccess = true
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                        applySuccess = false
-                                    }
                                 } label: {
                                     HStack(spacing: 6) {
-                                        Image(systemName: applySuccess ? "checkmark" : "sparkles")
-                                        Text(applySuccess ? "Applied!" : "Apply Theme")
+                                        Image(systemName: "sparkles")
+                                        Text("Apply Theme")
                                     }
                                     .frame(minWidth: 110)
                                 }
                                 .buttonStyle(.borderedProminent)
-                                .tint(.blue)
                             }
 
                             Spacer()
@@ -1255,27 +1273,6 @@ extension Color {
 
 // MARK: Apps
 
-enum AppSectionCategory: String, CaseIterable, Identifiable {
-    case panel = "Panel Apps"
-    case themes = "Themes"
-    case art = "Art & Wallpapers"
-    case app = "Window Apps"
-    case cli = "Command-Line Tools"
-    case screensaver = "Screensavers"
-
-    var id: String { rawValue }
-
-    var systemImage: String {
-        switch self {
-        case .panel: return "menubar.rectangle"
-        case .themes: return "paintbrush"
-        case .art: return "photo.on.rectangle.angled"
-        case .app: return "macwindow"
-        case .cli: return "terminal"
-        case .screensaver: return "sparkles.tv"
-        }
-    }
-}
 
 /// Apps and widgets built in ~/Summon/Apps (from templates or agent builds),
 /// mirroring the Summon Menu's "My Apps" drill-down navigation.
@@ -1304,51 +1301,14 @@ struct AppsSettings: View {
         model.artJobs
     }
 
-    private var displayThemes: [Theme] {
-        let custom = model.themes.filter { $0.source == "summon-art" || !MenuTree.shippedThemeSlugs.contains($0.slug) }
-        return custom.isEmpty ? model.themes : custom
-    }
+    private var displayThemes: [Theme] { model.themes }
 
-    private var availableCategories: [AppSectionCategory] {
-        var list: [AppSectionCategory] = []
-        if !panelProjects.isEmpty { list.append(.panel) }
-        if !displayThemes.isEmpty { list.append(.themes) }
-        if !artJobs.isEmpty { list.append(.art) }
-        if !appProjects.isEmpty { list.append(.app) }
-        if !cliProjects.isEmpty { list.append(.cli) }
-        if !screensaverProjects.isEmpty { list.append(.screensaver) }
-        if list.isEmpty {
-            list = [.panel, .themes, .art]
-        }
-        return list
-    }
+    private var availableCategories: [AppSectionCategory] { AppSectionCategory.allCases }
 
     private var isSearching: Bool {
         !query.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
-    private var unhealthyApps: [Project] {
-        model.projects.filter { model.appHealth[$0.name]?.isHealthy == false }
-    }
-
-    private var unhealthyThemes: [Theme] {
-        displayThemes.filter { model.themeHealth[$0.slug]?.isHealthy == false }
-    }
-
-    private var unhealthyArtJobs: [ArtJob] {
-        artJobs.filter { model.artJobHealth[$0.name]?.isHealthy == false }
-    }
-
-    private func categoryHasWarning(_ category: AppSectionCategory) -> Bool {
-        switch category {
-        case .panel: return panelProjects.contains { model.appHealth[$0.name]?.isHealthy == false }
-        case .themes: return displayThemes.contains { model.themeHealth[$0.slug]?.isHealthy == false }
-        case .art: return artJobs.contains { model.artJobHealth[$0.name]?.isHealthy == false }
-        case .app: return appProjects.contains { model.appHealth[$0.name]?.isHealthy == false }
-        case .cli: return cliProjects.contains { model.appHealth[$0.name]?.isHealthy == false }
-        case .screensaver: return screensaverProjects.contains { model.appHealth[$0.name]?.isHealthy == false }
-        }
-    }
 
     private func itemCount(for category: AppSectionCategory) -> Int {
         switch category {
@@ -1369,17 +1329,17 @@ struct AppsSettings: View {
                 .padding(.top, 16)
                 .padding(.bottom, 12)
 
-            if !unhealthyApps.isEmpty || !unhealthyThemes.isEmpty || !unhealthyArtJobs.isEmpty {
-                let count = unhealthyApps.count + unhealthyThemes.count + unhealthyArtJobs.count
+            if model.inventoryHealth.repairCount > 0 {
+                let count = model.inventoryHealth.repairCount
                 HStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 14))
                         .foregroundStyle(.orange)
-                    Text("\(count) item\(count == 1 ? "" : "s") need attention (code or art)")
+                    Text("\(count) item\(count == 1 ? " needs" : "s need") repair")
                         .font(.system(size: 12, weight: .medium))
                     Spacer()
                     Button {
-                        model.fixWithAI()
+                        model.fixInventoryWithAI()
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "wrench.and.screwdriver.fill")
@@ -1388,12 +1348,19 @@ struct AppsSettings: View {
                         .font(.system(size: 11, weight: .semibold))
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.purple)
                     .controlSize(.small)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 8)
                 .background(Color.orange.opacity(0.1))
+            }
+
+            if model.inventoryHealth.advisoryCount > 0 {
+                Label("\(model.inventoryHealth.advisoryCount) items have recommendations, not repairs", systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 8)
             }
 
             Divider()
@@ -1537,7 +1504,9 @@ struct AppsSettings: View {
     private var categoriesListView: some View {
         VStack(spacing: 4) {
             ForEach(availableCategories) { cat in
-                CategoryNavigationRow(category: cat, count: itemCount(for: cat), hasWarning: categoryHasWarning(cat)) {
+                CategoryNavigationRow(category: cat, count: itemCount(for: cat),
+                                      repairCount: model.inventoryHealth.repairCount(in: cat),
+                                      advisoryCount: model.inventoryHealth.advisoryCount(in: cat)) {
                     selectedCategory = cat
                 }
             }
@@ -1674,7 +1643,8 @@ struct AppsSettings: View {
 struct CategoryNavigationRow: View {
     let category: AppSectionCategory
     let count: Int
-    var hasWarning: Bool = false
+    let repairCount: Int
+    let advisoryCount: Int
     let action: () -> Void
     @State private var isHovered = false
 
@@ -1692,13 +1662,14 @@ struct CategoryNavigationRow: View {
 
                 Spacer()
 
-                if hasWarning {
-                    Circle()
-                        .fill(Color.orange)
-                        .frame(width: 7, height: 7)
+                if repairCount > 0 {
+                    Text("\(repairCount) to fix").font(.caption).foregroundStyle(.orange)
+                }
+                if advisoryCount > 0 {
+                    Text("\(advisoryCount) to review").font(.caption).foregroundStyle(.blue)
                 }
 
-                Text("\(count)")
+                Text("\(count) item\(count == 1 ? "" : "s")")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 7)
@@ -1758,7 +1729,7 @@ struct PanelAppItemRow: View {
                 if !health.isHealthy {
                     Text(health.detail)
                         .font(.system(size: 11))
-                        .foregroundStyle(health.level == .error ? Color.red : Color.orange)
+                        .foregroundStyle(health.level.indicatorColor)
                 }
 
                 Text(project.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
@@ -1768,7 +1739,7 @@ struct PanelAppItemRow: View {
 
             Spacer()
 
-            if !health.isHealthy {
+            if health.needsRepair {
                 Button {
                     model.fixAppWithAI(project)
                 } label: {
@@ -1779,7 +1750,6 @@ struct PanelAppItemRow: View {
                     .font(.system(size: 11, weight: .medium))
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.purple)
                 .controlSize(.small)
                 .help("Ask default agent to fix issues in \(project.name)")
             }
@@ -1878,19 +1848,23 @@ struct ThemeItemRow: View {
                     if theme.slug == model.currentThemeSlug {
                         Text("Active")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.green)
+                            .foregroundStyle(.tint)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 1.5)
-                            .background(Color.green.opacity(0.12), in: Capsule())
+                            .background(.tint.opacity(0.12), in: Capsule())
                     }
 
                     HealthBadge(health: health)
                 }
 
                 if !health.isHealthy {
-                    Text(health.detail)
-                        .font(.system(size: 11))
-                        .foregroundStyle(health.level == .error ? Color.red : Color.orange)
+                    DisclosureGroup("Review details") {
+                        Text(health.detail)
+                            .font(.system(size: 11))
+                            .foregroundStyle(health.level.indicatorColor)
+                            .textSelection(.enabled)
+                    }
+                    .font(.caption)
                 }
 
                 HStack(spacing: 4) {
@@ -1902,7 +1876,7 @@ struct ThemeItemRow: View {
 
             Spacer()
 
-            if !health.isHealthy {
+            if health.needsRepair {
                 Button {
                     model.fixThemeWithAI(theme)
                 } label: {
@@ -1913,7 +1887,6 @@ struct ThemeItemRow: View {
                     .font(.system(size: 11, weight: .medium))
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.purple)
                 .controlSize(.small)
                 .help("Ask default agent to fix or generate missing assets for \(theme.name)")
             }
@@ -1972,7 +1945,7 @@ struct ArtJobItemRow: View {
                 if !health.isHealthy {
                     Text(health.detail)
                         .font(.system(size: 11))
-                        .foregroundStyle(health.level == .error ? Color.red : Color.orange)
+                        .foregroundStyle(health.level.indicatorColor)
                 }
 
                 Text(job.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
@@ -1982,7 +1955,7 @@ struct ArtJobItemRow: View {
 
             Spacer()
 
-            if !health.isHealthy {
+            if health.needsRepair {
                 Button {
                     model.fixArtJobWithAI(job)
                 } label: {
@@ -1993,7 +1966,6 @@ struct ArtJobItemRow: View {
                     .font(.system(size: 11, weight: .medium))
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.purple)
                 .controlSize(.small)
                 .help("Ask default agent to complete art generation or compile icon")
             }
@@ -2037,11 +2009,16 @@ struct HealthBadge: View {
         .foregroundStyle(color)
     }
 
-    private var color: Color {
-        switch health.level {
-        case .healthy: return .green
-        case .warning: return .orange
-        case .error: return .red
+    private var color: Color { health.level.indicatorColor }
+}
+
+extension ItemHealth.Level {
+    var indicatorColor: Color {
+        switch self {
+        case .healthy: .green
+        case .advisory: .blue
+        case .warning: .orange
+        case .error: .red
         }
     }
 }
@@ -2062,8 +2039,8 @@ struct TasksSettings: View {
                 ForEach(model.tasks) { task in
                     LabeledContent {
                         if let result = model.taskResults[task.id] {
-                            Text(result == "failed" ? "Last run failed" : "Last run done")
-                                .foregroundStyle(result == "failed" ? .red : .secondary)
+                            Text("Last run \(TaskOutcome(rawValue: result)?.label ?? result)")
+                                .foregroundStyle(TaskOutcome(rawValue: result).map { $0 != .done } == true ? .red : .secondary)
                         }
                     } label: {
                         Text(verbatim: task.name)
@@ -2074,6 +2051,8 @@ struct TasksSettings: View {
             }
         }
         .formStyle(.grouped)
+        // Direct Settings opens (app menu) bypass the panel and Activity window, so ask the shared refresh once.
+        .task { await model.refreshActivity() }
     }
 }
 
@@ -2163,12 +2142,12 @@ private struct ShortcutRecorderRow: View {
                             .controlSize(.small)
                         Text("Press keys… (Esc to cancel)")
                             .font(.system(.subheadline, design: .monospaced))
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(.tint)
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(Color.blue.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
-                    .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.blue, lineWidth: 1))
+                    .background(.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
+                    .overlay(RoundedRectangle(cornerRadius: 5).stroke(.tint, lineWidth: 1))
 
                     Button("Cancel") {
                         stopRecording()

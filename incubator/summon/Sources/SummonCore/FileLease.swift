@@ -1,12 +1,14 @@
 import Darwin
 import Foundation
+import os
 
 /// Advisory interprocess lock. The lock file remains in place: removing it would create two lock domains.
+/// Release explicitly at the operation boundary; deinitialization is only a fallback, not a scope guarantee.
 public final class FileLease: Sendable {
-    private let descriptor: Int32
+    private let descriptor: OSAllocatedUnfairLock<Int32?>
 
-    private init(descriptor: Int32) { self.descriptor = descriptor }
-    deinit { close(descriptor) }
+    private init(descriptor: Int32) { self.descriptor = OSAllocatedUnfairLock(initialState: descriptor) }
+    deinit { release() }
 
     public static func acquire(_ file: URL, timeout: TimeInterval = 5) async throws -> FileLease {
         let start = ProcessInfo.processInfo.systemUptime
@@ -45,7 +47,14 @@ public final class FileLease: Sendable {
         throw NSError(domain: NSPOSIXErrorDomain, code: Int(code))
     }
 
-    public func hold() {} // Keep the lease alive through the enclosing operation's defer.
+    /// Ends the lease synchronously, even while references remain. Safe to call more than once or concurrently.
+    public func release() {
+        descriptor.withLock { descriptor in
+            guard let fd = descriptor else { return }
+            descriptor = nil
+            close(fd)
+        }
+    }
 }
 
 public enum FileLeaseError: Error, CustomStringConvertible {

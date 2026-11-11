@@ -1,0 +1,647 @@
+#!/usr/bin/env python3
+"""Controlled Core lifecycle benchmark and disposable-account UI audit (no agent execution)."""
+import argparse
+import contextlib
+import ctypes
+import datetime as dt
+import json
+import os
+import pathlib
+import platform
+import re
+import select
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+import uuid
+
+PACKAGE = pathlib.Path(__file__).resolve().parents[1]
+ROOT = PACKAGE.parents[1]
+
+
+def command(args, *, timeout=120, env=None):
+    result = subprocess.run(args, text=True, capture_output=True, timeout=timeout, env=env)
+    if result.returncode != 0:
+        if any(phrase in result.stderr.lower() for phrase in
+               ("not authorized", "not permitted", "assistive access", "screen recording")):
+            raise ValueError("GUI capture or Accessibility permission is unavailable on isolated runner")
+        raise subprocess.CalledProcessError(result.returncode, args, output=result.stdout, stderr=result.stderr)
+    return result.stdout.strip()
+
+
+def environment():
+    def probe(args):
+        try:
+            return command(args, timeout=10)
+        except (OSError, subprocess.SubprocessError):
+            return "unavailable"
+    return {"source_revision": probe(["/usr/bin/git", "-C", str(ROOT), "rev-parse", "HEAD"]),
+            "swift_toolchain": probe(["swift", "--version"]), "os": platform.mac_ver()[0],
+            "hardware": platform.machine(), "configuration": "release (-O) Core; packaged UI",
+            "timestamp_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "privacy": "no prompts, raw logs, personal paths or desktop captures in JSON"}
+
+
+def write(path, value):
+    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
+
+
+def owned_process(args, *, env=None):
+    # All children launched by this driver use their own group. Never terminate anything outside it.
+    return subprocess.Popen(args, start_new_session=True, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def reap(children):
+    for child in children:
+        if child.poll() is None:
+            try:
+                os.killpg(child.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+    for child in children:
+        try:
+            child.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(child.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            child.wait()
+
+
+def compile_core(fixtures):
+    source = sorted((PACKAGE / "Sources/SummonCore").glob("*.swift"))
+    if not source:
+        raise ValueError("Core source is unavailable")
+    binary = fixtures / "core-audit"
+    compile_args = ["swiftc", "-O", "-swift-version", "6", "-parse-as-library", *(str(s) for s in source),
+                    str(PACKAGE / "scripts/runtime-audit-core.swift"), "-o", str(binary)]
+    command(compile_args, timeout=300)
+    return binary
+
+
+def core(run, iterations, fixtures):
+    binary = compile_core(fixtures)
+    started = time.monotonic()
+    command([str(binary), str(fixtures / "home"), str(run), str(iterations)], timeout=max(120, iterations * 15))
+    metrics = json.loads((run / "core-metrics.json").read_text())
+    scenarios = json.loads((run / "core-scenarios.json").read_text())
+    write(run / "metrics.json", {"core": metrics, "duration_ms": round((time.monotonic()-started)*1000, 3)})
+    write(run / "scenarios.json", {"core": scenarios})
+    return all(s["status"] == "passed" for s in scenarios)
+
+
+def heap_snapshot(pid, binary):
+    # Sample only the newly launched candidate, outside interaction timing. RSS is not live heap.
+    try:
+        identity = command(["/bin/ps", "-p", str(pid), "-o", "uid=,comm="], timeout=5).split(maxsplit=1)
+        if identity != [str(os.geteuid()), str(binary)]:
+            return {"status":"blocked", "reason":"Owned app identity changed before heap sampling"}
+        output = command(["/usr/bin/heap", "--noContent", "-q", str(pid)], timeout=30)
+        totals = re.findall(r"^All zones: (\d+) nodes \((\d+) bytes\)$", output, re.MULTILINE)
+        if len(totals) != 1:
+            return {"status":"blocked", "reason":"Native heap output has no unambiguous all-zones total"}
+        nodes, size = map(int, totals[0])
+        return {"status":"passed", "malloc_nodes":nodes, "malloc_bytes":size}
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        return {"status":"blocked", "reason":"Native live-heap inspection unavailable", "error_type":type(exc).__name__}
+
+
+def heap_bounds(samples):
+    measured = [sample for sample in samples if sample.get("status") == "passed"]
+    if len(measured) != len(samples) or len(measured) < 3:
+        return {"status":"blocked", "reason":"Complete post-warmup live-heap samples required"}
+    sizes = [sample["malloc_bytes"] for sample in measured]
+    growth = max(sizes) - sizes[0]
+    monotonic = all(right > left for left, right in zip(sizes, sizes[1:]))
+    outside_budget = growth > 10 * 1024 * 1024 or growth > sizes[0] * .05
+    return {"status":"failed" if monotonic or outside_budget else "passed",
+            "reason":"Live heap needs retention investigation" if monotonic or outside_budget else
+                     "Sampled live malloc heap stayed within provisional growth bounds",
+            "baseline_bytes":sizes[0], "final_bytes":sizes[-1], "peak_growth_bytes":growth,
+            "strictly_increasing":monotonic, "sample_count":len(sizes),
+            "measurement_boundary":"Live malloc allocations after closed-panel cycles; not VM/GPU memory or a retain-graph leak diagnosis"}
+
+
+def visible_windows(helper, pid):
+    output = command([str(helper), str(pid)], timeout=5)
+    windows = []
+    for line in output.splitlines():
+        fields = line.split()
+        if len(fields) == 6 and all(item.lstrip("-").isdigit() for item in fields):
+            windows.append(tuple(map(int, fields)))
+    return windows
+
+
+def wait_window(helper, pid, condition, timeout=10):
+    until = time.monotonic() + timeout
+    while time.monotonic() < until:
+        matched = condition(visible_windows(helper, pid))
+        if matched:
+            return matched
+        time.sleep(0.1)  # polling interval, not readiness evidence
+    return None
+
+
+def owned_window_action(helper, pid, window_id, action):
+    # The helper joins public CG/AX window identities only when unique, verifies keyboard focus,
+    # and posts Command-W to this PID. Do not substitute a close-button click when keyboard handling fails.
+    try:
+        result = subprocess.run([str(helper), action, str(pid), str(window_id)],
+                                text=True, capture_output=True, timeout=15)
+    except subprocess.TimeoutExpired:
+        return {"status":"failed", "stage":"helper deadline", "operation":action,
+                "reason":"Owned-window action exceeded its 15-second deadline", "window_id":window_id}
+    try:
+        evidence = json.loads(result.stdout)
+        expected = {"passed":0, "failed":1, "blocked":2}.get(evidence.get("status"))
+        if expected != result.returncode or evidence.get("pid") != pid or evidence.get("window_id") != window_id:
+            raise ValueError("invalid owned-window result")
+        return evidence
+    except (ValueError, AttributeError):
+        return {"status":"failed", "stage":"helper result", "operation":action,
+                "reason":"Owned-window helper did not return valid structured evidence",
+                "exit_status":result.returncode, "window_id":window_id}
+
+
+def stop_owned_app(pid, binary):
+    # LaunchServices owns its process group. Recheck executable immediately before signaling this PID.
+    def matches():
+        found = subprocess.run(["/bin/ps", "-o", "command=", "-p", str(pid)],
+                               text=True, capture_output=True)
+        return found.returncode == 0 and found.stdout.strip().split(" ")[0] == str(binary)
+    if not matches():
+        return
+    os.kill(pid, signal.SIGTERM)
+    until = time.monotonic() + 3
+    while matches() and time.monotonic() < until:
+        time.sleep(.1)
+    if matches():
+        os.kill(pid, signal.SIGKILL)
+
+
+def trace_window_cycle(pid, helper):
+    result = subprocess.run([str(helper), "click-status", str(pid)], text=True, capture_output=True, timeout=15)
+    try:
+        mouse = json.loads(result.stdout)
+        expected = {"passed":0, "failed":1, "blocked":2}.get(mouse.get("status"))
+        if (expected != result.returncode or mouse.get("pid") != pid
+                or mouse.get("operation") != "status-item mouse input"
+                or (mouse.get("status") == "passed" and mouse.get("mouse_sent") is not True)):
+            raise ValueError("Invalid owned status-item result")
+    except (ValueError, AttributeError):
+        return {"status":"failed", "stage":"status-item input", "reason":"Helper returned invalid status-item evidence",
+                "exit_status":result.returncode}
+    if mouse["status"] != "passed":
+        return {"status":mouse["status"], "stage":"status-item input", "reason":mouse.get("reason", "Status-item input unavailable"),
+                "mouse":mouse}
+    panel = wait_window(helper, pid, lambda windows: [w for w in windows if 270 <= w[4] <= 400 and w[5] > 180])
+    if not panel:
+        return {"status":"failed", "stage":"panel open", "reason":"Owned panel did not appear during recording", "mouse":mouse}
+    search = owned_window_action(helper, pid, panel[0][0], "search")
+    if search["status"] != "passed":
+        return {"status":search["status"], "stage":"panel search", "reason":search["reason"],
+                "mouse":mouse, "search":search}
+    close = owned_window_action(helper, pid, panel[0][0], "escape")
+    return {"status":close["status"], "stage":"panel close", "window_id":panel[0][0],
+            "reason":"Owned panel opened, received search keystrokes and disappeared" if close["status"] == "passed" else close["reason"],
+            "open_source":"status-item mouse input", "mouse":mouse, "search":search, "close":close}
+
+
+@contextlib.contextmanager
+def recording_notification():
+    # Register before launching xctrace. Its documented notification is independent of stdout buffering.
+    library = ctypes.CDLL("/usr/lib/libSystem.B.dylib")
+    library.notify_register_file_descriptor.argtypes = [ctypes.c_char_p, ctypes.POINTER(ctypes.c_int),
+                                                       ctypes.c_int, ctypes.POINTER(ctypes.c_int)]
+    library.notify_register_file_descriptor.restype = ctypes.c_uint32
+    library.notify_cancel.argtypes = [ctypes.c_int]
+    library.notify_cancel.restype = ctypes.c_uint32
+    name = "local.macplugins.summon.runtime-audit." + uuid.uuid4().hex
+    descriptor, token = ctypes.c_int(-1), ctypes.c_int()
+    status = library.notify_register_file_descriptor(name.encode(), ctypes.byref(descriptor), 0, ctypes.byref(token))
+    if status:
+        raise OSError(status, "Recording-notification registration failed")
+    try:
+        yield name, descriptor.value
+    finally:
+        # notify_cancel owns and closes this descriptor; do not close it a second time.
+        status = library.notify_cancel(token.value)
+        if status:
+            raise OSError(status, "Recording-notification cancellation failed")
+
+
+def wait_recording_notification(child, descriptor, timeout=15):
+    until = time.monotonic() + timeout
+    while child.poll() is None:
+        remaining = until - time.monotonic()
+        if remaining <= 0:
+            return False
+        if select.select([descriptor], [], [], min(.1, remaining))[0]:
+            return len(os.read(descriptor, 4)) == 4
+    return False
+
+
+def save_tool_diagnostics(path, text):
+    # Owned-tool diagnostics only, never target stdout. JSON still contains fixed labels/counts only.
+    text = re.sub(r"/(?:Users|home|private|var|tmp)/[^\r\n]*", "<private path redacted>", text)
+    path.write_text(text[:16384])
+
+
+def recording_output(output, diagnostics_path=None):
+    # JSON retains fixed labels/counts; disposable-runner sidecars retain bounded, path-redacted tool diagnostics.
+    descriptor = output.fileno()
+    size = os.fstat(descriptor).st_size
+    # pread leaves the child's shared file offset alone while it may still be writing.
+    text = os.pread(descriptor, 8192, 0)
+    if size > 8192:
+        text += os.pread(descriptor, 8192, max(8192, size - 8192))
+    text = text.decode(errors="replace")
+    if diagnostics_path is not None:
+        save_tool_diagnostics(diagnostics_path, text)
+    text = text.lower()
+    markers = {"starting":"starting recording with", "stdout_ready":"ctrl-c to stop the recording",
+               "completed":"recording completed", "saved":"output file saved",
+               "time_limit":"reached specified time limit", "error":"error", "warning":"warning",
+               "missing_swiftui_data":"trace file had no swiftui data"}
+    return {"output_bytes":size, "output_truncated":size > 16384,
+            "output_markers":[name for name, phrase in markers.items() if phrase in text],
+            "permission_error":any(phrase in text for phrase in
+                                   ("not authorized", "not permitted", "permission denied", "authorization required"))}
+
+
+# The SwiftUI template also bundles Hitches/GPU/Display instruments; the SwiftUI instrument alone records the
+# same tables. Displayed-frame timing is the separate opt-in Animation Hitches recording on a real display (--frames).
+RECORDING_SOURCE = {"SwiftUI": ["--instrument", "SwiftUI"]}
+# Save time grows with trace size: after 100 cycles a SwiftUI trace (532 MB) had not saved in 600 s and a Hitches
+# trace (1.4 GB) took 596 s, on Xcode 27.1 with a real GPU. These record a short sample; the 100-cycle stress run
+# stays on Logging, Time Profiler and Allocations.
+SAMPLE_CYCLES = {"SwiftUI": 10, "Animation Hitches": 10}
+
+
+def record_instrument(template, pid, helper, target, children, iterations):
+    outcome = {"status":"blocked", "recording_ready":False, "interactive_cycle":False,
+               "requested_cycles":iterations, "completed_cycles":0,
+               "readiness_source":"xctrace Darwin notification", "stop_requested_after_cycle":False,
+               "evidence":"Recording and owned-window interaction only; no frame-time or retained-heap bounds"}
+    phase = "notification registration"
+    try:
+        with recording_notification() as (name, descriptor), tempfile.TemporaryFile() as output:
+            phase = "recorder launch"
+            # Record the requested workload rather than only one subsecond interaction.
+            child = subprocess.Popen(["xcrun", "xctrace", "record", *RECORDING_SOURCE.get(template, ["--template", template]),
+                                      "--attach", str(pid), "--no-prompt", "--notify-tracing-started", name,
+                                      "--output", str(target)], start_new_session=True,
+                                     stdout=output, stderr=subprocess.STDOUT)
+            children.append(child)
+            started = time.monotonic()
+            try:
+                phase = "recording readiness"
+                outcome["recording_ready"] = wait_recording_notification(child, descriptor)
+                outcome["readiness_wait_ms"] = round((time.monotonic() - started) * 1000, 3)
+                if outcome["recording_ready"] and child.poll() is None:
+                    phase = "window cycle"
+                    cycle_start = time.monotonic()
+                    for _ in range(iterations):
+                        outcome["cycle"] = trace_window_cycle(pid, helper)
+                        active = child.poll() is None and "completed" not in recording_output(output)["output_markers"]
+                        outcome["recorder_active_after_cycle"] = active
+                        passed = outcome["cycle"]["status"] == "passed" and active
+                        if outcome["cycle"]["status"] == "failed":
+                            outcome["status"] = "failed"
+                        outcome["reason"] = "Owned panel workload completed before recorder stop" if passed else (
+                            "Recording ended before the owned panel cycle completed" if not active else outcome["cycle"]["reason"])
+                        if not passed:
+                            break
+                        outcome["completed_cycles"] += 1
+                    outcome["workload_ms"] = round((time.monotonic() - cycle_start) * 1000, 3)
+                    outcome["interactive_cycle"] = outcome["completed_cycles"] == iterations
+                else:
+                    outcome["reason"] = "Recording-start notification not observed while recorder was running"
+            finally:
+                phase = "recorder finalization"
+                try:
+                    if child.poll() is None:
+                        child.send_signal(signal.SIGINT)
+                        outcome["stop_requested_after_cycle"] = outcome["interactive_cycle"]
+                    child.wait(timeout=45)
+                except subprocess.TimeoutExpired:
+                    outcome.update(status="failed", reason="Recorder did not stop/save within its deadline", stop_timed_out=True)
+                    try:
+                        sample = subprocess.run(["/usr/bin/sample", str(child.pid), "1", "10"],
+                                                text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=5)
+                        save_tool_diagnostics(target.with_suffix(".recorder-sample.log"), sample.stdout)
+                        outcome["recorder_sample_exit_status"] = sample.returncode
+                    except (OSError, subprocess.SubprocessError) as exc:
+                        outcome["recorder_sample_error"] = type(exc).__name__
+                    # The recorder owns a new session; terminate its helpers too, never unrelated processes.
+                    try:
+                        os.killpg(child.pid, signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
+                    try:
+                        child.wait(timeout=3)
+                    except subprocess.TimeoutExpired:
+                        try:
+                            os.killpg(child.pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+                        child.wait(timeout=3)
+                finally:
+                    outcome["exit_status"] = child.poll()
+                    outcome["output"] = recording_output(output, target.with_suffix(".recorder.log"))
+            if outcome["exit_status"] != 0:
+                outcome["recorder_status"] = "blocked" if outcome["output"]["permission_error"] else "failed"
+                if outcome["status"] != "failed":
+                    outcome.update(status=outcome["recorder_status"],
+                                   reason="Recorder exited unsuccessfully; see sanitized exit/output diagnostics")
+            elif template == "SwiftUI" and "missing_swiftui_data" in outcome["output"]["output_markers"]:
+                outcome.update(status="failed", reason="Recorder reported no SwiftUI data")
+            elif outcome["interactive_cycle"] and target.is_dir() and outcome["status"] != "failed":
+                outcome["status"] = "passed"
+            elif not target.is_dir():
+                outcome.update(status="failed", reason="Recorder did not save a trace directory")
+            phase = "notification cancellation"
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        outcome.update(status="blocked" if phase == "notification registration" or isinstance(exc, (ValueError, FileNotFoundError)) else "failed",
+                       reason="Recording prerequisite unavailable" if phase == "notification registration" else "Recording operation failed",
+                       error_type=type(exc).__name__, stage=phase)
+        if isinstance(exc, OSError) and exc.errno is not None:
+            outcome["error_code"] = exc.errno
+        if isinstance(exc, subprocess.CalledProcessError):
+            outcome.update(executable=pathlib.Path(exc.cmd[0]).name, command_exit_status=exc.returncode)
+        if isinstance(exc, subprocess.TimeoutExpired):
+            outcome["timeout_seconds"] = exc.timeout
+    outcome["trace_present"] = target.is_dir()
+    return outcome
+
+
+def displayed_frames(trace, pid, outcome):
+    # Budget is Apple's hitch-time ratio: under 5 ms of hitches per second of workload is "good".
+    if outcome["status"] != "passed":
+        return {"status":outcome["status"], "reason":"Animation Hitches recording did not pass"}
+    result = trace / "displayed-frames.json"
+    try:
+        parsed = subprocess.run([sys.executable, str(PACKAGE / "scripts/runtime-trace.py"), "--hitches-pid", str(pid),
+                                 "--workload-ms", str(outcome["workload_ms"]), str(trace / "animation-hitches.trace"),
+                                 str(result)], capture_output=True, timeout=150)
+        summary = json.loads(result.read_text())
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        return {"status":"blocked", "reason":"Hitch export failed", "error_type":type(exc).__name__}
+    summary["export_exit_status"] = parsed.returncode
+    return summary
+
+
+def instrument(pid, helper, trace, children, iterations, frames=False):
+    outcomes = {}
+    for template in ("Logging", "SwiftUI", "Time Profiler", "Allocations") + (("Animation Hitches",) if frames else ()):
+        target = trace / (template.lower().replace(" ", "-") + ".trace")
+        cycles = min(iterations, SAMPLE_CYCLES.get(template, iterations))
+        outcomes[template] = record_instrument(template, pid, helper, target, children, cycles)
+    if frames:
+        outcomes["displayed frames"] = displayed_frames(trace, pid, outcomes["Animation Hitches"])
+    signposts = trace / "panel-signposts.json"
+    logging_trace = trace / "logging.trace"
+    try:
+        parsed = subprocess.run([sys.executable, str(PACKAGE / "scripts/runtime-trace.py"),
+                                 str(logging_trace), str(signposts)], capture_output=True, timeout=150)
+        outcome = json.loads(signposts.read_text()) if signposts.exists() else {}
+        covered = all(len(outcome.get(name, [])) == iterations for name in ("PanelOpen", "PanelWindowUpdate"))
+        outcomes["panel signposts"] = {"status":"passed" if parsed.returncode == 0 and outcome.get("status") == "passed" and covered else "blocked",
+                                       "requested_samples":iterations,
+                                       "export_exit_status":parsed.returncode,
+                                       "first_window_update_samples":len(outcome.get("PanelWindowUpdate", [])),
+                                       "ordered_front_samples":len(outcome.get("PanelOpen", [])),
+                                       "diagnostics":outcome.get("diagnostics", {}),
+                                       "reason":outcome.get("reason", "See exact signpost sample counts and prerequisites") if covered else
+                                                "Requested per-cycle signpost coverage is incomplete"}
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        outcome = {"status":"blocked", "reason":"Panel signpost export failed", "error_type":type(exc).__name__}
+        if isinstance(exc, subprocess.TimeoutExpired):
+            outcome["timeout_seconds"] = exc.timeout
+        write(signposts, outcome)
+        outcomes["panel signposts"] = outcome
+    return outcomes, outcome
+
+
+def ui(run, app, iterations, fixtures, children, owned_apps, frames=False):
+    if not ((os.environ.get("GITHUB_ACTIONS") == "true" and
+             os.environ.get("RUNNER_ENVIRONMENT") == "github-hosted") or
+            os.environ.get("VQA_ALLOW_LOCAL") == "1"):
+        raise ValueError("UI requires a disposable VM/test account; personal desktop refused")
+    if subprocess.run(["/usr/bin/pgrep", "-u", str(os.geteuid()), "-x", "SummonMenu"],
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
+        raise ValueError("SummonMenu is already running in this account; refusing to control an existing session")
+    binary = app / "Contents/MacOS/SummonMenu"
+    cli = app / "Contents/MacOS/summon"
+    if not binary.is_file() or not cli.is_file() or not (app / "Contents/Resources/BuildInfo.json").is_file():
+        raise ValueError("supplied app must be a packaged Summon.app with metadata")
+    helper = fixtures / "windows"
+    command(["swiftc", "-O", str(PACKAGE / "scripts/visual-qa/windows.swift"), "-o", str(helper)], timeout=90)
+    ocr = fixtures / "window-text"
+    command(["swiftc", "-O", str(PACKAGE / "scripts/visual-qa/window-text.swift"), "-o", str(ocr)], timeout=90)
+    dismiss = fixtures / "crash-alert"
+    command(["swiftc", "-O", str(PACKAGE / "scripts/visual-qa/crash-alert.swift"), "-o", str(dismiss)], timeout=90)
+    core_binary = compile_core(fixtures)
+    trace = run / "traces"
+    trace.mkdir()
+    def screenshot(window, name):
+        image = trace / (name + ".png")
+        command(["/usr/sbin/screencapture", "-x", "-l", str(window[0]), str(image)], timeout=10)
+        if not image.is_file() or image.stat().st_size == 0:
+            raise ValueError("Screen Recording permission did not yield an app-window capture")
+        return command([str(ocr), str(image)], timeout=30)
+    # The real watcher only installs a folder watch for directories that exist at launch.
+    (pathlib.Path.home() / "Library/Logs/DiagnosticReports").mkdir(parents=True, exist_ok=True)
+    # Open the exact supplied bundle; find only its new executable, never identify by an unrelated PID.
+    launch = owned_process(["/usr/bin/open", "-n", "-a", str(app),
+                            "--env", "HOME=" + str(pathlib.Path.home()),
+                            "--env", "CFFIXED_USER_HOME=" + str(pathlib.Path.home()), "--args",
+                            "-VisualQA", "YES", "-crashCaptureEnabled", "YES",
+                            "-summon.notifications.crashStyle", "summon", "--show-about"])
+    children.append(launch)
+    launch.wait(timeout=10)
+    if launch.returncode != 0:
+        raise RuntimeError("app launch failed")
+    pid = None
+    until = time.monotonic()+15
+    while time.monotonic() < until:
+        processes = command(["/bin/ps", "-axo", "pid=,command="], timeout=5)
+        for entry in processes.splitlines():
+            pieces = entry.strip().split(maxsplit=1)
+            if len(pieces) == 2 and pieces[1].split()[0] == str(binary):
+                pid = int(pieces[0]); break
+        if pid is not None:
+            break
+        time.sleep(.1)
+    if pid is None:
+        raise RuntimeError("supplied app process did not appear")
+    # Register only a PID belonging to the exact app path newly launched above.
+    owned_apps.append((pid, binary))
+    samples = []
+    resources = []
+    scenarios = []
+    def close_window(window, name):
+        evidence = owned_window_action(helper, pid, window[0], "close")
+        scenarios.append({"name":name, **evidence})
+        write(run / "scenarios.json", {"ui":scenarios})
+        return evidence["status"]
+    try:
+        about = wait_window(helper, pid, lambda windows: [w for w in windows if w[4] > 220 and w[5] > 150])
+        if not about:
+            scenarios.append({"name":"native About ready", "status":"failed"})
+            scenarios[-1]["window_diagnostics"] = json.loads(command([str(helper), "diagnose", str(pid)], timeout=10))
+            write(run / "scenarios.json", {"ui":scenarios}); return False
+        manifest = json.loads((app / "Contents/Resources/BuildInfo.json").read_text())
+        about_text = screenshot(about[0], "about")
+        ready = all(value in about_text for value in (manifest["marketingVersion"], manifest["buildNumber"]))
+        scenarios.append({"name":"packaged About metadata visible", "status":"passed" if ready else "failed",
+                          "captured_bytes":(trace / "about.png").stat().st_size})
+        if not ready:
+            write(run / "scenarios.json", {"ui":scenarios}); return False
+        closed = close_window(about[0], "native About close")
+        if closed != "passed":
+            return None if closed == "blocked" else False
+        # Exercise the real 5-file crash batches and alert consumer, not the test-crash URL shortcut.
+        # Keep the check in-process so fixture cleanup runs before the driver's owned-app teardown.
+        import runpy
+        crash_burst = runpy.run_path(str(PACKAGE / "scripts/visual-qa/crash-burst.py"))["check"]
+        burst = crash_burst(pid=pid, app=app, run=run, windows=helper, ocr=ocr, dismiss=dismiss)
+        scenarios.append({"name":"full-app crash burst and recovery", **burst})
+        write(run / "scenarios.json", {"ui":scenarios})
+        if burst["status"] != "passed":
+            return None if burst["status"] == "blocked" else False
+        # A harmless shell child exits, Core writes its actual terminal JSONL record, and the real UI reads it.
+        command([str(core_binary), "fixture-terminal", str(pathlib.Path.home())], timeout=30)
+        command(["/usr/bin/open", "-a", str(app), "summon://activity"], timeout=5)
+        activity = wait_window(helper, pid, lambda windows: [w for w in windows if w[4] >= 800 and w[5] > 200])
+        observed = False
+        if activity:
+            until = time.monotonic() + 10
+            while time.monotonic() < until:
+                observed = "Audit completion fixture" in screenshot(activity[0], "completion")
+                if observed: break
+                time.sleep(.2)
+        scenarios.append({"name":"terminal persistence and activity delivery",
+                          "status":"passed" if observed else "failed"})
+        if not observed:
+            write(run / "scenarios.json", {"ui":scenarios}); return False
+        closed = close_window(activity[0], "Activity keyboard close")
+        if closed != "passed":
+            return None if closed == "blocked" else False
+        # Warm the real input/search path before comparing closed-panel live heap snapshots.
+        for index in range(10):
+            warm = trace_window_cycle(pid, helper)
+            if warm["status"] != "passed":
+                scenarios.append({"name":"panel heap warmup", "iteration":index, **warm})
+                return None if warm["status"] == "blocked" else False
+        heaps = [{"cycle":0, **heap_snapshot(pid, binary)}]
+        for index in range(iterations):
+            start = time.monotonic()
+            command(["/usr/bin/open", "-a", str(app), "summon://menu/"], timeout=5)
+            panel = wait_window(helper, pid, lambda windows: [w for w in windows if 270 <= w[4] <= 400 and w[5] > 180])
+            if not panel:
+                scenarios.append({"name":"panel open/search/close", "iteration":index,"status":"failed"}); break
+            if index == 0:
+                first_text = screenshot(panel[0], "panel-first-captured-frame")
+                scenarios.append({"name":"first captured panel frame", "status":"passed" if first_text else "failed",
+                                  "evidence":"screenshot + OCR; capture latency is not first-frame time"})
+                if not first_text:
+                    return False
+            search = owned_window_action(helper, pid, panel[0][0], "search")
+            if search["status"] != "passed":
+                scenarios.append({"name":"panel search", "iteration":index, **search})
+                return None if search["status"] == "blocked" else False
+            close = owned_window_action(helper, pid, panel[0][0], "escape")
+            if close["status"] != "passed":
+                scenarios.append({"name":"panel close/reopen", "iteration":index, **close})
+                return None if close["status"] == "blocked" else False
+            samples.append((time.monotonic()-start)*1000)
+            if index % 10 == 0 or index == iterations - 1:
+                rss = int(command(["/bin/ps", "-o", "rss=", "-p", str(pid)], timeout=5))
+                threads = len(command(["/bin/ps", "-M", "-p", str(pid)], timeout=5).splitlines()) - 1
+                descriptors = sum(line.startswith("f") for line in command(
+                    ["/usr/sbin/lsof", "-nP", "-p", str(pid), "-Ff"], timeout=10).splitlines())
+                resources.append({"cycle":index,"rss_kib":rss,"threads":threads,"fd_records":descriptors})
+                heaps.append({"cycle":index + 1, **heap_snapshot(pid, binary)})
+        else:
+            scenarios.append({"name":"panel open/search/close", "status":"passed", "iterations":iterations,
+                              "verified_searches":len(samples)})
+        heap_result = heap_bounds(heaps)
+        scenarios.append({"name":"post-warmup live malloc heap bound", **heap_result})
+        samples.sort()
+        traces, signposts = instrument(pid, helper, trace, children, iterations, frames)
+        scenarios.extend({"name":"Instruments " + template, **result} for template, result in traces.items())
+        def percentiles(values):
+            return {"median_ms":values[len(values)//2],
+                    "p95_ms":values[max(0, int(len(values)*.95+.999)-1)], "count":len(values)} if values else None
+        write(run / "metrics.json", {"ui": {"cycle_median_ms": samples[len(samples)//2] if samples else None,
+                                                "cycle_p95_ms": samples[max(0, int(len(samples)*.95+.999)-1)] if samples else None,
+                                                "cycles":len(samples), "resources":resources,
+                                                "ordered_front":percentiles(signposts.get("PanelOpen", [])),
+                                                "first_window_update":percentiles(signposts.get("PanelWindowUpdate", [])),
+                                                "measurement_boundary":"AppKit first window update pass before display, not a drawn or composited frame",
+                                                "displayed_frames":traces.get("displayed frames", "Not requested; run with --frames on a real display"),
+                                                "live_heap":{"warmup_cycles":10, "samples":heaps, **heap_result},
+                                                "retained_heap":"Live malloc growth is measured separately; retain-graph and VM/GPU analysis remain distinct"}})
+        write(run / "scenarios.json", {"ui":scenarios})
+        if any(s["status"] == "failed" for s in scenarios):
+            return False
+        if any(s["status"] == "blocked" for s in scenarios):
+            return None
+        return all(s["status"] == "passed" for s in scenarios)
+    finally:
+        write(run / "scenarios.json", {"ui":scenarios})
+        stop_owned_app(pid, binary)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--mode", choices=("core", "ui"), required=True)
+    parser.add_argument("--iterations", type=int, default=100)
+    parser.add_argument("--app", type=pathlib.Path)
+    parser.add_argument("--out", type=pathlib.Path, required=True)
+    parser.add_argument("--frames", action="store_true", help="also record Animation Hitches (needs a real display)")
+    args = parser.parse_args()
+    if args.iterations < 1 or args.iterations > 10_000 or (args.mode == "ui" and not args.app):
+        parser.error("iterations must be 1..10000; UI mode requires --app")
+    run = args.out / ("audit-" + uuid.uuid4().hex)
+    run.mkdir(parents=True, exist_ok=False)
+    (run / ".summon-runtime-audit-owner").write_text(run.name)
+    write(run / "environment.json", environment())
+    children = []
+    owned_apps = []
+    try:
+        with tempfile.TemporaryDirectory(prefix="summon-audit-fixture-") as temporary:
+            fixtures = pathlib.Path(temporary)
+            passed = core(run, args.iterations, fixtures) if args.mode == "core" else ui(
+                run, args.app.resolve(), args.iterations, fixtures, children, owned_apps, args.frames)
+        print(run)
+        return 2 if passed is None else 0 if passed else 1
+    except (ValueError, FileNotFoundError) as exc:
+        reason = "required executable or fixture missing" if isinstance(exc, FileNotFoundError) else str(exc)
+        previous = json.loads((run / "scenarios.json").read_text()) if (run / "scenarios.json").exists() else {}
+        write(run / "scenarios.json", {**previous, "prerequisite":{"status":"blocked","reason":reason}})
+        print("runtime-audit: prerequisite blocked (see scenarios.json)", file=sys.stderr)
+        print(run)
+        return 2
+    except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
+        evidence = {"status":"failed", "error_type":type(exc).__name__}
+        if isinstance(exc, subprocess.CalledProcessError):
+            evidence.update(executable=pathlib.Path(exc.cmd[0]).name, exit_status=exc.returncode)
+            save_tool_diagnostics(run / "driver.log", exc.stderr or "")
+        previous = json.loads((run / "scenarios.json").read_text()) if (run / "scenarios.json").exists() else {}
+        write(run / "scenarios.json", {**previous, "driver":evidence})
+        print("runtime-audit: audit failed (see scenarios.json)", file=sys.stderr)
+        print(run)
+        return 1
+    finally:
+        for pid, binary in owned_apps:
+            stop_owned_app(pid, binary)
+        reap(children)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

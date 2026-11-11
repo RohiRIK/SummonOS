@@ -79,6 +79,12 @@ struct CrashTests {
         #expect(recent.map(\.appName) == ["Example"])
     }
 
+    @Test func zeroReportLimitReturnsEmpty() throws {
+        let paths = SummonPaths(home: try makeTempHome())
+        try writeFile(sampleCrashIPS, to: paths.diagnosticReportDirs[0].appendingPathComponent("Existing.ips"))
+        #expect(CrashWatcher(paths: paths).reports(since: nil, limit: 0).isEmpty)
+    }
+
     @Test func diagnosePromptCarriesTheFactsAndTheSkill() throws {
         let report = try CrashReport.parse(sampleCrashIPS, file: "/tmp/Example.ips")
         let prompt = DiagnosePrompt.make(for: report, skillPath: "/skills/diagnose-crash-mac/SKILL.md")

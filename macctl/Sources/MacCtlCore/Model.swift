@@ -122,6 +122,8 @@ public enum SideEffect: Sendable, Hashable {
     case logout
     /// Read by apps at launch (for example menu and scroll bar styles): quit and reopen apps to see it.
     case relaunchApps
+    /// Ask running AppKit clients to reread the system colors after apply, undo, or recovery.
+    case refreshAppearance
 }
 
 /// How `defaults` stores the value (`-bool`, `-int`, `-float`, `-string`).

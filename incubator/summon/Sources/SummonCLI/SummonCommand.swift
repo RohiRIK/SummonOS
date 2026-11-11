@@ -153,13 +153,21 @@ struct SummonCommand {
                 if !plan.trash.isEmpty { print("Run summon clean --apply to move these to the Trash.") }
                 return
             }
-            let count = SummonCleaner.apply(plan, paths: context.paths)
+            let applied = SummonCleaner.apply(plan, paths: context.paths)
+            let count = applied.moved.count
             if count > 0 {
                 ActivityCommands.record(LoggedEvent(kind: EventKind.summonClean,
                     title: "Cleaned \(count) item\(count == 1 ? "" : "s") from ~/Summon (in the Trash)",
-                    detail: plan.trash.prefix(5).map { ($0.path as NSString).lastPathComponent }.joined(separator: ", ")), context)
+                    detail: applied.moved.prefix(5).map { ($0.path as NSString).lastPathComponent }.joined(separator: ", ")), context)
             }
-            if !quiet { print("Moved \(count) item\(count == 1 ? "" : "s") to the Trash.") }
+            if !quiet {
+                for item in applied.skipped { print("left \(item.path)  (\(item.reason))") }
+                print("Moved \(count) item\(count == 1 ? "" : "s") to the Trash.")
+            }
+            if !applied.failures.isEmpty {
+                throw CLIError("Could not clean \(applied.failures.count) item\(applied.failures.count == 1 ? "" : "s"); the next run tries again:\n"
+                               + applied.failures.map { "  \($0.path): \($0.message)" }.joined(separator: "\n"))
+            }
         case "home":
             let quiet = args.flag("--quiet")
             let moved = try SummonHome.migrate(context.paths)

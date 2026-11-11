@@ -37,17 +37,18 @@ public struct ActivityView: View {
             } message: { undo in
                 Text(undo.message)
             }
+            .summonTheme(model.summon)
             .onAppear {
                 if let id = model.selection { selected = [id] }
                 guard model.live else { return }
                 // An accessory app's window gets no Dock icon or ⌘Tab; become a regular app while it is open.
                 NSApp.setActivationPolicy(.regular)
                 NSApp.activate()
-                model.startAutoRefresh()
+                model.startInterest(.window)
             }
             .onDisappear {
                 guard model.live else { return }
-                model.stopAutoRefresh()
+                model.stopInterest(.window)
                 NSApp.setActivationPolicy(.accessory)
             }
             .onChange(of: model.selection) { _, newValue in

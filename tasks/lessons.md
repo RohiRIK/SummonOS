@@ -28,3 +28,14 @@ Rules learned from corrections. One line each, newest last.
   `;`. When CI cannot run, stop and tell the owner; do not substitute the local gate silently.
 - 2026-10-19 update from the owner: GitHub Actions will not be paid for. The gate is `tools/local-ci.sh <pr>`, which
   posts a `local / swift (macOS)` status on the commit; merge with `tools/local-ci.sh <pr> && gh pr merge <pr> …`.
+
+## 2026-11-10 — Health totals must match real repair work
+- A total that agrees across views can still be wrong: trace each counted item and the action behind the total.
+  My Apps counted theme recommendations and looked for kebab-case bundles while templates build PascalCase apps;
+  its Fix action also ran unrelated Mac diagnostics. Share the inventory summary and exact prompt scope.
+- Keep numerical readability findings and palette advice visible without treating optional artwork as broken code.
+  Do not rewrite established preset palettes merely to satisfy a hue heuristic.
+
+## 2026-11-10 — Upgrade and verify the installed app
+- Upgrade Summon in place on the owner's device and test that installed copy. Do not launch temporary app copies,
+  use different accounts, or open Terminal windows for verification. Keep the work focused on the installed app.

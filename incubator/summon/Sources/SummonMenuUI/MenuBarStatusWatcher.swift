@@ -1,57 +1,93 @@
 import Foundation
 import SummonCore
 
-/// Keeps the status item's label live while the panel is closed: Summon's icon alone, or the icon plus the running
-/// agent's elapsed `mm:ss`. A `FileWatch` on the event log and observation of the model wake it, so it sleeps while
-/// nothing happens; the clock ticks once a second only while it shows a session. A slow fallback round catches a
-/// log that did not exist yet or was replaced.
-/// The same read hands events newer than the app's launch to `onNewEvents` (task results become notifications).
+/// Keeps the status label live from file/directory changes. Clock ticks only while a session is displayed;
+/// an independent slow reconciliation recovers missed vnode notifications without scanning at clock frequency.
+/// Appended records are consumed by byte position, not by their writer-assigned timestamps.
 @MainActor
 final class MenuBarStatusWatcher {
     private let model: SummonModel
     private let apply: (_ title: String?, _ accessibilityLabel: String, _ attention: Bool) -> Void
     private var task: Task<Void, Never>?
     private var logWatch: FileWatch?
+    private var directoryWatch: FileWatch?
+    private var watchedDirectory: URL?
     private let bell = Doorbell()
-    private var logDate: Date?
+    private var cursor: EventLogCursor
+    private var delivered = EventDeliveryLedger()
+    private var hasBaseline = false
+    private var sessionEvents: [LoggedEvent] = []
+    private var dirty = true
+    private var nextReconcile = Date()
+    private var generation = 0
     private var session: LoggedEvent?
-    /// Events up to this time were seen; starts at launch (whole seconds, as the log stores them), so older events
-    /// are never announced. `seenAtBoundary` holds the events of that last second already handed on.
-    private var seenUntil = Date(timeIntervalSince1970: Date().timeIntervalSince1970.rounded(.down))
-    private var seenAtBoundary: [LoggedEvent] = []
     var onNewEvents: (([LoggedEvent]) -> Void)?
+    var onLogChanged: (() -> Void)?
+    var onBaselineReady: (() -> Void)?
 
     init(model: SummonModel, apply: @escaping (_ title: String?, _ accessibilityLabel: String, _ attention: Bool) -> Void) {
         self.model = model
         self.apply = apply
+        self.cursor = EventLogCursor(file: model.paths.eventLogFile)
     }
 
     func start() {
         guard task == nil else { return }
+        generation += 1
+        dirty = true
         observeModel()
         task = Task { [weak self] in
             while !Task.isCancelled {
-                guard let self else { return }
-                if self.logWatch?.isGone ?? true { self.watchLog() }
-                await self.reloadIfChanged()
-                self.redraw()
-                let ticking = self.session != nil && self.model.menuBarShowsAgentTime
-                await self.bell.wait(for: ticking ? .seconds(1) : .seconds(60),
-                                     tolerance: ticking ? .milliseconds(100) : .seconds(15))
+                guard let next = await self?.tick() else { return }
+                guard !Task.isCancelled else { return }
+                await next.0.wait(for: next.1 ? .seconds(1) : .seconds(60),
+                                  tolerance: next.1 ? .milliseconds(100) : .seconds(15))
             }
         }
     }
 
+    private func tick() async -> (Doorbell, Bool) {
+        if dirty || Date() >= nextReconcile {
+            watchDirectory()
+            if logWatch?.isGone ?? true { watchLog() }
+            dirty = false
+            nextReconcile = Date().addingTimeInterval(60)
+            await reloadIfChanged()
+        }
+        redraw()
+        return (bell, session != nil && model.menuBarShowsAgentTime)
+    }
+
     func stop() {
+        generation += 1
         task?.cancel()
         task = nil
         logWatch = nil
+        directoryWatch = nil
+        onBaselineReady = nil
+        watchedDirectory = nil
         bell.ring()
     }
 
+    private func watchDirectory() {
+        let parent = model.paths.eventLogFile.deletingLastPathComponent()
+        guard let directory = FileWatch.nearestExistingDirectory(to: parent) else { return }
+        guard watchedDirectory != directory || (directoryWatch?.isGone ?? true) else { return }
+        watchedDirectory = directory
+        directoryWatch = FileWatch(directory) { [weak self] in
+            Task { @MainActor [weak self] in self?.markDirty() }
+        }
+    }
+
     private func watchLog() {
-        let bell = bell
-        logWatch = FileWatch(model.paths.eventLogFile) { Task { @MainActor in bell.ring() } }
+        logWatch = FileWatch(model.paths.eventLogFile) { [weak self] in
+            Task { @MainActor [weak self] in self?.markDirty() }
+        }
+    }
+
+    private func markDirty() {
+        dirty = true
+        bell.ring()
     }
 
     /// What the label shows besides the log: the attention dot, the clock setting and the agent's name.
@@ -80,19 +116,34 @@ final class MenuBarStatusWatcher {
     }
 
     private func reloadIfChanged() async {
-        let file = model.paths.eventLogFile
-        let modified = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
-        guard modified != logDate else { return }
-        logDate = modified
-        let paths = model.paths
-        let events = await Task.detached { EventLog(paths: paths).read() }.value
-        session = StatusProbe.openSession(in: events)
-        let fresh = events.filter { $0.time > seenUntil || ($0.time == seenUntil && !seenAtBoundary.contains($0)) }
-        let newest = max(seenUntil, EventAnnouncer.baseline(events))
-        if newest > seenUntil { seenAtBoundary = [] }
-        seenUntil = newest
-        seenAtBoundary += fresh.filter { $0.time == newest }
-        if !fresh.isEmpty { onNewEvents?(fresh) }
+        let current = cursor
+        let expected = generation
+        do {
+            let result = try await Task.detached(priority: .utility) { () throws -> (EventLogCursor, EventLogCursor.Batch) in
+                var reader = current
+                let batch = try reader.read()
+                return (reader, batch)
+            }.value
+            guard !Task.isCancelled, expected == generation else { return }
+            cursor = result.0
+            let batch = result.1
+            if batch.reset { sessionEvents = [] }
+            if !batch.events.isEmpty {
+                sessionEvents.append(contentsOf: batch.events.filter {
+                    $0.kind == EventKind.sessionStart || $0.kind == EventKind.sessionEnd
+                })
+                if sessionEvents.count > 256 { sessionEvents.removeFirst(sessionEvents.count - 256) }
+            }
+            session = StatusProbe.openSession(in: sessionEvents)
+            let firstRead = !hasBaseline
+            let newEvents = delivered.receive(batch.events, baseline: firstRead)
+            hasBaseline = true
+            if firstRead { onBaselineReady?(); onBaselineReady = nil }
+            if !newEvents.isEmpty { onNewEvents?(newEvents) }
+            if batch.reset || !batch.events.isEmpty { onLogChanged?() }
+        } catch {
+            PanelTrace.log.error("event log refresh failed: \(String(describing: error), privacy: .private)")
+        }
     }
 }
 
@@ -112,6 +163,7 @@ final class Doorbell {
     }
 
     func wait(for timeout: Duration, tolerance: Duration) async {
+        guard !Task.isCancelled else { return }
         if rung {
             rung = false
             return
@@ -120,7 +172,18 @@ final class Doorbell {
             try? await Task.sleep(for: timeout, tolerance: tolerance)
             if !Task.isCancelled { self?.ring() }
         }
-        await withCheckedContinuation { waiter = $0 }
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                if rung {
+                    rung = false
+                    continuation.resume()
+                } else {
+                    waiter = continuation
+                }
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in self?.ring() }
+        }
         timer.cancel()
     }
 }

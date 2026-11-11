@@ -46,6 +46,91 @@ checkpoint before every agent session. It started from research on Omarchy 4.0; 
   through the workspace's `tools/publish-public.sh` (Rohi, 2026-10-18; standing approval 2026-10-19).
 
 ## Recent History
+### 2026-11-10 — Theme accent synchronization
+- `ThemeAccent.swift` propagates the active palette to Summon's interactive chrome. Style and My Apps theme
+  actions/checkmarks use the same observed selection; Settings distinguishes preview from applied state.
+- Catppuccin's accent/active border now use mauve (`#cba6f7`), as requested; all other palette colors stay unchanged.
+  The owner's unchanged installed preset was explicitly aligned; the installer still preserves custom themes.
+- macctl now posts both CoreUI color-change notifications on apply/undo/recovery. Running AppKit and Automatic
+  folder-color resolution changed blue → purple → blue during live verification; no Finder restart or guessed keys.
+- Three existing theme tests and one new native-effect lifecycle regression passed. The same model passed
+  Nord → Catppuccin → Nord accent/checkmark transitions; actual Appearance content rendered in light/dark.
+- Installed local development build 1794318081 with the updated macctl and applied Catppuccin; native accent readback
+  is purple (5). Config checkpoint before edits: `20261110-133239`; theme-apply undo checkpoint: `20261110-134257`.
+  Content/native API proof is not an installed-window capture or broader release-readiness certification.
+- Owner confirmed the installed appearance looks good and approved committing/pushing to draft PR #124.
+  Merge, release tag and publication remain excluded until the outstanding release gates are satisfied.
+
+### 2026-11-10 — Repair counts versus theme recommendations
+- Audited all nine bundled themes and 12 referenced wallpapers: no missing assets or installed palette drift.
+  Catppuccin/Summon Night pass; Everforest/Gruvbox/Tokyo Night have hue advice only; Kanagawa/Nord/Rosé Pine
+  Dawn/Summon Dawn have measured readability findings. Preset palettes remain unchanged.
+- `AppInventoryHealth` now owns deduplicated repair/review counts, category health and exact AI repair prompts;
+  `summon fix --apps` separates these from general Mac diagnostics. Optional artwork is advisory, missing referenced
+  files remain defects. Project checks recognize actual PascalCase bundles and cached CLI executables.
+- Installed development build 1794316868 (0.2.4, dirty revision `8387d1e`): 38 focused tests passed; signed
+  release bundle/installer passed; live model and installed CLI agree on zero repairs and eight recommendations.
+  Real Settings/theme rows rendered and inspected in light/dark using live inventory; installed Settings launched.
+  These content renders do not claim installed-window capture, VoiceOver or broader release-readiness proof.
+
+### 2026-11-10 — Consistent My Apps inventory
+- Panel and Settings share six category definitions, including empty categories. All built-in/custom themes and
+  art jobs remain visible, and both attention totals count the same affected inventory. Project launch dispatch
+  is restricted to project categories, so matching theme/art names cannot open an unrelated app.
+- Installed local development build 1794311855 (0.2.4, dirty revision `8387d1e`). Menu regressions: 12/12 passed;
+  signed release bundle/installer identity checks passed. The installed CLI shows 1 panel app, 10 themes, 1 art
+  job and all three empty categories. The Settings window launched, but visual capture remains unverified:
+  `screencapture` could not capture it; ScreenCaptureKit returned capture failure -3811 despite preflight approval.
+
+### 2026-11-10 — Owner-approved local test installation
+- Installed development build 1794298613 (0.2.4, revision `8387d1e`) through the existing installer after
+  preserving the previous app and user state locally. No tagged release was published.
+- Installed signature/identity verified; live app health reports both hotkeys registered and notifications
+  authorized. Opened and visually inspected the installed panel. Profiling and remaining release acceptance
+  are still unresolved; successful installation is not a performance or stability certification.
+### 2026-11-08 — Runtime hardening implementation (unreleased)
+- The approved audit's Core completion path now fits encoded terminal events, differentiates committed persistence
+  from maintenance/notification failures, and recovers pending run markers without duplicating a committed outcome.
+  Cleaner ranks UUID logs by modification time and protects active/pending run evidence under the task lease.
+- Panel and Activity share an off-main refresh owner, discard stale publications and watch replaced event logs;
+  opening a panel keeps activity interest until actual close. The native About panel reads staged build identity.
+- `bundle.sh` builds from staged source/manifest and signs one candidate; the gate verifies packaged identity and
+  runs an isolated Core lifecycle audit. `install.sh --verify-only` never replaces live files. CI full GUI/heap and
+  macOS 15/26 visual/VoiceOver evidence remain outstanding; no tagged release or installed app was changed.
+- Local evidence: workspace Python 90/90, Summon CLI 20/20, Core 377/377 after two corrected test-fixture assumptions;
+  packaged check stages passed with Core audit 30/30 samples. Core audit 100/100 repetitions passed all 11
+  scenarios (50 child executions, descriptor slots 3→3); first 30-sample same-host comparison is in the audit plan.
+- Clean revision `8f267fb` produced signed stable/edge candidates: actual CLI/plist/manifest and linked compiled
+  BuildInfo agreed, signatures and App Intents passed. No publication/install; channel-specific native-panel
+  visual proof remains outstanding. Draft PR #124 tracks hosted checks and remaining GUI/heap criteria.
+- Hosted `e94dbfa` passed packaged About/Activity keyboard close, actual terminal delivery and GUI100 on macOS 26;
+  native About light/dark captures and cross-OS light close/reopen were verified. Follow-up fixes explicitly release
+  leases (ARC is not a scope boundary), distinguish duplicate window titles with public geometry, and synchronize
+  profiling on Darwin recording notifications plus genuine owned status-item input. Local Core 378/378, CLI 21/21,
+  Python 98/98 and signed lifecycle gate passed; current hosted results are in draft PR #124. VoiceOver, Reduce
+  Transparency, displayed-frame and retained-heap acceptance remain release gates, not inferred passes.
+- Runtime evidence now retains sanitized capture stderr and kills only the recorder's owned process group on
+  timeout. Search cycles require actual AX query read-back, not merely sent keystrokes; earlier GUI100 evidence
+  does not establish that stronger assertion. Local native input was permission-blocked without sending keys.
+  Hosted `9bb3063` subsequently passed all 100 query read-backs, About/Activity keyboard close, terminal
+  delivery and Logging/Time Profiler/Allocations recording. SwiftUI reported no SwiftUI data and exceeded its
+  save deadline; the recorder sample shows symbol serialization, not an application deadlock. Missing SwiftUI
+  data is rejected even on zero exit; profiling acceptance remains blocked.
+- The profiler workload now uses the requested iteration count for every recording and requires matching panel
+  interval counts, rather than a single subsecond cycle. Hosted `7edce37` completed all 500 panel cycles and passed
+  every non-profiling check. Time Profiler saved; three other recorders exceeded their stop/save deadlines,
+  leaving timing coverage blocked. Local tooling 101/101 and workspace gate passed. No release/install occurred.
+  A local independent SwiftUI control exported 1,632 update rows; it does not prove Summon profiling behavior.
+- Independent hosted control `42514060671` reproduced empty SwiftUI data and recorder timeout without Summon;
+  its green diagnostic job is not a profiling pass. Temporary workflow removed. Native isolated-session
+  profiling remains necessary; runner/toolchain/driver causality is not yet isolated.
+- Hosted `deb7eb1` passed Swift and visual QA on macOS 15/26, lifecycle smoke, release build and CodeQL.
+  Genuine panel intervals exported; SwiftUI recorder finalization alone timed out while other recordings and
+  subsequent interactions passed. Bounded recorder diagnostics now retain the specific failure without weakening the gate.
+
+### 2026-11-08 — Runtime audit and proposed implementation roadmap
+- [Audit and plan](../../docs/plans/2026-11-08-runtime-audit.md), source `3f37adf556b1`: oversized completion details exceed the event cap; cleaner sorts UUID logs instead of timestamps; command completion reloads disk-derived state on MainActor. Core smoke exercised the first two mechanisms; no application crash or memory leak was established.
+- Proposed phases cover controlled profiling, finish correctness/log protection, About/build identity, bounded refresh and automation. Documentation only; no runtime fixes or new automation scripts shipped.
 ### 2026-10-28 — Idle efficiency
 - `FileWatch` (Core): kqueue vnode source for files and folders. `MenuBarStatusWatcher` waits on it plus model
   observation (`Doorbell`); 1 s ticks only with a visible session clock. Crash folders are watched (3 s debounce).

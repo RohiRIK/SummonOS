@@ -127,7 +127,7 @@ enum ActivityCommands {
                 if phase != "start" && phase != "end" { throw CLIError(usage) }
                 return
             }
-            try EventLog(paths: context.paths).append(event)
+            report(try EventLog(paths: context.paths).append(event), context)
             return
         }
         guard sub == "add" else { throw CLIError(usage) }
@@ -139,16 +139,28 @@ enum ActivityCommands {
         }
         guard let kind = args.next(), !args.isEmpty else { throw CLIError(usage) }
         let title = args.items.joined(separator: " ")
-        try EventLog(paths: context.paths).append(LoggedEvent(kind: kind, title: title, detail: detail, refs: refs))
+        report(try EventLog(paths: context.paths).append(LoggedEvent(kind: kind, title: title, detail: detail, refs: refs)), context)
     }
 
-    /// Records an event, never failing the command that did the work.
-    static func record(_ event: LoggedEvent, _ context: Context) {
+    /// Records an event, never failing the command that did the work. Nil when nothing was recorded; a recorded
+    /// event is never appended again.
+    @discardableResult
+    static func record(_ event: LoggedEvent, _ context: Context) -> EventLog.AppendReceipt? {
         do {
-            try EventLog(paths: context.paths).append(event)
+            return report(try EventLog(paths: context.paths).append(event), context)
         } catch {
             context.warn("summon: could not record activity: \(error)")
+            return nil
         }
+    }
+
+    /// The event is recorded either way; a failed retention trim afterwards is said, not hidden.
+    @discardableResult
+    static func report(_ receipt: EventLog.AppendReceipt, _ context: Context) -> EventLog.AppendReceipt {
+        if let failure = receipt.maintenanceFailure {
+            context.warn("summon: activity recorded, but trimming the event log failed: \(failure)")
+        }
+        return receipt
     }
 
     /// ISO 8601 dates, unlike `Context.printJSON`, so agents can parse them.

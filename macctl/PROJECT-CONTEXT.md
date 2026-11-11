@@ -27,6 +27,18 @@ in the workspace. Agent instructions: workspace skill `MacSetup`.
 - Lives in the workspace repo for now (`macctl/`); planned move to `mac-ctl-dev` / `mac-ctl`.
 
 ## Recent History
+### 2026-11-10 — Live accent refresh
+- `appearance.accent-color` now runs `refreshAppearance` after verified writes and on undo/recovery;
+  CoreUI requires both `AppleAquaColorVariantChanged` and `AppleColorPreferencesChangedNotification`.
+  These are private notification names, not a public macOS setter contract; keep the reopen-apps fallback.
+- macOS 27.2: an already-running AppKit probe received `NSSystemColorsDidChangeNotification` and changed
+  blue → purple → blue across apply/undo without restarting. Automatic icon tint resolved to each accent too.
+  Folder color is a separate control: Automatic follows the system accent, explicit/custom colors are preserved.
+  Native icon APIs were inspected read-only for evidence, not added as a shipping dependency.
+- Native `NSWorkspace` renders of the same ordinary folder changed blue → purple after applying Catppuccin;
+  this proves the folder-icon asset path, not an already-open Finder window capture.
+- One focused engine regression covers dry-run/no-op suppression, apply and undo refresh; it passes.
+
 ### 2026-10-25 — Wallpaper read-back race on macOS 27
 - Found on the owner's Mac (2 displays, macOS 27.0.1): `set desktop.wallpaper` returned `mutation_failed` ("read-back did not
   match") although the picture had changed. `desktopImageURL` lags about 0.5 s behind the write. `LiveWallpaper` now waits

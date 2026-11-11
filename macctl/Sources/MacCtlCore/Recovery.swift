@@ -41,6 +41,7 @@ extension Setting {
             case .restart(let process): notUndone.append("restart:\(process) (undo restarts it again)")
             case .logout: notUndone.append("logout (undo also needs a logout to take effect)")
             case .relaunchApps: notUndone.append("relaunch-apps (open apps keep the old look until reopened)")
+            case .refreshAppearance: break // Undo refreshes the restored colors; no persistent side effect.
             }
         }
         if case .path = type, case .defaults = backend {

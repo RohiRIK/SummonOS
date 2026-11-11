@@ -1,4 +1,28 @@
+---
+type: log
+title: Docs update log
+description: Notable changes to SummonOS documentation and verification evidence.
+tags: [documentation, history]
+---
+
 # Docs update log
+
+## 2026-11-10
+* **Update**: [Runtime audit](plans/2026-11-08-runtime-audit.md) records native About/Activity captures, the real 13-report crash-burst alert/dismissal/search proof, fixture-home isolation and outstanding profiler, heap, displayed-frame and accessibility gates. Native input uses owned PID-targeted keys rather than global System Events keystrokes.
+* **Update**: [Features](features.md), [macctl catalog](../macctl/docs/settings.md) and Summon changelog distinguish live app tint, native system accent and Automatic folder color. Recorded observed AppKit apply/undo refresh on macOS 27.2; custom folder colors remain independent.
+* **Update**: [Features](features.md), Summon changelog and project memory distinguish repair defects from theme/readability and optional-art recommendations. Recorded the complete nine-theme audit, corrected bundle detection, scoped `summon fix --apps`, 38 passing regressions and live-inventory light/dark content renders.
+* **Update**: [Features](features.md) and [Summon changelog](../incubator/summon/CHANGELOG.md) describe the shared six-category My Apps inventory, visible built-in/custom themes and matching affected-item totals in the panel and Settings.
+
+## 2026-11-08
+* **Update**: Sustained hosted verification completed all 500 panel/search cycles and passed every non-profiling check. Runtime audit and project memory retain the three recorder stop/save failures and blocked timing coverage; no application-hang or performance claim is inferred.
+* **Update**: Runtime audit/tooling now record the full requested workload under each profiler and require per-cycle interval coverage. The audit distinguishes a successful local SwiftUI control from still-unverified hosted Summon profiling.
+* **Update**: Hosted revision `9bb3063` verifies 100 actual panel query values, About/Activity keyboard close and terminal delivery. Runtime audit and project memory record the remaining empty SwiftUI-data/save failure and recorder symbol-processing stack; the gate rejects empty SwiftUI recordings rather than accepting a saved directory.
+* **Update**: Runtime audit distinguishes historical sent-keystroke cycles from actual search-value verification; records the hosted capture failure, retained sanitized stderr, owned recorder-group cleanup and local native helper permission boundary.
+* **Update**: [runtime audit](plans/2026-11-08-runtime-audit.md) records hosted GUI100, cross-OS native UI/Swift passes, genuine panel timing samples and the remaining SwiftUI recorder-finalization failure. Local 98 behavioral Python/378 Core/21 CLI tests passed; recorder-only diagnostics preserve the failure without weakening release gates.
+* **Update**: Runtime audit and project memory record the first complete hosted wave, remaining native About failures, registration-ready watcher reconciliation and local 378 Core/20 CLI/8 automation passes. MacAppArchitecture records the asynchronous Dispatch registration contract; hosted GUI acceptance remains pending.
+* **Update**: [runtime audit](plans/2026-11-08-runtime-audit.md) and Summon project memory: signed stable/edge packages from clean implementation revision `8f267fb`, matching compiled identity, owned-artifact cleanup and channel-specific visual limits; [draft PR #124](https://github.com/RohiRIK/SummonOS/pull/124). MacAppBuild now records checking both Git author and committer before public pushes.
+* **Update**: [runtime audit](plans/2026-11-08-runtime-audit.md), [features](features.md), [tools](tools.md), [Summon project context](../incubator/summon/PROJECT-CONTEXT.md) and [changelog](../incubator/summon/CHANGELOG.md): unreleased runtime hardening, staged build identity/native About, owned Core100 and signed installer fault evidence, same-host benchmark deltas and explicit hosted GUI/heap/VoiceOver prerequisites. The original source audit below remains a historical record.
+* **New**: [Summon runtime audit and implementation roadmap](plans/2026-11-08-runtime-audit.md): measured Core baselines, completion-event and UUID-log-retention defects, About/build identity, phased menu/lifecycle improvements, and automation contracts. Application behavior is unchanged; GUI crash/leak attribution remains unconfirmed.
 
 ## 2026-10-28
 * **Update**: SummonOS 0.2.4: Summon and the apps it builds use less while idle.

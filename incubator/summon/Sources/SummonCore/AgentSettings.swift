@@ -83,7 +83,7 @@ public struct AgentSettingsStore: Sendable {
 
     public func save(_ settings: AgentSettings) throws {
         let lease = try FileLease.acquireSync(paths.state.appendingPathComponent("locks/agents.lock"))
-        defer { lease.hold() }
+        defer { lease.release() }
         _ = try loadValidated()
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

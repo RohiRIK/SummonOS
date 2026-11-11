@@ -47,11 +47,22 @@ enum DoctorCommand {
         }
     }
 
-    /// `summon fix [--inline]`: runs diagnostics, finds warnings, failures, or crashes, and delegates resolution to the default agent.
+    /// `summon fix [--apps] [--inline]`: repairs either the My Apps inventory or general Mac diagnostics.
     @MainActor
     static func fix(_ args: inout Arguments, _ context: Context) async throws {
         let inline = args.flag("--inline")
-        guard args.isEmpty else { throw CLIError("Usage: summon fix [--inline]") }
+        let apps = args.flag("--apps")
+        guard args.isEmpty else { throw CLIError("Usage: summon fix [--apps] [--inline]") }
+        if apps {
+            let health = try MenuCommands.loadInventory(context).health
+            guard let prompt = health.repairPrompt else {
+                print("No My Apps items need repair. \(health.advisoryCount) items have recommendations for review.")
+                return
+            }
+            print("Repairing \(health.repairCount) My Apps items; recommendations are excluded.")
+            try await AgentCommands.launch(prompt: prompt, inline: inline, checkpoint: true, context)
+            return
+        }
 
         let doctor = makeDoctor(context)
         let report = await doctor.run()

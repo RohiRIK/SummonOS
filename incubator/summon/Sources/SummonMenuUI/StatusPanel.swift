@@ -130,6 +130,7 @@ public final class PanelController: NSObject {
     private let openSettingsHandler: () -> Void
     /// Loads the menu and sets its start level before every open (`summon://menu/<id>` passes an entry).
     private let prepare: (String?) -> Void
+    private let onClose: () -> Void
     private var session: PanelSession?
     private var previousApp: NSRunningApplication?
     private var observers: [(NotificationCenter, NSObjectProtocol)] = []
@@ -141,9 +142,12 @@ public final class PanelController: NSObject {
     private var mouseDownMonitor: Any?
     private var lastMouseDown: TimeInterval?
     private var openInterval: OSSignpostIntervalState?
+    private var windowUpdateInterval: OSSignpostIntervalState?
+    private var windowUpdateObserver: NSObjectProtocol?
     private var pendingSource: PanelOpenSource?
     private var openSource: PanelOpenSource?
     private var openedAt: TimeInterval?
+    private var stopped = false
 
     /// Live observers right now; 0 whenever the panel is closed (D rules). Logged on every close.
     public var activeObserverCount: Int { observers.count }
@@ -155,6 +159,7 @@ public final class PanelController: NSObject {
     public init<Content: View>(openActivity: @escaping () -> Void = {},
                                openSettings: @escaping () -> Void,
                                prepare: @escaping (String?) -> Void,
+                               onClose: @escaping () -> Void = {},
                                @ViewBuilder content: (PanelState, PanelActions) -> Content) {
         state = PanelState()
         panel = StatusPanel.make()
@@ -162,6 +167,7 @@ public final class PanelController: NSObject {
         openActivityHandler = openActivity
         openSettingsHandler = openSettings
         self.prepare = prepare
+        self.onClose = onClose
         super.init()
         #if DEBUG
         // E4 fixture: debug builds only.
@@ -212,9 +218,11 @@ public final class PanelController: NSObject {
 
     private func mouseDownReceived(at timestamp: TimeInterval) {
         endOpenInterval(opened: false) // a previous press that never opened
+        endWindowUpdateInterval(updated: false)
         lastMouseDown = timestamp
         guard !isOpen else { return }
         openInterval = PanelTrace.signposter.beginInterval("PanelOpen", id: PanelTrace.signposter.makeSignpostID())
+        windowUpdateInterval = PanelTrace.signposter.beginInterval("PanelWindowUpdate", id: PanelTrace.signposter.makeSignpostID())
     }
 
     private func endOpenInterval(opened: Bool) {
@@ -224,6 +232,35 @@ public final class PanelController: NSObject {
             PanelTrace.signposter.endInterval("PanelOpen", interval, "ordered front")
         } else {
             PanelTrace.signposter.endInterval("PanelOpen", interval, "no open")
+        }
+    }
+
+    private func watchWindowUpdate() {
+        if windowUpdateInterval == nil {
+            windowUpdateInterval = PanelTrace.signposter.beginInterval("PanelWindowUpdate", id: PanelTrace.signposter.makeSignpostID())
+        }
+        // AppKit sends didUpdate before the window is displayed, not after a rendered or composited frame.
+        // This records the first update pass after order-front; the observer is one-shot.
+        windowUpdateObserver = NotificationCenter.default.addObserver(forName: NSWindow.didUpdateNotification,
+                                                                      object: panel, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.panel.isVisible, self.isOpen else { return }
+                self.endWindowUpdateInterval(updated: true)
+            }
+        }
+    }
+
+    private func endWindowUpdateInterval(updated: Bool) {
+        if let windowUpdateObserver {
+            NotificationCenter.default.removeObserver(windowUpdateObserver)
+            self.windowUpdateObserver = nil
+        }
+        guard let interval = windowUpdateInterval else { return }
+        windowUpdateInterval = nil
+        if updated {
+            PanelTrace.signposter.endInterval("PanelWindowUpdate", interval, "window update after order-front")
+        } else {
+            PanelTrace.signposter.endInterval("PanelWindowUpdate", interval, "no update")
         }
     }
 
@@ -251,6 +288,24 @@ public final class PanelController: NSObject {
 
     /// Idempotent (C6): closing a closed panel does nothing.
     public func close() { handle(.closeFromCode) }
+
+    /// App termination (or an isolated lifecycle test) releases app-owned monitors and the status item.
+    public func stop() {
+        guard !stopped else { return }
+        stopped = true
+        endWindowUpdateInterval(updated: false)
+        endOpenInterval(opened: false)
+        if isOpen { hide(.quit) }
+        removeObservers()
+        if let mouseDownMonitor {
+            NSEvent.removeMonitor(mouseDownMonitor)
+            self.mouseDownMonitor = nil
+        }
+        panel.onEscape = nil
+        statusItem.button?.target = nil
+        NSStatusBar.system.removeStatusItem(statusItem)
+        panel.contentViewController = nil
+    }
 
     /// C7: safe from any thread or task; hops to the main actor.
     public nonisolated func requestOpen() {
@@ -298,6 +353,7 @@ public final class PanelController: NSObject {
     // MARK: Decisions
 
     private func handle(_ event: PanelEvent) {
+        guard !stopped else { return }
         switch PanelDismissal.decide(event, isOpen: isOpen, session: session) {
         case .ignore:
             break
@@ -325,6 +381,7 @@ public final class PanelController: NSObject {
             || (event?.type == .leftMouseUp && event?.modifierFlags.contains(.control) == true)
         guard !right else {
             endOpenInterval(opened: false)
+            endWindowUpdateInterval(updated: false)
             return handle(.statusItemRightClick)
         }
         // B1 proof: the "PanelOpen" interval began at mouse-down and ends in show(); the log line gives the same span.
@@ -356,9 +413,11 @@ public final class PanelController: NSObject {
         openedAt = ProcessInfo.processInfo.systemUptime
         state.session += 1
         state.isOpen = true
+        watchWindowUpdate()
         place()
         // The panel is nonactivating: this makes it key without activating Summon (A1, A5, A6).
         panel.makeKeyAndOrderFront(nil)
+        panel.contentView?.needsDisplay = true
         endOpenInterval(opened: source == .click) // B1: mouse-down → ordered front
         statusItem.button?.highlight(true)
         installObservers()
@@ -420,10 +479,22 @@ public final class PanelController: NSObject {
     private func hide(_ reason: PanelCloseReason) {
         guard isOpen else { return }
         let before = observers.count
+        endWindowUpdateInterval(updated: false)
         removeObservers()
         statusItem.button?.highlight(false)
         panel.orderOut(nil)
         state.isOpen = false
+        onClose()
+        // A hidden window gets no display cycle, so SwiftUI would apply the close/reset at the next order-front.
+        // Two passes: the first runs PanelView's onChange(isOpen), the second applies the state it reset.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, !self.isOpen else { return }
+            self.panel.contentView?.layoutSubtreeIfNeeded()
+            DispatchQueue.main.async { [weak self] in
+                guard let self, !self.isOpen else { return }
+                self.panel.contentView?.layoutSubtreeIfNeeded()
+            }
+        }
         let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier
         if PanelDismissal.focusAction(after: reason, frontmostPID: frontmost, session: session) == .activatePrevious,
            let previous = previousApp, !previous.isTerminated {

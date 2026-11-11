@@ -73,7 +73,7 @@ public struct CheckpointService: Sendable {
         var problems: [String] = []
         do {
             let lease = try await acquireMutationLease()
-            defer { lease.hold() }
+            defer { lease.release() }
             var all = try listValidated()
             let base = checkpoint.id
             var suffix = 2

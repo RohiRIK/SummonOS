@@ -54,6 +54,6 @@ enum ContextCommands {
         let payload = String(decoding: FileHandle.standardInput.readDataToEndOfFile(), as: UTF8.self)
         let name = AgentRegistry.find(agent)?.name ?? agent
         guard let event = SessionHook.event(phase: "start", payload: payload, agent: name) else { return }
-        try? EventLog(paths: context.paths).append(event)
+        ActivityCommands.record(event, context)
     }
 }
