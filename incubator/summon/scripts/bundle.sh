@@ -19,20 +19,46 @@ done
 
 CACHE="$HOME/Library/Caches/macplugins/summon"
 APP="build/Summon.app"
+ROOT="$(cd ../.. && pwd -P)"
+mkdir -p "$CACHE" build
+STAGE=
+cleanup() {
+  local result=$?
+  trap - EXIT INT TERM
+  if [[ -n $STAGE ]] && ! rm -rf "$STAGE"; then
+    echo "Bundle staging cleanup failed: $STAGE" >&2
+    [[ $result -ne 0 ]] || result=1
+  fi
+  exit "$result"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+STAGE="$(mktemp -d "$CACHE/source.XXXXXX")"
+TOOLCHAIN="$(swift --version | shasum -a 256 | cut -c1-12)"
+SCRATCH="${SUMMON_BUNDLE_CACHE:-$CACHE/build/$CONFIG/$TOOLCHAIN}"
+rm -rf "$APP"  # never leave a stale prior artifact if this build fails
+cp Package.swift "$STAGE/Package.swift"
+cp -R Sources Resources Tests "$STAGE/"
+EPOCH="${SOURCE_DATE_EPOCH:-$(/usr/bin/git -C "$ROOT" show -s --format=%ct HEAD)}"
+BUILD_NUMBER="${SUMMON_BUILD_NUMBER:-$EPOCH}"
+python3 "$ROOT/tools/build-metadata.py" generate --source-root "$ROOT" --stage-root "$STAGE" \
+  --channel "${SUMMON_BUILD_CHANNEL:-development}" --build-number "$BUILD_NUMBER" \
+  --source-date-epoch "$EPOCH" --configuration "$CONFIG"
 
-echo "Building the $CONFIG configuration"
-swift build -c "$CONFIG" ${ARCHS[@]+"${ARCHS[@]}"} --scratch-path "$CACHE/build" --product SummonMenu
-swift build -c "$CONFIG" ${ARCHS[@]+"${ARCHS[@]}"} --scratch-path "$CACHE/build" --product summon
-BIN="$(swift build -c "$CONFIG" ${ARCHS[@]+"${ARCHS[@]}"} --scratch-path "$CACHE/build" --show-bin-path)"
+echo "Building the $CONFIG configuration from staged immutable identity"
+swift build --package-path "$STAGE" -c "$CONFIG" ${ARCHS[@]+"${ARCHS[@]}"} --scratch-path "$SCRATCH" --product SummonMenu
+swift build --package-path "$STAGE" -c "$CONFIG" ${ARCHS[@]+"${ARCHS[@]}"} --scratch-path "$SCRATCH" --product summon
+BIN="$(swift build --package-path "$STAGE" -c "$CONFIG" ${ARCHS[@]+"${ARCHS[@]}"} --scratch-path "$SCRATCH" --show-bin-path)"
 
-rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/share/summon"
 cp "$BIN/SummonMenu" "$APP/Contents/MacOS/SummonMenu"
 cp "$BIN/summon" "$APP/Contents/MacOS/summon"
-cp Resources/Info.plist "$APP/Contents/Info.plist"
+cp "$STAGE/Resources/Info.plist" "$APP/Contents/Info.plist"
+cp "$STAGE/BuildInfo.json" "$APP/Contents/Resources/BuildInfo.json"
 
 # App icon from the 1024 master (design/generate.py), and the menu bar template icon.
-ICONSET="$CACHE/AppIcon.iconset"
+ICONSET="$STAGE/AppIcon.iconset"
 rm -rf "$ICONSET" && mkdir -p "$ICONSET"
 for size in 16 32 128 256 512; do
   sips -z $size $size design/brand/app-icon-1024.png --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
@@ -55,10 +81,10 @@ cp -R design/brand "$APP/Contents/share/summon/assets"
 # projects write it, so gather the module's const values here and run Xcode's processor. Without Xcode (Command
 # Line Tools only) the app still works, just without the Siri actions.
 if PROCESSOR="$(xcrun --find appintentsmetadataprocessor 2>/dev/null)"; then
-  META="$CACHE/appintents"
+  META="$STAGE/appintents"
   rm -rf "$META" && mkdir -p "$META"
   echo '["AppEntity","AppEnum","AppIntent","AppShortcutsProvider","DynamicOptionsProvider","EntityQuery","EntityStringQuery","TransientEntity"]' >"$META/protocols.json"
-  ls "$PWD"/Sources/SummonMenu/*.swift >"$META/sources.txt"
+  ls "$STAGE"/Sources/SummonMenu/*.swift >"$META/sources.txt"
   SDK="$(xcrun --show-sdk-path)"
   xcrun swiftc -frontend -typecheck -parse-as-library -module-name SummonMenu -target arm64-apple-macos15.0 \
     -sdk "$SDK" -I "$BIN" -I "$BIN/Modules" \
@@ -77,4 +103,6 @@ fi
 
 codesign --force --sign - "$APP/Contents/MacOS/summon"
 codesign --force --sign - "$APP"
+python3 "$ROOT/tools/build-metadata.py" verify --manifest "$STAGE/BuildInfo.json" \
+  --app "$APP" --summon "$APP/Contents/MacOS/summon"
 echo "$APP"

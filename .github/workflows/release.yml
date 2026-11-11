@@ -27,6 +27,9 @@ on:
       - incubator/summon/scripts/bundle.sh
       - incubator/summon/scripts/install.sh
       - incubator/summon/scripts/install-state.py
+      - tools/build-metadata.py
+      - incubator/summon/Sources/SummonCore/Version.swift
+      - incubator/summon/scripts/runtime-audit.py
 
 permissions:
   contents: read
@@ -69,10 +72,6 @@ jobs:
           fi
           if [ "$GITHUB_EVENT_NAME" = workflow_run ]; then
             asset_version="$version-edge.${sha:0:7}"
-            # Stamp the edge version into summon so `summon update --channel edge` can tell builds apart.
-            file=incubator/summon/Sources/SummonCore/Version.swift
-            sed -i '' "s/current = \"$version\"/current = \"$asset_version\"/" "$file"
-            grep -q "current = \"$asset_version\"" "$file" || { echo "::error::could not stamp $asset_version"; exit 1; }
           fi
           { echo "version=$version"; echo "asset_version=$asset_version"; echo "sha=$sha"; } >> "$GITHUB_OUTPUT"
           echo "SummonOS $asset_version ($GITHUB_EVENT_NAME, $GITHUB_REF_NAME, $sha)"
@@ -93,8 +92,11 @@ jobs:
           echo "MACCTL_BIN=$(swift build --package-path macctl -c release --arch arm64 --arch x86_64 --show-bin-path)/macctl" >> "$GITHUB_ENV"
       - name: Build Summon.app (universal)
         run: |
-          incubator/summon/scripts/bundle.sh --universal
-          # Siri and Shortcuts find Summon's actions through this; a release without it loses them.
+          channel=development
+          if [ "$GITHUB_REF_TYPE" = tag ]; then channel=stable; fi
+          if [ "$GITHUB_EVENT_NAME" = workflow_run ]; then channel=edge; fi
+          SUMMON_BUILD_CHANNEL="$channel" SUMMON_BUILD_NUMBER="$GITHUB_RUN_NUMBER" \
+            SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)" incubator/summon/scripts/bundle.sh --universal
           test -f incubator/summon/build/Summon.app/Contents/Resources/Metadata.appintents/extract.actionsdata
       - name: Stage the install layout
         env:
@@ -106,7 +108,7 @@ jobs:
           cp "$MACCTL_BIN" "$stage/bin/macctl"
           codesign --force --sign - "$stage/bin/macctl"
           ln -s ../Summon.app/Contents/MacOS/summon "$stage/bin/summon"
-          cp incubator/summon/scripts/install.sh incubator/summon/scripts/install-state.py "$stage/scripts/"
+          cp incubator/summon/scripts/install.sh incubator/summon/scripts/install-state.py tools/build-metadata.py "$stage/scripts/"
           cp VERSION LICENSE "$stage/"
           echo "STAGE=$stage" >> "$GITHUB_ENV"
       - name: Developer ID signing and notarization (only when the signing secrets are set)
@@ -154,6 +156,12 @@ jobs:
           "$STAGE/bin/summon" --version | grep -qx "summon $ASSET_VERSION" || { echo "::error::summon does not report $ASSET_VERSION"; exit 1; }
           "$STAGE/bin/macctl" --version | grep -qx "macctl $VERSION" || { echo "::error::macctl does not report $VERSION"; exit 1; }
           "$STAGE/bin/summon" commands --json >/dev/null
+          python3 tools/build-metadata.py verify \
+            --manifest "$STAGE/Summon.app/Contents/Resources/BuildInfo.json" \
+            --app "$STAGE/Summon.app" --summon "$STAGE/Summon.app/Contents/MacOS/summon" \
+            --macctl "$STAGE/bin/macctl"
+          SUMMONOS_APP_SOURCE="$STAGE/Summon.app" SUMMONOS_MACCTL_SOURCE="$STAGE/bin/macctl" \
+            bash "$STAGE/scripts/install.sh" --verify-only
       - name: Package
         env:
           VERSION: ${{ steps.version.outputs.asset_version }}

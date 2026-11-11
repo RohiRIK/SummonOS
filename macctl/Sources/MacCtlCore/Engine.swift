@@ -562,13 +562,16 @@ public struct Engine: MacCtlService {
 
     // MARK: - Private
 
-    /// Runs each distinct restart once, in name order; every restart is attempted and the failures
-    /// come back as notes (the values are already written). `.logout` becomes a note elsewhere.
+    /// Runs each distinct active effect once, in name order. Logout/relaunch remain advisory;
+    /// failures come back as notes because the values are already written.
     fileprivate func runRestarts(for settings: [Setting]) async -> [String] {
         var effects: Set<SideEffect> = []
         for setting in settings {
             for effect in setting.after {
-                if case .restart = effect { effects.insert(effect) }
+                switch effect {
+                case .restart, .refreshAppearance: effects.insert(effect)
+                case .logout, .relaunchApps: break
+                }
             }
         }
         var failures: [String] = []
@@ -585,6 +588,7 @@ public struct Engine: MacCtlService {
         case .restart(let process): "restart:\(process)"
         case .logout: "logout"
         case .relaunchApps: "relaunch-apps"
+        case .refreshAppearance: "refresh-appearance"
         }
     }
 

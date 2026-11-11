@@ -102,4 +102,49 @@ struct MenuTests {
         let searchResults = tree.search("my-widget")
         #expect(searchResults.first?.id == "apps.panel.my-widget")
     }
+
+    @Test func emptyAppInventoryKeepsEveryCategoryNavigable() {
+        let tree = MenuTree.standard.withProjects([])
+        let categories = tree.children(of: "apps")
+        #expect(Set(categories.map(\.id)) == ["apps.panel", "apps.theme", "apps.art", "apps.app", "apps.cli", "apps.screensaver"])
+        #expect(categories.allSatisfy { !$0.isRunnable })
+        #expect(tree.item("apps.fix") == nil)
+    }
+
+    @Test func customThemeDoesNotHideBuiltInThemeWarnings() throws {
+        let builtIn = try Theme.decode(Data(sampleThemeJSON.utf8))
+        var custom = builtIn
+        custom.slug = "custom-theme"
+        custom.name = "Custom Theme"
+        custom.source = "summon-art"
+        let warning = ItemHealth(level: .warning, badge: "Missing wallpaper", detail: "Missing asset")
+        let tree = MenuTree.standard.withProjects([], themes: [builtIn, custom],
+            health: AppInventoryHealth(themes: [builtIn, custom], themeHealth: [builtIn.slug: warning]))
+        #expect(tree.children(of: "apps.theme").map(\.id) == ["apps.theme.\(builtIn.slug)", "apps.theme.custom-theme"])
+        #expect(tree.search(builtIn.name).contains { $0.id == "apps.theme.\(builtIn.slug)" })
+        #expect(tree.item("apps.fix")?.isRunnable == true)
+        #expect(MenuTree.standard.withProjects([], themes: [builtIn, custom],
+            health: AppInventoryHealth(themes: [builtIn, custom], themeHealth: [builtIn.slug: .healthy])).item("apps.fix") == nil)
+    }
+
+    @Test func everyProjectKindAndArtJobIsReachable() {
+        let projects = ProjectKind.allCases.map {
+            Project(name: "example-\($0.rawValue)", kind: $0, path: "/example/\($0.rawValue)", created: Date(timeIntervalSince1970: 0))
+        }
+        let art = ArtJob(name: "wallpaper.v2", path: "/example/Artist's wallpaper", images: [], kind: .wallpaper)
+        let error = ItemHealth(level: .error, badge: "No images", detail: "Art incomplete")
+        let tree = MenuTree.standard.withProjects(projects, artJobs: [art],
+            health: AppInventoryHealth(projects: projects, artJobs: [art], artJobHealth: [art.name: error]))
+        for project in projects {
+            let entries = tree.search(project.name).filter { $0.id.hasPrefix("apps.") }
+            #expect(entries.count == 1)
+            #expect(entries.first?.action == "summon project open \(project.name)")
+            #expect(tree.item(entries.first?.parentID ?? "") != nil)
+        }
+        let artEntries = tree.children(of: "apps.art")
+        #expect(artEntries.count == 1)
+        #expect(artEntries.first?.isRunnable == true)
+        #expect(tree.search(art.name).map(\.id) == artEntries.map(\.id))
+        #expect(tree.item("apps.fix") != nil)
+    }
 }

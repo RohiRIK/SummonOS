@@ -133,6 +133,37 @@ jobs:
       - name: Test
         run: swift test --skip-build
 
+  summon-lifecycle:
+    needs: [discover, build-and-test]
+    if: contains(needs.discover.outputs.core, 'incubator/summon')
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Select Xcode 26
+        run: |
+          version=$(xcodebuild -version)
+          if ! grep -q '^Xcode 26' <<<"$version"; then
+            xcode=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+            [ -n "$xcode" ] || exit 1
+            sudo xcode-select -s "$xcode"
+          fi
+      - name: Packaged identity and Core lifecycle gate
+        run: incubator/summon/scripts/check.sh --skip-tests --report-dir "$RUNNER_TEMP/summon-check" --runtime-smoke
+      - name: Upload lifecycle evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: summon-lifecycle-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/summon-check/check-report.json
+            ${{ runner.temp }}/summon-check/runtime-audit/**/environment.json
+            ${{ runner.temp }}/summon-check/runtime-audit/**/metrics.json
+            ${{ runner.temp }}/summon-check/runtime-audit/**/scenarios.json
+          if-no-files-found: warn
+
   # Xcode 27 is a public preview on macos-26 (actions/runner-images#14404): this catches macOS 27 SDK and
   # compiler breaks early. Informational only: it never blocks a merge, and it skips when the image has no Xcode 27.
   # Switch to a macos-27 runner when GitHub ships one.

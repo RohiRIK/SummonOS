@@ -27,14 +27,14 @@ public struct ExecutionPolicyStore: Sendable {
 
     public func save(_ mode: AgentExecutionMode) throws {
         let lease = try FileLease.acquireSync(paths.state.appendingPathComponent("locks/execution.lock"))
-        defer { lease.hold() }
+        defer { lease.release() }
         try TextFile.write(mode.rawValue + "\n", to: file)
     }
 
     /// Freeze inferred legacy intent before changing other defaults (e.g. first agent selection).
     @discardableResult public func migrate() throws -> AgentExecutionMode {
         let lease = try FileLease.acquireSync(paths.state.appendingPathComponent("locks/execution.lock"))
-        defer { lease.hold() }
+        defer { lease.release() }
         let mode = try load()
         if !FileManager.default.fileExists(atPath: file.path) { try TextFile.write(mode.rawValue + "\n", to: file) }
         return mode

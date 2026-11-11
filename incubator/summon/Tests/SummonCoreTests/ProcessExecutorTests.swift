@@ -116,6 +116,20 @@ struct ProcessExecutorTests {
         #expect(try Data(contentsOf: file) == data)
     }
 
+    /// Scheduled runs keep output only in their log; the status and the full log survive without a retained copy.
+    @Test func logOnlyRunsRetainNoOutputButKeepTheWholeLog() async throws {
+        let home = try makeTempHome()
+        defer { try? FileManager.default.removeItem(at: home) }
+        let file = home.appendingPathComponent("run.log")
+        var options = ProcessOptions()
+        options.logFile = file
+        options.maxOutputBytes = 0
+        let result = try await ProcessExecutor.run("/bin/sh", ["-c", "/usr/bin/head -c 70000 /dev/zero | /usr/bin/tr '\\000' x; exit 7"], options: options)
+        #expect(result.status == 7)
+        #expect(result.output.isEmpty)
+        #expect(try Data(contentsOf: file) == Data(repeating: UInt8(ascii: "x"), count: 70_000))
+    }
+
     @Test func unrelatedFileDescriptorsAreNotInherited() async throws {
         let descriptor = open("/dev/null", O_RDONLY)
         #expect(descriptor >= 0)

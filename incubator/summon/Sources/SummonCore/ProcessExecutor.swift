@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import os
 
 /// Limits apply while the process runs, before any output reaches a parser or a log file.
 public struct ProcessOptions: Sendable {
@@ -149,7 +150,9 @@ public enum ProcessExecutor {
                 truncated = truncated || retained < count
                 if logDescriptor >= 0 {
                     let logged = min(count, max(0, options.maxLogBytes - logCount))
-                    if logged > 0 { try writeAll(logDescriptor, Data(bytes.prefix(logged))) }
+                    if logged > 0 {
+                        try bytes.withUnsafeBytes { try writeAll(logDescriptor, UnsafeRawBufferPointer(rebasing: $0.prefix(logged))) }
+                    }
                     logCount += logged
                     logTruncated = logTruncated || logged < count
                 }
@@ -187,12 +190,17 @@ public enum ProcessExecutor {
             if wasCancelled { try writeAll(logDescriptor, Data("\nsummon: cancelled\n".utf8)) }
         }
         let text = String(decoding: output, as: UTF8.self)
-        if wasCancelled { throw CancellationError() }
-        if timedOut { throw RunnerError.timedOut(path: path, seconds: options.timeout, output: text) }
         let signal = waitStatus & 0x7f
         let status = signal == 0 ? (waitStatus >> 8) & 0xff : 128 + signal
+        let elapsed = Int((ProcessInfo.processInfo.systemUptime - began) * 1000)
+        trace.emitEvent("ChildReap", "status=\(status, privacy: .public) elapsed-ms=\(elapsed, privacy: .public)")
+        if wasCancelled { throw CancellationError() }
+        if timedOut { throw RunnerError.timedOut(path: path, seconds: options.timeout, output: text) }
         return ProcessOutput(status: status, output: text, truncated: truncated)
     }
+
+    /// Child reap timing for Instruments and the runtime audit: exit status and elapsed time only.
+    private static let trace = OSSignposter(subsystem: "local.macplugins.summon", category: "process")
 
     private static func check(_ code: Int32) throws {
         if code != 0 { throw posixError(code) }
@@ -203,17 +211,19 @@ public enum ProcessExecutor {
     }
 
     private static func writeAll(_ descriptor: Int32, _ data: Data) throws {
-        try data.withUnsafeBytes { bytes in
-            var written = 0
-            while written < bytes.count {
-                let count = write(descriptor, bytes.baseAddress!.advanced(by: written), bytes.count - written)
-                if count < 0 {
-                    if errno == EINTR { continue }
-                    throw posixError(errno)
-                }
-                guard count > 0 else { throw posixError(EIO) }
-                written += count
+        try data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in try writeAll(descriptor, raw) }
+    }
+
+    private static func writeAll(_ descriptor: Int32, _ bytes: UnsafeRawBufferPointer) throws {
+        var written = 0
+        while written < bytes.count {
+            let count = write(descriptor, bytes.baseAddress!.advanced(by: written), bytes.count - written)
+            if count < 0 {
+                if errno == EINTR { continue }
+                throw posixError(errno)
             }
+            guard count > 0 else { throw posixError(EIO) }
+            written += count
         }
     }
 }

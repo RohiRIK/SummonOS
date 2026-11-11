@@ -12,6 +12,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
     public private(set) var panel: PanelController?
     /// Keeps the status item's label live (a running agent's elapsed time).
     private var menuBarStatus: MenuBarStatusWatcher?
+    private var startupTask: Task<Void, Never>?
+    private var startupReady = false
 
     static let crashCategory = "summon.crash"
     static let diagnoseAction = "summon.crash.diagnose"
@@ -64,9 +66,14 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         try? ProjectsFolder.ensure(.live)
         let activity = self.activity
         let model = self.model
+        model.bindActivity(activity)
         let panel = PanelController(openActivity: { activity.requestOpen() },
                                     openSettings: { activity.requestSettings() },
-                                    prepare: { model.prepareLauncher(startAt: $0) }) { state, actions in
+                                    prepare: { model.prepareLauncher(startAt: $0) },
+                                    onClose: { [weak activity, weak model] in
+                                        activity?.stopInterest(.panel)
+                                        model?.invalidateGuards()
+                                    }) { state, actions in
             PanelView(model: model, activity: activity, panel: state, actions: actions)
         }
         self.panel = panel
@@ -76,13 +83,21 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         self.menuBarStatus = menuBarStatus
         model.onMenuBarLabelChanged = { [weak menuBarStatus] in menuBarStatus?.redraw() }
         menuBarStatus.onNewEvents = { [weak self] events in self?.announce(events) }
+        menuBarStatus.onLogChanged = { [weak activity] in activity?.markDirty() }
+        var startupHealth: AppHealth?
+        menuBarStatus.onBaselineReady = { [weak self] in
+            guard let self, let health = startupHealth else { return }
+            self.startupReady = true
+            try? AppHealthStore(paths: self.model.paths).save(health)
+            self.setUpNotifications(health: health)
+        }
         menuBarStatus.start()
-        let health = registerHotKeys() ?? AppHealth(pid: ProcessInfo.processInfo.processIdentifier, hotkeys: [:])
+        startupHealth = registerHotKeys(publishHealth: false) ?? AppHealth(pid: ProcessInfo.processInfo.processIdentifier, hotkeys: [:])
         model.onUpdatesFound = { [weak self] updates in self?.announce(updates) }
         model.onUpdateGlobalHotKeys = { [weak self] in
-            self?.registerHotKeys()
+            _ = self?.registerHotKeys()
         }
-        setUpNotifications(health: health)
+        // Notification authorization and app-health advertising begin after the watcher baseline is installed.
         // Relaunched by an in-app update: the new build needs Accessibility again, so ask now, not when the hotkey fails.
         if CommandLine.arguments.contains("--updated"), !model.accessibilityGranted { model.requestAccessibility() }
         crashAlert.onWillPresent = { [weak panel] in panel?.yieldToCrashAlert() }
@@ -95,12 +110,30 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         model.onNewCrashes = { [weak self] reports in self?.announce(reports) }
         model.startWatching()
         // Every launch relinks the shipped skills, so an updated or moved app still reaches every agent.
-        Task {
-            await model.summon(["skills", "link", "--quiet"])
-            await model.summon(["home", "--quiet"])
-            // Once a day: old Summon files to the Trash (summon clean shows what and why).
-            await model.summon(["clean", "--apply", "--if-due", "--quiet"])
+        startupTask = Task {
+            for arguments in [["skills", "link", "--quiet"], ["home", "--quiet"],
+                              ["clean", "--apply", "--if-due", "--quiet"]] {
+                guard !Task.isCancelled else { return }
+                await model.summon(arguments)
+            }
         }
+    }
+
+    public func applicationWillTerminate(_ notification: Notification) {
+        startupTask?.cancel()
+        startupTask = nil
+        menuBarStatus?.stop()
+        menuBarStatus = nil
+        activity.stop()
+        model.stop()
+        panel?.stop()
+        panel = nil
+        HotKeyCenter.shared.unregister(id: SummonHotKey.menuID)
+        HotKeyCenter.shared.unregister(id: SummonHotKey.agentID)
+        NSAppleEventManager.shared().removeEventHandler(forEventClass: AEEventClass(kInternetEventClass),
+                                                        andEventID: AEEventID(kAEGetURL))
+        if canNotify { UNUserNotificationCenter.current().delegate = nil }
+        Self.shared = nil
     }
 
     /// `summon://panel` opens the menu bar panel and `summon://panel/close` closes it (use `open -g`);
@@ -170,8 +203,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         Bundle.main.bundleURL.pathExtension == "app" && Bundle.main.bundleIdentifier != nil
     }
 
-    @discardableResult
-    func registerHotKeys() -> AppHealth? {
+    func registerHotKeys(publishHealth: Bool = true) -> AppHealth? {
         guard let panel = self.panel else { return nil }
         let menuShortcut = model.globalMenuShortcut
         let agentShortcut = model.globalAgentShortcut
@@ -208,7 +240,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
             hotkeys: [menuShortcut.displayString: menuOK, agentShortcut.displayString: agentOK],
             notifications: existing?.notifications
         )
-        try? AppHealthStore(paths: model.paths).save(health)
+        if publishHealth && startupReady { try? AppHealthStore(paths: model.paths).save(health) }
         return health
     }
 
@@ -270,7 +302,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         content.userInfo = ["file": report.file, "program": report.program]
         if model.notificationSound { content.sound = .default }
         let request = UNNotificationRequest(identifier: report.file, content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request) { _ in }
+        submit(request)
     }
 
     /// Task results the CLI logged while this app runs (the CLI posts nothing itself then).
@@ -282,13 +314,10 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
             content.body = announcement.body
             content.categoryIdentifier = Self.taskCategory
             content.threadIdentifier = announcement.thread
-            var info = ["title": announcement.title, "category": announcement.category.rawValue]
-            info["log"] = announcement.logFile
-            info["task"] = announcement.taskID
-            content.userInfo = info
+            content.userInfo = EventAnnouncer.notificationInfo(announcement)
             if model.notificationSound && announcement.category == .taskFailed { content.sound = .default }
             let request = UNNotificationRequest(identifier: announcement.id, content: content, trigger: nil)
-            UNUserNotificationCenter.current().add(request) { _ in }
+            submit(request)
         }
     }
 
@@ -330,8 +359,24 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         content.categoryIdentifier = Self.updatesCategory
         content.threadIdentifier = "summon.updates"
         let request = UNNotificationRequest(identifier: "summon.updates", content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request) { _ in }
+        submit(request)
     }
+
+    private func submit(_ request: UNNotificationRequest) {
+        Task { @MainActor [weak self] in
+            let center = UNUserNotificationCenter.current()
+            let settings = await center.notificationSettings()
+            guard settings.authorizationStatus != .denied else { return }
+            center.add(request) { [weak self] error in
+                guard let error else { return }
+                PanelTrace.log.error("notification submission failed: \(String(describing: error), privacy: .private)")
+                Task { @MainActor [weak self] in
+                    self?.model.lastError = "Notification could not be posted: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
 
     private func handle(action: String, category: String, info: [String: String]) {
         if category == Self.updatesCategory {
@@ -364,10 +409,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
                 activity.requestOpen()
             }
         case Self.askAction:
-            let announcement = EventAnnouncement(
-                id: "", category: EventAnnouncement.Category(rawValue: info["category"] ?? "") ?? .taskDone,
-                title: info["title"] ?? "Scheduled task", body: "", thread: "", logFile: info["log"], taskID: info["task"])
-            model.askAgent(prompt: EventAnnouncer.askPrompt(announcement))
+            model.askAgent(prompt: EventAnnouncer.askPrompt(EventAnnouncer.fromNotification(info)))
         case UNNotificationDefaultActionIdentifier:
             activity.requestOpen()
         default:

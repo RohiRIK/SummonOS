@@ -6,6 +6,23 @@ import SwiftUI
 /// (ask the agent, Activity), with the Settings…/Quit footer (AGENTS.md). Hosted once by `PanelController` in a
 /// nonactivating `StatusPanel`; it stays one SwiftUI view and keeps updating while open (spec v1.5, E1–E5).
 /// Every row that does something calls `actions.finish` so the panel closes (D3).
+/// E5: marks the open session refreshed once any newer Activity generation publishes (the shared owner may publish
+/// before this panel's own refresh returns).
+private struct PublicationWatcher: View {
+    let activity: ActivityModel
+    let panel: PanelState
+    let openingBaseline: Int
+    @Binding var refreshedSession: Int
+
+    var body: some View {
+        Color.clear.onChange(of: activity.lastPublishedGeneration) { _, published in
+            if panel.isOpen, published > openingBaseline, refreshedSession != panel.session {
+                refreshedSession = panel.session
+            }
+        }
+    }
+}
+
 public struct PanelView: View {
     let model: SummonModel
     let activity: ActivityModel
@@ -19,6 +36,7 @@ public struct PanelView: View {
     /// E5: the `PanelState.session` whose first Activity refresh has finished. Until it matches, the agent line
     /// doesn't show the previous open's "running" state.
     @State private var refreshedSession = 0
+    @State private var openingBaseline = 0
     @FocusState private var searchFocused: Bool
 
     public init(model: SummonModel, activity: ActivityModel, panel: PanelState, actions: PanelActions) {
@@ -59,6 +77,7 @@ public struct PanelView: View {
         .frame(width: PanelConfig.width, height: max(1, min(contentHeight, panel.maxHeight)))
         .background(PanelBackground())
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .summonTheme(model)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Summon")
         // A1/E5: every open (and `summon://menu/<id>`) starts clean at its level. Focus comes only from
@@ -68,28 +87,37 @@ public struct PanelView: View {
         // A1/A2/G1: focus once the panel is key (the controller bumps this after makeKeyAndOrderFront).
         .onChange(of: panel.focusRequest) { _, _ in searchFocused = true }
         .onChange(of: query) { _, _ in selection = 0 }
-        // Re-check `when`/`checked` guards whenever the level changes or the panel opens again.
-        .task(id: GuardKey(level: level, session: model.launcherSession)) {
-            await model.evaluateGuards(model.menu.children(of: level))
+        // Only this watcher reads the publication counter, so a background publish doesn't re-render the panel.
+        .background(PublicationWatcher(activity: activity, panel: panel, openingBaseline: openingBaseline,
+                                       refreshedSession: $refreshedSession))
+        .onChange(of: panel.isOpen) { _, open in
+            // Reset while hidden: the controller lays the closed panel out, so the next open has nothing to rebuild
+            // inside makeKeyAndOrderFront (each rebuild there was a dropped frame).
+            if !open { model.invalidateGuards(); query = ""; level = nil; selection = 0 }
         }
-        .task(id: query) {
-            guard !query.isEmpty else { return }
-            await model.evaluateGuards(model.menu.search(query))
-        }
-        // E1/E5: refresh at once on open, then every 1 s while open; cancelled on close.
-        .task(id: panel.isOpen) {
+        // Query, level, session, and visibility share one guard generation: no cancelled result
+        // from the previous search or panel opening can overwrite a newer check.
+        .task(id: GuardKey(level: level, query: query, session: model.launcherSession,
+                           menuRevision: model.menuRevision, visible: panel.isOpen)) {
             guard panel.isOpen else { return }
-            model.reloadProjects()
+            let generation = model.beginGuardEvaluation()
+            let items = query.isEmpty ? model.menu.children(of: level) : model.menu.search(query)
+            await model.evaluateGuards(items, generation: generation)
+        }
+        // Refresh once per opening and acknowledge only the generation that actually published.
+        // The shared activity owner observes source changes and reconciles slowly while interested.
+        .task(id: PanelRefreshKey(open: panel.isOpen, session: panel.session)) {
+            guard panel.isOpen else { return }
             let session = panel.session
+            openingBaseline = activity.lastPublishedGeneration
             guard activity.live else {
                 refreshedSession = session
                 return
             }
-            while !Task.isCancelled {
-                await activity.refresh()
-                if refreshedSession != session { refreshedSession = session }
-                try? await Task.sleep(for: .seconds(1))
-            }
+            activity.startInterest(.panel)
+            guard let _ = await activity.refresh(whileInterested: .panel), !Task.isCancelled,
+                  panel.isOpen, panel.session == session else { return }
+            refreshedSession = session
         }
     }
 
@@ -123,7 +151,8 @@ public struct PanelView: View {
     }
 
     private var content: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        let rows = self.rows // a search walks the whole menu tree; run it once per update
+        return VStack(alignment: .leading, spacing: 2) {
             header
             // Always visible (owner, 2026-10-26), so people know they can type.
             search
@@ -132,7 +161,7 @@ public struct PanelView: View {
                 MenuTreeRow(item: item,
                             breadcrumb: query.isEmpty ? nil : model.menu.path(to: item.parentID ?? "").joined(separator: " › "),
                             isSelected: index == selection,
-                            isChecked: model.checks[item.id] == true,
+                            isChecked: model.isChecked(item),
                             hasChildren: model.hasChildren(item),
                             health: model.health(for: item)) {
                     selection = index
@@ -262,6 +291,14 @@ public struct PanelView: View {
 
     private struct GuardKey: Hashable {
         let level: String?
+        let query: String
+        let session: Int
+        let menuRevision: Int
+        let visible: Bool
+    }
+
+    private struct PanelRefreshKey: Hashable {
+        let open: Bool
         let session: Int
     }
 
@@ -269,7 +306,6 @@ public struct PanelView: View {
         query = ""
         level = model.launcherStartLevel
         selection = 0
-        model.reloadProjects()
     }
 
     private func move(_ delta: Int) {
@@ -339,7 +375,7 @@ public struct PanelView: View {
                         .font(.subheadline.weight(.semibold))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .background(Color.accentColor, in: Capsule())
+                        .background(.tint, in: Capsule())
                         .foregroundStyle(.white)
                 }
                 .buttonStyle(.plain)
@@ -436,12 +472,12 @@ struct MenuTreeRow: View {
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color.accentColor.opacity(0.18), in: Capsule())
-                    .foregroundStyle(Color.accentColor)
+                    .background(.tint.opacity(0.18), in: Capsule())
+                    .foregroundStyle(.tint)
             }
             if let health {
                 Circle()
-                    .fill(health.level == .healthy ? Color.green : (health.level == .warning ? Color.orange : Color.red))
+                    .fill(health.level.indicatorColor)
                     .frame(width: 6, height: 6)
             }
             if isChecked {
@@ -455,6 +491,7 @@ struct MenuTreeRow: View {
         }
         // The health dot is color only; VoiceOver hears its badge ("Healthy", "2 warnings") instead.
         .accessibilityValue(health?.badge ?? "")
+        .help(health?.detail ?? item.label)
     }
 }
 

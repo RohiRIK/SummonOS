@@ -298,6 +298,89 @@ A tiling window manager, restyling system chrome (blocked by SIP), an ISO or ful
    behind its secrets.
 5. The first version is `v0.1.0`. The agent creates a release tag only after the owner's OK for that release.
 
+## Runtime audit and implementation roadmap (2026-11-08)
+
+Requested deliverable: audit and phased plan, not implementation. Preserve the master plan above.
+
+- [x] Audit About/build metadata in the main application.
+- [x] Measure available menu/runtime baselines and identify rendering, state and memory bottlenecks.
+- [x] Trace finish-phase failures, resource lifetime and cleanup races.
+- [x] Specify automation for build, deployment, validation and post-execution cleanup.
+- [x] Publish the evidence, priorities, acceptance criteria and verification limits in the
+      [runtime audit and implementation roadmap](../docs/plans/2026-11-08-runtime-audit.md).
+      At audit completion, application changes were proposals; implementation approval and work are tracked below.
+
+## Runtime hardening implementation (approved 2026-11-08)
+
+Owner approved proceeding after a four-model read-only evaluation. Parent coordinates; scoped workers implement.
+Branch: `feat/runtime-hardening-2026-11-08`. Preserve the master plan and completed audit above.
+
+Explicit requirements: reachable About/build details, measured menu performance improvements, finish-phase stability,
+and build/deployment/validation/cleanup automation. Implementation detail and acceptance: the linked runtime audit.
+
+- [ ] Phase 0 — Core baseline/Core100 complete; hosted candidate GUI100 passed. Controlled comparative GUI and retained-heap baselines remain required.
+- [x] Phase 1 — Bounded/idempotent terminal outcomes, cancellation/timeout/interruption and leased chronological cleanup; Core/CLI regressions and Core100 scenarios passed locally.
+- [ ] Phase 2 — Signed stable/edge identity verified at `8f267fb`; packaged About metadata and cross-OS light keyboard close/reopen verified at `e94dbfa`. VoiceOver remains required.
+- [ ] Phase 3 — Off-main shared refresh and watcher/shutdown fixes implemented; actual terminal delivery and GUI100 passed. Crash bursts, displayed-frame timing and retained-heap bounds remain release gates; PanelWindowUpdate is pre-display only.
+- [ ] Phase 4 — Signed local gate, isolated verify-only and two rollback faults passed; hosted macOS 26 packaged installation/CLI and GUI lifecycle exercised. Current automated gates are tracked in draft PR #124.
+- [x] Independent static reviews integrated; latest Python 98/98, CLI 21/21 and Core 378/378 passed. Explicit lease-release regression and real signed lifecycle smoke passed; historical Core100 passed 11/11 scenarios.
+- [ ] VoiceOver, Reduce Transparency, controlled comparative GUI/displayed-frame profiling, full-app notification/crash bursts and retained-heap proof remain required before release readiness.
+- [x] Updated existing docs/indexes; workspace, README-art and OKF checks passed after local integration evidence.
+
+Operational decisions: model routing remains session-only; one integration owner; no release tag or publication authorized.
+The independent hosted SwiftUI control also failed to record/save; repeated hosted runs do not establish
+profiling acceptance. Continue in a native isolated GUI test session without replacing the personal install.
+A missing profiling/GUI prerequisite must be reported, not counted as a pass.
+
+## My Apps category consistency (approved 2026-11-10)
+
+- [x] Show the same six categories in panel and Settings, including empty categories.
+- [x] Include built-in/custom themes and Art & Wallpapers in both inventories and attention counts.
+- [x] Menu regressions (12/12), signed bundle and installed CLI inventory verified; owner-approved test build updated.
+- Visual limit: Settings launched, but native window capture failed through both screencapture and ScreenCaptureKit.
+
+## My Apps health classification and counts (approved 2026-11-10)
+
+- [x] Account for the old nine: seven bundled-theme lint findings, one optional wallpaper and one false project-build warning.
+- [x] Review all nine shipped themes and their referenced assets without changing the palettes.
+- [x] Share repair/advisory counts and exact AI repair targets across panel, Settings and CLI; recognize actual template build outputs.
+- [x] 38 focused tests, live-model/installed-CLI counts, light/dark live-inventory content renders and signed installation verified (build 1794316868).
+- Installed Settings launched; content renders do not claim installed-window capture or broader release-readiness verification.
+
+## Theme accent synchronization (requested 2026-11-10)
+
+- [x] Traced active Nord, blue Catppuccin preset and separate native controls; this Mac's Automatic folder tint resolves to the system accent.
+- [x] Summon observes the active accent; Catppuccin uses mauve for accent/active border only. Style and My Apps checkmarks share current state.
+- [x] Added snapshotted macctl appearance refresh; running AppKit and Automatic folder tint changed blue → purple → blue across apply/undo. No guessed folder preference keys or forced icon style.
+- [x] Verified four focused tests, Nord → Catppuccin → Nord model/checkmark transitions, light/dark content renders and native apply/undo; installed build 1794318081 plus macctl and applied Catppuccin (system accent 5).
+
+## Remaining runtime acceptance (approved 2026-11-10)
+
+- [x] Resolve the SwiftUI recorder failure using causal evidence; preserve fail-closed trace validation.
+  Cause: save time grows with trace size. After 100 real cycles on Xcode 27.1 (real GPU) a SwiftUI trace
+  (532 MB) had not saved in 600 s; a Hitches trace (1.4 GB) took 596 s. SwiftUI and Hitches now record a
+  10-cycle sample (SwiftUI instrument alone, `--frames` for Hitches); local audit: SwiftUI passed.
+- [~] Displayed frames and memory on the real GUI (this Mac, installed build, fresh HOME):
+  - Hitches fail Apple's 5 ms/s budget: 40.7 ms/s, 1.6 per cycle, max 33 ms (first measure: 73.5 ms/s, max
+    167 ms). Panel open now resets while hidden (`show()` ~25 ms -> ~12 ms main thread). The rest is SwiftUI
+    per-update cost: ~40% accessibility work (focus walk over every row responder, dynamic conformance
+    lookups) once an AX client is connected, plus ScrollView sizing. 10-cycle hitch counts vary 1.2-6.9 per
+    cycle between runs; judge changes by main-thread CPU (120-137 ms per open/search/close cycle).
+  - Live heap +1.2 MB over 100 cycles (~12 KB/cycle), strictly increasing: fails. The pre-change build grew
+    +1.09 MB (passed only on one dip). Needs a retention investigation.
+  - Allocations: a 100-cycle trace does not save within 45 s on this Mac (passes hosted).
+  - Panel signposts: exactly 50 of 100 PanelOpen/PanelWindowUpdate intervals recorded (hosted too).
+- [~] VoiceOver / Reduce Transparency: crash burst passed (13 reports, real watcher). `windows ax-audit <pid>`
+  counts controls VoiceOver cannot name (not yet wired into the audit). Reduce Transparency has no macctl
+  setting; code relies on NSVisualEffectView, which macOS makes opaque. Owner check still needed:
+  VoiceOver on (Cmd-F5), open the panel by hotkey, hear search + rows + footer, Escape closes; then
+  Settings > Accessibility > Display > Reduce Transparency on, open panel + Settings, text readable.
+- [ ] Push verified changes to draft PR #124. No merge, tag or release authorized.
+
 ## Review
 
-(fill in when done)
+ReviewFinish found five lifecycle/cleanup/notification defects; ReviewAutomation found two release blockers,
+one Instruments parser concern and five automation issues; ReviewMenu found eight panel/crash/cursor/startup
+correctness and measurement issues. Integration repaired the actionable source paths, replaced the fabricated
+trace fixture with an excerpt from an actual owned Xcode Instruments export, and retained the unverified hosted
+GUI/VoiceOver/heap criteria above. No independent reviewer ran tests or controlled the personal app.

@@ -4,6 +4,23 @@ import Observation
 import SummonCore
 import SwiftUI
 
+private struct ActivityRead: Sendable {
+    let sources: ActivitySources
+    let events: [ActivityEvent]
+    let status: SummonStatus
+    let results: [String: String]
+    let undoOffer: UndoOffer?
+    let agent: Agent?
+    let agentInstalled: Bool
+    let macctlInstalled: Bool
+    let macctlProblems: [String]
+}
+
+private enum ActivityReadResult: Sendable {
+    case success(ActivityRead)
+    case failure(String)
+}
+
 /// State for the Activity window and the panel's Recent Activity rows: the merged timeline, the status
 /// strip, the filter, and the undo actions. Crash reports come from `SummonModel`'s watcher, never re-parsed.
 @MainActor
@@ -35,6 +52,8 @@ public final class ActivityModel {
     public private(set) var sources = ActivitySources()
     public private(set) var events: [ActivityEvent] = []
     public private(set) var status: SummonStatus? = nil
+    /// Observable acknowledgement of a completed shared source publication.
+    public private(set) var lastPublishedGeneration = 0
     public private(set) var macctlProblems: [String] = []
     public private(set) var macctlPath: String? = nil
     /// The last undo or doctor failure, shown above the timeline.
@@ -56,8 +75,20 @@ public final class ActivityModel {
 
     /// False for previews: no disk reads, commands or activation-policy changes.
     @ObservationIgnored public internal(set) var live = true
-    @ObservationIgnored private var refreshTask: Task<Void, Never>? = nil
-    @ObservationIgnored private var loading = false
+    public enum Interest: Hashable { case panel, window }
+    @ObservationIgnored private var interests: Set<Interest> = []
+    @ObservationIgnored private var refreshTask: Task<Void, Never>?
+    @ObservationIgnored private var doctorTask: Task<Void, Never>?
+    @ObservationIgnored private var actionTask: Task<Void, Never>?
+    @ObservationIgnored private var worker: Task<ActivityReadResult, Never>?
+    @ObservationIgnored private var generation = 0
+    @ObservationIgnored private var publishedGeneration = 0
+    @ObservationIgnored private var dirty = true
+    @ObservationIgnored private var nextReconcile = Date()
+    @ObservationIgnored private var watches: [URL: FileWatch] = [:]
+    private let bell = Doorbell()
+    @ObservationIgnored private var stopped = false
+    @ObservationIgnored private var activityReadError: String?
 
     public init(summon: SummonModel, runner: @escaping Runner = Shell.live) {
         self.summon = summon
@@ -120,26 +151,104 @@ public final class ActivityModel {
         updatesRequest += 1
     }
 
-    /// Reloads every source off the main actor. Cheap: small JSON files, no crash parsing.
-    public func refresh() async {
-        guard !loading else { return }
-        loading = true
-        defer { loading = false }
-        let paths = summon.paths
-        var loaded = await Task.detached { ActivitySources.load(paths: paths, crashLimit: 0) }.value
-        loaded.crashes = summon.recentCrashes
-        for report in loaded.crashes where loaded.crashDates[report.file] == nil {
-            loaded.crashDates[report.file] = ActivityFeed.crashDate(report)
+    /// Every caller joins the same in-flight disk read. A non-nil acknowledgement means this exact
+    /// generation has actually published (not that another refresh was merely in progress).
+    @discardableResult
+    public func refresh(whileInterested interest: Interest? = nil) async -> Int? {
+        guard !stopped, !Task.isCancelled, interest.map(interests.contains) != false else { return nil }
+        while !stopped, !Task.isCancelled {
+            guard interest.map(interests.contains) != false else { return nil }
+            let current: Task<ActivityReadResult, Never>
+            let expected: Int
+            if let worker {
+                current = worker
+                expected = generation
+            } else {
+                generation += 1
+                expected = generation
+                let paths = summon.paths
+                let crashes = summon.recentCrashes
+                let agent = summon.defaultAgent
+                let installed = summon.agentInstalled
+                let macctlInstalled = macctlPath != nil
+                let macctlProblems = macctlProblems
+                current = Task.detached(priority: .utility) {
+                    let interval = PanelTrace.signposter.beginInterval("SourceCollection", id: PanelTrace.signposter.makeSignpostID())
+                    defer { PanelTrace.signposter.endInterval("SourceCollection", interval, "activity") }
+                    let events: [LoggedEvent]
+                    do {
+                        var cursor = EventLogCursor(file: paths.eventLogFile)
+                        events = try cursor.read().events
+                    } catch {
+                        return .failure("Could not read the activity log: \(error.localizedDescription)")
+                    }
+                    var loaded = ActivitySources.load(paths: paths, crashLimit: 0, log: events)
+                    loaded.crashes = crashes
+                    for report in crashes where loaded.crashDates[report.file] == nil {
+                        loaded.crashDates[report.file] = ActivityFeed.crashDate(report)
+                            ?? (try? URL(fileURLWithPath: report.file).resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate)
+                    }
+                    let status = StatusProbe.build(agent: agent, agentInstalled: installed, log: loaded.log,
+                                                   macctlInstalled: macctlInstalled, macctlProblems: macctlProblems,
+                                                   snapshots: loaded.snapshots, checkpoints: loaded.checkpoints,
+                                                   configIsRepo: loaded.configIsRepo, crashes: loaded.crashes,
+                                                   crashDates: loaded.crashDates)
+                    return .success(ActivityRead(sources: loaded, events: loaded.events, status: status,
+                                                 results: TaskResults.latest(in: loaded.log), undoOffer: UndoOffer.latest(loaded),
+                                                 agent: agent, agentInstalled: installed, macctlInstalled: macctlInstalled,
+                                                 macctlProblems: macctlProblems))
+                }
+                worker = current
+            }
+            let result = await current.value
+            guard !stopped, !Task.isCancelled, interest.map(interests.contains) != false else {
+                if expected == generation { worker = nil }
+                return nil
+            }
+            if current.isCancelled || expected != generation { continue }
+            guard case .success(let collected) = result else {
+                if case .failure(let message) = result {
+                    activityReadError = message
+                    lastError = message
+                }
+                worker = nil
+                return nil
+            }
+            if lastError == activityReadError { lastError = nil }
+            activityReadError = nil
+            if publishedGeneration != expected {
+                let interval = PanelTrace.signposter.beginInterval("MainPublication", id: PanelTrace.signposter.makeSignpostID())
+                let sameInputs = collected.agent == summon.defaultAgent && collected.agentInstalled == summon.agentInstalled
+                    && collected.macctlInstalled == (macctlPath != nil) && collected.macctlProblems == macctlProblems
+                apply(collected.sources, events: collected.events, status: sameInputs ? collected.status : nil)
+                summon.acceptActivity(taskResults: collected.results, undoOffer: collected.undoOffer)
+                PanelTrace.signposter.endInterval("MainPublication", interval, "activity")
+                publishedGeneration = expected
+                lastPublishedGeneration = expected
+                worker = nil
+            }
+            return expected
         }
-        apply(loaded)
+        return nil
     }
 
-    func apply(_ loaded: ActivitySources) {
+    func apply(_ loaded: ActivitySources) { apply(loaded, events: loaded.events, status: nil) }
+
+    func refreshStatus() {
+        guard !stopped else { return }
+        updateStatus(from: sources, collected: nil)
+    }
+
+    private func apply(_ loaded: ActivitySources, events latest: [ActivityEvent], status collected: SummonStatus?) {
         if loaded != sources {
             sources = loaded
-            events = loaded.events
+            if events != latest { events = latest }
         }
-        status = StatusProbe.build(
+        updateStatus(from: loaded, collected: collected)
+    }
+
+    private func updateStatus(from loaded: ActivitySources, collected: SummonStatus?) {
+        let current = collected ?? StatusProbe.build(
             agent: summon.defaultAgent,
             agentInstalled: summon.agentInstalled,
             log: loaded.log,
@@ -151,48 +260,120 @@ public final class ActivityModel {
             crashes: loaded.crashes,
             crashDates: loaded.crashDates
         )
+        if status != current { status = current }
     }
 
-    /// `macctl doctor` probes Automation through AppleScript, so it runs on open, not on every refresh.
+    /// `macctl doctor` probes Automation through AppleScript, so it runs on window open only.
     public func checkMacctl() async {
-        macctlPath = ToolLocator.live().find("macctl")
-        guard let macctlPath else {
-            macctlProblems = []
+        let path = await Task.detached(priority: .utility) { ToolLocator.live().find("macctl") }.value
+        guard !Task.isCancelled, interests.contains(.window) else { return }
+        if macctlPath != path { macctlPath = path }
+        guard let path else {
+            if !macctlProblems.isEmpty { macctlProblems = [] }
+            refreshStatus()
             return
         }
         do {
-            macctlProblems = StatusProbe.doctorProblems(fromJSON: try await runner(macctlPath, ["doctor", "--json"]))
+            let problems = StatusProbe.doctorProblems(fromJSON: try await runner(path, ["doctor", "--json"]))
+            guard !Task.isCancelled, interests.contains(.window) else { return }
+            if macctlProblems != problems { macctlProblems = problems }
+            refreshStatus()
         } catch {
-            macctlProblems = ["doctor failed: \(error)"]
+            guard !Task.isCancelled, interests.contains(.window) else { return }
+            lastError = "macctl doctor failed: \(error)"
         }
-        apply(sources)
     }
 
-    /// Refreshes every few seconds while the window is open; the event files are tiny.
-    public func startAutoRefresh(interval: Duration = .seconds(3)) {
-        guard live, refreshTask == nil else { return }
+    /// The panel and Activity window explicitly own interest. One loop watches their shared data;
+    /// there is no hidden one-second polling or second panel-specific reload loop.
+    public func startInterest(_ interest: Interest) {
+        guard live, !stopped, interests.insert(interest).inserted else { return }
+        if interest == .window {
+            doctorTask = Task { [weak self] in await self?.checkMacctl() }
+        }
+        guard refreshTask == nil else { return }
+        dirty = true
+        nextReconcile = Date()
         refreshTask = Task { [weak self] in
-            await self?.checkMacctl()
             while !Task.isCancelled {
-                await self?.refresh()
-                try? await Task.sleep(for: interval)
+                guard let bell = await self?.reconcileIfNeeded() else { return }
+                guard !Task.isCancelled else { return }
+                await bell.wait(for: .seconds(60), tolerance: .seconds(15))
             }
         }
     }
 
-    public func stopAutoRefresh() {
+    private func reconcileIfNeeded() async -> Doorbell {
+        armWatches()
+        if dirty || Date() >= nextReconcile {
+            dirty = false
+            nextReconcile = Date().addingTimeInterval(60)
+            _ = await refresh()
+        }
+        return bell
+    }
+
+    public func stopInterest(_ interest: Interest) {
+        guard interests.remove(interest) != nil else { return }
+        if interest == .window { doctorTask?.cancel(); doctorTask = nil }
+        guard interests.isEmpty else { return }
         refreshTask?.cancel()
         refreshTask = nil
+        worker?.cancel()
+        worker = nil
+        generation += 1
+        watches = [:]
+        bell.ring()
+    }
+
+    /// The log watcher or a command can mark data dirty even while the window is closed.
+    public func markDirty() {
+        guard !stopped else { return }
+        dirty = true
+        if let worker {
+            worker.cancel()
+            self.worker = nil
+            generation += 1
+        }
+        bell.ring()
+    }
+
+    private func armWatches() {
+        let paths = summon.paths
+        let targets = [paths.state, paths.config, paths.macctlSnapshots,
+                       paths.macctlSnapshots.deletingLastPathComponent().appendingPathComponent("journal", isDirectory: true)]
+        let directories = Set(targets.compactMap(FileWatch.nearestExistingDirectory(to:)))
+        for directory in directories where watches[directory]?.isGone ?? true {
+            watches[directory] = FileWatch(directory) { [weak self] in
+                Task { @MainActor [weak self] in self?.markDirty() }
+            }
+        }
+        watches = watches.filter { directories.contains($0.key) }
+    }
+
+    public func stop() {
+        guard !stopped else { return }
+        stopped = true
+        stopInterest(.panel)
+        stopInterest(.window)
+        doctorTask?.cancel()
+        doctorTask = nil
+        worker?.cancel()
+        worker = nil
+        generation += 1
+        actionTask?.cancel()
+        actionTask = nil
     }
 
     // MARK: Actions
 
     public func runAgent(prompt: String) {
+        guard !stopped else { return }
         let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         summon.askAgent(prompt: trimmed.isEmpty ? nil : trimmed)
-        Task {
+        Task { [weak self] in
             try? await Task.sleep(for: .seconds(1))
-            await refresh()
+            if !Task.isCancelled { _ = await self?.refresh() }
         }
     }
 
@@ -202,7 +383,8 @@ public final class ActivityModel {
             lastError = "macctl is not installed."
             return
         }
-        perform { try await self.runner(macctlPath, ["undo", id, "--json"]) }
+        let runner = runner
+        perform { try await runner(macctlPath, ["undo", id, "--json"]) }
     }
 
     /// `summon checkpoint undo <id>`: settings and `~/.config` files back to that checkpoint.
@@ -211,21 +393,25 @@ public final class ActivityModel {
             lastError = "The summon command is missing. Reinstall Summon."
             return
         }
-        perform { try await self.runner(summonPath, ["checkpoint", "undo", id]) }
+        let runner = runner
+        perform { try await runner(summonPath, ["checkpoint", "undo", id]) }
     }
 
     private func perform(_ work: @escaping @MainActor () async throws -> String) {
-        guard !busy else { return }
+        guard !stopped, !busy else { return }
         busy = true
-        Task {
-            do {
-                _ = try await work()
-                lastError = nil
-            } catch {
-                lastError = String(describing: error)
+        actionTask = Task { [weak self] in
+            let result: Result<String, Error>
+            do { result = .success(try await work()) }
+            catch { result = .failure(error) }
+            guard !Task.isCancelled, let self, !self.stopped else { return }
+            switch result {
+            case .success: self.lastError = nil
+            case .failure(let error): self.lastError = String(describing: error)
             }
-            busy = false
-            await refresh()
+            self.busy = false
+            self.actionTask = nil
+            _ = await self.refresh()
         }
     }
 

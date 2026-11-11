@@ -3,6 +3,7 @@
 import hashlib
 import os
 import json
+import plistlib
 from pathlib import Path
 import shutil
 import subprocess
@@ -96,6 +97,26 @@ exec /usr/bin/grep "$@"
 ''')
         self.assertNotEqual(self.scan("private-value\n").returncode, 0)
 
+    @staticmethod
+    def build_identity(version="0.2.4", channel="stable"):
+        edge = "-edge." in version
+        base = version.split("-edge.")[0]
+        revision = (version.split("-edge.")[1] + "0" * 40)[:40] if edge else "a" * 40
+        return {"current":version, "marketingVersion":base, "buildNumber":"123",
+                "sourceRevision":revision, "sourceState":"clean", "channel":"edge" if edge else channel,
+                "configuration":"release", "buildTimestamp":"2026-11-08T00:00:00Z"}
+
+    @staticmethod
+    def build_plist(identity):
+        return plistlib.dumps({"CFBundleName":"Summon", "SummonDisplayVersion":identity["current"],
+                               "CFBundleShortVersionString":identity["marketingVersion"],
+                               "CFBundleVersion":identity["buildNumber"],
+                               "SummonBuildCommit":identity["sourceRevision"],
+                               "SummonBuildSourceState":identity["sourceState"],
+                               "SummonBuildChannel":identity["channel"],
+                               "SummonBuildConfiguration":identity["configuration"],
+                               "SummonBuildTimestamp":identity["buildTimestamp"]})
+
     def install_fixture(self):
         package = self.work / "summon"
         (package / "scripts").mkdir(parents=True)
@@ -103,11 +124,20 @@ exec /usr/bin/grep "$@"
         state_helper = ROOT / "incubator/summon/scripts/install-state.py"
         if state_helper.exists():
             shutil.copy2(state_helper, package / "scripts/install-state.py")
+        shutil.copy2(ROOT / "tools/build-metadata.py", package / "scripts/build-metadata.py")
         self.executable(package / "build/Summon.app/Contents/MacOS/SummonMenu", "exit 0")
         self.executable(package / "build/Summon.app/Contents/MacOS/summon", '''
+if [[ ${1:-} == --version ]]; then echo 'summon 0.2.4'; exit 0; fi
 if [[ ${1:-} == menu && ${FAIL_INIT:-0} == 1 ]]; then exit 4; fi
 echo new-summon
 ''')
+        identity = self.build_identity()
+        app = package / "build/Summon.app"
+        (app / "Contents/Info.plist").write_bytes(self.build_plist(identity))
+        (app / "Contents/Resources/BuildInfo.json").parent.mkdir(parents=True)
+        (app / "Contents/Resources/BuildInfo.json").write_text(json.dumps(identity))
+        (app / "Contents/Resources/Metadata.appintents").mkdir()
+        (app / "Contents/Resources/Metadata.appintents/extract.actionsdata").write_bytes(b"intent fixture")
         themes = package / "build/Summon.app/Contents/share/summon/themes"
         (themes / "test").mkdir(parents=True)
         (themes / "test/theme.json").write_text("{}")
@@ -117,7 +147,7 @@ echo new-summon
         self.executable(self.home / ".local/bin/macctl", "echo old-macctl")
         self.executable(self.home / ".local/bin/summon", "echo old-summon")
         new_macctl = self.work / "new-macctl"
-        self.executable(new_macctl, "echo new-macctl")
+        self.executable(new_macctl, "if [[ ${1:-} == --version ]]; then echo 'macctl 0.2.4'; else echo new-macctl; fi")
         self.env["SUMMONOS_MACCTL_SOURCE"] = str(new_macctl)
         self.executable(self.bin / "codesign", "exit 0")
         return package / "scripts/install.sh"
@@ -168,7 +198,7 @@ exec /bin/mv "$@"
 ''')
         result = self.run_script(script)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("automatic recovery failed", result.stderr)
+        self.assertIn("Automatic recovery incomplete", result.stderr)
         self.assertTrue(list((self.home / "Applications").glob(".summon-install.*/previous.app/old-version")))
         self.assertTrue(list((self.home / ".local/bin").glob(".summon-install.*/previous-macctl")))
 
@@ -210,6 +240,7 @@ fi
     def test_root_installer_reports_doctor_failure_honestly(self):
         script, package = self.root_install_fixture()
         self.executable(package / "build/Summon.app/Contents/MacOS/summon", '''
+if [[ ${1:-} == --version ]]; then echo 'summon 0.2.4'; exit 0; fi
 if [[ ${1:-} == doctor ]]; then echo 'fixture doctor failure' >&2; exit 1; fi
 ''')
         result = self.run_script(script)
@@ -234,23 +265,29 @@ if [[ ${1:-} == doctor ]]; then echo 'fixture doctor failure' >&2; exit 1; fi
         name = f"summonos-{version}-macos-universal.zip"
         (releases / tag).mkdir(parents=True)
         top = f"summonos-{version}/"
+        identity = self.build_identity(version)
         with zipfile.ZipFile(releases / tag / name, "w") as archive:
             def add(path, text, mode=0o644):
                 info = zipfile.ZipInfo(top + path)
                 info.external_attr = (0o100000 | mode) << 16
                 archive.writestr(info, text)
             add("Summon.app/Contents/MacOS/SummonMenu", "#!/bin/bash\nexit 0\n", 0o755)
-            add("Summon.app/Contents/MacOS/summon", '''#!/bin/bash
-case ${1:-} in
-  commands) echo '[{"route":"doctor"},{"route":"connect"}]' ;;
+            add("Summon.app/Contents/MacOS/summon", f'''#!/bin/bash
+case ${{1:-}} in
+  --version) echo 'summon {identity["current"]}' ;;
+  commands) echo '[{{"route":"doctor"}},{{"route":"connect"}}]' ;;
   connect) touch "$HOME/connected" ;;
   *) echo release-summon ;;
 esac
 ''', 0o755)
             add("Summon.app/Contents/share/summon/themes/test/theme.json", "{}")
-            add("bin/macctl", "#!/bin/bash\necho release-macctl\n", 0o755)
+            add("Summon.app/Contents/Info.plist", self.build_plist(identity))
+            add("Summon.app/Contents/Resources/BuildInfo.json", json.dumps(identity))
+            add("Summon.app/Contents/Resources/Metadata.appintents/extract.actionsdata", "intent fixture")
+            add("bin/macctl", f"#!/bin/bash\nif [[ ${{1:-}} == --version ]]; then echo 'macctl {identity['marketingVersion']}'; else echo release-macctl; fi\n", 0o755)
             for helper in ("install.sh", "install-state.py"):
                 add("scripts/" + helper, (ROOT / "incubator/summon/scripts" / helper).read_text(), 0o755)
+            add("scripts/build-metadata.py", (ROOT / "tools/build-metadata.py").read_text(), 0o755)
         digest = hashlib.sha256((releases / tag / name).read_bytes()).hexdigest()
         (releases / tag / "SHA256SUMS").write_text(f"{digest if checksum_ok else '0' * 64}  {name}\n")
         listed = listed or [tag]
@@ -452,7 +489,7 @@ with zipfile.ZipFile(sys.argv[1]) as z:
         self.assertEqual(first.returncode, 0, first.stderr)
         receipt = self.manifest().read_bytes()
         source = installer.parent.parent / "build/Summon.app/Contents/MacOS/summon"
-        self.executable(source, "echo changed-version")
+        self.executable(source, "if [[ ${1:-} == --version ]]; then echo 'summon 0.2.4'; else echo changed-version; fi")
         (installer.parent / "install-state.py").write_text("raise SystemExit(7)\n")
         result = self.run_script(installer)
         self.assertNotEqual(result.returncode, 0)

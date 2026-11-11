@@ -3,7 +3,64 @@
 All notable changes to Summon. Newest first. Summon is still incubating in the SummonOS workspace; entries are
 grouped by day and point at the pull request. SummonOS releases (one version for `summon`, `macctl` and Summon.app,
 see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/releases): `v0.1.0` (up to #77) and
-`v0.1.1` (#78 to #90), both on 2026-10-25, `v0.2.0` (#91 to #114) on 2026-10-26, `v0.2.1` (#115), `v0.2.2` (#116), `v0.2.3` (#117, #118) and `v0.2.4` (#120, #121). Later changes ship on the rolling `edge` prerelease until the next tag.
+`v0.1.1` (#78 to #90), both on 2026-10-25, `v0.2.0` (#91 to #114) on 2026-10-26, `v0.2.1` (#115), `v0.2.2` (#116), `v0.2.3` (#117, #118) and `v0.2.4` (#120, #121) and `v0.2.5` (#124). Later changes ship on the rolling `edge` prerelease until the next tag.
+
+## 2026-11-11 (v0.2.5, #124)
+
+### Fixed
+- Opening the panel is lighter: it resets while hidden instead of during the open, and background Activity
+  updates no longer re-render the whole panel.
+- Summon's controls now follow the active theme accent immediately. Both Style and My Apps theme entries use
+  the model's active selection and previous-theme tracking; choosing a preview no longer reports “Applied!”.
+- Theme application uses macctl's live color-refresh notifications. Finder's Automatic folder tint follows the
+  system accent; explicit folder colors remain untouched. Catppuccin's accent/active border use mauve (`#cba6f7`)
+  as requested, without changing its other palette colors.
+- My Apps now uses the same six categories in the panel and Settings, including empty categories.
+- Built-in themes remain visible alongside custom themes; Art & Wallpapers is included in the panel inventory.
+  A shared summary counts each repairable item once, separately from theme/readability and optional-art recommendations.
+- Theme and art entries no longer dispatch as a project when their names match a registered app.
+- Theme checks distinguish contrast findings from terminal-hue preferences. All numeric diagnostics remain available
+  for review; missing optional wallpapers are not repairs, and preset palettes are not automatically rewritten.
+- Project checks recognize PascalCase `.app` and `.saver` bundles plus actual cached CLI executables, eliminating
+  false Needs Build warnings and rejecting empty build-cache directories as proof of a built tool.
+- My Apps' Fix with AI now targets the counted inventory defects; `summon fix --apps` provides the same scope.
+  General Mac diagnostics remain a separate action. Theme lint failures no longer get mislabeled as invalid JSON.
+
+### Verification tooling
+- The SwiftUI and Animation Hitches recordings sample 10 panel cycles (100-cycle traces take 10+ minutes to
+  save); `--frames` measures displayed-frame hitches against Apple's 5 ms/s budget. `windows ax-audit` counts
+  controls VoiceOver cannot name.
+- The disposable UI audit now exercises a 13-report crash burst through the real watcher and alert, verifies
+  native dismissal and post-burst search, and removes only its owned fixture files.
+- Native audit launches pass the fixture home explicitly, scope existing-app refusal to the current account,
+  and target URL actions at the candidate bundle. Post-warmup live malloc samples are distinct from RSS and
+  retained-graph analysis; missing samples do not pass acceptance.
+
+## 2026-11-08 (unreleased; local verification, no release tag)
+
+### Added
+- A native About Summon panel from Settings and the standard About command, with the shared staged build identity:
+  base marketing version, numeric build, revision, channel, configuration and UTC build time.
+- A guarded Core lifecycle audit and disposable-runner GUI audit; the packaged check validates signatures, compiled
+  version/plist/manifest consistency, and a real Core completion fixture.
+
+### Fixed
+- Scheduled task outcomes are bounded, identified and projected consistently across CLI, Activity and notifications;
+  cancellation, timeout, interruption, preflight failure and notification failure remain distinct. Recovery does
+  not append a contradictory interruption after a committed terminal event.
+- Cleanup ranks UUID logs by actual modification time, protects active/pending runs under a per-task lease, and
+  leaves automatic cleaning due on busy or failed candidates. Partial Trash failures surface to the CLI.
+- The panel uses a shared, off-main, generation-checked activity refresh while visible; event watching handles
+  replacement and out-of-order completion. App-owned work and observers stop explicitly at shutdown.
+- Build metadata is generated only in staged sources; installer verify-only is nonmutating, and build/install
+  cleanup retains failure diagnostics and rollback evidence.
+- File watches reconcile state once registration completes; actual change tests wait for readiness and events
+  instead of assuming delivery after 300 ms. Settings exposes the About action by its own accessible name.
+  Native About temporarily enables regular-window activation; GUI audits verify exact owned-window keyboard
+  dismissal with bounded deadlines and retain structured failure/prerequisite evidence.
+- Interprocess leases release explicitly and idempotently at operation boundaries, rather than relying on ARC
+  to close their descriptors before notification delivery. Profiling waits for actual recorder readiness and
+  measures real owned status-item input; duplicate-titled windows are identified by public title plus geometry.
 
 ## 2026-10-28
 

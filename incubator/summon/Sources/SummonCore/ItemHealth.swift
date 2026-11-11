@@ -4,14 +4,16 @@ import Foundation
 public struct ItemHealth: Sendable, Equatable {
     public enum Level: String, Sendable, Codable, Comparable {
         case healthy
+        case advisory
         case warning
         case error
 
         var rank: Int {
             switch self {
             case .healthy: return 0
-            case .warning: return 1
-            case .error: return 2
+            case .advisory: return 1
+            case .warning: return 2
+            case .error: return 3
             }
         }
 
@@ -31,6 +33,8 @@ public struct ItemHealth: Sendable, Equatable {
     }
 
     public var isHealthy: Bool { level == .healthy }
+    /// Only operational defects belong in repair totals and automatic repair prompts.
+    public var needsRepair: Bool { level == .warning || level == .error }
 
     public static let healthy = ItemHealth(
         level: .healthy,
@@ -82,6 +86,7 @@ public enum AppHealthChecker {
     public static func check(
         project: Project,
         recentCrashes: [CrashReport] = [],
+        buildCache: URL? = nil,
         fileManager: FileManager = .default
     ) -> ItemHealth {
         let folder = URL(fileURLWithPath: project.path)
@@ -115,17 +120,29 @@ public enum AppHealthChecker {
             )
         }
 
-        // Check build status
+        // GUI templates produce PascalCase bundles; CLI templates build outside the source tree.
         let buildFolder = folder.appendingPathComponent("build")
-        let dotBuild = folder.appendingPathComponent(".build")
-        let appBundle = buildFolder.appendingPathComponent("\(project.name).app")
-        let hasBuild = fileManager.fileExists(atPath: appBundle.path) || fileManager.fileExists(atPath: dotBuild.path)
+        let hasBuild: Bool
+        if project.kind == .cli {
+            let cache = buildCache ?? fileManager.homeDirectoryForCurrentUser
+                .appendingPathComponent("Library/Caches/macplugins/\(project.name)/build")
+            let roots = [folder.appendingPathComponent(".build"), cache]
+            hasBuild = roots.contains { root in
+                ["release", "debug"].contains { configuration in
+                    fileManager.isExecutableFile(atPath: root.appendingPathComponent("\(configuration)/\(project.name)").path)
+                }
+            }
+        } else {
+            let ext = project.kind == .screensaver ? "saver" : "app"
+            let bundles = (try? fileManager.contentsOfDirectory(at: buildFolder, includingPropertiesForKeys: [.isDirectoryKey])) ?? []
+            hasBuild = bundles.contains { $0.pathExtension == ext && (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+        }
         if !hasBuild {
             return ItemHealth(
                 level: .warning,
                 badge: "Needs Build",
-                detail: "App has not been built yet.",
-                fixPrompt: "Project '\(project.name)' at \(project.path) has not been built yet. Run `scripts/check.sh` there (then `scripts/bundle.sh` if it has one), fix whatever fails, and tell me what you changed."
+                detail: "No built \(project.kind == .cli ? "executable" : "bundle") found in the standard build locations.",
+                fixPrompt: "Project '\(project.name)' at \(project.path) has no built output in its standard build locations. Check its build script for a custom output path before rebuilding. Run `scripts/check.sh` there (then `scripts/bundle.sh` if it has one) if needed and fix any failures."
             )
         }
 
@@ -146,28 +163,25 @@ public enum AppHealthChecker {
 
         if !hasAppIcon && !hasScreenshots {
             return ItemHealth(
-                level: .warning,
-                badge: "Missing Art",
-                detail: "Missing both custom AppIcon.icns and UI screenshots.",
-                fixPrompt: "Project '\(project.name)' at \(project.path) is missing custom AppIcon art and UI screenshots. Use summon-art skill (icons.md) to generate an icon in Resources/AppIcon.icns, and run 'summon project shots \(project.name)' to capture UI screenshots for Showcase."
+                level: .advisory,
+                badge: "Optional Artwork",
+                detail: "A custom icon and showcase screenshots can be added; their absence does not prevent this app from running."
             )
         }
 
         if !hasAppIcon {
             return ItemHealth(
-                level: .warning,
-                badge: "No AppIcon",
-                detail: "Missing custom AppIcon.icns in Resources/.",
-                fixPrompt: "Project '\(project.name)' at \(project.path) is missing an AppIcon. Use summon-art skill (icons.md) to generate custom icon art and save as Resources/AppIcon.icns."
+                level: .advisory,
+                badge: "Optional Icon",
+                detail: "A custom AppIcon.icns can be added; macOS can run the app without one."
             )
         }
 
         if !hasScreenshots {
             return ItemHealth(
-                level: .warning,
-                badge: "No Screenshots",
-                detail: "Missing UI screenshots in docs/screenshots/.",
-                fixPrompt: "Project '\(project.name)' at \(project.path) has no UI screenshots. Run 'summon project shots \(project.name)' to capture panel screenshots and update the README and Showcase."
+                level: .advisory,
+                badge: "Optional Screenshots",
+                detail: "Showcase screenshots can be added to docs/screenshots; they are not required to run the app."
             )
         }
 
@@ -205,16 +219,6 @@ public enum AppHealthChecker {
             )
         }
 
-        // --- ART INSPECTION: WALLPAPERS ---
-        if theme.wallpapers.isEmpty {
-            return ItemHealth(
-                level: .warning,
-                badge: "No Wallpaper",
-                detail: "Theme has no wallpaper images configured or generated.",
-                fixPrompt: "Theme '\(theme.name)' (slug: \(theme.slug)) in \(folder.path) has no wallpaper images. Generate a wallpaper image matching the theme using summon-art skill (wallpapers.md), save it to \(folder.path), and update theme.json."
-            )
-        }
-
         for wp in theme.wallpapers {
             let wpPath = folder.appendingPathComponent(wp).path
             if !fileManager.fileExists(atPath: wpPath) {
@@ -227,23 +231,19 @@ public enum AppHealthChecker {
             }
         }
 
-        // Check color contrast problems
+        // Palette preferences and readability findings need review, not automatic changes to a chosen theme.
+        // Keep every diagnostic visible, including numerical contrast failures, without calling hue advice contrast.
         let problems = ThemeLint.problems(theme)
-        if let err = problems.first(where: { $0.severity == .error }) {
-            return ItemHealth(
-                level: .error,
-                badge: "Contrast Error",
-                detail: err.message,
-                fixPrompt: "Theme '\(theme.name)' in \(folder.path) has a contrast error: \(err.message). Adjust the colors in theme.json so text is readable."
-            )
+        if !problems.isEmpty {
+            let hasContrast = problems.contains { $0.kind == .contrast }
+            var detail = problems.map { "\($0.kind == .contrast ? "Contrast" : "Palette") \($0.severity.rawValue): \($0.message)" }
+                .joined(separator: "\n")
+            if theme.wallpapers.isEmpty { detail += "\nWallpaper is optional; this theme applies colors only." }
+            return ItemHealth(level: .advisory, badge: hasContrast ? "Contrast Review" : "Palette Advice", detail: detail)
         }
-        if let warn = problems.first(where: { $0.severity == .warning }) {
-            return ItemHealth(
-                level: .warning,
-                badge: "Low Contrast",
-                detail: warn.message,
-                fixPrompt: "Theme '\(theme.name)' in \(folder.path) has a contrast warning: \(warn.message). Adjust the colors in theme.json."
-            )
+        if theme.wallpapers.isEmpty {
+            return ItemHealth(level: .advisory, badge: "Colors Only",
+                              detail: "No wallpaper is configured. This is optional; the theme applies its color palette without changing the wallpaper.")
         }
 
         return ItemHealth(

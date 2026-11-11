@@ -61,6 +61,7 @@ public struct OnboardingView: View {
         }
         .frame(width: 720, height: 480)
         .closeOnlyWindow()
+        .summonTheme(model)
         .onAppear {
             wasAccessory = NSApp.activationPolicy() == .accessory
             if wasAccessory { NSApp.setActivationPolicy(.regular) }
