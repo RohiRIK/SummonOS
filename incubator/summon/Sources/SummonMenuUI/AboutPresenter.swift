@@ -23,11 +23,23 @@ public enum AboutPresenter {
                 }
             }
         }
-        NSApp.orderFrontStandardAboutPanel(options: options(for: build))
+        // Activation is cooperative. A cold accessory launch can create the standard panel while
+        // leaving it offscreen; retain only a weak reference to AppKit's singleton and raise it explicitly.
+        let previousWindows = aboutWindow == nil ? NSApp.windows : []
+        NSApp.unhide(nil)
         NSApp.activate()
+        NSApp.orderFrontStandardAboutPanel(options: options(for: build))
+        if aboutWindow == nil {
+            aboutWindow = NSApp.windows.first { candidate in
+                candidate.styleMask.contains(.titled) && !previousWindows.contains { $0 === candidate }
+            }
+        }
+        aboutWindow?.makeKeyAndOrderFront(nil)
+        if !NSApp.isActive { aboutWindow?.orderFrontRegardless() }
     }
 
     private static var closeObserver: NSObjectProtocol?
+    private static weak var aboutWindow: NSWindow?
 
     private static var launchObserver: NSObjectProtocol?
 

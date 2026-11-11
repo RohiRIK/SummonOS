@@ -478,3 +478,33 @@ controlled comparative GUI profiling, actual displayed-frame timing and retained
 does not establish these bounds; RSS changes alone do not prove leaks. `PanelWindowUpdate` measures AppKit's update
 pass **before** display, not a rendered/composited frame. Local production GUI startup was refused while the
 personal instance was running; no crash or memory-leak attribution is claimed.
+
+### Native acceptance continuation (2026-11-10)
+
+The owner authorized temporarily pausing/relaunching the installed app on the current desktop. The candidate
+uses a fresh `HOME` and `CFFIXED_USER_HOME`, passed explicitly through LaunchServices; existing app state is
+backed up and the installed app is relaunched after each attempt. A separate account's running app no longer
+blocks the test-account guard, which is now scoped to the effective UID. URL actions target the supplied bundle.
+
+Native Xcode 27.1/macOS 27.2 evidence from build `1794318732` (revision `dbcb4fb`, dirty working tree):
+- Actual window captures verify About build metadata and terminal completion delivery in Activity; both windows
+  closed through PID-targeted Command-W. These are native window captures, not content-only renders.
+- The real crash watcher consumed 13 equal-timestamp `.ips` fixtures across its five-file batches. The rendered
+  Summon alert displayed the newest report and “12 more new reports”; native Dismiss and subsequent typed search
+  succeeded. All 13 fixture files were removed. This does not claim macOS banner or VoiceOver verification.
+- The first launch had no observable About window; a later instrumented attempt passed About. No root cause for
+  that initial visibility failure is established. Owned-window diagnostics now retain bounded geometry/permission
+  evidence when readiness fails, without recording unrelated window titles.
+- Terminal Accessibility and Screen Recording require effective macOS grants, not just a successful launch.
+  The native run then exposed a separate System Events/Apple Events prompt at global Escape delivery. The audit
+  replaces that global keystroke with a focus-checked, PID-targeted Escape action; verification is tracked below.
+
+The revised driver samples actual live malloc nodes/bytes outside interaction timing after ten warmup cycles.
+Missing native heap totals remain blocked; sustained growth or the provisional 5%/10 MiB growth budget fails.
+This is not a VM/GPU footprint measure or a retain-graph leak diagnosis. The sampler was exercised against an
+owned child and refused a mismatched process identity. Its growth/incomplete-sample boundary test passed as part
+of 19 runtime-automation tests; all nine packaged application gate stages also passed.
+
+SwiftUI recorder completion/content, comparative WindowServer-displayed frame timing, full retained-memory
+analysis, native notification delivery, VoiceOver and Reduce Transparency remain acceptance gates until
+their real scenarios finish. No timeout increase, substitute profiler or empty trace is counted as a pass.

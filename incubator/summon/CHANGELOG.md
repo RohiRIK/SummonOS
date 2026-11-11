@@ -24,6 +24,13 @@ see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/rele
 - My Apps' Fix with AI now targets the counted inventory defects; `summon fix --apps` provides the same scope.
   General Mac diagnostics remain a separate action. Theme lint failures no longer get mislabeled as invalid JSON.
 
+### Verification tooling
+- The disposable UI audit now exercises a 13-report crash burst through the real watcher and alert, verifies
+  native dismissal and post-burst search, and removes only its owned fixture files.
+- Native audit launches pass the fixture home explicitly, scope existing-app refusal to the current account,
+  and target URL actions at the candidate bundle. Post-warmup live malloc samples are distinct from RSS and
+  retained-graph analysis; missing samples do not pass acceptance.
+
 ## 2026-11-08 (unreleased; local verification, no release tag)
 
 ### Added

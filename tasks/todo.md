@@ -354,6 +354,16 @@ A missing profiling/GUI prerequisite must be reported, not counted as a pass.
 - [x] Added snapshotted macctl appearance refresh; running AppKit and Automatic folder tint changed blue → purple → blue across apply/undo. No guessed folder preference keys or forced icon style.
 - [x] Verified four focused tests, Nord → Catppuccin → Nord model/checkmark transitions, light/dark content renders and native apply/undo; installed build 1794318081 plus macctl and applied Catppuccin (system accent 5).
 
+## Remaining runtime acceptance (approved 2026-11-10)
+
+- [ ] Resolve the SwiftUI recorder failure using causal evidence; preserve fail-closed trace validation.
+- [ ] Measure comparative displayed-frame performance and retained memory on an isolated native GUI session.
+- [ ] Exercise notification/crash bursts, VoiceOver navigation and Reduce Transparency; record actual prerequisites.
+- [ ] Update verification evidence and push verified changes to draft PR #124. No merge, tag or release authorized.
+- Current evidence: `dbcb4fb` passed hosted build/test, visual and lifecycle gates; release smoke
+  `42828563842` completed all 100 panel cycles but SwiftUI recorder stop/save timed out. The prior independent
+  hosted control also failed, so repeating the same hosted workload is not a diagnosis or a fix.
+
 ## Review
 
 ReviewFinish found five lifecycle/cleanup/notification defects; ReviewAutomation found two release blockers,

@@ -3,6 +3,7 @@
 //   windows screen       main display size in points: w h
 //   windows luma <png>   mean luma (0-255) of the image's non-transparent pixels, to sanity-check light vs dark
 //   windows close <pid> <id>   focus that exact owned window, send real Command-W, and require its dismissal
+//   windows escape <pid> <id>   send Escape only to the owned panel's focused search field; require dismissal
 //   windows about <pid> <id>   press the meaningfully named About Summon button in that Settings window
 //   windows click-status <pid>   hit-test the owned extra-menu item, then send real mouse-down/up for timing
 //   windows search <pid> <id>   focus Search Summon, type audit with owned key events, require its actual value
@@ -132,7 +133,7 @@ func namedControls(_ window: AXUIElement, role: String, label: String) -> (match
 }
 
 func windowAction(_ action: String, pid: pid_t, id: Int) -> Never {
-    let operation = action == "close" ? "Command-W" : action == "search" ? "Panel search input" : "About Summon action"
+    let operation = action == "close" ? "Command-W" : action == "escape" ? "Panel Escape" : action == "search" ? "Panel search input" : "About Summon action"
     var evidence: [String: Any] = ["operation": operation,
                                    "pid": Int(pid), "window_id": id, "keyboard_sent": false]
     func finish(_ status: String, _ stage: String, _ reason: String) -> Never {
@@ -261,31 +262,41 @@ func windowAction(_ action: String, pid: pid_t, id: Int) -> Never {
     guard let running = NSRunningApplication(processIdentifier: pid), !running.isTerminated else {
         finish("failed", "activation", "Owned application exited before keyboard dismissal")
     }
-    evidence["activation_policy"] = running.activationPolicy.rawValue
-    evidence["activation_requested"] = running.activate(options: [])
-    evidence["raise_ax_error"] = AXUIElementPerformAction(window, kAXRaiseAction as CFString).rawValue
-    evidence["focus_ax_error"] = AXUIElementSetAttributeValue(window, kAXFocusedAttribute as CFString, kCFBooleanTrue).rawValue
-    func focused() -> Bool {
-        let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier == pid
-        let focusedWindow = attribute(app, kAXFocusedWindowAttribute)
-        let matches = focusedWindow.map { CFEqual($0, window) } ?? false
-        evidence["frontmost_pid_matches"] = frontmost
-        evidence["focused_window_matches"] = matches
-        return frontmost && matches
+    if action == "escape" {
+        // A nonactivating panel can own keyboard focus without making its app frontmost.
+        guard let controls = namedControls(window, role: kAXTextFieldRole, label: "Search Summon"),
+              controls.matches.count == 1, let field = controls.matches.first,
+              (attribute(field, kAXFocusedAttribute) as? Bool) == true else {
+            finish("failed", "activation", "Owned panel search field is not focused; no Escape sent")
+        }
+    } else {
+        evidence["activation_policy"] = running.activationPolicy.rawValue
+        evidence["activation_requested"] = running.activate(options: [])
+        evidence["raise_ax_error"] = AXUIElementPerformAction(window, kAXRaiseAction as CFString).rawValue
+        evidence["focus_ax_error"] = AXUIElementSetAttributeValue(window, kAXFocusedAttribute as CFString, kCFBooleanTrue).rawValue
+        func focused() -> Bool {
+            let frontmost = NSWorkspace.shared.frontmostApplication?.processIdentifier == pid
+            let focusedWindow = attribute(app, kAXFocusedWindowAttribute)
+            let matches = focusedWindow.map { CFEqual($0, window) } ?? false
+            evidence["frontmost_pid_matches"] = frontmost
+            evidence["focused_window_matches"] = matches
+            return frontmost && matches
+        }
+        let focusDeadline = ProcessInfo.processInfo.systemUptime + 4
+        while !focused() && ProcessInfo.processInfo.systemUptime < focusDeadline {
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
+        }
+        guard focused() else {
+            finish("failed", "activation", "Owned target did not acquire application and keyboard focus; no key sent")
+        }
     }
-    let focusDeadline = ProcessInfo.processInfo.systemUptime + 4
-    while !focused() && ProcessInfo.processInfo.systemUptime < focusDeadline {
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05)) // poll actual focus, not a readiness sleep
+    let key: CGKeyCode = action == "escape" ? 53 : 13
+    guard let down = CGEvent(keyboardEventSource: nil, virtualKey: key, keyDown: true),
+          let up = CGEvent(keyboardEventSource: nil, virtualKey: key, keyDown: false) else {
+        finish("blocked", "keyboard", "Could not create \(operation) keyboard events")
     }
-    guard focused() else {
-        finish("failed", "activation", "Owned target did not acquire application and keyboard focus; no key sent")
-    }
-    guard let down = CGEvent(keyboardEventSource: nil, virtualKey: 13, keyDown: true),
-          let up = CGEvent(keyboardEventSource: nil, virtualKey: 13, keyDown: false) else {
-        finish("blocked", "keyboard", "Could not create Command-W keyboard events")
-    }
-    down.flags = .maskCommand
-    up.flags = .maskCommand
+    down.flags = action == "escape" ? [] : .maskCommand
+    up.flags = down.flags
     // Keep delivery owned even if another application steals activation after the focus observation.
     down.postToPid(pid)
     up.postToPid(pid)
@@ -296,19 +307,43 @@ func windowAction(_ action: String, pid: pid_t, id: Int) -> Never {
             finish("failed", "dismissal", "Owned application exited instead of only closing the target window")
         }
         if !ownedWindows(pid).contains(where: { ($0[kCGWindowNumber as String] as? Int) == id }) {
-            finish("passed", "dismissal", "Exact owned window disappeared after Command-W")
+            finish("passed", "dismissal", "Exact owned window disappeared after \(operation)")
         }
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
     } while ProcessInfo.processInfo.systemUptime < closeDeadline
-    finish("failed", "dismissal", "Exact owned window remained visible after Command-W")
+    finish("failed", "dismissal", "Exact owned window remained visible after \(operation)")
 }
 
 let args = Array(CommandLine.arguments.dropFirst())
 switch args.first {
+case "diagnose":
+    guard args.count == 2, let pid = Int32(args[1]), pid > 0 else { exit(64) }
+    let before = ownedWindows(pid).count
+    _ = NSApplication.shared
+    let all = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID)
+        as? [[String: Any]] ?? []
+    let owned = all.filter { ($0[kCGWindowOwnerPID as String] as? Int) == Int(pid) }
+    let app = AXUIElementCreateApplication(pid)
+    _ = AXUIElementSetMessagingTimeout(app, 0.5)
+    let ax = attribute(app, kAXWindowsAttribute) as? [AXUIElement]
+    let result: [String: Any] = [
+        "pid": Int(pid), "accessibility_trusted": AXIsProcessTrusted(),
+        "screen_capture_preflight": CGPreflightScreenCaptureAccess(),
+        "onscreen_before_appkit": before, "onscreen_after_appkit": ownedWindows(pid).count,
+        "ax_window_count": ax?.count ?? -1,
+        "activation_policy": NSRunningApplication(processIdentifier: pid)?.activationPolicy.rawValue ?? -1,
+        "frontmost_pid_matches": NSWorkspace.shared.frontmostApplication?.processIdentifier == pid,
+        "windows": owned.map { item -> [String: Any] in
+            ["id": item[kCGWindowNumber as String] as? Int ?? -1,
+             "onscreen": item[kCGWindowIsOnscreen as String] as? Bool ?? false,
+             "width": cgFrame(item)?.width ?? 0, "height": cgFrame(item)?.height ?? 0]
+        }
+    ]
+    print(String(data: try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys]), encoding: .utf8)!)
 case "click-status":
     guard args.count == 2, let pid = Int32(args[1]), pid > 0 else { exit(64) }
     clickStatusItem(pid: pid)
-case "close", "about", "search":
+case "close", "escape", "about", "search":
     guard args.count == 3, let pid = Int32(args[1]), pid > 0, let id = Int(args[2]), id > 0 else { exit(64) }
     windowAction(args[0], pid: pid, id: id)
 case "screen":

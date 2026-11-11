@@ -414,5 +414,24 @@ class RuntimeProfilingTests(unittest.TestCase):
         self.assertNotIn("private", json.dumps(result))
 
 
+class RuntimeHeapTests(unittest.TestCase):
+    def test_incomplete_or_growing_heap_cannot_pass_acceptance(self):
+        mib = 1024 * 1024
+        cases = (
+            ([100 * mib, 101 * mib, 100 * mib], "passed"),
+            ([100 * mib, 100 * mib + 16, 100 * mib + 32], "failed"),
+            ([100 * mib, 106 * mib, 100 * mib], "failed"),
+            ([500 * mib, 511 * mib, 500 * mib], "failed"),
+            ([100 * mib, 100 * mib], "blocked"),
+        )
+        for sizes, expected in cases:
+            with self.subTest(sizes=sizes):
+                samples = [{"status":"passed", "malloc_bytes":size} for size in sizes]
+                self.assertEqual(runtime_audit.heap_bounds(samples)["status"], expected)
+        samples = [{"status":"passed", "malloc_bytes":100 * mib}] * 3
+        samples.insert(1, {"status":"blocked"})
+        self.assertEqual(runtime_audit.heap_bounds(samples)["status"], "blocked")
+
+
 if __name__ == "__main__":
     unittest.main()

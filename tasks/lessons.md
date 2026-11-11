@@ -35,3 +35,7 @@ Rules learned from corrections. One line each, newest last.
   its Fix action also ran unrelated Mac diagnostics. Share the inventory summary and exact prompt scope.
 - Keep numerical readability findings and palette advice visible without treating optional artwork as broken code.
   Do not rewrite established preset palettes merely to satisfy a hue heuristic.
+
+## 2026-11-10 — Upgrade and verify the installed app
+- Upgrade Summon in place on the owner's device and test that installed copy. Do not launch temporary app copies,
+  use different accounts, or open Terminal windows for verification. Keep the work focused on the installed app.

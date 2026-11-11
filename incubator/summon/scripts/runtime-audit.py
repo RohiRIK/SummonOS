@@ -93,6 +93,38 @@ def core(run, iterations, fixtures):
     return all(s["status"] == "passed" for s in scenarios)
 
 
+def heap_snapshot(pid, binary):
+    # Sample only the newly launched candidate, outside interaction timing. RSS is not live heap.
+    try:
+        identity = command(["/bin/ps", "-p", str(pid), "-o", "uid=,comm="], timeout=5).split(maxsplit=1)
+        if identity != [str(os.geteuid()), str(binary)]:
+            return {"status":"blocked", "reason":"Owned app identity changed before heap sampling"}
+        output = command(["/usr/bin/heap", "--noContent", "-q", str(pid)], timeout=30)
+        totals = re.findall(r"^All zones: (\d+) nodes \((\d+) bytes\)$", output, re.MULTILINE)
+        if len(totals) != 1:
+            return {"status":"blocked", "reason":"Native heap output has no unambiguous all-zones total"}
+        nodes, size = map(int, totals[0])
+        return {"status":"passed", "malloc_nodes":nodes, "malloc_bytes":size}
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        return {"status":"blocked", "reason":"Native live-heap inspection unavailable", "error_type":type(exc).__name__}
+
+
+def heap_bounds(samples):
+    measured = [sample for sample in samples if sample.get("status") == "passed"]
+    if len(measured) != len(samples) or len(measured) < 3:
+        return {"status":"blocked", "reason":"Complete post-warmup live-heap samples required"}
+    sizes = [sample["malloc_bytes"] for sample in measured]
+    growth = max(sizes) - sizes[0]
+    monotonic = all(right > left for left, right in zip(sizes, sizes[1:]))
+    outside_budget = growth > 10 * 1024 * 1024 or growth > sizes[0] * .05
+    return {"status":"failed" if monotonic or outside_budget else "passed",
+            "reason":"Live heap needs retention investigation" if monotonic or outside_budget else
+                     "Sampled live malloc heap stayed within provisional growth bounds",
+            "baseline_bytes":sizes[0], "final_bytes":sizes[-1], "peak_growth_bytes":growth,
+            "strictly_increasing":monotonic, "sample_count":len(sizes),
+            "measurement_boundary":"Live malloc allocations after closed-panel cycles; not VM/GPU memory or a retain-graph leak diagnosis"}
+
+
 def visible_windows(helper, pid):
     output = command([str(helper), str(pid)], timeout=5)
     windows = []
@@ -172,12 +204,10 @@ def trace_window_cycle(pid, helper):
     if search["status"] != "passed":
         return {"status":search["status"], "stage":"panel search", "reason":search["reason"],
                 "mouse":mouse, "search":search}
-    command(["/usr/bin/osascript", "-e", 'tell application "System Events" to key code 53'], timeout=5)
-    closed = bool(wait_window(helper, pid, lambda windows: not any(w[0] == panel[0][0] for w in windows)))
-    return {"status":"passed" if closed else "failed", "stage":"panel close", "window_id":panel[0][0],
-            "reason":"Owned panel opened, received search keystrokes and disappeared" if closed else
-                     "Owned panel did not disappear during recording", "open_source":"status-item mouse input",
-            "mouse":mouse, "search":search}
+    close = owned_window_action(helper, pid, panel[0][0], "escape")
+    return {"status":close["status"], "stage":"panel close", "window_id":panel[0][0],
+            "reason":"Owned panel opened, received search keystrokes and disappeared" if close["status"] == "passed" else close["reason"],
+            "open_source":"status-item mouse input", "mouse":mouse, "search":search, "close":close}
 
 
 @contextlib.contextmanager
@@ -373,9 +403,9 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
              os.environ.get("RUNNER_ENVIRONMENT") == "github-hosted") or
             os.environ.get("VQA_ALLOW_LOCAL") == "1"):
         raise ValueError("UI requires a disposable VM/test account; personal desktop refused")
-    if subprocess.run(["/usr/bin/pgrep", "-x", "SummonMenu"],
+    if subprocess.run(["/usr/bin/pgrep", "-u", str(os.geteuid()), "-x", "SummonMenu"],
                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
-        raise ValueError("SummonMenu is already running; refusing to control an existing session")
+        raise ValueError("SummonMenu is already running in this account; refusing to control an existing session")
     binary = app / "Contents/MacOS/SummonMenu"
     cli = app / "Contents/MacOS/summon"
     if not binary.is_file() or not cli.is_file() or not (app / "Contents/Resources/BuildInfo.json").is_file():
@@ -384,6 +414,8 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
     command(["swiftc", "-O", str(PACKAGE / "scripts/visual-qa/windows.swift"), "-o", str(helper)], timeout=90)
     ocr = fixtures / "window-text"
     command(["swiftc", "-O", str(PACKAGE / "scripts/visual-qa/window-text.swift"), "-o", str(ocr)], timeout=90)
+    dismiss = fixtures / "crash-alert"
+    command(["swiftc", "-O", str(PACKAGE / "scripts/visual-qa/crash-alert.swift"), "-o", str(dismiss)], timeout=90)
     core_binary = compile_core(fixtures)
     trace = run / "traces"
     trace.mkdir()
@@ -393,9 +425,14 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
         if not image.is_file() or image.stat().st_size == 0:
             raise ValueError("Screen Recording permission did not yield an app-window capture")
         return command([str(ocr), str(image)], timeout=30)
+    # The real watcher only installs a folder watch for directories that exist at launch.
+    (pathlib.Path.home() / "Library/Logs/DiagnosticReports").mkdir(parents=True, exist_ok=True)
     # Open the exact supplied bundle; find only its new executable, never identify by an unrelated PID.
-    launch = owned_process(["/usr/bin/open", "-n", "-a", str(app), "--args",
-                            "-VisualQA", "YES", "--show-about"])
+    launch = owned_process(["/usr/bin/open", "-n", "-a", str(app),
+                            "--env", "HOME=" + str(pathlib.Path.home()),
+                            "--env", "CFFIXED_USER_HOME=" + str(pathlib.Path.home()), "--args",
+                            "-VisualQA", "YES", "-crashCaptureEnabled", "YES",
+                            "-summon.notifications.crashStyle", "summon", "--show-about"])
     children.append(launch)
     launch.wait(timeout=10)
     if launch.returncode != 0:
@@ -427,6 +464,7 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
         about = wait_window(helper, pid, lambda windows: [w for w in windows if w[4] > 220 and w[5] > 150])
         if not about:
             scenarios.append({"name":"native About ready", "status":"failed"})
+            scenarios[-1]["window_diagnostics"] = json.loads(command([str(helper), "diagnose", str(pid)], timeout=10))
             write(run / "scenarios.json", {"ui":scenarios}); return False
         manifest = json.loads((app / "Contents/Resources/BuildInfo.json").read_text())
         about_text = screenshot(about[0], "about")
@@ -438,9 +476,18 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
         closed = close_window(about[0], "native About close")
         if closed != "passed":
             return None if closed == "blocked" else False
+        # Exercise the real 5-file crash batches and alert consumer, not the test-crash URL shortcut.
+        # Keep the check in-process so fixture cleanup runs before the driver's owned-app teardown.
+        import runpy
+        crash_burst = runpy.run_path(str(PACKAGE / "scripts/visual-qa/crash-burst.py"))["check"]
+        burst = crash_burst(pid=pid, app=app, run=run, windows=helper, ocr=ocr, dismiss=dismiss)
+        scenarios.append({"name":"full-app crash burst and recovery", **burst})
+        write(run / "scenarios.json", {"ui":scenarios})
+        if burst["status"] != "passed":
+            return None if burst["status"] == "blocked" else False
         # A harmless shell child exits, Core writes its actual terminal JSONL record, and the real UI reads it.
         command([str(core_binary), "fixture-terminal", str(pathlib.Path.home())], timeout=30)
-        command(["/usr/bin/open", "summon://activity"], timeout=5)
+        command(["/usr/bin/open", "-a", str(app), "summon://activity"], timeout=5)
         activity = wait_window(helper, pid, lambda windows: [w for w in windows if w[4] >= 800 and w[5] > 200])
         observed = False
         if activity:
@@ -456,9 +503,16 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
         closed = close_window(activity[0], "Activity keyboard close")
         if closed != "passed":
             return None if closed == "blocked" else False
+        # Warm the real input/search path before comparing closed-panel live heap snapshots.
+        for index in range(10):
+            warm = trace_window_cycle(pid, helper)
+            if warm["status"] != "passed":
+                scenarios.append({"name":"panel heap warmup", "iteration":index, **warm})
+                return None if warm["status"] == "blocked" else False
+        heaps = [{"cycle":0, **heap_snapshot(pid, binary)}]
         for index in range(iterations):
             start = time.monotonic()
-            command(["/usr/bin/open", "summon://menu/"], timeout=5)
+            command(["/usr/bin/open", "-a", str(app), "summon://menu/"], timeout=5)
             panel = wait_window(helper, pid, lambda windows: [w for w in windows if 270 <= w[4] <= 400 and w[5] > 180])
             if not panel:
                 scenarios.append({"name":"panel open/search/close", "iteration":index,"status":"failed"}); break
@@ -472,10 +526,10 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
             if search["status"] != "passed":
                 scenarios.append({"name":"panel search", "iteration":index, **search})
                 return None if search["status"] == "blocked" else False
-            command(["/usr/bin/osascript", "-e", 'tell application "System Events" to key code 53'], timeout=5)
-            closed = wait_window(helper, pid, lambda windows: not any(w[0] == panel[0][0] for w in windows))
-            if not closed:
-                scenarios.append({"name":"panel close/reopen", "iteration":index,"status":"failed"}); break
+            close = owned_window_action(helper, pid, panel[0][0], "escape")
+            if close["status"] != "passed":
+                scenarios.append({"name":"panel close/reopen", "iteration":index, **close})
+                return None if close["status"] == "blocked" else False
             samples.append((time.monotonic()-start)*1000)
             if index % 10 == 0 or index == iterations - 1:
                 rss = int(command(["/bin/ps", "-o", "rss=", "-p", str(pid)], timeout=5))
@@ -483,9 +537,12 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
                 descriptors = sum(line.startswith("f") for line in command(
                     ["/usr/sbin/lsof", "-nP", "-p", str(pid), "-Ff"], timeout=10).splitlines())
                 resources.append({"cycle":index,"rss_kib":rss,"threads":threads,"fd_records":descriptors})
+                heaps.append({"cycle":index + 1, **heap_snapshot(pid, binary)})
         else:
             scenarios.append({"name":"panel open/search/close", "status":"passed", "iterations":iterations,
                               "verified_searches":len(samples)})
+        heap_result = heap_bounds(heaps)
+        scenarios.append({"name":"post-warmup live malloc heap bound", **heap_result})
         samples.sort()
         traces, signposts = instrument(pid, helper, trace, children, iterations)
         scenarios.extend({"name":"Instruments " + template, **result} for template, result in traces.items())
@@ -498,7 +555,8 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
                                                 "ordered_front":percentiles(signposts.get("PanelOpen", [])),
                                                 "first_window_update":percentiles(signposts.get("PanelWindowUpdate", [])),
                                                 "measurement_boundary":"AppKit first window update pass before display, not a drawn or composited frame",
-                                                "retained_heap":"Not measured: saved Allocations trace alone does not establish a retained-heap bound"}})
+                                                "live_heap":{"warmup_cycles":10, "samples":heaps, **heap_result},
+                                                "retained_heap":"Live malloc growth is measured separately; retain-graph and VM/GPU analysis remain distinct"}})
         write(run / "scenarios.json", {"ui":scenarios})
         if any(s["status"] == "failed" for s in scenarios):
             return False
