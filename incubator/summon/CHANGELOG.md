@@ -3,9 +3,9 @@
 All notable changes to Summon. Newest first. Summon is still incubating in the SummonOS workspace; entries are
 grouped by day and point at the pull request. SummonOS releases (one version for `summon`, `macctl` and Summon.app,
 see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/releases): `v0.1.0` (up to #77) and
-`v0.1.1` (#78 to #90), both on 2026-10-25, `v0.2.0` (#91 to #114) on 2026-10-26, `v0.2.1` (#115), `v0.2.2` (#116), `v0.2.3` (#117, #118) and `v0.2.4` (#120, #121). Later changes ship on the rolling `edge` prerelease until the next tag.
+`v0.1.1` (#78 to #90), both on 2026-10-25, `v0.2.0` (#91 to #114) on 2026-10-26, `v0.2.1` (#115), `v0.2.2` (#116), `v0.2.3` (#117, #118) and `v0.2.4` (#120, #121) and `v0.2.5` (#124). Later changes ship on the rolling `edge` prerelease until the next tag.
 
-## 2026-11-10 (unreleased; local test build)
+## 2026-11-11 (v0.2.5, #124)
 
 ### Fixed
 - Opening the panel is lighter: it resets while hidden instead of during the open, and background Activity
