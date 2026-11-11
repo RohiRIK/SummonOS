@@ -82,6 +82,7 @@ body[data-md-color-scheme] {
 .md-footer-meta { background: var(--wiki-surface); }
 .md-footer__title { font-size: .8rem; }
 .md-footer__direction, .md-copyright, .md-copyright a { color: var(--wiki-muted); }
+.md-copyright__highlight { color: var(--wiki-ink); }
 :where(a, button, input, label[tabindex]):focus-visible { outline: 3px solid var(--wiki-accent); outline-offset: 4px; }
 
 /* The homepage is a field-guide cover, not an article with two empty sidebars. */
