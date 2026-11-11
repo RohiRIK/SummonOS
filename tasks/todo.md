@@ -356,13 +356,26 @@ A missing profiling/GUI prerequisite must be reported, not counted as a pass.
 
 ## Remaining runtime acceptance (approved 2026-11-10)
 
-- [ ] Resolve the SwiftUI recorder failure using causal evidence; preserve fail-closed trace validation.
-- [ ] Measure comparative displayed-frame performance and retained memory on an isolated native GUI session.
-- [ ] Exercise notification/crash bursts, VoiceOver navigation and Reduce Transparency; record actual prerequisites.
-- [ ] Update verification evidence and push verified changes to draft PR #124. No merge, tag or release authorized.
-- Current evidence: `dbcb4fb` passed hosted build/test, visual and lifecycle gates; release smoke
-  `42828563842` completed all 100 panel cycles but SwiftUI recorder stop/save timed out. The prior independent
-  hosted control also failed, so repeating the same hosted workload is not a diagnosis or a fix.
+- [x] Resolve the SwiftUI recorder failure using causal evidence; preserve fail-closed trace validation.
+  Cause: save time grows with trace size. After 100 real cycles on Xcode 27.1 (real GPU) a SwiftUI trace
+  (532 MB) had not saved in 600 s; a Hitches trace (1.4 GB) took 596 s. SwiftUI and Hitches now record a
+  10-cycle sample (SwiftUI instrument alone, `--frames` for Hitches); local audit: SwiftUI passed.
+- [~] Displayed frames and memory on the real GUI (this Mac, installed build, fresh HOME):
+  - Hitches fail Apple's 5 ms/s budget: 40.7 ms/s, 1.6 per cycle, max 33 ms (first measure: 73.5 ms/s, max
+    167 ms). Panel open now resets while hidden (`show()` ~25 ms -> ~12 ms main thread). The rest is SwiftUI
+    per-update cost: ~40% accessibility work (focus walk over every row responder, dynamic conformance
+    lookups) once an AX client is connected, plus ScrollView sizing. 10-cycle hitch counts vary 1.2-6.9 per
+    cycle between runs; judge changes by main-thread CPU (120-137 ms per open/search/close cycle).
+  - Live heap +1.2 MB over 100 cycles (~12 KB/cycle), strictly increasing: fails. The pre-change build grew
+    +1.09 MB (passed only on one dip). Needs a retention investigation.
+  - Allocations: a 100-cycle trace does not save within 45 s on this Mac (passes hosted).
+  - Panel signposts: exactly 50 of 100 PanelOpen/PanelWindowUpdate intervals recorded (hosted too).
+- [~] VoiceOver / Reduce Transparency: crash burst passed (13 reports, real watcher). `windows ax-audit <pid>`
+  counts controls VoiceOver cannot name (not yet wired into the audit). Reduce Transparency has no macctl
+  setting; code relies on NSVisualEffectView, which macOS makes opaque. Owner check still needed:
+  VoiceOver on (Cmd-F5), open the panel by hotkey, hear search + rows + footer, Escape closes; then
+  Settings > Accessibility > Display > Reduce Transparency on, open panel + Settings, text readable.
+- [ ] Push verified changes to draft PR #124. No merge, tag or release authorized.
 
 ## Review
 

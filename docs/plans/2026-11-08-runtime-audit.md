@@ -508,3 +508,18 @@ of 19 runtime-automation tests; all nine packaged application gate stages also p
 SwiftUI recorder completion/content, comparative WindowServer-displayed frame timing, full retained-memory
 analysis, native notification delivery, VoiceOver and Reduce Transparency remain acceptance gates until
 their real scenarios finish. No timeout increase, substitute profiler or empty trace is counted as a pass.
+
+### Recorder, frames and panel cost (2026-11-11)
+
+- Hosted smoke `42991768602` (SwiftUI instrument alone, 100 cycles) still timed out, so the GPU-instrument theory
+  was wrong. A local no-deadline run on Xcode 27.1 settled it: after 100 cycles a SwiftUI trace (532 MB) had not
+  saved in 600 s and a Hitches trace (1.4 GB) saved in 596 s. SwiftUI and Animation Hitches now record a 10-cycle
+  sample; Logging, Time Profiler and Allocations keep the 100-cycle stress run.
+- Displayed frames (`--frames`, hitch-time ratio, budget < 5 ms/s): 40.7 ms/s, 16 hitches in 10 cycles, max 33 ms.
+  Time Profiler: the open path applied the previous reset inside `makeKeyAndOrderFront` (~25 ms); the panel now
+  resets while hidden (~12 ms). Remaining per-update cost is SwiftUI internals: ~40% accessibility (focus
+  responder walk with dynamic conformance lookups) once an AX client is connected, ~13% ScrollView sizing.
+- Live malloc heap grew ~12 KB per closed-panel cycle (+1.2 MB/100, strictly increasing): failed, open.
+- Allocations 100-cycle trace exceeds the 45 s save deadline locally; panel signposts record 50 of 100 intervals.
+- Local runs need `HOME`/`CFFIXED_USER_HOME` set to a fresh directory; with the real `HOME` the app reads real
+  crash reports and a crash alert is taken for the About window.

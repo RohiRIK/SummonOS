@@ -8,6 +8,8 @@ see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/rele
 ## 2026-11-10 (unreleased; local test build)
 
 ### Fixed
+- Opening the panel is lighter: it resets while hidden instead of during the open, and background Activity
+  updates no longer re-render the whole panel.
 - Summon's controls now follow the active theme accent immediately. Both Style and My Apps theme entries use
   the model's active selection and previous-theme tracking; choosing a preview no longer reports “Applied!”.
 - Theme application uses macctl's live color-refresh notifications. Finder's Automatic folder tint follows the
@@ -25,6 +27,9 @@ see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/rele
   General Mac diagnostics remain a separate action. Theme lint failures no longer get mislabeled as invalid JSON.
 
 ### Verification tooling
+- The SwiftUI and Animation Hitches recordings sample 10 panel cycles (100-cycle traces take 10+ minutes to
+  save); `--frames` measures displayed-frame hitches against Apple's 5 ms/s budget. `windows ax-audit` counts
+  controls VoiceOver cannot name.
 - The disposable UI audit now exercises a 13-report crash burst through the real watcher and alert, verifies
   native dismissal and post-burst search, and removes only its owned fixture files.
 - Native audit launches pass the fixture home explicitly, scope existing-app refusal to the current account,
