@@ -10,7 +10,7 @@ tags: [security, privacy, recovery, agents]
 Summon runs under your macOS account. It launches your chosen coding agent and exposes tools, skills,
 and native Mac actions. It does not sandbox the agent or make arbitrary agent actions reversible.
 The current distribution is experimental; no supported production release has been qualified. This page describes
-the checkout, including unreleased changes after the **0.2.4** tag. A shared version number does not prove a
+the checkout, including unreleased changes after the **0.2.5** tag. A shared version number does not prove a
 published build includes later hardening; see [release/branch status](status.md) and the
 [historical runtime audit](plans/2026-11-08-runtime-audit.md#implementation-evidence-and-unverified-acceptance-2026-11-08).
 
