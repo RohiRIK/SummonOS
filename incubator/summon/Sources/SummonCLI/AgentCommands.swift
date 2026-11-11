@@ -92,7 +92,18 @@ enum AgentCommands {
         let command = [agentPath] + argv.dropFirst()
         let agentArgv = terminal == .terminal ? command : AgentLauncher.inLoginShell(command, shell: ProcessInfo.processInfo.environment["SHELL"])
         let plan = AgentLauncher.terminalPlan(agentArgv: agentArgv, directory: directory, terminal: terminal)
-        _ = try await context.runner(plan.executable, plan.arguments)
+        do {
+            _ = try await context.runner(plan.executable, plan.arguments)
+        } catch {
+            let problem = AgentLaunchProblem.explain(error, terminal: terminal)
+            ActivityCommands.record(LoggedEvent(
+                kind: EventKind.agentLaunchFailed,
+                title: "Could not open \(agent.name)",
+                detail: problem,
+                refs: refs
+            ), context)
+            throw CLIError(problem)
+        }
     }
 
     /// Replaces this process with the agent, so it owns the terminal. Returns only on failure.

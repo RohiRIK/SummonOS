@@ -6,11 +6,18 @@ Summon is the native agent layer in the SummonOS workspace: a menu bar app and C
 agent, supply Mac context, route crash reports, schedule work, manage projects and apply themes through macctl.
 It is an original design informed by research, not an Omarchy port or a general-purpose agent sandbox.
 
-Source baseline for this documentation reconciliation: `18c7688` (2026-11-11). The shared base version is
-`0.2.4`; `v0.2.4` is the latest numbered release tag (2026-10-28). Numbered releases are previews/prereleases.
-November runtime/inventory/accent work is implemented after that tag, not a new numbered release. Stable/Edge
-are distribution channels; the published Edge artifact can lag this branch. Never infer publication or full
+This documentation reconciliation began at `18c7688` (2026-11-11) and now includes `main` through PR #126.
+The shared base version is `0.2.5`; tag `v0.2.5` exists. Numbered releases are previews/prereleases.
+Stable/Edge are distribution channels; the published Edge artifact can lag this branch. Never infer full
 acceptance from a base version, successful installation, green diagnostic job or source implementation.
+
+## Recent changes — 2026-11-11
+
+- `AgentLaunchProblem.swift` turns terminal launch failures into actionable diagnostics (Automation `-1743`,
+  timeouts). `summon agent` logs `agent.launch.failed`; the app notifies through `onAgentFailure`.
+  Doctor's `config.terminal` checks the app's own Automation permission (`automationStatus`, set only in the app:
+  from a shell macOS answers for the terminal). This preserves the implementation merged in PR #126.
+- Theme accent synchronization and its verification are summarized below; dated evidence remains in Git history.
 
 ## Architecture and durable contracts
 

@@ -81,19 +81,18 @@ struct SummonCleanerTests {
         try file(paths.taskLogs.appendingPathComponent("gone/old.log"), daysOld: 8)
         let plan = SummonCleaner.plan(paths, tasks: [task("brew")], now: now)
         #expect(plan.trash.count == 3)
-        var running: FileLease? = try FileLease.acquireSync(TaskRunLease.file(paths, task: "brew"), timeout: 0)
-        var manual: FileLease? = try FileLease.acquireSync(TaskRunLease.file(paths, task: "gone"), timeout: 0)
+        let running = try FileLease.acquireSync(TaskRunLease.file(paths, task: "brew"), timeout: 0)
+        let manual = try FileLease.acquireSync(TaskRunLease.file(paths, task: "gone"), timeout: 0)
         var trashed: [String] = []
-        let applied = withExtendedLifetime((running, manual)) {
-            SummonCleaner.apply(plan, paths: paths, now: now) { trashed.append($0.path) }
-        }
+        let applied = SummonCleaner.apply(plan, paths: paths, now: now) { trashed.append($0.path) }
         #expect(trashed.isEmpty)
         #expect(applied.moved.isEmpty)
         #expect(applied.failures.isEmpty)
         #expect(Set(applied.skipped.map(\.path)) == Set(plan.trash.map(\.path)))
         #expect(applied.skipped.allSatisfy { $0.reason.contains("running") })
-        running = nil
-        manual = nil
+        // Explicit: deinit is only a fallback and need not run at `= nil`.
+        running.release()
+        manual.release()
         // Once the runs finish, the same plan applies.
         let later = SummonCleaner.apply(plan, paths: paths, now: now) { trashed.append($0.path) }
         #expect(later.moved.count == 3)
