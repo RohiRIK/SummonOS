@@ -264,6 +264,27 @@ class RuntimeProfilingTests(unittest.TestCase):
                 child.send_signal.assert_called_once_with(runtime_audit.signal.SIGINT)
                 self.assertNotIn("secret", json.dumps(result))
 
+    def test_swiftui_records_its_instrument_not_the_gpu_template(self):
+        self.assertEqual(runtime_audit.RECORDING_SOURCE.get("SwiftUI"), ["--instrument", "SwiftUI"])
+        self.assertNotIn("Logging", runtime_audit.RECORDING_SOURCE)
+
+    def test_hitch_ratio_counts_only_app_hitches_against_budget(self):
+        row = ('<row><start-time>1</start-time><duration{d}>{ns}</duration><process{p}><pid>{pid}</pid></process>'
+               '<boolean{b}>{system}</boolean></row>')
+        def export(rows):
+            return ('<trace-query-result><node><schema name="hitches"><col><mnemonic>start</mnemonic></col>'
+                    '<col><mnemonic>duration</mnemonic></col><col><mnemonic>process</mnemonic></col>'
+                    '<col><mnemonic>is-system</mnemonic></col></schema>' + "".join(rows) + '</node></trace-query-result>')
+        app = row.format(d=' id="1"', ns=20_000_000, p=' id="2"', pid=7, b=' id="3"', system=0)
+        repeat = '<row><start-time>2</start-time><duration ref="1"/><process ref="2"/><boolean ref="3"/></row>'
+        system = row.format(d="", ns=90_000_000, p="", pid=7, b="", system=1)
+        other = row.format(d="", ns=90_000_000, p="", pid=8, b="", system=0)
+        good = trace_parser.hitch_summary(export([app, repeat, system, other]), 7, 10_000)
+        self.assertEqual((good["status"], good["hitches"], good["max_hitch_ms"], good["hitch_time_ratio_ms_per_s"]),
+                         ("passed", 2, 20.0, 4.0))
+        self.assertEqual(trace_parser.hitch_summary(export([app, repeat, app]), 7, 10_000)["status"], "failed")
+        self.assertEqual(trace_parser.hitch_summary(export([]), 7, 0)["status"], "blocked")
+
     def test_profile_requires_one_interval_per_requested_cycle(self):
         for opens, updates, expected in ((3, 3, "passed"), (2, 3, "blocked"), (3, 4, "blocked")):
             with self.subTest(opens=opens, updates=updates), tempfile.TemporaryDirectory() as temporary:

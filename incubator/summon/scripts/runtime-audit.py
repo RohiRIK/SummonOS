@@ -272,6 +272,12 @@ def recording_output(output, diagnostics_path=None):
                                    ("not authorized", "not permitted", "permission denied", "authorization required"))}
 
 
+# The SwiftUI template also bundles Hitches/GPU/Display instruments. Xcode 26.6 on the GPU-less hosted runner
+# never finalizes it after SIGINT (DTX tap waits forever); the SwiftUI instrument alone records the same tables.
+# Displayed-frame timing is the separate opt-in Animation Hitches recording on a real display (--frames).
+RECORDING_SOURCE = {"SwiftUI": ["--instrument", "SwiftUI"]}
+
+
 def record_instrument(template, pid, helper, target, children, iterations):
     outcome = {"status":"blocked", "recording_ready":False, "interactive_cycle":False,
                "requested_cycles":iterations, "completed_cycles":0,
@@ -282,7 +288,7 @@ def record_instrument(template, pid, helper, target, children, iterations):
         with recording_notification() as (name, descriptor), tempfile.TemporaryFile() as output:
             phase = "recorder launch"
             # Record the requested workload rather than only one subsecond interaction.
-            child = subprocess.Popen(["xcrun", "xctrace", "record", "--template", template,
+            child = subprocess.Popen(["xcrun", "xctrace", "record", *RECORDING_SOURCE.get(template, ["--template", template]),
                                       "--attach", str(pid), "--no-prompt", "--notify-tracing-started", name,
                                       "--output", str(target)], start_new_session=True,
                                      stdout=output, stderr=subprocess.STDOUT)
@@ -369,11 +375,29 @@ def record_instrument(template, pid, helper, target, children, iterations):
     return outcome
 
 
-def instrument(pid, helper, trace, children, iterations):
+def displayed_frames(trace, pid, outcome):
+    # Budget is Apple's hitch-time ratio: under 5 ms of hitches per second of workload is "good".
+    if outcome["status"] != "passed":
+        return {"status":outcome["status"], "reason":"Animation Hitches recording did not pass"}
+    result = trace / "displayed-frames.json"
+    try:
+        parsed = subprocess.run([sys.executable, str(PACKAGE / "scripts/runtime-trace.py"), "--hitches-pid", str(pid),
+                                 "--workload-ms", str(outcome["workload_ms"]), str(trace / "animation-hitches.trace"),
+                                 str(result)], capture_output=True, timeout=150)
+        summary = json.loads(result.read_text())
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        return {"status":"blocked", "reason":"Hitch export failed", "error_type":type(exc).__name__}
+    summary["export_exit_status"] = parsed.returncode
+    return summary
+
+
+def instrument(pid, helper, trace, children, iterations, frames=False):
     outcomes = {}
-    for template in ("Logging", "SwiftUI", "Time Profiler", "Allocations"):
+    for template in ("Logging", "SwiftUI", "Time Profiler", "Allocations") + (("Animation Hitches",) if frames else ()):
         target = trace / (template.lower().replace(" ", "-") + ".trace")
         outcomes[template] = record_instrument(template, pid, helper, target, children, iterations)
+    if frames:
+        outcomes["displayed frames"] = displayed_frames(trace, pid, outcomes["Animation Hitches"])
     signposts = trace / "panel-signposts.json"
     logging_trace = trace / "logging.trace"
     try:
@@ -398,7 +422,7 @@ def instrument(pid, helper, trace, children, iterations):
     return outcomes, outcome
 
 
-def ui(run, app, iterations, fixtures, children, owned_apps):
+def ui(run, app, iterations, fixtures, children, owned_apps, frames=False):
     if not ((os.environ.get("GITHUB_ACTIONS") == "true" and
              os.environ.get("RUNNER_ENVIRONMENT") == "github-hosted") or
             os.environ.get("VQA_ALLOW_LOCAL") == "1"):
@@ -544,7 +568,7 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
         heap_result = heap_bounds(heaps)
         scenarios.append({"name":"post-warmup live malloc heap bound", **heap_result})
         samples.sort()
-        traces, signposts = instrument(pid, helper, trace, children, iterations)
+        traces, signposts = instrument(pid, helper, trace, children, iterations, frames)
         scenarios.extend({"name":"Instruments " + template, **result} for template, result in traces.items())
         def percentiles(values):
             return {"median_ms":values[len(values)//2],
@@ -555,6 +579,7 @@ def ui(run, app, iterations, fixtures, children, owned_apps):
                                                 "ordered_front":percentiles(signposts.get("PanelOpen", [])),
                                                 "first_window_update":percentiles(signposts.get("PanelWindowUpdate", [])),
                                                 "measurement_boundary":"AppKit first window update pass before display, not a drawn or composited frame",
+                                                "displayed_frames":traces.get("displayed frames", "Not requested; run with --frames on a real display"),
                                                 "live_heap":{"warmup_cycles":10, "samples":heaps, **heap_result},
                                                 "retained_heap":"Live malloc growth is measured separately; retain-graph and VM/GPU analysis remain distinct"}})
         write(run / "scenarios.json", {"ui":scenarios})
@@ -574,6 +599,7 @@ def main():
     parser.add_argument("--iterations", type=int, default=100)
     parser.add_argument("--app", type=pathlib.Path)
     parser.add_argument("--out", type=pathlib.Path, required=True)
+    parser.add_argument("--frames", action="store_true", help="also record Animation Hitches (needs a real display)")
     args = parser.parse_args()
     if args.iterations < 1 or args.iterations > 10_000 or (args.mode == "ui" and not args.app):
         parser.error("iterations must be 1..10000; UI mode requires --app")
@@ -587,7 +613,7 @@ def main():
         with tempfile.TemporaryDirectory(prefix="summon-audit-fixture-") as temporary:
             fixtures = pathlib.Path(temporary)
             passed = core(run, args.iterations, fixtures) if args.mode == "core" else ui(
-                run, args.app.resolve(), args.iterations, fixtures, children, owned_apps)
+                run, args.app.resolve(), args.iterations, fixtures, children, owned_apps, args.frames)
         print(run)
         return 2 if passed is None else 0 if passed else 1
     except (ValueError, FileNotFoundError) as exc:

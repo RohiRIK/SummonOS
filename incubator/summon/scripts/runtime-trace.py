@@ -86,15 +86,54 @@ def extract(trace):
             "measurement_boundary": "AppKit update before display, not a drawn/composited frame or retained-heap bound"}
 
 
+HITCH_BUDGET_MS_PER_S = 5  # Apple's hitch-time ratio: under 5 ms/s is "good", 10+ ms/s is "critical".
+
+
+def hitch_summary(xml_text, pid, workload_ms):
+    """Hitches the app itself caused (system hitches excluded), as a hitch-time ratio over the workload."""
+    durations = []
+    data = ET.fromstring(xml_text)
+    for node in list(data.iter("node")) or [data]:
+        by_id = {cell.get("id"): cell for cell in node.iter() if cell.get("id") is not None}
+        columns = [column.findtext("mnemonic") for column in node.iter("col")]
+        for row in node.iter("row"):
+            cells = {name: by_id.get(cell.get("ref"), cell) for name, cell in zip(columns, row)}
+            process, system, duration = cells.get("process"), cells.get("is-system"), cells.get("duration")
+            if process is None or duration is None or process.findtext(".//pid") != str(pid):
+                continue
+            if system is not None and (system.text or "").strip() == "1":
+                continue
+            durations.append(int(duration.text.strip()) / 1_000_000)  # nanoseconds
+    durations.sort()
+    seconds = workload_ms / 1000
+    ratio = sum(durations) / seconds if seconds > 0 else None
+    return {"status": "blocked" if ratio is None else "passed" if ratio < HITCH_BUDGET_MS_PER_S else "failed",
+            "hitches": len(durations), "max_hitch_ms": durations[-1] if durations else 0,
+            "p95_hitch_ms": durations[max(0, int(len(durations) * .95 + .999) - 1)] if durations else 0,
+            "hitch_time_ratio_ms_per_s": round(ratio, 3) if ratio is not None else None,
+            "budget_ms_per_s": HITCH_BUDGET_MS_PER_S, "workload_ms": workload_ms,
+            "measurement_boundary": "WindowServer-displayed frame hitches for the app process during the panel workload"}
+
+
+def hitches(trace, pid, workload_ms):
+    output = subprocess.run(["xcrun", "xctrace", "export", "--input", str(trace), "--xpath",
+                             '/trace-toc/run/data/table[@schema="hitches"]'],
+                            text=True, capture_output=True, check=True, timeout=120).stdout
+    return hitch_summary(output, pid, workload_ms)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("trace", type=pathlib.Path)
     parser.add_argument("out", type=pathlib.Path)
+    parser.add_argument("--hitches-pid", type=int, help="export displayed-frame hitches for this process instead")
+    parser.add_argument("--workload-ms", type=float, default=0)
     args = parser.parse_args()
     try:
         if not args.trace.is_dir():
             raise FileNotFoundError("Recording directory unavailable")
-        result = extract(args.trace)
+        result = (hitches(args.trace, args.hitches_pid, args.workload_ms) if args.hitches_pid
+                  else extract(args.trace))
         args.out.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
         return 0 if result["status"] == "passed" else 1
     except (OSError, ValueError, ET.ParseError, subprocess.SubprocessError) as exc:
