@@ -57,6 +57,31 @@ class DocumentationLinkTests(unittest.TestCase):
 
 
 class VercelDeploymentTests(unittest.TestCase):
+    def test_vercel_runtime_script_is_not_a_static_build_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "index.html").write_text('<script src="/_vercel/insights/script.js"></script>')
+            config = {"site_dir": directory, "site_url": "https://sumonos.rohi-lab.org/",
+                      "extra": {"vercel_analytics": True}}
+            site.on_post_build(config)
+            for html in ('<script src="/_vercel/insights/missing.js"></script>',
+                         '<a href="/_vercel/insights/script.js">Not a script</a>'):
+                (root / "index.html").write_text(html)
+                with self.assertRaisesRegex(ValueError, "missing local target"):
+                    site.on_post_build(config)
+            (root / "index.html").write_text('<script src="/_vercel/insights/script.js"></script>')
+            config["extra"]["vercel_analytics"] = False
+            with self.assertRaisesRegex(ValueError, "missing local target"):
+                site.on_post_build(config)
+
+    def test_sitewide_catchphrase_and_analytics_are_configured_once(self):
+        config = (ROOT / "mkdocs.yml").read_text()
+        template = (ROOT / "docs/theme/main.html").read_text()
+        self.assertIn("Powered by caffeine and questionable life choices.", config)
+        self.assertEqual(template.count('src="/_vercel/insights/script.js"'), 1)
+        self.assertIn("window.vaq", template)
+        self.assertIn("config.extra.vercel_analytics", template)
+
     def test_static_deployment_uses_canonical_builder_and_requested_domain(self):
         import json
         config_path = ROOT / "vercel.json"

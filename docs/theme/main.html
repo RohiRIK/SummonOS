@@ -6,3 +6,13 @@
   {% endif %}
   {{ super() }}
 {% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  {% if config.extra.vercel_analytics %}
+    <script>
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+  {% endif %}
+{% endblock %}

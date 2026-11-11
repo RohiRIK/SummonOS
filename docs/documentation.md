@@ -196,6 +196,17 @@ project-specific recommendation. Do not change the apex domain or another projec
 GitHub Pages is not required and the old Pages deploy job has been removed to avoid competing publishers.
 Application releases and their Stable/Edge channels remain separate from website deployments.
 
+### Web Analytics and footer
+
+Every page carries the owner's footer: *Powered by caffeine and questionable life choices.*
+Vercel Web Analytics uses the provider's native static-HTML script, with no React or Node dependency.
+Enable Web Analytics for the `summonos` project in Vercel; deployed builds include the script when
+Vercel sets `VERCEL=1`. Local builds omit tracking by default. `VERCEL=1` can exercise the deployed
+HTML configuration locally, but the analytics endpoint itself is supplied by Vercel at runtime.
+Only that exact opted-in script endpoint is treated as runtime-owned by link validation; other
+missing assets and links still fail. Live verification must confirm the script is actually served.
+No custom events, Speed Insights, or paid Analytics Plus add-on is enabled.
+
 A successful local build is not proof of publication. Verify the Vercel deployment's commit and Ready
 state, the custom domain's DNS/TLS, and the actual homepage, reading routes, images and search in a browser.
 Before advertising the domain, confirm anonymous access without a Vercel sign-in redirect.

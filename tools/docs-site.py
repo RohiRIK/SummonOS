@@ -324,10 +324,11 @@ def on_page_context(context, page, config, nav):
 
 
 class Links(HTMLParser):
-    def __init__(self):
+    def __init__(self, runtime_scripts=()):
         super().__init__(convert_charrefs=True)
         self.ids: set[str] = set()
         self.targets: list[str] = []
+        self.runtime_scripts = frozenset(runtime_scripts)
 
     def handle_starttag(self, tag, attrs):
         attributes = dict(attrs)
@@ -337,6 +338,9 @@ class Links(HTMLParser):
             self.ids.add(attributes["name"])
         for key in ("href", "src", "poster"):
             if attributes.get(key):
+                # Vercel serves this opted-in script at runtime, not from the static output.
+                if tag == "script" and key == "src" and attributes[key] in self.runtime_scripts:
+                    continue
                 self.targets.append(attributes[key])
         if attributes.get("srcset"):
             self.targets.extend(item.split()[0] for item in attributes["srcset"].split(",") if item.strip())
@@ -348,8 +352,9 @@ def on_post_build(config):
     """Validate rendered HTML too: raw HTML images/links bypass MkDocs' checks."""
     site = Path(config["site_dir"]).resolve()
     pages = {}
+    runtime_scripts = {"/_vercel/insights/script.js"} if config.get("extra", {}).get("vercel_analytics") else set()
     for path in site.rglob("*.html"):
-        parser = Links()
+        parser = Links(runtime_scripts)
         parser.feed(path.read_text(encoding="utf-8"))
         pages[path] = parser
     base_path = urlsplit(config["site_url"] or "").path.rstrip("/")

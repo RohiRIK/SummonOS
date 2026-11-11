@@ -8,6 +8,8 @@ tags: [documentation, history]
 # Docs update log
 
 ## 2026-11-11
+* **Update**: Added the owner's caffeine catchphrase to the shared site footer and Vercel Web Analytics
+  for deployed builds; local documentation previews remain tracking-free by default.
 * **Design**: The wiki now has a Summon-branded field-guide cover, task-based entry cards, real command examples,
   five navigation groups and coordinated light/dark reading surfaces. Native search/mobile controls remain intact;
   keyboard skip/focus, narrow screens and reduced-motion behavior were exercised. [Design evidence](plans/2026-11-11-documentation-wiki.md#visual-design-pass-2026-11-11).
