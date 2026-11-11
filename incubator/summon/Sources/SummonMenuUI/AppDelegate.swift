@@ -94,6 +94,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         menuBarStatus.start()
         startupHealth = registerHotKeys(publishHealth: false) ?? AppHealth(pid: ProcessInfo.processInfo.processIdentifier, hotkeys: [:])
         model.onUpdatesFound = { [weak self] updates in self?.announce(updates) }
+        model.onAgentFailure = { [weak self] message in self?.announceAgentFailure(message) }
         model.onUpdateGlobalHotKeys = { [weak self] in
             _ = self?.registerHotKeys()
         }
@@ -360,6 +361,17 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificat
         content.threadIdentifier = "summon.updates"
         let request = UNNotificationRequest(identifier: "summon.updates", content: content, trigger: nil)
         submit(request)
+    }
+
+    /// The panel is gone by the time Ask Agent fails, so its error line alone is never seen.
+    private func announceAgentFailure(_ message: String) {
+        guard canNotify else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Ask Agent could not start"
+        content.body = message
+        content.threadIdentifier = "summon.agent"
+        if model.notificationSound { content.sound = .default }
+        submit(UNNotificationRequest(identifier: "summon.agent.failed", content: content, trigger: nil))
     }
 
     private func submit(_ request: UNNotificationRequest) {

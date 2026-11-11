@@ -744,37 +744,48 @@ public final class SummonModel {
         return ToolLocator.live().find("summon")
     }
 
-    func summon(_ arguments: [String]) async {
+    /// Returns the failure it also put in `lastError`, for callers that explain it further.
+    @discardableResult
+    func summon(_ arguments: [String]) async -> Error? {
         guard !stopped, let summonPath else {
             if !stopped { lastError = "The summon command is missing. Reinstall Summon." }
-            return
+            return nil
         }
+        var failure: Error?
         do {
             _ = try await runner(summonPath, arguments)
             if !Task.isCancelled, !stopped { lastError = nil }
         } catch {
+            failure = error
             if !Task.isCancelled, !stopped { lastError = String(describing: error) }
         }
         if !Task.isCancelled, !stopped { reload() }
+        return failure
     }
+
+    /// Ask Agent failed after the panel closed: the app shows it as a notification.
+    public var onAgentFailure: ((String) -> Void)?
 
     /// The hotkey and the panel's Ask Agent: the agent starts with what is on screen as its first message.
     /// Captured before anything else runs, while the person's app is still in front (the panel never activates).
     public func askAgentAboutScreen() {
         let hidden = agentSettings.hiddenContext
+        // A browser/Finder script waits on an unanswered Automation dialog; screen context is optional, so give up fast.
+        let screenRunner = live ? Shell.live(timeout: 5) : runner
         Task {
-            let screen = await ScreenContext.capture(hidden: hidden, runner: runner)
+            let screen = await ScreenContext.capture(hidden: hidden, runner: screenRunner)
             askAgent(prompt: screen.prompt())
         }
     }
 
     public func askAgent(prompt: String? = nil) {
         Task {
-            if let prompt {
-                await summon(["agent", "prompt", prompt])
-            } else {
-                await summon(["agent"])
-            }
+            guard let error = await summon(prompt.map { ["agent", "prompt", $0] } ?? ["agent"]),
+                  !Task.isCancelled, !stopped else { return }
+            let terminal = AgentLauncher.preferredTerminal(saved: DefaultTerminalStore(paths: paths).load(), installed: TerminalApp.installed)
+            let message = AgentLaunchProblem.explain(error, terminal: terminal)
+            lastError = message
+            onAgentFailure?(message)
         }
     }
 
@@ -786,7 +797,7 @@ public final class SummonModel {
         let environment = ProcessInfo.processInfo.environment
         let shellPath = (environment["PATH"] ?? "").split(separator: ":").map(String.init)
         let home = paths.home
-        let doctor = Doctor(
+        var doctor = Doctor(
             paths: paths,
             runner: runner,
             tools: ToolLocator.live(),
@@ -799,6 +810,7 @@ public final class SummonModel {
             installedTerminals: TerminalApp.installed,
             isProcessRunning: { pid in pid > 0 && kill(pid, 0) == 0 }
         )
+        if live { doctor.automationStatus = { AgentLaunchProblem.automationStatus(bundleID: $0) } }
         let report = await doctor.run(reuseMacctl: full ? nil : doctorReport?.check("macctl"))
         guard !stopped, !Task.isCancelled else { return }
         if report != doctorReport { doctorReport = report }
