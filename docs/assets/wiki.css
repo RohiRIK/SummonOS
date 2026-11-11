@@ -1,0 +1,235 @@
+/* SummonOS field guide. Material owns navigation/search behavior; this file owns presentation. */
+:root {
+  --md-text-font: -apple-system;
+  --md-code-font: "SFMono-Regular";
+  --wiki-radius: 14px;
+}
+body[data-md-color-scheme="default"] {
+  --wiki-canvas: #f7f8fb;
+  --wiki-surface: #ffffff;
+  --wiki-ink: #20212b;
+  --wiki-muted: #656a7b;
+  --wiki-border: #e2e5ed;
+  --wiki-accent: #6250d9;
+  --wiki-tint: #efedfb;
+  --wiki-code: #f0f2f7;
+  --wiki-hover: #f0f1f7;
+}
+body[data-md-color-scheme="slate"] {
+  --wiki-canvas: #111319;
+  --wiki-surface: #191c24;
+  --wiki-ink: #eef0f7;
+  --wiki-muted: #a7adbf;
+  --wiki-border: #2d3240;
+  --wiki-accent: #b6a8ff;
+  --wiki-tint: #26223c;
+  --wiki-code: #1b1e28;
+  --wiki-hover: #222631;
+}
+body[data-md-color-scheme] {
+  --md-default-bg-color: var(--wiki-canvas);
+  --md-default-fg-color: var(--wiki-ink);
+  --md-default-fg-color--light: var(--wiki-muted);
+  --md-default-fg-color--lighter: var(--wiki-muted);
+  --md-typeset-color: var(--wiki-ink);
+  --md-typeset-a-color: var(--wiki-accent);
+  --md-accent-fg-color: var(--wiki-accent);
+  --md-primary-fg-color: var(--wiki-surface);
+  --md-primary-bg-color: var(--wiki-ink);
+  --md-primary-bg-color--light: var(--wiki-muted);
+  --md-code-bg-color: var(--wiki-code);
+  --md-code-fg-color: var(--wiki-ink);
+  background: var(--wiki-canvas);
+  -webkit-font-smoothing: antialiased;
+}
+.md-grid { max-width: 1320px; }
+.md-header { border-bottom: 1px solid var(--wiki-border); box-shadow: none; }
+.md-header__inner { padding-top: 5px; padding-bottom: 5px; }
+.md-header__title { font-size: .86rem; font-weight: 680; letter-spacing: -.025em; }
+.md-header__button.md-logo img { width: 32px; height: 32px; border-radius: 9px; }
+.md-header__source { font-size: .65rem; }
+.md-tabs { border-bottom: 1px solid var(--wiki-border); color: var(--wiki-muted); }
+.md-tabs__link { font-size: .69rem; font-weight: 540; opacity: 1; }
+.md-tabs__item--active { border-bottom: 2px solid var(--wiki-accent); }
+.md-tabs__item--active .md-tabs__link { color: var(--wiki-accent); font-weight: 700; }
+.md-search__form { background: var(--wiki-canvas); border: 1px solid var(--wiki-border); border-radius: 9px; }
+.md-search__input { color: var(--wiki-ink); }
+.md-search__input, .md-search__suggest { font-size: .8rem; }
+.md-search__input::placeholder, .md-search__icon { color: var(--wiki-muted); }
+.md-search-result__article--document { border-top-color: var(--wiki-border); }
+.md-nav { font-size: .69rem; line-height: 1.55; }
+.md-nav__title { font-weight: 650; }
+.md-nav--secondary { font-size: .64rem; }
+.md-nav__link { transition: color 140ms ease; }
+.md-sidebar__scrollwrap { scrollbar-width: thin; }
+.md-typeset { font-size: .82rem; line-height: 1.75; }
+.md-typeset h1 { color: var(--wiki-ink); font-size: 2rem; font-weight: 680; letter-spacing: -.045em; line-height: 1.2; }
+.md-typeset h2 { font-size: 1.28rem; font-weight: 650; letter-spacing: -.025em; line-height: 1.3; margin-top: 2.2em; }
+.md-typeset h3 { font-size: 1rem; font-weight: 650; letter-spacing: -.015em; }
+.md-typeset a:not([class]):hover { text-decoration: underline; text-underline-offset: 3px; }
+.md-typeset code { border-radius: 5px; font-size: .83em; }
+.md-typeset pre { border: 1px solid var(--wiki-border); border-radius: 10px; }
+.md-typeset pre > code { font-size: .72rem; line-height: 1.7; }
+.md-typeset .highlight { margin: 1.25em 0; }
+.md-typeset table:not([class]) { background: var(--wiki-surface); border: 1px solid var(--wiki-border); border-radius: 10px; font-size: .72rem; box-shadow: none; }
+.md-typeset table:not([class]) th { background: var(--wiki-code); color: var(--wiki-ink); font-weight: 650; }
+.md-typeset table:not([class]) td { border-top-color: var(--wiki-border); }
+.md-typeset table:not([class]) tr:hover { background: var(--wiki-hover); }
+.md-typeset .admonition, .md-typeset details { border-radius: 10px; box-shadow: none; font-size: .75rem; }
+.md-typeset .admonition.note { border-color: var(--wiki-accent); background: var(--wiki-surface); }
+.md-typeset .note > .admonition-title { background: var(--wiki-tint); }
+.md-footer { background: var(--wiki-surface); border-top: 1px solid var(--wiki-border); color: var(--wiki-ink); }
+.md-footer-meta { background: var(--wiki-surface); }
+.md-footer__title { font-size: .8rem; }
+.md-footer__direction, .md-copyright, .md-copyright a { color: var(--wiki-muted); }
+:where(a, button, input, label[tabindex]):focus-visible { outline: 3px solid var(--wiki-accent); outline-offset: 4px; }
+
+/* The homepage is a field-guide cover, not an article with two empty sidebars. */
+body:has(.summon-home) .md-main__inner { max-width: 1220px; margin-top: 0; padding: 0 30px; }
+.md-content__inner:has(.summon-home) { margin: 0; padding: 0; }
+body:has(.summon-home) .md-content__button { display: none; }
+.summon-home { padding-bottom: 28px; }
+.summon-home a { text-decoration: none; }
+.summon-home h1, .summon-home h2, .summon-home h3, .summon-home p { margin: 0; }
+.summon-home .home-eyebrow { color: var(--wiki-muted); font-size: 10px; font-weight: 700; letter-spacing: .14em; line-height: 1.5; }
+.home-hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 76px; align-items: center; padding: 88px 0 64px; }
+.home-spark { color: var(--wiki-accent); font-size: 19px; margin-right: 7px; vertical-align: -1px; }
+.summon-home .home-hero h1 { font-size: clamp(54px, 5.5vw, 78px); font-weight: 720; letter-spacing: -.065em; line-height: 1.02; margin: 21px 0 24px; }
+.home-hero h1 span { color: var(--wiki-accent); }
+.summon-home .home-lead { max-width: 440px; font-size: 17px; line-height: 1.75; color: var(--wiki-muted); }
+.home-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 28px; }
+.home-button { display: inline-flex; gap: 20px; align-items: center; justify-content: center; min-height: 46px; padding: 0 19px; border-radius: 9px; font-size: 14px; font-weight: 650; }
+.summon-home a.home-button-primary, .summon-home a.home-button-primary:hover { background: #6552df; color: #fff; box-shadow: 0 4px 12px #5040b51a; }
+.summon-home a.home-button-primary:hover { background: #5744cc; }
+.home-button-text { padding-left: 12px; padding-right: 8px; gap: 12px; }
+.summon-home a.home-button-text, .summon-home a.home-path, .summon-home a.home-tool { color: var(--wiki-ink); }
+.summon-home a.home-button-text:hover, .summon-home a.home-tool:hover { color: var(--wiki-accent); }
+.summon-home .home-platform { color: var(--wiki-muted); font-size: 11px; margin-top: 23px; }
+.home-platform span { color: var(--wiki-border); padding: 0 9px; }
+.home-console { position: relative; background: #191b25; color: #f1f1fa; border: 1px solid #353645; border-radius: 18px; box-shadow: 0 22px 65px #30245920, 0 3px 8px #11111b0a; transform: rotate(-1.5deg); }
+.home-console-mark { position: absolute; top: -34px; right: 24px; filter: drop-shadow(0 10px 20px #00000038); }
+.home-console-heading { display: flex; align-items: center; gap: 12px; min-height: 62px; padding: 0 25px; border-bottom: 1px solid #303240; color: #b8bccf; font-size: 9px; font-weight: 650; letter-spacing: .095em; }
+.home-console-symbol { color: #b6a7ff; font-family: var(--md-code-font-family); font-size: 19px; letter-spacing: -.1em; }
+.home-command { padding: 17px 26px 0; }
+.home-command-label { display: block; color: #9da4ba; font-size: 8px; font-weight: 600; letter-spacing: .1em; margin-bottom: 7px; }
+.md-typeset .home-command code { display: block; padding: 0; color: #eeeff9; background: none; font-size: 15px; line-height: 1.7; white-space: nowrap; }
+.home-command code span { color: #b6a7ff; }
+.home-console-footer { display: flex; align-items: center; gap: 8px; border-top: 1px solid #303240; padding: 14px 26px; margin-top: 23px; color: #b1b8cc; font-size: 10px; }
+.home-console-footer > span { width: 5px; height: 5px; flex: 0 0 5px; background: #83d6bd; border-radius: 50%; }
+.home-release { display: flex; align-items: center; gap: 24px; padding: 19px 0; border-top: 1px solid var(--wiki-border); border-bottom: 1px solid var(--wiki-border); }
+.home-release-label { display: flex; align-items: center; gap: 8px; color: var(--wiki-muted); font-size: 9px; font-weight: 700; letter-spacing: .1em; white-space: nowrap; }
+.home-release-label > span { background: var(--wiki-accent); width: 5px; height: 5px; border-radius: 50%; }
+.summon-home .home-release p { color: var(--wiki-muted); font-size: 12px; }
+.home-release strong { color: var(--wiki-ink); font-weight: 650; }
+.home-release a { margin-left: 6px; white-space: nowrap; }
+.home-paths, .home-shortcuts { padding: 54px 0 0; }
+.home-section-heading { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; margin-bottom: 24px; }
+.summon-home h2 { color: var(--wiki-ink); font-size: 29px; font-weight: 660; letter-spacing: -.045em; line-height: 1.2; margin-top: 10px; }
+.home-section-heading > a { font-size: 12px; white-space: nowrap; padding-bottom: 3px; }
+.home-path-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.home-path { display: flex; flex-direction: column; padding: 25px; background: var(--wiki-surface); border: 1px solid var(--wiki-border); border-radius: var(--wiki-radius); color: var(--wiki-ink); transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease; }
+.home-path:hover { transform: translateY(-4px); border-color: var(--wiki-accent); color: var(--wiki-ink); box-shadow: 0 10px 24px #28204d0b; }
+.home-path-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 23px; }
+.home-path-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: var(--wiki-tint); color: var(--wiki-accent); }
+.home-path-icon svg { width: 21px; height: 21px; }
+.home-path-number { color: var(--wiki-muted); font-family: var(--md-code-font-family); font-size: 10px; }
+.summon-home .home-path h3 { font-size: 18px; font-weight: 660; letter-spacing: -.03em; margin-bottom: 10px; line-height: 1.3; }
+.summon-home .home-path p { color: var(--wiki-muted); font-size: 13px; line-height: 1.75; margin-bottom: 24px; }
+.home-path-action { display: flex; justify-content: space-between; align-items: center; color: var(--wiki-accent); font-size: 12px; font-weight: 650; margin-top: auto; }
+.home-toolkit { display: grid; grid-template-columns: 1fr 1.7fr; gap: 75px; padding: 58px 0; margin-top: 58px; border-top: 1px solid var(--wiki-border); border-bottom: 1px solid var(--wiki-border); }
+.summon-home .home-toolkit h2 { font-size: 38px; margin: 13px 0 15px; }
+.summon-home .home-toolkit-intro > p:last-child { color: var(--wiki-muted); font-size: 13px; line-height: 1.8; max-width: 260px; }
+.home-tool-list { align-self: center; }
+.home-tool { display: flex; align-items: center; gap: 20px; padding: 19px 0; border-bottom: 1px solid var(--wiki-border); color: var(--wiki-ink); }
+.home-tool:first-child { padding-top: 0; }
+.home-tool:hover { color: var(--wiki-accent); }
+.home-tool-icon { display: grid; place-items: center; flex: 0 0 45px; height: 45px; background: var(--wiki-tint); color: var(--wiki-accent); border-radius: 12px; font-size: 29px; }
+.home-tool-icon-mono { font-family: var(--md-code-font-family); font-size: 20px; letter-spacing: -.12em; padding-right: 3px; }
+.summon-home .home-tool h3 { font-size: 20px; letter-spacing: -.03em; line-height: 1.3; }
+.summon-home .home-tool p { font-size: 12px; color: var(--wiki-muted); margin-top: 4px; }
+.home-tool-arrow { margin-left: auto; font-size: 21px; color: var(--wiki-muted); }
+.home-tool-foot { display: flex; gap: 24px; padding-top: 17px; font-size: 11px; }
+.home-shortcuts { padding-top: 48px; }
+.home-shortcut-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 44px; }
+.home-shortcut-grid > a { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 19px 0; color: var(--wiki-ink); border-bottom: 1px solid var(--wiki-border); }
+.home-shortcut-grid > a:hover { color: var(--wiki-accent); }
+.home-shortcut-grid strong { font-size: 14px; font-weight: 600; }
+.home-shortcut-grid small { display: block; margin-top: 4px; color: var(--wiki-muted); font-size: 11px; }
+.home-shortcut-grid > a > span:last-child { color: var(--wiki-muted); font-size: 19px; }
+.home-knowledge { display: grid; grid-template-columns: 1.1fr 1fr; gap: 65px; padding: 35px 40px; margin-top: 55px; border: 1px solid var(--wiki-border); border-radius: 16px; background: var(--wiki-tint); }
+.summon-home .home-knowledge h2 { font-size: 31px; margin: 12px 0 17px; }
+.summon-home .home-knowledge p:last-child { color: var(--wiki-muted); font-size: 12px; line-height: 1.85; max-width: 370px; }
+.home-knowledge-links { align-self: center; }
+.home-knowledge-links a { display: flex; justify-content: space-between; padding: 11px 0; color: var(--wiki-ink); font-size: 13px; border-bottom: 1px solid color-mix(in srgb, var(--wiki-accent) 15%, transparent); }
+.home-knowledge-links a:hover { color: var(--wiki-accent); }
+.home-knowledge-links a:last-child { border-bottom: 0; }
+.home-knowledge-links span { color: var(--wiki-accent); }
+.home-bottom { padding-top: 27px; display: flex; justify-content: space-between; gap: 24px; }
+.summon-home .home-bottom p { font-size: 10px; color: var(--wiki-muted); max-width: 390px; }
+.home-bottom > div { display: flex; gap: 17px; flex-wrap: wrap; font-size: 10px; }
+.home-bottom a { color: var(--wiki-muted); }
+.home-bottom a:hover { color: var(--wiki-accent); }
+
+@media screen and (min-width: 76.25em) {
+  body:has(.summon-home) .md-sidebar--primary { display: none; }
+  .md-main__inner { margin-top: 1.8rem; }
+  .md-sidebar--primary .md-nav__item--active > .md-nav__link:not(label) { border-radius: 6px; background: var(--wiki-tint); color: var(--wiki-accent); }
+  .md-sidebar--primary .md-nav__item--nested > .md-nav__link { margin-top: 12px; }
+  .md-nav--secondary .md-nav__link--active { border-left: 2px solid var(--wiki-accent); padding-left: 10px; margin-left: -12px; }
+}
+@media screen and (max-width: 1000px) {
+  .home-hero { gap: 32px; padding: 66px 0 48px; }
+  .summon-home .home-hero h1 { font-size: 64px; }
+  .home-console { transform: none; }
+  .home-console-heading { font-size: 8px; padding-left: 20px; }
+  .home-command { padding-left: 20px; padding-right: 20px; }
+  .md-typeset .home-command code { font-size: 12px; }
+  .home-console-footer { font-size: 9px; padding-left: 20px; }
+  .home-toolkit { gap: 35px; }
+  .home-path { padding: 20px; }
+  .summon-home .home-path h3 { font-size: 16px; }
+  .home-bottom { flex-direction: column; gap: 10px; }
+}
+@media screen and (max-width: 700px) {
+  body:has(.summon-home) .md-main__inner { padding: 0 22px; }
+  .home-hero { grid-template-columns: 1fr; gap: 56px; padding: 46px 0 36px; }
+  .summon-home .home-hero h1 { font-size: clamp(54px, 11vw, 70px); margin: 19px 0 22px; }
+  .summon-home .home-lead { font-size: 16px; max-width: 450px; }
+  .home-actions { margin-top: 23px; gap: 7px; }
+  .home-button { font-size: 13px; gap: 16px; padding: 0 15px; }
+  .home-button-text { gap: 9px; padding-right: 0; }
+  .home-console { max-width: 470px; width: 100%; }
+  .home-console-mark { width: 64px; height: 64px; top: -30px; right: 19px; }
+  .home-console-heading { min-height: 57px; font-size: 8px; padding: 0 20px; }
+  .home-command { padding-top: 14px; }
+  .md-typeset .home-command code { font-size: 14px; }
+  .home-console-footer { font-size: 10px; padding: 13px 20px; margin-top: 19px; }
+  .home-release { flex-direction: column; align-items: flex-start; gap: 8px; padding: 18px 0; }
+  .summon-home .home-release p { font-size: 11px; line-height: 1.9; }
+  .home-release a { margin-left: 0; }
+  .home-section-heading { align-items: flex-start; gap: 14px; }
+  .home-section-heading > a { font-size: 10px; padding-top: 5px; }
+  .summon-home h2 { font-size: 26px; }
+  .home-paths { padding-top: 36px; }
+  .home-path-grid { grid-template-columns: 1fr; gap: 13px; }
+  .home-path { padding: 22px; }
+  .home-path-top { margin-bottom: 17px; }
+  .summon-home .home-path h3 { font-size: 19px; }
+  .summon-home .home-path p { margin-bottom: 18px; }
+  .home-toolkit { grid-template-columns: 1fr; gap: 28px; margin-top: 38px; padding: 36px 0; }
+  .summon-home .home-toolkit h2 { font-size: 32px; }
+  .home-toolkit-intro h2 br { display: none; }
+  .summon-home .home-toolkit-intro > p:last-child { max-width: 100%; }
+  .home-tool { gap: 14px; }
+  .summon-home .home-tool p { font-size: 11px; }
+  .home-shortcuts { padding-top: 35px; }
+  .home-shortcut-grid { grid-template-columns: 1fr; }
+  .home-knowledge { grid-template-columns: 1fr; gap: 18px; margin-top: 36px; padding: 27px 24px; }
+  .summon-home .home-knowledge h2 { font-size: 29px; }
+  .home-bottom { padding-top: 20px; }
+  .md-typeset h1 { font-size: 1.7rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-path, .md-nav__link { transition: none; }
+  .home-path:hover { transform: none; }
+}

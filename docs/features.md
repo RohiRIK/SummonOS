@@ -7,8 +7,13 @@ tags: [features, summon, macctl]
 
 # Features
 
-Everything each SummonOS project can do today, in one place. "Planned" marks what is designed
-but not built. Keep this page current: a PR that adds or removes a user-visible feature updates it
+Current-checkout feature reference, audited on 2026-11-11. The shared base version in `VERSION` is **0.2.4**;
+the tagged 0.2.4 baseline is commit `3f37adf`. Later runtime hardening, native About, My Apps inventory and accent
+changes below are **unreleased branch implementation**, not proof a downloaded 0.2.4 build contains them.
+See the [changelog](../incubator/summon/CHANGELOG.md) and
+[runtime audit's historical evidence and remaining acceptance](plans/2026-11-08-runtime-audit.md#implementation-evidence-and-unverified-acceptance-2026-11-08).
+Implemented behavior is not a claim of completed profiling, retained-memory or accessibility acceptance.
+"Planned" marks work not built. A PR that changes a user-visible feature updates this page
 ([`AGENTS.md`](../AGENTS.md#how-we-work), step 7).
 
 - [Summon](#summon): one coding agent you summon from anywhere on the Mac
@@ -22,13 +27,15 @@ Code: [`incubator/summon/`](../incubator/summon). Overview: [its README](../incu
 
 ### Summon the agent
 
-- **Eight agents:** Claude Code, Codex, OpenCode, GitHub Copilot, Cursor CLI, Antigravity (`agy`), Pi
-  and Grok. One is the default (`summon default agent`); `summon agents` shows which are installed and
-  how to install the rest.
-- **Install and update agents:** `summon agents install <agent>` installs agents published on npm with bun
-  (npm if bun is missing; otherwise it prints the bun install line) and the rest with the vendor's script
-  (`--yes` off a terminal). `summon agents update <agent>|--all` updates each the way it was installed (Homebrew
-  formula or cask, bun, npm, or the vendor's own updater), detected from the binary's real path; `--check` lists
+- **Ten launchable agents:** Claude Code (`claude`), Codex (`codex`), OpenCode (`opencode`), GitHub Copilot
+  (`copilot`), Cursor CLI (`cursor-agent`, alias `cursor`), Antigravity (`agy`), Pi (`pi`), Hermes (`hermes`),
+  OpenClaw (`openclaw`) and Grok (`grok`). `summon default agent <id>` chooses one; `summon agents` shows which
+  are installed and how to install the rest. Automatic MCP connections use a separate eight-target registry
+  ([below](#every-agent-the-mcp-server)); launch support does not imply connector or scheduled-task support.
+- **Install and update agents:** `summon agents install <agent>` prefers the vendor script when one is registered
+  (including OpenClaw); other npm-published agents use bun, then npm, or print the bun installation hint if neither
+  exists. Vendor scripts need confirmation (`--yes` off a terminal). `summon agents update <agent>|--all` uses
+  the detected installation method (Homebrew formula/cask, bun, npm or vendor updater); `--check` lists
   method, current and latest version, cached for 24 hours in `~/.local/state/summon/agent-updates.json`.
   `summon agents` shows the install method. Skills are relinked after every install or update.
 - **From anywhere:** ⌃⌥⌘A opens the agent in a new terminal window, the drop-down terminal (⌃⌥⌘\`, then
@@ -59,8 +66,8 @@ hotkey, while your app is still in front.
 Selected text and window title use Accessibility only when Summon already has it, and never ask for it. The browser
 and Finder fields use AppleScript, so macOS asks once for Automation permission per app. If you say no, that field
 is just left out. Every field is on by default; Settings › Agents (or `summon context hide selected-text|browser-page|finder-selection|window-title`)
-turns each one off. Crash diagnosis, Activity and tasks keep their own prompts. Verified on a Mac (macOS 27.0.1,
-2026-10-25): with text selected in Helium, the agent's first message had the app, window, page and selection.
+turns each one off. Crash diagnosis, Activity and tasks keep their own prompts. Permission-dependent fields
+can be absent; listing the feature is not browser-automation or accessibility acceptance evidence.
 
 ### Safety: checkpoints and undo
 
@@ -68,18 +75,21 @@ turns each one off. Crash diagnosis, Activity and tasks keep their own prompts. 
   New installs use the agent's own controls; existing configured installations retain unattended execution.
   The [security model](security-model.md) explains the authority and recovery boundaries.
 
-- **A checkpoint before every agent session:** a `macctl` snapshot marker plus a git commit of
-  `~/.config` when it is already a repository (`summon checkpoint create`). Capture failures remain visible;
-  scheduled work stops before launching its agent if capture reports a failure.
+- **A checkpoint before agent sessions by default:** a `macctl` snapshot marker plus a git commit of
+  `~/.config` when it is already a repository (`summon checkpoint create`). `summon agent --no-checkpoint`
+  explicitly skips capture. Capture failures remain visible; scheduled work stops before launching its agent
+  if capture reports a failure.
 - **Undo:** `summon undo-session` (or `summon checkpoint undo [id]`) restores successfully captured config files
-  and supported macctl settings changed since. New files and external actions are excluded. `--dry-run` shows
-  the plan first. `summon checkpoint list` includes capture problems.
-- **Any agent's session can be undone, not only the ones Summon starts:** before an agent's first real
-  `settings_set` through `summon mcp`, Summon takes a checkpoint labelled "<Agent> via MCP", such as "Codex via MCP".
-  It logs the session under the agent's name from MCP `clientInfo`. The tool reply ends with the one command that
-  undoes the whole session, and Activity shows it as that agent's session with **Undo This Session…**.
+  and supported macctl settings changed since. Ordinary new files and external actions are excluded. Files
+  explicitly recorded as created by a theme are the exception: undo removes those, and recorded folders only
+  when they contain nothing else. `--dry-run` shows the plan; `checkpoint list` includes capture problems.
+  Existing editor-theme files outside captured `~/.config` are not backed up by this mechanism.
+- **MCP settings sessions get a checkpoint too:** before a client's first real `settings_set` through
+  `summon mcp`, Summon creates a checkpoint labelled "&lt;Agent&gt; via MCP", using the MCP `clientInfo` name.
+  Successful tool replies include its undo command, and Activity offers **Undo This Session…**. This covers
+  supported settings/captured config, not every action that agent performed elsewhere in the session.
 - **Panel:** after an agent session from the last 12 hours that changed settings, the panel shows one row, "Undo
-  <Agent> Session (N changes)…". Choosing it asks first, then runs `summon checkpoint undo`. The row disappears
+  &lt;Agent&gt; Session (N changes)…". Choosing it asks first, then runs `summon checkpoint undo`. The row disappears
   when there is nothing to undo.
 
 ### The Mac calls the agent
@@ -108,10 +118,10 @@ The menu bar panel (⌃⌥Space) with the Summon Menu opens under the Summon ico
 `open -g summon://panel` (`summon panel --close` closes it). It takes typing without taking focus from the app
 you're in, and Esc returns you there. Right-click the icon for Settings… and Quit. Pressing ⌘↵ anywhere in the
 panel immediately launches the default agent in your preferred terminal in `~/Summon`.
-While an agent runs, its elapsed time (`mm:ss`) shows next to the Summon icon even with the panel closed (Settings ›
-General › Menu Bar turns it off), and VoiceOver reads the agent and how long it has run on the icon. Opening the
-panel from ⌃⌥Space or a URL is announced to VoiceOver, since a panel that doesn't activate Summon doesn't move the
-VoiceOver cursor.
+When **Show agent time in the menu bar** is enabled in Settings › General › Menu Bar, an active session's elapsed
+time (`mm:ss`) appears next to the Summon icon, including while the panel is closed; its accessibility label
+includes the agent and elapsed time. The panel emits an accessibility announcement when opened by hotkey or URL.
+These are implemented accessibility affordances, not completed VoiceOver acceptance.
 
 At the top of the panel is the Summon Menu: a searchable, keyboard-first menu tree defined in
 `~/.config/summon/menu.jsonc` (`summon menu init`, `menu list`, `menu summon [id]`, which opens the panel at that
@@ -129,30 +139,32 @@ remain repair defects. Optional app icons/showcase screenshots are recommendatio
 automatically changed. Build detection recognizes PascalCase app/saver bundles and real CLI executables in
 SwiftPM's external cache; an empty `.build` directory is not proof of a built tool.
 
-Projects open their built `.app` or project folder; themes apply the selected palette; art entries open their folders. Default sections:
+Projects open their built `.app` or project folder; CLI/saver entries reveal their project folder. Themes apply
+the selected palette; art entries open their folders. Built-in menu groups (search or Settings › Setup exposes
+groups not shown on the home panel):
 
 | Section | Entries |
 |---|---|
-| Agent | Ask Agent, Diagnose Last Crash, Save Debug Bundle, Undo Last Agent Session, Default Agent |
+| Agent | Ask Agent, Schedule a Task…, Diagnose Last Crash, Fix Issues with AI, Save Debug Bundle, Undo Last Agent Session, Default Agent (the built-in submenu lists eight agents; Settings/CLI use the ten-agent registry) |
 | My Apps | All six app/theme/art categories, with shared repair counts and separately identified recommendations |
 | Style | Theme, Dark Mode, Light Mode, Start Screensaver |
-| Setup | Show Profile Drift, Check Permissions, Edit This Menu, Open Hooks Folder, System Settings |
+| Setup | Show Profile Drift, Check Permissions, Fix Issues with AI, Edit This Menu, Open Hooks Folder, System Settings |
 | Trigger | Screenshot Area, Screenshot to Desktop, Stay Awake for 1 Hour, Lock Screen |
-| Make Something | New Menu Bar App, New App, New Command-Line Tool, New Screensaver, New Theme, New Wallpaper, New Icon |
+| Make Something | New Menu Bar App, New Launcher, New Floating HUD, New Notch App, New App, New Widget, New Command-Line Tool, New Screensaver, New Theme, New Wallpaper, New Icon |
 | Install | Ghostty, kitty, AeroSpace Tiling, Window Borders (each only when missing) |
-| Update | Update Homebrew Apps, Check for macOS Updates |
+| Update | Opens the Updates window; Check for macOS Updates remains in the default menu data |
 | System | Sleep, Restart…, Log Out…, Shut Down… |
 
 ### Menu bar app
 
-- **Panel** (320 pt, Liquid Glass on macOS 26), calm by design (owner, 2026-10-25): the header (Summon, the default
-  agent, "running 3h" while a session runs, next to the Summon mark), a "Search Summon…" field, then **Ask Agent**, **Make Something ›**, **My Apps ›**, one status line
-  only when something is wrong ("Ghostty crashed · Review…" opens Activity's problems; "N setup problems · Fix…" asks
-  the agent; crashes of helpers and test runners don't count), the undo row when there is something to undo, then
-  Activity…, Settings… (⌘,) and Quit (⌘Q). The search field searches the whole
-  Summon Menu (Style, Setup, Trigger, Install, Update, System, Agent), and Settings › Setup lists those groups with
-  Run buttons. With no default agent, the header offers "Choose an agent". The menu bar shows Summon's icon only (the
-  agent clock is an option in Settings › General), and it turns orange while the status line has something.
+- **Panel** (320 pt, Liquid Glass on macOS 26): the header shows Summon, the default agent and its running state,
+  plus an updates badge when updates are available. Then come **Search Summon…**, **Ask Agent**,
+  **Make Something ›**, **My Apps ›**, and **Update** when updates are pending. A setup-problem status line
+  appears only when Summon's doctor reports problems; it opens Fix with AI. Crashes are notifications, not a
+  panel row. An undo row appears when there is something to undo, followed by Activity…, Settings… (⌘,) and
+  Quit Summon (⌘Q). Search reaches the whole Summon Menu (Style, Setup, Trigger, Install, Update, System, Agent);
+  Settings › Setup exposes the setup groups with Run buttons. With no default agent, the header offers
+  "Choose an agent". The menu bar normally shows only Summon's icon; the agent clock is optional.
 - **Open and refresh:** the panel presents its last valid menu immediately and keeps one shared Activity refresh
   interest while open. File watches wake changed logs and crash reports; hidden panels do not run the visible
   one-second guard/activity loop. `summon://menu/<id>` resolves a newly added entry after its disk reload.
@@ -167,11 +179,12 @@ Projects open their built `.app` or project folder; themes apply the selected pa
   crashes and recurring tasks, opened at the newest line (also `summon://activity`). Select lines and ask the agent about them
   from the bar at the bottom. Right-click a line to Ask, Copy, Diagnose, Show in Finder, or Undo This
   Change / Session.
-- **Settings window** (⌘, or `summon://settings[/<section>]`; one window, the page name is its title, no header
-  blocks or explanatory text), one sidebar entry per part:
-  - General: Permissions (Accessibility: On, or **Allow…**, which asks macOS to add Summon to Privacy & Security ›
-    Accessibility and opens that page, so only the switch is left; the row re-checks every 2 seconds and says to
-    turn the switch off and on when an older build's entry is in the way), Open at Login.
+- **Settings window** (⌘, or `summon://settings[/<section>]`): one close-only sidebar window with a searchable
+  sidebar, page icon/title and grouped forms. Sections:
+  - General: Accessibility (On or **Allow…**, with a two-second recheck while off), default agent and terminal,
+    Start at login, workspace reveal, update preferences, About, agent execution, private-repo policy,
+    cleanup, optional menu bar clock, configurable panel/agent hotkeys and Show Welcome Again. An older
+    ad-hoc build's Accessibility entry may need its switch turned off and on again.
   - Agents: a list of agents (status dot, Default) with **All Agents** on top: the default agent, where agents
     open (Ghostty, kitty or Terminal), the skills every agent gets, what agents see about this Mac (computer name,
     window title, running apps, file paths: all on, each can be turned off), and shared plugins (OpenLTM: Install in All).
@@ -181,6 +194,7 @@ Projects open their built `.app` or project folder; themes apply the selected pa
   - Terminal: the default terminal, launch behavior and window styling.
   - Notifications: crash and hang alerts (Summon alert or macOS banner), task results, sound, muted programs with Unmute.
   - Appearance: the theme.
+  - Setup: built-in menu setup/action groups with Run buttons.
   - Tasks: each recurring task with its schedule, agent and last result (view only).
 
 - **About Summon:** Settings › General and the standard application About command share the native AppKit panel.
@@ -192,33 +206,40 @@ Projects open their built `.app` or project folder; themes apply the selected pa
 - `summon status`: agent, macctl, last change, last checkpoint and recent problems at a glance.
 - `summon version` (or `--version`): prints the SummonOS version (`summon 0.2.4`); `summon doctor` shows it on its
   first line and in `--json`. One version for `summon`, Summon.app and `macctl`, kept in the root `VERSION` file.
-- `summon context [--json] [--only a,b]`: this Mac for agents in one read-only snapshot (about 60 ms): model,
+- `summon context [--json] [--only a,b]`: this Mac for agents in one read-only snapshot: model,
   chip, RAM, macOS, power and thermal state, free space per volume, network and VPN, displays, frontmost app and
   window, running apps, appearance, what the asking process may do (Accessibility, Screen Recording, Full Disk
   Access), installed agents and crashes in the last day. `summon context hide|show <field>` (or Settings › Agents)
   turns off the computer name, window title, running apps or file paths.
 - `summon events [--kind settings|agent|checkpoint|theme|problem|mac] [--limit N] [--follow]`: the same timeline as
   the Activity window; `--follow` keeps printing new lines, so an agent can watch the Mac.
-- **Live Mac events:** while Summon.app runs, it compares a `summon context` snapshot every 30 seconds and logs
-  what changed as `mac.*` events in the Activity window. That covers: network offline or back online, VPN on or
-  off, low disk space (under 20 GB) and recovered, battery low (20%) or very low (10%), the Mac running hot or
-  cooling down, and displays connected or disconnected. Only crossings are logged, never the same state every
-  minute. Agents read them with the MCP tool `mac_events` (11 tools now) or `summon events --kind mac --follow`. `summon event add` and `event hook start|end` let tools write to it. The Claude Code
-  plugin's session hooks use them.
-- **Fix with AI** (`summon fix`) hands the agent only crashes from the last 24 hours that no agent has seen yet,
-  the same ones the panel shows, so pressing it again never repeats the same reports.
+- **Live Mac events:** while Summon.app runs, its lightweight watch loop checks Mac vitals approximately once a
+  minute (with scheduling slack) and logs changes as `mac.*` events. Events cover network offline/online, VPN,
+  low disk space (under 20 GB)/recovery, low (below 20%) or very low (below 10%) battery, and thermal changes.
+  Only crossings are logged, not the same state every minute. Agents read them with MCP `mac_events` (one of
+  the 11 tools) or `summon events --kind mac --follow`. `summon event add` and `event hook start|end` let tools
+  write to Activity; connected Claude Code/Codex hooks record their sessions there.
+  The event mapper also supports display-count changes, but the normal periodic vitals probe does not collect
+  displays; do not rely on that watch loop to emit display-connect/disconnect events.
+- **Fix with AI** (`summon fix`) hands the agent current general diagnostics and eligible recent crashes,
+  marking crash reports as seen so repeated requests do not diagnose the same reports again. The separate
+  `summon fix --apps` action uses only My Apps' counted repair items.
 - `summon doctor`: checks Summon's own install (app, CLI, config, macctl, event log, hotkeys,
   permissions, skill links) with a fix for each failure.
-- `summon update [--channel stable|edge] [--check] [--yes]`: updates Summon and macctl from GitHub. `stable` is the
-  newest release tag; `edge` is a rolling prerelease rebuilt from every green `main` (`summon --version` then reads
-  `0.1.0-edge.<sha>`). It downloads the zip and `SHA256SUMS`, refuses on a mismatch, installs with the release's own
-  staged installer (rollback on failure) and runs `summon doctor`. `--check` only reports. A `--channel` is
-  remembered in `~/.config/summon/defaults/channel`. When the anonymous GitHub API is rate limited (a VPN or office
-  IP), the check uses a logged-in `gh`.
-- The app updates itself: Summon.app checks the channel at launch and once a day, together with Homebrew
+- `summon update [--channel stable|edge] [--check] [--yes]`: updates Summon and macctl from GitHub. `stable`
+  selects the highest semantic-version `v*` tag in the returned release list, including preview/prerelease tags,
+  never `edge`; it installs only a newer version. `edge` follows the rolling prerelease and installs when its
+  version differs. Successful push CI on `main` triggers edge publication, but a failed/stale publication can
+  leave that asset behind current source; do not assume it includes this branch. The display format is
+  `<VERSION>-edge.<sha>`. Updates verify the zip against `SHA256SUMS`, use the release's staged installer and
+  run `summon doctor`. `--check` only reports and does not save a channel choice. An explicit channel without
+  `--check` is saved in `~/.config/summon/defaults/channel`, even before an install prompt. The CLI asks before
+  installing unless `--yes`; without a terminal, `--yes` is required. A logged-in `gh` is the API fallback.
+- The app checks at launch, then when 24 hours have elapsed since the previous check, while automatic checks
+  are enabled and Low Power Mode is off. Checks include Homebrew
   (`brew outdated`), bun and npm globals (agent CLIs among them shown as Agents) and macOS (`softwareupdate -l`).
-  The **Updates window** (the panel's Update row, "N new", under Make Something; the "N updates" tag at the panel's
-  top right; the notification) lists them like the App Store: Summon's card (What's New, Install and Relaunch:
+  The **Updates window** (the panel's Update row under Make Something, its "N updates" badge, or a notification)
+  lists Summon's card (What's New, Install and Relaunch:
   the same install as `summon update`, then Accessibility again), then Agents, Homebrew, bun & npm and macOS. Each
   row shows current → new and installs on its own (Waiting…, Updating…, ✓ Updated; a failure shows Show Details
   with the output, Fix with AI (the agent gets the command and its output) and Retry, or Open in Terminal when it needs a password). Update All per section and in the
@@ -234,8 +255,10 @@ Projects open their built `.app` or project folder; themes apply the selected pa
   and the accent color (all through `macctl`, so they can be undone). It also restyles Ghostty, kitty, window
   borders and Claude Code, VS Code and Cursor through a "Summon" color theme (choose it once), and Neovim
   (`:colorscheme summon`, written when `nvim` is installed). It takes one checkpoint first and ends with
-  `summon checkpoint undo <id>`, which undoes the whole look, including removing the files the theme created
-  (generated configs, the editor themes). A folder you have added your own files to stays. The panel offers "Undo Theme <name> (N changes)…".
+  `summon checkpoint undo <id>`. Undo restores captured `~/.config` files and supported macctl settings, and
+  removes newly created files recorded by the theme (generated configs and editor themes). A folder containing
+  added user files stays. Existing editor-theme files outside captured `~/.config` have no prior-content backup;
+  arbitrary hook effects are not covered. The panel offers "Undo Theme <name> (N changes)…".
   There is also `theme list` and `theme current`. Settings › Appearance provides full 16:9 wallpaper previews, color swatches, one-click Apply, and an Undo button to revert to the previous theme.
 - **Live accent synchronization:** Summon's controls use the active theme's exact accent; macOS uses the nearest
   system palette color. `macctl` notifies running apps after apply and undo. Finder folders set to Automatic follow
@@ -254,7 +277,9 @@ Projects open their built `.app` or project folder; themes apply the selected pa
 
 - `summon project new <name> --kind menubar|menubar-panel|launcher|hud|notch|app|widget|cli|screensaver` copies a template to `~/Summon/Apps/<name>`,
   runs `git init` with a first commit, and records it in a private list (`~/.config/summon/projects.json`).
-  Also `project list`, `project path`, `project forget`.
+  Also `project list`, `project path`, `project open`, `project forget`. `project register <name>` registers
+  an existing `~/Summon/Apps/<name>` folder; `project import <path> [--name <name>]` can copy an external project
+  into that home and register it. `--kind menubar|app|cli|screensaver` overrides kind detection for those commands.
 - **Templates:** menu bar app, menu bar app on an `NSPanel` (opens from code, takes typing without stealing focus),
   command launcher (⌥Space by default, never ⌘Space; a pre-warmed Spotlight-style bar with fuzzy app search,
   ⌘1–9, ⌘K actions and file drop), floating HUD (an always-on-top stopwatch pill that never takes focus, thrown to
@@ -269,8 +294,9 @@ Projects open their built `.app` or project folder; themes apply the selected pa
   window app has an inspector (⌥⌘I), ⌘F search, row context menus and undoable deletes, from 800 × 550; the
   `NSPanel` menu bar app has a right-click menu and "Show in menu bar". Both have a first-run welcome window
   (640 × 440, once, closing skips, Settings shows it again) with permission cards that check live status.
-  Each builds on its own and has a tested Core, README, MIT LICENSE, `PROJECT-CONTEXT.md`, `scripts/check.sh` and
-  `scripts/test.sh` (runs the tests with only the Command Line Tools). The app kinds also share a kit: system-menu
+  Each has Core tests, README, MIT LICENSE, `PROJECT-CONTEXT.md`, `scripts/check.sh` and `scripts/test.sh`.
+  The test wrapper supports Command Line Tools; the widget's full bundle/check gate requires Xcode for its
+  embedded extension. The app kinds also share a kit: system-menu
   rows for panels, the Summon theme's accent (follows `summon theme set` live), Liquid Glass controls on macOS 26
   with a material on 15, Open at Login in Settings, a placeholder app icon, and `--screenshot` for
   `summon project shots` ([`templates/`](../incubator/summon/templates)).
@@ -282,8 +308,9 @@ Projects open their built `.app` or project folder; themes apply the selected pa
 
 ### Every agent: the MCP server
 
-`summon mcp` is an MCP server on stdio, so any MCP client (Claude Code, Codex, Gemini CLI, Cursor, opencode,
-Raycast) can use this Mac. It is native Swift with no dependencies, and it serves 11 tools:
+`summon mcp` is an MCP server on stdio for clients that support that transport, including clients without a
+Summon launch entry. It is native Swift with no package dependencies. The current
+[`SummonMCP.tools`](../incubator/summon/Sources/SummonCore/SummonMCP.swift) declares **11 tools**:
 
 | Tool | Does |
 |---|---|
@@ -293,15 +320,18 @@ Raycast) can use this Mac. It is native Swift with no dependencies, and it serve
 | `settings_undo`, `settings_history` | Roll back a change, newest first or by id, and list what changed |
 | `checkpoint_list`, `checkpoint_create` | Summon's restore points |
 | `crash_list` | Recent crash, hang and panic reports |
-| `mac_events` | What changed on the Mac recently: offline, VPN, low disk, battery, running hot, displays |
+| `mac_events` | Recent recorded Mac events; the app's periodic watch supplies network/VPN, disk, battery and thermal transitions |
 
-`summon connect [agent...] [--dry-run]` registers the server with every agent it finds: Claude Code, Codex,
-Cursor, OpenCode, Hermes, OpenClaw, Antigravity CLI (`agy`) and Pi. It also adds a short marked "This Mac" note to
-each agent's always-loaded instructions file (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`, ...). It uses an agent's
-own `mcp add` when it has one, and otherwise edits its JSON config, keeping every other key. Each file is backed up
-first to `~/.local/state/summon/backups/connect/`. Symlinked dotfiles are edited in place, and a second run changes
-nothing. `summon disconnect` removes only Summon's server entry and note. OpenCode has no remove command, so that
-step is printed for the user.
+`summon connect [agent...] [--dry-run]` has **eight automatic targets**: Claude Code, Codex, Cursor, OpenCode,
+Hermes, OpenClaw, Antigravity CLI (`agy`) and Pi. Copilot and Grok remain launchable without automatic connectors.
+Presence is detected from binaries or supported config/app markers. Connect uses the agent's own `mcp add`
+where available, otherwise edits its JSON `mcpServers` map while retaining other keys. It adds a marked
+"This Mac" note only for targets with a supported always-loaded instructions file; Cursor and Hermes receive
+no note. Files edited by Summon are backed up to `~/.local/state/summon/backups/connect/`; vendor CLI edits
+remain the vendor's responsibility. Symlinked dotfiles are edited in place. Summon's JSON/note/hook changes
+are idempotent; some CLI targets have no presence-check command and receive `mcp add` again on another run.
+`summon disconnect` removes Summon's entry/note/hooks without replacing unrelated configuration; OpenCode's
+server removal is manual because its configured CLI method has no remove command.
 
 Claude Code, Codex, Cursor and the Antigravity CLI also get a session-start hook that runs `summon context --hook
 <agent>`. It goes in `~/.claude/settings.json`, `~/.codex/hooks.json`, `~/.cursor/hooks.json` or
@@ -312,8 +342,8 @@ closes it. The user's own hooks stay, and
 disconnect removes only Summon's. Paths per agent: [research note](research/2026-10-25-agent-mcp-configs.md).
 
 It also serves the resource `mac://context`. Setting ids are checked before they reach macctl, so an id that looks
-like an option is refused. Add it by hand with `claude mcp add summon -- summon mcp`, or with the same command and
-args in any client's MCP config. The Claude Code plugin declares it already.
+like an option is refused. Register manually with `claude mcp add --scope user summon -- summon mcp`, or configure
+command `summon` and args `["mcp"]` in another client. The optional Claude Code plugin declares no second server.
 
 ### Claude Code plugin
 
@@ -338,10 +368,10 @@ Every `summon` command, with arguments and examples: `summon commands --json`.
 
 ### ~/Summon: one home
 
-- Everything Summon and its agents make lives in `~/Summon`: `Apps/<name>` (projects from the templates), `Art/<job>`
-  (wallpaper and icon candidates), `Tasks/<id>` (a log per task run), `Themes` (a link to the installed themes).
-  Agents start there. `~/Summon/.gitignore` keeps the generated parts out of git. `summon home` sets it up and moves
-  older Summon files in.
+- Summon-managed projects and generated work have one home, `~/Summon`: `Apps/<name>` (template projects),
+  `Art/<job>` (wallpaper/icon candidates), `Tasks/<id>` (task-run logs), and `Themes` (a link to installed themes).
+  Agents normally start in this home when launched from `~` or `/`; explicit task directories can differ.
+  `.gitignore` keeps generated parts out of git. `summon home` initializes it and migrates older Summon files.
 - Kept tidy once a day (or `summon clean --apply`, Settings › General › Clean Now…): task logs retain the actual
   newest 20 by modification time and none older than 30 days; removed-task folders wait seven days. Active runs and
   pending recovery logs are protected by a per-task lease, and busy tasks leave automatic cleanup due. Old art jobs
@@ -359,10 +389,11 @@ Every `summon` command, with arguments and examples: `summon commands --json`.
 
 - Describe it, the agent sets it up: `summon task new "every weekday at 9, check brew updates"` (or Summon Menu ›
   Agent › Schedule a Task…, or "summon, every morning…" in any agent chat). The agent asks what is unclear, writes
-  a complete run prompt (it runs unattended), and adds the task.
+  a complete headless-run prompt, and adds the task; its saved execution mode still determines agent controls.
 - Directly: `summon task add "<prompt>" --at 09:00 [--weekdays]` or `--every 2h`, optionally `--agent <id>` and
   `--name`, `--execution normal|unattended` and `--directory <path>`; `summon task list`, `summon task run <id>`,
-  `summon task remove <id>`. New tasks retain the selected agent, execution mode and directory.
+  `summon task remove <id>`. New tasks retain the selected agent, execution mode and directory. Headless support
+  currently exists for Claude Code, Codex, OpenCode, Antigravity and Pi, not all ten launchable agents.
 - Settings › Tasks shows each task (schedule, agent, last result), view only.
 - Each task is a LaunchAgent that runs the agent's print mode in the saved directory (default `~/Summon`),
   after a checkpoint, with a 30-minute deadline. Overlapping runs are refused; failures return nonzero and
@@ -419,13 +450,16 @@ Settings (39, full table in [`macctl/docs/settings.md`](../macctl/docs/settings.
 | Finder | show extensions, path bar, status bar, default view, hidden files, folders first, extension-change warning, search scope |
 | Keyboard | key repeat, initial key repeat, press and hold |
 | Screenshots | location, format, disable shadow, floating thumbnail, date in file names |
-| Appearance | dark mode, scroll bars, menu icons (macOS 26+) |
+| Appearance | dark mode, scroll bars, menu icons (macOS 26+), accent color |
 | Desktop | wallpaper (every screen) |
 | Windows | click wallpaper to reveal desktop, tile by edge drag, tile margins |
 | Menu bar | menu bar agent and keyboard navigation (macOS 27+, hidden) |
 | Documents | save new documents to iCloud, autocorrect |
 
 Agents use it through the workspace skill `MacSetup`.
+
+The following companion-app summaries describe separate projects linked from this workspace, not code shipped
+inside SummonOS's universal archive. Their linked repositories/releases own their current behavior and support.
 
 ## mac-network
 
@@ -472,8 +506,8 @@ What this repo gives you for building more apps ([`README.md`](../README.md), [`
 | Tool | Does |
 |---|---|
 | `tools/okf-index.py` | Checks `docs/` is an Open Knowledge Format bundle and writes its `index.md` files |
-| `install.sh` | One-line SummonOS install (Summon + macctl) from the newest release (never `edge` unless `--channel edge`), checksum-verified, or `--from-source`; offers `summon connect`; [`docs/install-ai.md`](install-ai.md) is the same for agents |
-| `.github/workflows/release.yml` | On a `v*` tag: universal `summon`, `macctl` and Summon.app in one zip, `SHA256SUMS`, build attestation, a GitHub prerelease (ad-hoc signed preview). After every green Swift CI run on `main`: the same zip as the rolling `edge` prerelease |
+| `install.sh` | Release install defaults to the first non-edge release returned by GitHub, including prereleases; checksum-verified; `--channel edge` is opt-in. A checkout or `--from-source` builds source; offers `summon connect`; [agent install guide](install-ai.md) |
+| `.github/workflows/release.yml` | Tagged previews and opt-in rolling edge assets: universal commands/app, checksums and attestation. Successful `main` push CI triggers edge publication; a trigger alone does not prove a new asset exists |
 | `tools/mp` | Plugin registry: `new`, `promote`, `clone`, `list`, `status`, `index`, `adopt` |
 | `tools/publish-public.sh` | Clean snapshot of a dev repo to its public repo; refuses on private values |
 | `tools/release.sh` | Zipped `.app` on the public repo's Releases |
@@ -494,24 +528,28 @@ What this repo gives you for building more apps ([`README.md`](../README.md), [`
 | `PortLinuxWidget` | Port a Linux widget or script to a native Mac app |
 | `swiftui-expert-skill`, `swift-concurrency-pro` | Vendored (MIT): SwiftUI and Swift concurrency depth |
 
-CI ([`.github/workflows/swift.yml`](../.github/workflows/swift.yml)) runs once per PR and once per push to `main`
-(a newer commit on a PR cancels its older run). It builds and tests every Swift package, including Summon's templates,
-on `macos-26` and on `macos-15` (the minimum OS, built with Xcode 26), and makes a project of every template kind
-with the real `summon project new` in a temporary home and runs its `scripts/check.sh`. An informational Xcode 27 leg (public preview on `macos-26`) builds and tests `summon` and
-`macctl` to catch macOS 27 SDK breaks; it never blocks a merge and skips when the image has no Xcode 27.
-A docs-only change (`docs/**`, or `*.md` outside a Swift package and `.claude/`) skips the Swift jobs.
-It also validates design skill structure, typechecks their Swift examples, runs tooling regressions, and checks that
-`summon`, Summon.app and `macctl` carry the version in `VERSION`, and scans every tracked file for private values
-(`tools/private-scan.sh` with the generic `tools/public-patterns.txt`: private IPv4 ranges, non-documentation MACs,
-personal mail domains).
-[`codeql.yml`](../.github/workflows/codeql.yml) runs CodeQL on the Swift in `summon` and `macctl` (PRs that touch
-Swift, pushes to `main`, weekly); Dependabot (`.github/dependabot.yml`) bumps the SHA-pinned actions weekly.
-[`release-smoke.yml`](../.github/workflows/release-smoke.yml) installs each published release on a clean `macos-26`
-runner with the public one-line installer, then runs `summon --version`, `summon doctor`, `summon context --json`,
-`macctl --version` and `macctl doctor`; it also runs by hand for any tag.
-A second workflow, [`visual-qa.yml`](../.github/workflows/visual-qa.yml) (Visual QA (macOS)), runs on PRs that touch
-`incubator/summon/**` and on demand: on GitHub-hosted `macos-26` and `macos-15` runners it opens the Summon panel
-(⌃⌥Space) and menu bar panel, every Settings page (`summon://settings/<section>`), the Activity window and a sample
-crash alert (`summon://test-crash`, allowed in release builds only when the `VisualQA` default is set) in light and
-dark, and uploads screenshots as 14-day artifacts. It fails when a surface
-does not open or a capture is missing or the wrong theme. It is not a merge gate.
+CI ([`swift.yml`](../.github/workflows/swift.yml)) runs on PRs, pushes to `main` and manual dispatch. New PR
+commits cancel older runs; pushes to `main` are not cancelled. [`tools/ci-plan.sh`](../tools/ci-plan.sh) selects
+only packages touched by a PR. Summon and macctl run on `macos-15` and `macos-26` with Xcode 26; raw template
+packages run on `macos-26` only. A template change also tests Summon, whose tests read the templates. Docs and
+workspace-tool changes skip package builds, while unknown files, workflow changes, pushes and manual runs
+build everything. Design-skill changes select their example-typecheck job; structural skill, workspace, shell,
+privacy and tooling checks run in the workspace job. A selected Summon build also runs the packaged identity
+and real Core lifecycle gate; a selected macctl build runs its crash matrix. The optional Xcode 27 preview leg
+is informational and skips when unavailable.
+
+[`templates.yml`](../.github/workflows/templates.yml) separately creates projects in a temporary home and runs
+their check scripts when template/copier paths change. Its hosted matrix covers **menubar, menubar-panel, app,
+cli and screensaver**, not all nine starter kinds; `scripts/check-templates.sh` without arguments covers all nine.
+[`codeql.yml`](../.github/workflows/codeql.yml) analyzes Summon/macctl Swift on matching PRs, `main` and weekly;
+Dependabot updates SHA-pinned actions weekly. [`release-smoke.yml`](../.github/workflows/release-smoke.yml)
+uses the public installer for published/manual releases, but builds and verifies the candidate on matching PRs.
+On disposable hosted runners its automated release/PR path also invokes the guarded About/panel runtime audit;
+manual dispatch does not run that GUI step. A workflow definition is not proof its runtime gates passed.
+
+[`visual-qa.yml`](../.github/workflows/visual-qa.yml) opens the panel, Settings sections, Activity and sample
+crash alert in light/dark on hosted macOS 15/26 runners, uploading 14-day screenshots. It fails on missing or
+wrong-theme captures but is not a merge gate and is not full keyboard, VoiceOver or Reduce Transparency acceptance.
+
+The docs bundle can be rendered as a searchable wiki-style site; see [documentation maintenance](documentation.md)
+for preview, strict build and deployment prerequisites. Site tooling alone is not proof of a live deployment.

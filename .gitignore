@@ -20,6 +20,8 @@
 !/tasks/
 !/tools/
 !/VERSION
+!/mkdocs.yml
+!/requirements-docs.txt
 
 # Still in this repo until they move to their own repos (needs the owner's OK).
 # Remove these two lines when macctl/ and incubator/summon/ have moved out.
@@ -46,6 +48,11 @@ DerivedData/
 *.app
 *.zip
 *.dmg
+
+# Documentation tooling only; the site builder defaults to an external cache.
+/.venv-docs/
+/.docs-build/
+/site/
 
 # Recordings. Committed demo GIFs live only under <project>/docs/demo/.
 *.mov
