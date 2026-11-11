@@ -21,9 +21,14 @@ There are two ways to start an app, and they do not mix:
 | Template | `incubator/summon/templates/<kind>` (bundle id `local.macplugins.<name>`) | `incubator/summon/templates/<kind>` (bundle id `local.summon.<name>`) |
 | Folder | `scratch/<name>/`, then `plugins/<name>/` after `tools/mp promote` | `~/Summon/Apps/<name>` |
 | Listed in | `plugins.json` / `plugins.md` | `~/.config/summon/projects.json` (private to the Mac) |
-| GitHub | `tools/mp promote --yes`, owner's OK each time | `summon project repo <name>`, after a native dialog; always private |
+| GitHub | `tools/mp promote --yes`, owner's OK each time | Private only: `summon project repo <name>` asks in a native dialog; `summon default repos always` is explicit standing approval for newly created projects |
 
 The rest of this page is the workspace-plugin path.
+
+Both paths share nine starter kinds: `menubar`, `menubar-panel`, `launcher`, `hud`, `notch`, `app`, `widget`,
+`cli`, `screensaver`. Launchers/HUDs/notch/panel starters record as menu bar apps; widget records as a window
+app. The folders/registries remain separate: workspace plugins do not become My Apps projects merely by being
+listed in `plugins.json`. Theme/art work is not an app-template kind.
 
 ## 1. Plan
 
@@ -36,8 +41,10 @@ The rest of this page is the workspace-plugin path.
 - `tools/mp new <name> --kind menubar`: copies `incubator/summon/templates/menubar` to `scratch/<name>/`, renames it,
   and registers it in `plugins.json` (kebab-case, bundle id `local.macplugins.<name>`). Commit
   `plugins.json` and `plugins.md`.
-- Package layout, `Info.plist`, scripts: `MacAppBuild/Scaffold.md`. Three targets: `<App>Core`
-  (logic, tested), `<App>UI` (views, previews), `<App>` (`@main` only).
+- Package layout, plist and scripts: `MacAppBuild/Scaffold.md`. App starters normally separate `<App>Core`
+  (logic/tests), `<App>UI` (views/previews) and `<App>` (`@main`); CLI/screensaver targets follow their surface.
+  **Widget exception:** logic/views remain a Swift package, but a small `Xcode/` project builds the carrier app
+  and embedded WidgetKit extension. Core tests work with Command Line Tools; the full widget gate needs Xcode.
 - When it is worth keeping, and only with the owner's OK: `tools/mp promote <name> --yes` creates the repo
   pair, private `<name>-dev` (all history, PRs) and public `<name>` (snapshots only), and moves it to
   `plugins/<name>/`. An existing plugin on another machine: `tools/mp clone <name>`.
@@ -61,6 +68,16 @@ scripts/bundle.sh && open build/<App>.app                # new flows, permission
 
 Write the manual checklist (permission prompts, admin prompts) unticked into the PR.
 
+SummonOS's public workspace uses selective hosted CI: a PR tests changed packages, template changes also select
+Summon, and `main`/manual runs test everything. Summon/macctl use macOS 15/26; raw templates use macOS 26.
+The separate generated-project matrix currently covers menubar, menubar-panel, app, cli and screensaver; it
+does not validate all nine starter bundles. See [tooling/CI reference](tools.md#ci-plansh) before choosing checks.
+
+For changes to Summon itself, `incubator/summon/scripts/check.sh --runtime-smoke` adds packaged identity and
+the real Core lifecycle fixture. `scripts/install.sh --verify-only` validates a supplied candidate without
+replacing a personal installation. Do not equate either command with GUI/profiling/VoiceOver acceptance;
+current unreleased hardening and remaining gates are separated in [status](status.md).
+
 ## 5. Pull request
 
 ```bash
@@ -77,7 +94,17 @@ tools/publish-public.sh plugins/<name> main "<message>"     # clean snapshot to 
 tools/release.sh plugins/<name> "what's new"                # zip on the public repo's Releases
 ```
 
-Bump `CFBundleShortVersionString` and `CFBundleVersion` first (`MacAppBuild/Release.md`).
+For plugin releases, bump `CFBundleShortVersionString` and `CFBundleVersion` first (`MacAppBuild/Release.md`).
+The publisher requires usable private-pattern rules and exports a clean snapshot without project memory;
+release builds must come from clean dev `main` matching the exact public source commit. The release script
+runs the exported candidate's gate and verifies signatures, then uploads its zip, checksums and source record.
+Ad-hoc output is a preview, not notarization; the optional Developer ID pipeline requires both signing identity
+and a stored notary profile and refuses partial configuration.
+
+SummonOS itself has a different release path: root `VERSION` is currently **0.2.4**; matching `v*` tags drive
+[`release.yml`](../.github/workflows/release.yml), while successful push CI on `main` triggers optional rolling
+edge publication. A feature-branch build is neither a numbered release nor proof an edge asset exists.
+See [release tooling](tools.md#releaseyml-github-actions) and [current status](status.md).
 
 ## 7. Record
 

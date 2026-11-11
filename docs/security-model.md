@@ -9,7 +9,10 @@ tags: [security, privacy, recovery, agents]
 
 Summon runs under your macOS account. It launches your chosen coding agent and exposes tools, skills,
 and native Mac actions. It does not sandbox the agent or make arbitrary agent actions reversible.
-The current distribution is experimental; no supported production release has been qualified.
+The current distribution is experimental; no supported production release has been qualified. This page describes
+the checkout, including unreleased changes after the **0.2.4** tag. A shared version number does not prove a
+published build includes later hardening; see [release/branch status](status.md) and the
+[historical runtime audit](plans/2026-11-08-runtime-audit.md#implementation-evidence-and-unverified-acceptance-2026-11-08).
 
 ## Agent execution
 
@@ -32,7 +35,13 @@ under your account; review their sources before enabling them.
 
 - A marker in macctl's settings snapshot history. Undo reverses supported macctl operations after it.
 - Existing files captured by Git under `~/.config`, only if it was already a repository and capture succeeded.
-  Git ignore rules still apply. New files created after capture remain in place.
+  Git ignore rules still apply. Ordinary new files created after capture remain in place.
+- Files explicitly recorded as **created by a theme** are removed by checkpoint undo; recorded folders are
+  removed only when they contain no unrecorded files. This is not a general new-file tracker. The records live
+  in the bounded Activity log, so missing/trimmed creation events remove that cleanup coverage. These recorded
+  files are not content-fingerprinted before deletion: later edits to a recorded file do not protect it.
+  Existing editor-theme files outside captured `~/.config` (for example under `.vscode`/`.cursor`/`.claude`)
+  have no prior-content backup through this mechanism. Theme hooks can have additional uncovered effects.
 
 Checkpoints do not cover arbitrary documents, app installation, Homebrew changes, deleted external
 wallpapers, credentials, remote repositories, messages, cloud data, or other external effects. A macctl
@@ -52,11 +61,16 @@ macctl serializes cooperating mutations across processes sharing its snapshot di
 ([ADR](adr/ADR-macctl-recovery.md)). Each session writes a write-once snapshot header (status `pending`, never
 rewritten) and an append-only journal (`journal/<id>.jsonl`, 0600 in a 0700 directory) in which every change's
 prior state (absent, explicit with its exact type, or inherited) is fsynced (`F_FULLFSYNC`) before the write.
-A failed change rolls the whole batch back at once. After a crash, every write refuses with `recovery_pending`
+A failed batch attempts rollback; if rollback itself fails, pending recovery remains and the command reports
+failure rather than guaranteeing nothing changed. After a crash, every write refuses with `recovery_pending`
 until `macctl recover` rolls the unfinished session back; recover is idempotent. Managed (MDM) keys are refused
 (`managed_setting`). Settings marked sensitive keep only a keyed hash (HMAC-SHA256, key in `journal/.key`) and
 cannot be restored. Journals never leave the Mac. Do not run older macctl binaries against the new journal
 format: they ignore it. Independent applications can still change settings outside macctl's lock.
+
+A corrupt recovery journal can block older overlapping sessions. `recover` can still restore unrelated sessions
+before reporting an error, so a failed recovery does not mean no writes occurred. `recover --abandon <id>`
+quarantines the unreadable journal and removes its blocker; it does not restore that session's settings.
 
 Wallpaper recovery records images by display UUID. A disconnected display must be reconnected before
 its saved image can be restored. Legacy snapshots with one wallpaper retain their historical scalar behavior.
@@ -74,11 +88,15 @@ Each run has a 30-minute deadline; termination has a grace period then escalatio
 invocation's process group. A process that deliberately starts another session, a remote action already
 sent, or a process surviving a forced kill of Summon itself is outside this cleanup guarantee.
 
-The common tool runner retains at most 1 MiB of output, uses a default 60-second deadline, and rejects
-truncated output before treating it as complete command data. Known builds and scheduled tasks have
-explicit longer deadlines. Task log payloads are capped at 5 MiB plus a short status/truncation notice.
-Logs and newly written private state use owner-only permissions. Activity retains at most 2,000 events
-within a 1 MiB byte budget; concurrent writers serialize append/trim operations.
+The common shell runner retains at most **16 MiB** of captured output, uses a default 60-second deadline, and
+rejects truncated output before treating it as complete command data. Individual callers can choose smaller
+bounds; known builds/downloads and scheduled tasks have explicit longer deadlines. Scheduled runs retain no
+duplicate output buffer and write private logs capped at 5 MiB plus a short status/truncation notice.
+Logs and newly written private state use owner-only permissions. Activity trims when it exceeds **1,000,000
+bytes**, retaining the newest suffix of at most 2,000 events that fits that budget. This is a trim policy,
+not an unconditional 2,000-row cap below the threshold; a trim failure is reported separately after a committed
+append. Concurrent writers serialize append/trim operations. A task's recorded terminal result is separate
+from notification delivery: a failed or timed-out notification does not turn completed work into execution failure.
 
 ## Diagnostics and data sent to agents
 
@@ -86,6 +104,13 @@ Crash detection reads local diagnostic report files. Diagnose hands facts and a 
 chosen agent, which may read additional evidence and send it to its model provider. Summon's local
 execution does not imply local model inference. Diagnostic/log text is untrusted evidence, never authority
 to change the task or override instructions. Review the chosen provider's data handling before using it.
+
+Screen-context prompts can include the frontmost app/window, selected text, supported browser tab and Finder
+selection. Selected text/window title require existing Accessibility access; browser/Finder lookups can request
+Automation permission. Context visibility controls in Settings › Agents reduce the fields Summon supplies;
+they do not prevent an agent with account access from reading those sources independently. `summon connect`
+grants configured MCP clients access to 11 tools and `mac://context`; its `confirm: true` field is an assertion
+by the client that the user agreed, not a separate native approval dialog or a sandbox boundary.
 
 `summon debug` collects local hardware/software information and filtered error logs. It redacts known
 hardware identifiers, credential labels, hardware addresses, and the home-directory prefix. Redaction
@@ -95,14 +120,31 @@ sensitive; Summon's cleanup moves eligible old logs to Trash, which is not secur
 
 ## Distribution
 
-Source installs build the selected checkout. Installers stage app/commands before replacement, retain the
-old executables until initialization succeeds, and preserve user configuration added during a failed
-upgrade. A failed health check reports incomplete setup rather than unconditional success.
+Source installs build the selected checkout. The default downloaded installer selects the first non-edge
+release returned by GitHub, including prereleases; the CLI updater instead chooses the highest semantic-version
+tag from its returned list. Neither promises production stability. Edge is opt-in and can lag source.
+Both paths verify downloaded zips against the release's `SHA256SUMS`; this checks integrity against the same
+publisher, not independent publisher identity or automatic build-attestation verification.
 
-Publishing scans cover exported names, contents and symlink targets, and fail closed on scanner errors or private matches. Releases build the exact public source
-commit and include a checksum/provenance record. Preview builds can remain ad-hoc signed and labeled as
-such. The optional Developer ID/notarization pipeline requires the maintainer's identity and an existing
-keychain profile; production signing has not been exercised with real credentials in this change.
+Current build tooling generates compiled identity, `BuildInfo.json` and the bundle plist in an isolated source
+stage, without rewriting tracked development version files. Stable/edge metadata requires a clean identified
+checkout; development metadata records dirty/unidentified source. Base version, numeric build, revision, channel,
+configuration and UTC time identify the candidate; identity checks do not prove its safety or performance.
+`scripts/install.sh --verify-only` validates the supplied candidate/signature/packaged command before any live
+promotion. It does not initialize user state, replace installed files or run a GUI acceptance test.
+
+Normal installation stages the app/commands, retains originals until initialization succeeds and restores them
+on failure; newly added themes/configuration are retained. Incomplete rollback preserves backups and reports
+their staging paths for recovery. The later top-level `summon doctor` health check can fail **after** executable
+promotion has committed; that reports incomplete setup and does not roll back the committed installation.
+Ownership receipts support preview-first removal of unchanged installed files with `tools/uninstall.sh`;
+modified/unowned files and user projects/configuration/logs/tasks remain.
+
+Publishing scans cover exported names, contents and symlink targets and fail closed on errors/private matches.
+Release workflows build the selected source SHA, verify signatures/architectures/identity and publish checksums;
+tagged/edge publication also attests the archive. Ad-hoc previews are not notarized. Developer ID/notarization
+is optional and needs maintainer credentials/keychain configuration; the existence of that pipeline is not
+evidence that a particular release was notarized. Read its release notes and verify the actual artifact.
 
 Publication requires a separate review of repository history, credits, visibility, and the downloadable
 artifact. No code-signing credential or publication permission is embedded in a skill or configuration file.

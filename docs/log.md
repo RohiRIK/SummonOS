@@ -7,6 +7,19 @@ tags: [documentation, history]
 
 # Docs update log
 
+## 2026-11-11
+* **Design**: The wiki now has a Summon-branded field-guide cover, task-based entry cards, real command examples,
+  five navigation groups and coordinated light/dark reading surfaces. Native search/mobile controls remain intact;
+  keyboard skip/focus, narrow screens and reduced-motion behavior were exercised. [Design evidence](plans/2026-11-11-documentation-wiki.md#visual-design-pass-2026-11-11).
+* **New**: [Documentation wiki](home.md), [getting started](getting-started.md), [troubleshooting](troubleshooting.md),
+  [release/source status](status.md) and [website maintenance](documentation.md). MkDocs Material renders canonical
+  root/component/template Markdown and the complete knowledge base with search, responsive navigation and archive notices.
+* **Update**: Root, Summon, macctl, feature, install, security, contributor and tooling references audited against
+  source through `18c7688`. Corrected version/agent counts, update channels, recovery boundaries, inventory health,
+  theme accents and current build/CI behavior; November implementation remains explicitly unreleased.
+* **New**: Strict wiki builds check local files, rendered links, heading anchors and assets; a least-privilege
+  Pages workflow separates validation from publication. Repository Pages settings and application releases are unchanged.
+
 ## 2026-11-10
 * **Update**: [Runtime audit](plans/2026-11-08-runtime-audit.md) records native About/Activity captures, the real 13-report crash-burst alert/dismissal/search proof, fixture-home isolation and outstanding profiler, heap, displayed-frame and accessibility gates. Native input uses owned PID-targeted keys rather than global System Events keystrokes.
 * **Update**: [Features](features.md), [macctl catalog](../macctl/docs/settings.md) and Summon changelog distinguish live app tint, native system accent and Automatic folder color. Recorded observed AppKit apply/undo refresh on macOS 27.2; custom folder colors remain independent.
@@ -58,7 +71,7 @@ tags: [documentation, history]
 * **Update**: [Features](features.md): `summon connect` records Claude Code and Codex sessions in Activity (start and end hooks), so the plugin is optional and no longer declares the MCP server; doctor asks for `summon connect claude`; Fix with AI skips crashes already handed to an agent.
 * **Update**: [Features](features.md): Settings › General › Permissions asks for Accessibility in one click; `summon skills link` links only into agents that are installed.
 * **Update**: [Features](features.md): the agent hotkey and Ask Agent start the agent with what is on screen (app, window, selected text, browser page, Finder selection), each field can be turned off.
-* **Update**: [Features](features.md): sessions through `summon mcp` take a checkpoint before the first change and are logged under the agent's name; the panel offers "Undo <Agent> Session (N changes)…" only when there is something to undo.
+* **Update**: [Features](features.md): sessions through `summon mcp` take a checkpoint before the first change and are logged under the agent's name; the panel offers "Undo &lt;Agent&gt; Session (N changes)…" only when there is something to undo.
 * **New**: [Agent MCP configs](research/2026-10-25-agent-mcp-configs.md): where the eight agents `summon connect` reaches keep their MCP servers, instructions and start hooks.
 * **Update**: [Features](features.md): `summon connect` adds a session-start hook (`summon context --hook <agent>`) to Claude Code, Codex, Cursor and the Antigravity CLI, so sessions start with the Mac snapshot.
 * **Update**: [Features](features.md): `summon connect` / `disconnect` register the MCP server and a This Mac note with every installed agent; Hermes and OpenClaw join the agent registry.
@@ -77,7 +90,7 @@ tags: [documentation, history]
 * **Update**: [ADR: macctl recovery](adr/ADR-macctl-recovery.md): addendum D4 (declared guarantees, undo preview, fault-schedule tests).
 
 ## 2026-10-22
-* **Creation**: [Skill: summon-migrate](skills/summon-migrate.md): guides migrating external apps and legacy plugins into `~/Summon/Apps`, adds `summon project import` and `summon project register` CLI commands, and migrated `mac-network`, `mac-calendar`, and `mac-breathe`.
+* **Creation**: [Skill: summon-migrate](../incubator/summon/plugin/skills/summon-migrate/SKILL.md): guides migrating external apps and legacy plugins into `~/Summon/Apps`, adds `summon project import` and `summon project register` CLI commands, and migrated `mac-network`, `mac-calendar`, and `mac-breathe`.
 * **Update**: [Features](features.md): added automated real-time health checks and "Fix with AI" triggers for all app projects, themes, and art assets (AppIcon.icns, UI screenshots, wallpapers, art jobs).
 * **Update**: [Features](features.md): added dedicated "My Apps" section in Settings with category drill-down navigation matching the menu bar panel.
 * **Update**: [Features](features.md): added interactive panel back button with keyboard Escape pop and Delete key navigation.

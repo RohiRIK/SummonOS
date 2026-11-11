@@ -9,6 +9,10 @@ tags: [macctl, recovery, adr]
 
 > Copied into the repo for PR-1 from the shared design document (2026-10-20 21:39 IDT revision); private box paths are redacted. Repo paths are relative to `macctl/` unless noted.
 
+**Historical design record.** The source descriptions and proposed APIs below refer to the October 20
+revision, not the current implementation. For the shipped recovery contract, commands and limitations, use
+the [macctl guide](../../macctl/README.md) and [security/recovery model](../security-model.md).
+
 Status: proposed (2026-10-20) · Owner: cto-max-grok · Implementer: coder-joe-grok (ships only after Rohi's direct go)
 Repo: RohiRIK/SummonOS @ `0e2bfdf`, paths relative to `macctl/` unless noted.
 

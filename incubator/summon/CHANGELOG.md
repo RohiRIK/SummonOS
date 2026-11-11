@@ -1,11 +1,54 @@
 # Changelog
 
-All notable changes to Summon. Newest first. Summon is still incubating in the SummonOS workspace; entries are
-grouped by day and point at the pull request. SummonOS releases (one version for `summon`, `macctl` and Summon.app,
-see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/releases): `v0.1.0` (up to #77) and
-`v0.1.1` (#78 to #90), both on 2026-10-25, `v0.2.0` (#91 to #114) on 2026-10-26, `v0.2.1` (#115), `v0.2.2` (#116), `v0.2.3` (#117, #118) and `v0.2.4` (#120, #121) and `v0.2.5` (#124). Later changes ship on the rolling `edge` prerelease until the next tag.
+All notable changes to Summon, newest first. Summon is still incubating in the SummonOS workspace.
+`VERSION` is shared by `summon`, `macctl` and Summon.app. A base version in a development bundle does not mean
+that branch's changes are published under the corresponding release tag.
+
+## Release status
+
+The latest numbered release is **`v0.2.5` (2026-11-11)**. The numbered releases are published previews/prereleases,
+including those selected by the **Stable** channel. **Edge** selects the published rolling `edge` prerelease;
+its green-main workflow can publish new artifacts, but Edge is not a promise that this branch is available.
+See [GitHub Releases](https://github.com/RohiRIK/SummonOS/releases) for the actual downloadable artifacts.
+
+| Tag | Date | Included work |
+|---|---|---|
+| `v0.1.0` | 2026-10-25 | Through #77 |
+| `v0.1.1` | 2026-10-25 | #78–#90 |
+| `v0.2.0` | 2026-10-26 | #91–#114 |
+| `v0.2.1` | 2026-10-28 | #115 |
+| `v0.2.2` | 2026-10-28 | #116 |
+| `v0.2.3` | 2026-10-28 | #117–#118 |
+| `v0.2.4` | 2026-10-28 | #120–#121, through `3f37adf` |
+| `v0.2.5` | 2026-11-11 | #124, `90f7b81` |
 
 ## 2026-11-11 (v0.2.5, #124)
+
+### Fixed
+- Native About explicitly unhides and raises AppKit's singleton on cold accessory launch and reopen
+  (`18c7688`). One earlier native attempt had no observable About window; this correction is not a claim that
+  all cold-launch/window-server acceptance scenarios have since passed.
+
+### Verification tooling and recorded evidence
+- The disposable UI audit exercises a 13-report equal-timestamp crash burst through the real watcher across
+  five-file batches. Recorded native evidence shows the newest report plus “12 more new reports”, native
+  Dismiss and subsequent typed search. Cleanup removes only its owned fixture files; this is not macOS banner
+  or VoiceOver verification.
+- Native audit launches pass the fixture home explicitly, scope existing-app refusal to the current account,
+  and target URL actions at the candidate bundle. Post-warmup live malloc samples are distinct from RSS and
+  retained-graph analysis; missing samples cannot pass acceptance.
+- SwiftUI recorder completion/content, comparative GUI profiling, actual displayed-frame timing, full retained
+  memory analysis, native notification delivery, VoiceOver and Reduce Transparency remain acceptance gates.
+  See the [runtime evidence](../../docs/plans/2026-11-08-runtime-audit.md#native-acceptance-continuation-2026-11-10).
+
+### Documentation
+- Reconciled the public overview, native panel contract and UX implementation audit against current source and
+  commit history. Documented distinct launch/connect/headless agent sets, the Updates window and channels,
+  nine starters, scoped recovery, six-category My Apps repair/recommendation health and live accent behavior.
+  Superseded Now/Recent/search-hidden designs remain history rather than current UI promises; documentation
+  changes do not constitute a fresh runtime or accessibility pass.
+
+## 2026-11-10 (v0.2.5, #124)
 
 ### Fixed
 - Opening the panel is lighter: it resets while hidden instead of during the open, and background Activity
@@ -26,17 +69,8 @@ see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/rele
 - My Apps' Fix with AI now targets the counted inventory defects; `summon fix --apps` provides the same scope.
   General Mac diagnostics remain a separate action. Theme lint failures no longer get mislabeled as invalid JSON.
 
-### Verification tooling
-- The SwiftUI and Animation Hitches recordings sample 10 panel cycles (100-cycle traces take 10+ minutes to
-  save); `--frames` measures displayed-frame hitches against Apple's 5 ms/s budget. `windows ax-audit` counts
-  controls VoiceOver cannot name.
-- The disposable UI audit now exercises a 13-report crash burst through the real watcher and alert, verifies
-  native dismissal and post-burst search, and removes only its owned fixture files.
-- Native audit launches pass the fixture home explicitly, scope existing-app refusal to the current account,
-  and target URL actions at the candidate bundle. Post-warmup live malloc samples are distinct from RSS and
-  retained-graph analysis; missing samples do not pass acceptance.
 
-## 2026-11-08 (unreleased; local verification, no release tag)
+## 2026-11-08 (v0.2.5, #124)
 
 ### Added
 - A native About Summon panel from Settings and the standard About command, with the shared staged build identity:
@@ -61,6 +95,13 @@ see `VERSION`) are on [GitHub Releases](https://github.com/RohiRIK/SummonOS/rele
 - Interprocess leases release explicitly and idempotently at operation boundaries, rather than relying on ARC
   to close their descriptors before notification delivery. Profiling waits for actual recorder readiness and
   measures real owned status-item input; duplicate-titled windows are identified by public title plus geometry.
+
+## Historical October entries
+
+The dated entries below preserve what changed at the time, including layouts, defaults and verification limits
+that later changed again. They are not the current feature contract; use [README.md](README.md) and the
+[panel reference](docs/menubar-panel.md). In particular, Now/Recent panel content, the old Update folder and
+the three-step welcome flow were superseded. Only the release table above maps those days to numbered tags.
 
 ## 2026-10-28
 
