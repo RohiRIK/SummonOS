@@ -162,9 +162,9 @@ public struct MCPServer: Sendable {
                     "title": .string(tool.title),
                     "description": .string(tool.description),
                     "inputSchema": tool.inputSchema,
-                    // Writes go through macctl's journal or a checkpoint, so none is destructive.
+                    // Journaled writes can still overwrite settings; checkpoint creation can prune old records.
                     "annotations": .object(["title": .string(tool.title), "readOnlyHint": .bool(tool.readOnly),
-                                            "destructiveHint": .bool(false), "openWorldHint": .bool(false)]),
+                                            "destructiveHint": .bool(!tool.readOnly), "openWorldHint": .bool(false)]),
                 ])
             })]))
         case "tools/call":

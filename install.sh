@@ -7,7 +7,8 @@
 #   ./install.sh                     # from a checkout: builds and installs that checkout
 #
 # Piped from curl, it downloads the newest GitHub release (prereleases included, never the rolling `edge`), checks it against
-# SHA256SUMS and installs it: no Xcode needed. With no release published yet it builds from source instead.
+# SHA256SUMS and signed build provenance (requires gh), then installs it: no Xcode needed.
+# With no release published yet it builds from source instead.
 #
 # Options:
 #   --from-source     build from source (needs git and Swift 6: Xcode or the Command Line Tools)
@@ -101,6 +102,15 @@ install_release() {
   actual=$(shasum -a 256 "$WORK/$name" | cut -d' ' -f1)
   [[ -n $expected && $actual == "$expected" ]] || die "Checksum mismatch for $name: refusing to install it."
   say "Checksum verified"
+  # Checksums travel with the zip; authenticate its CI publisher before unpacking any downloaded code.
+  command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) is required to verify release provenance. Install a recent gh (for example, brew install gh), authenticate with gh auth login, and retry."
+  local source_ref="refs/tags/$TAG"
+  [[ $TAG != edge ]] || source_ref="refs/heads/main"
+  gh attestation verify "$WORK/$name" --repo RohiRIK/SummonOS \
+    --signer-workflow RohiRIK/SummonOS/.github/workflows/release.yml --deny-self-hosted-runners \
+    --source-ref "$source_ref" \
+    || die "Release provenance verification failed; refusing to unpack or install. Check gh auth status, network access and gh version. Missing or invalid attestations cannot be bypassed."
+  say "Provenance verified"
   ditto -x -k "$WORK/$name" "$WORK/unpacked"
   local package="$WORK/unpacked/summonos-$version"
   [[ -d $package/Summon.app && -x $package/bin/macctl && -f $package/scripts/install.sh ]] \

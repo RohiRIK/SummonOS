@@ -56,6 +56,15 @@ struct MCPServerTests {
         #expect(readOnly["settings_get"] == true)
         #expect(readOnly["settings_set"] == false)
         #expect(readOnly["settings_undo"] == false)
+        #expect(readOnly["checkpoint_create"] == false)
+        for tool in tools {
+            let name = try #require(tool["name"]?.string)
+            let annotations = try #require(tool["annotations"])
+            let mutates = ["settings_set", "settings_undo", "checkpoint_create"].contains(name)
+            #expect(annotations["destructiveHint"] == .bool(mutates), "Incorrect destructive hint for \(name)")
+            // These tools operate on the local Mac; mutation does not imply open-world interaction.
+            #expect(annotations["openWorldHint"] == false)
+        }
     }
 
     @Test func settingsSetPassesFlagsBeforeTheIdAndValue() async throws {
