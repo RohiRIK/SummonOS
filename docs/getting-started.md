@@ -7,10 +7,14 @@ tags: [installation, onboarding, agents, updates]
 
 # Getting started
 
+<div class="summon-install-risk" markdown="1">
+
 !!! warning "Experimental software — your responsibility"
     SummonOS is not production-qualified or guaranteed secure. Safeguards are incomplete and security work
     is ongoing. Read the [risk and responsibility disclaimer](disclaimer.md) before installing or connecting
     an agent. Use it at your own risk, with independent backups and only the permissions you accept.
+
+</div>
 
 ## Requirements
 

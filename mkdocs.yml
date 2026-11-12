@@ -54,7 +54,7 @@ extra_css:
 copyright: >-
   SummonOS · Native Mac tools, documented in the open.<br>
   <em>Powered by caffeine and questionable life choices.</em><br>
-  <a href="/docs/disclaimer/">Experimental software · Risk &amp; responsibility</a>
+  <a href="/docs/disclaimer/" class="summon-footer-disclosure">Experimental software · Risk &amp; responsibility</a>
 
 extra:
   vercel_analytics: !ENV [VERCEL, false]
