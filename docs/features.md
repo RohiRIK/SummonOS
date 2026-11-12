@@ -506,7 +506,7 @@ What this repo gives you for building more apps ([`README.md`](../README.md), [`
 | Tool | Does |
 |---|---|
 | `tools/okf-index.py` | Checks `docs/` is an Open Knowledge Format bundle and writes its `index.md` files |
-| `install.sh` | Release install defaults to the first non-edge release returned by GitHub, including prereleases; checksum-verified; `--channel edge` is opt-in. A checkout or `--from-source` builds source; offers `summon connect`; [agent install guide](install-ai.md) |
+| `install.sh` | Release install defaults to the first non-edge release returned by GitHub, including prereleases; checksum- and signed-provenance-verified (recent `gh` required in this candidate); `--channel edge` is opt-in. A checkout or `--from-source` builds source; offers `summon connect`; [agent install guide](install-ai.md) |
 | `.github/workflows/release.yml` | Tagged previews and opt-in rolling edge assets: universal commands/app, checksums and attestation. Successful `main` push CI triggers edge publication; a trigger alone does not prove a new asset exists |
 | `tools/mp` | Plugin registry: `new`, `promote`, `clone`, `list`, `status`, `index`, `adopt` |
 | `tools/publish-public.sh` | Clean snapshot of a dev repo to its public repo; refuses on private values |
