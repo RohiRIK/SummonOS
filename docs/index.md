@@ -19,6 +19,7 @@ Everything written down about SummonOS: features, how to install and build, tool
 
 * [Summon command reference](cli-reference.md) - Every summon command: route, arguments, flags, examples and what each command prints.
 * [Configuration and state locations](configuration.md) - Where SummonOS and macctl keep configuration, state, projects and recovery data, and what uninstall touches (and never touches).
+* [Experimental software — risk and responsibility](disclaimer.md) - SummonOS is experimental, not production-qualified or guaranteed secure. Understand user responsibility, incomplete safeguards, warranty limits and ongoing security work.
 * [Features](features.md) - Every user-visible feature of Summon, macctl, the SummonOS apps and the workspace tools, in one list.
 * [SummonOS documentation](home.md) - Your field guide to an agent-ready Mac: set up SummonOS, explore the toolkit and build native apps.
 * [Security and recovery model](security-model.md) - Agent authority, checkpoint scope, task isolation, local diagnostics, and release trust boundaries.

@@ -248,6 +248,7 @@ def navigation(mapping: dict[str, str]) -> list[dict]:
     nav.append({"Get started": chosen([
         ("docs/getting-started.md", "Installation & first steps"),
         ("docs/status.md", "Release & source status"),
+        ("docs/disclaimer.md", "Risk & responsibility"),
         ("docs/mac-acceptance.md", "Mac acceptance checklist"),
         ("docs/install-ai.md", "Installation for agents"),
         ("README.md", "About SummonOS"),

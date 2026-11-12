@@ -7,6 +7,14 @@
   {{ super() }}
 {% endblock %}
 
+{% block content %}
+  <aside class="admonition warning summon-preview-notice" role="note" aria-label="Experimental software warning">
+    <p class="admonition-title">Experimental software — use at your own risk</p>
+    <p>SummonOS is a preview, not production-qualified or guaranteed secure. Security work is ongoing; safeguards are incomplete and risks remain. <a href="{{ 'docs/disclaimer/' | url }}">Read the full risk and responsibility disclaimer</a> before installing or connecting an agent.</p>
+  </aside>
+  {{ super() }}
+{% endblock %}
+
 {% block scripts %}
   {{ super() }}
   {% if config.extra.vercel_analytics %}
