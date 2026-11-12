@@ -31,6 +31,16 @@ class DocumentationLinkTests(unittest.TestCase):
             return site.rewrite_url(url, "docs/from.md", self.mapping, self.stage, "main", raw_html)
         return site.rewrite_markdown(text, convert)
 
+    def test_preparation_pages_have_task_based_navigation(self):
+        sources = ("docs/home.md", "docs/mac-acceptance.md", "docs/release-candidate.md", "docs/product-direction.md")
+        for source in sources:
+            (self.root / source).write_text("# Preparation page\n")
+        nav = site.navigation({source: site.destination(source) for source in sources})
+        groups = {label: pages for entry in nav for label, pages in entry.items()}
+        self.assertIn({"Mac acceptance checklist": "docs/mac-acceptance.md"}, groups["Get started"])
+        self.assertIn({"Release preparation": "docs/release-candidate.md"}, groups["Build apps"])
+        self.assertIn({"Product direction & roadmap": "docs/product-direction.md"}, groups["Knowledge base"])
+
     def test_escaped_backtick_does_not_swallow_following_links(self):
         text = "Shortcut \\` then [`Target`](target.md) and [source](../source.swift).\n"
         self.assertEqual(self.rewrite(text),

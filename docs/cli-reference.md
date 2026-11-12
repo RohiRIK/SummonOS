@@ -54,7 +54,7 @@ tags: [cli, reference, summon]
 |---|---|---|---|
 | `context` | `[--json\|--hook <agent>] [--only a,b]` | `summon context --json --only power,storage` | One read-only snapshot of this Mac: model, chip, RAM, macOS, power/thermal, storage, network/VPN, displays, appearance, frontmost app and window, running apps, permissions, installed agents, recent crashes. `--only` limits sections (`system,power,storage,network,displays,apps,appearance,permissions,agents,crashes`). |
 | `context fields` | | `summon context fields` | Lists context fields and which are hidden. |
-| `context hide` | `<field>` | `summon context hide window-title` | Hides a field from agents: hostname, window-title, running-apps, paths. |
+| `context hide` | `<field>` | `summon context hide window-title` | Hides a field from agents: hostname, window-title, running-apps, paths, selected-text, browser-page, finder-selection. |
 | `context show` | `<field>` | `summon context show window-title` | Shows a hidden field again. |
 | `events` | `[--json] [--limit N] [--kind settings\|agent\|checkpoint\|theme\|problem\|mac] [--follow]` | `summon events --kind mac --follow` | Activity timeline: settings changes, undos, checkpoints, agent sessions, themes, crashes, Mac changes; `--follow` prints new lines. |
 | `event add` | `<kind> <title...> [--detail text] [--ref key=value]...` | `summon event add session.start "Claude Code session" --ref session=abc` | Records an event in the timeline. |
@@ -118,7 +118,7 @@ Projects are private to this Mac (`~/.config/summon/projects.json`), never in th
 | `crash diagnose` | `<file.ips>\|--latest` | `summon crash diagnose --latest` | Hands a report to the default agent with the `diagnose-crash-mac` skill. |
 | `crash mute` | `[program] [off]` | `summon crash mute Foo` | Stops crash notifications for one program (`off` unmutes); no argument lists muted programs. |
 | `debug` | `[--print] [--save] [--since 1h]` | `summon debug --print --since 30m` | Collects a debug bundle: macOS version, hardware, recent errors, reports, packages, with best-effort redaction; review the saved bundle before sharing. |
-| `update` | `[--channel stable\|edge] [--check] [--yes]` | `summon update --check` | Updates Summon and macctl from GitHub releases (`stable`: numbered tags including previews; `edge`: the rolling artifact), checksum-verified, rolls back on failure, then runs `summon doctor`. `--check` only reports; the chosen channel is remembered in `~/.config/summon/defaults/channel`. |
+| `update` | `[--channel stable\|edge] [--check] [--yes]` | `summon update --check` | Updates Summon and macctl from GitHub releases (`stable`: numbered tags including previews; `edge`: the rolling artifact), checksum- and signed-provenance-verified (recent `gh` required in this candidate), rolls back on failure, then runs `summon doctor`. `--check` only reports; the chosen channel is remembered in `~/.config/summon/defaults/channel`. |
 | `clean` | `[--apply] [--if-due] [--quiet] [--json]` | `summon clean` | Previews tidying `~/Summon`: old task logs, untouched art jobs, Antigravity originals go to the Trash; apps are never touched. `--apply` performs it and reports failures. |
 | `home` | `[--quiet]` | `summon home` | Sets up `~/Summon` (Apps, Art, Tasks, a Themes link, `.gitignore`) and migrates older Summon files into it; prints the home path and any moved files. |
 | `status` | `[--json]` | `summon status` | Agent, macctl, last change, last checkpoint and recent problems at a glance. |
@@ -138,6 +138,16 @@ Projects are private to this Mac (`~/.config/summon/projects.json`), never in th
 | `skills` | | `summon skills` | Lists the skill files Summon ships. |
 | `skills link` | `[--quiet]` | `summon skills link` | Links Summon's skills into each installed agent's skill folders, keeping your own folders and symlinks. |
 
+## Shared agent-plugin catalog
+
+These are agent extensions, not the native-app workspace registry in `plugins.json`.
+
+| Route | Arguments | Example | Prints / does |
+|---|---|---|---|
+| `plugins` / `plugins list` | `[--json]` | `summon plugins list --json` | Lists the shared catalog and installed status for installed agents with a compatible build. |
+| `plugins install` | `<id>` | `summon plugins install <id>` | Installs the catalog entry into compatible installed agents; skips installed copies and reports per-agent failures as warnings. Inspect the output, not only the exit code. |
+| `plugins fix` | `<id> <agent> [--inline]` | `summon plugins fix <id> claude --inline` | Starts the default agent with a repair prompt and checkpoint for that extension and target agent. |
+
 ## Catalog and version
 
 | Route | Arguments | Example | Prints / does |
@@ -147,7 +157,7 @@ Projects are private to this Mac (`~/.config/summon/projects.json`), never in th
 
 ## Commands that print JSON
 
-The commands above whose arguments include `--json` emit one JSON object per run with sorted keys: `agents`, `agents status`, `agents plugins`, `agents update`, `checkpoint list`, `context`, `crash list`, `crash show`, `doctor`, `events`, `plugins`, `project list`, `status`, `task list`, `theme list`. Help (`--help`), version output and parser errors are plain text and are not part of the envelope.
+`--json` emits the route's JSON value with sorted object keys, not a universal object envelope. Lists such as `agents`, `plugins`, `project list`, `task list` and `theme list` emit arrays; diagnostics such as `doctor` emit objects. Other supported routes include `agents status`, `agents plugins`, `agents update`, `checkpoint list`, `context`, `crash list`, `crash show`, `events`, `status`, `connect`, `disconnect`, `clean`, `menu list`, and project creation/registration/import. Some routes pretty-print over multiple lines, so parse the complete JSON value rather than treating each line as an independent event. Help (`--help`), version output and parser errors are plain text.
 
 ## Where commands live
 

@@ -30,9 +30,15 @@ Everything written down about SummonOS: features, how to install and build, tool
 * [Documentation website](documentation.md) - Build, preview, maintain, and publish the wiki from canonical repository Markdown without changing Swift dependencies.
 * [Getting started](getting-started.md) - Install SummonOS, choose an agent, review permissions and connect Mac context safely.
 * [Install SummonOS (for an AI agent)](install-ai.md) - Step-by-step install, check and report instructions a coding agent follows to install SummonOS on a Mac.
+* [Real-Mac acceptance checklist](mac-acceptance.md) - Record the exact candidate, then check installation, permissions, connection, native UI and safe recovery on a real Mac.
+* [Release preparation and gates](release-candidate.md) - Prepare the combined source candidate, distinguish dry-run artifacts from attested releases, and retain explicit Mac and publication gates.
 * [Troubleshooting](troubleshooting.md) - Diagnose installation, agent connection, permissions, updates, inventory and theme problems without discarding user state.
 * [Uninstall SummonOS](uninstall.md) - Preview and apply removal of the installed app and commands; projects, configuration, checkpoints and tasks always remain.
 * [App lifecycle](workflow.md) - How a SummonOS app goes from idea to public release, and which skill or script owns each step.
+
+# Plans
+
+* [Product direction and roadmap](product-direction.md) - An accessible Mac agent companion: current onboarding, proposed improvements and measurable release gates for three audiences. (2026-11-12, proposed)
 
 # History
 

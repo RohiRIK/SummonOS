@@ -39,7 +39,11 @@ curl -fsSL https://raw.githubusercontent.com/RohiRIK/SummonOS/main/install.sh | 
 
 The default release path selects the **first non-`edge` tag** in GitHub's returned release list, including
 prereleases (not the `/releases/latest` API). It verifies the universal archive against `SHA256SUMS` and refuses
-missing/mismatched checksums. Published previews can be ad-hoc signed, not notarized; inspect the selected
+missing/mismatched checksums. This candidate also requires a recent GitHub CLI (`gh`) and verifies signed
+build provenance before unpacking: exact archive digest, repository, release workflow, GitHub-hosted runner
+and the requested tag (or main for edge). Check `gh --version`, `gh attestation verify --help` and
+`gh auth status` before choosing a downloaded install. Report missing prerequisites rather than silently
+installing tools or bypassing verification. See [distribution trust](security-model.md#distribution). Published previews can be ad-hoc signed, not notarized; inspect the selected
 release's notes rather than assuming production signing. Checksums are integrity checks, not independent
 publisher authentication. It installs `Summon.app` into `~/Applications`, links `summon` into `~/.local/bin`,
 copies macctl there and links Summon's skills while preserving foreign folders/links.
@@ -66,7 +70,7 @@ If the user asked to install an existing checkout, run `./install.sh` from its r
 it does not fetch another branch). Do not choose the checkout merely because it exists if the user requested a release.
 
 **Already installed?** Update instead: `summon update --check` reports whether a newer build exists, and
-`summon update --yes` downloads it, verifies the checksum, installs it with rollback and runs `summon doctor`.
+`summon update --yes` downloads it, verifies the checksum and signed build provenance, installs it with rollback and runs `summon doctor`.
 `summon update --channel edge --yes` selects the rolling channel; `--channel stable` selects numbered releases.
 The updater's stable selection uses the **highest semantic-version tag** in the returned list, including previews,
 which differs from the top-level installer's first-non-edge selection. Stable updates only newer versions;

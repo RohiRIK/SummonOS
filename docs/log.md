@@ -8,6 +8,8 @@ tags: [documentation, history]
 # Docs update log
 
 ## 2026-11-12
+* **Preparation**: Combined security/manual/site candidate; installation, update and troubleshooting guides now explain required signed provenance and recent `gh`. Corrected CLI JSON-shape guidance, shared plugin routes and all nine project starters, with help/navigation regressions.
+* **New**: [Release preparation](release-candidate.md), [real-Mac checklist](mac-acceptance.md) and proposed [product direction](product-direction.md). Separate candidate source, packaged artifacts, real-Mac acceptance, preview publication and production qualification; no merge or publication performed.
 * **Complete**: Summon command reference now covers the full command catalog — added `task new|add|list|remove|run`, `plugins list|install|fix`, `status`, `path` and `hooks list|run`, and corrected the exit-code list (no `64`), the MCP tool list (11 tools), the `default execution`/`default repos`/`project repo`/`theme set`/`showcase` behavior, and the update-channel cache file. Source-checked against `CommandCatalog.swift`, `SummonPaths.swift`, `install.sh` and `install-state.py`.
 * **Configuration & state**: added `defaults/channel` and the full shared-files install-path fallback.
 * **Uninstall**: replaced the unsupported preflight step with the install-lock behavior from `install-state.py`; preservation guarantees re-verified against the receipt script.

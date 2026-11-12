@@ -11,6 +11,10 @@ tags: [installation, onboarding, agents, updates]
 
 - **macOS 15 or newer.** Liquid Glass is used only on macOS 26 and later; older systems use native materials.
 - An installed coding agent and any account/login that agent requires. SummonOS does not provide the model.
+- **Downloaded installs and updates in this candidate:** a recent GitHub CLI (`gh`) with `gh attestation verify`
+  and working GitHub access. Install it with your package manager (for example, `brew install gh`);
+  use `gh auth login` if needed. Missing or invalid provenance stops installation before unpacking.
+  Source builds are a separate trust choice. Older releases do not gain these checks retroactively.
 - Internet access for downloading releases, connecting to model services and installing tools. Local context,
   the panel and local settings operations do not require a cloud service.
 - **Source builds only:** Git, Swift 6 and Python 3 for current staging. Use selected Xcode for the full
@@ -26,7 +30,7 @@ curl -fsSL https://raw.githubusercontent.com/RohiRIK/SummonOS/main/install.sh | 
 ```
 
 The remote installer selects the newest numbered GitHub release, including prereleases but excluding `edge`,
-verifies the archive against `SHA256SUMS`, installs it, and runs `summon doctor`. If no release is selectable
+verifies the archive against `SHA256SUMS` and signed GitHub build provenance, installs it, and runs `summon doctor`. If no release is selectable
 (including when GitHub is unreachable), it attempts a source build instead. Review the installer before
 executing it if your policy forbids piping downloads directly to a shell.
 
