@@ -234,3 +234,13 @@ body:has(.summon-home) .md-content__button { display: none; }
   .home-path, .md-nav__link { transition: none; }
   .home-path:hover { transform: none; }
 }
+/* Keep the back-to-top button out of the content flow below the sticky header
+   (Material centers it under the header, where it overlaps page titles after scroll). */
+.md-top {
+  top: auto !important;
+  bottom: 1.6rem;
+  right: 1.6rem;
+  left: auto !important;
+  margin-left: 0 !important;
+  transform: none !important;
+}
