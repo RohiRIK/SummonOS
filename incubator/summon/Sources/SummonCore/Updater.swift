@@ -99,6 +99,8 @@ public enum UpdateError: Error, Equatable, CustomStringConvertible {
     case noRelease(UpdateChannel)
     case unreadable(String)
     case checksumMismatch(String)
+    case verifierUnavailable
+    case untrustedRelease(String)
     case badArchive(String)
 
     public var description: String {
@@ -107,13 +109,17 @@ public enum UpdateError: Error, Equatable, CustomStringConvertible {
         case .noRelease(.edge): return "No edge build is published yet."
         case .unreadable(let detail): return "Could not read the GitHub releases: \(detail)"
         case .checksumMismatch(let file): return "Checksum mismatch for \(file): refusing to install it."
+        case .verifierUnavailable:
+            return "GitHub CLI (gh) is required to verify release provenance. Install a recent gh (for example, brew install gh), authenticate with gh auth login, and retry."
+        case .untrustedRelease(let detail):
+            return "Release provenance verification failed; refusing to unpack or install. Check gh auth status, network access and gh version. \(detail)"
         case .badArchive(let detail): return "The release archive does not have the expected layout: \(detail)"
         }
     }
 }
 
 /// `summon update`: finds the newest build on a channel, downloads it with curl (as install.sh does), verifies it
-/// against SHA256SUMS, and hands it to the release's own staged installer (scripts/install.sh), which rolls back.
+/// against SHA256SUMS and the release workflow's signed provenance, then runs its staged installer, which rolls back.
 public struct Updater: Sendable {
     public static let api = "https://api.github.com/repos/RohiRIK/SummonOS"
     public static let download = "https://github.com/RohiRIK/SummonOS/releases/download"
@@ -122,7 +128,7 @@ public struct Updater: Sendable {
     public let current: String
     public let curl: String
     public let ditto: String
-    /// A logged-in gh has its own API quota; used when the anonymous one is spent (a VPN or office IP).
+    /// Required for release provenance verification; also supplies API quota when anonymous checks are blocked.
     public let gh: String?
 
     public init(runner: @escaping Runner, current: String = SummonVersion.current,
@@ -222,13 +228,22 @@ public struct Updater: Sendable {
     }
 
     /// Downloads and verifies the release into `work` (an empty temp folder), unpacks it and runs its installer.
-    /// Returns the installer's output. Nothing is replaced before the checksum and the layout pass.
+    /// Returns the installer's output. No archive code is unpacked before checksum and provenance verification.
     public func install(_ release: UpdateRelease, work: URL) async throws -> String {
         let zip = work.appendingPathComponent(release.zipName)
         let sums = work.appendingPathComponent("SHA256SUMS")
         _ = try await runner(curl, ["-fsSL", "--retry", "3", "-o", zip.path, release.zipURL])
         _ = try await runner(curl, ["-fsSL", "--retry", "3", "-o", sums.path, release.sumsURL])
         try Self.verify(zip, sums: TextFile.read(sums) ?? "")
+        guard let gh else { throw UpdateError.verifierUnavailable }
+        let sourceRef = release.tag == "edge" ? "refs/heads/main" : "refs/tags/\(release.tag)"
+        do {
+            _ = try await runner(gh, ["attestation", "verify", zip.path, "--repo", "RohiRIK/SummonOS",
+                                     "--signer-workflow", "RohiRIK/SummonOS/.github/workflows/release.yml",
+                                     "--deny-self-hosted-runners", "--source-ref", sourceRef])
+        } catch {
+            throw UpdateError.untrustedRelease(String(describing: error))
+        }
         let unpacked = work.appendingPathComponent("unpacked")
         _ = try await runner(ditto, ["-x", "-k", zip.path, unpacked.path])
         let package = unpacked.appendingPathComponent("summonos-\(release.version)")
