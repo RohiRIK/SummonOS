@@ -84,6 +84,18 @@ class VercelDeploymentTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "missing local target"):
                 site.on_post_build(config)
 
+    def test_public_disclaimer_is_prominent_and_explains_risk(self):
+        template = (ROOT / "docs/theme/main.html").read_text()
+        self.assertIn('{% block content %}', template)
+        self.assertIn('class="admonition warning summon-preview-notice"', template)
+        self.assertIn("Experimental software", template)
+        self.assertIn("docs/disclaimer/", template)
+        disclaimer = (ROOT / "docs/disclaimer.md").read_text()
+        for phrase in ("not production-qualified", "at your own risk", "not guaranteed to be secure",
+                       "actively working", "MIT License", "applicable law"):
+            self.assertIn(phrase, disclaimer)
+        self.assertIn("disclaimer.md", (ROOT / "docs/getting-started.md").read_text())
+
     def test_sitewide_catchphrase_and_analytics_are_configured_once(self):
         config = (ROOT / "mkdocs.yml").read_text()
         template = (ROOT / "docs/theme/main.html").read_text()
