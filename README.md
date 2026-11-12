@@ -46,9 +46,16 @@ curl -fsSL https://raw.githubusercontent.com/RohiRIK/SummonOS/main/install.sh | 
 ```
 
 The remote installer downloads the newest numbered release, including previews but excluding the rolling
-`edge` release, verifies `SHA256SUMS`, and installs `Summon.app` in `~/Applications` and the commands in
+`edge` release, verifies `SHA256SUMS` and signed GitHub build provenance, and installs `Summon.app` in `~/Applications` and the commands in
 `~/.local/bin`. A packaged release needs no Xcode. If no release can be selected, the installer attempts a
 source build, which requires Git and Swift 6; current staging also uses Python 3. Xcode supplies App Intents metadata.
+
+Downloaded installs and updates from this checkout require a recent **GitHub CLI (`gh`)** with
+`gh attestation verify` support and GitHub API access. Install it with your package manager (for example,
+`brew install gh`) and authenticate with `gh auth login` if needed. Verification requires this repository's
+release workflow on GitHub-hosted runners and the requested tag (or `main` for edge). Missing/invalid provenance
+or a failed verifier stops before unpacking; there is no unverified-release fallback. Published older updaters
+do not gain this check retroactively. See the [distribution trust boundary](docs/security-model.md#distribution).
 
 Preview builds are ad-hoc signed and not notarized. Browser-downloaded archives may need **System Settings ›
 Privacy & Security › Open Anyway**. Accessibility can need reauthorization after an update.

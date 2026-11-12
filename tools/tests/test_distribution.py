@@ -33,6 +33,10 @@ class DistributionTests(unittest.TestCase):
         # An unexpected test path must never touch real keychain credentials or Apple services.
         for command in ("security", "xcrun", "spctl", "gh"):
             self.executable(self.bin / command, "exit 99")
+        # Some Linux hosts install shasum outside the fixture's deliberately isolated PATH.
+        shasum = shutil.which("shasum")
+        if shasum:
+            (self.bin / "shasum").symlink_to(shasum)
 
     def run_script(self, script, *args, cwd=None):
         return subprocess.run(["bash", str(script), *map(str, args)], cwd=cwd or self.work, env=self.env,
@@ -294,6 +298,11 @@ esac
         (releases / "api.json").write_text(json.dumps([{"tag_name": t, "prerelease": True} for t in listed], indent=2))
         self.env["FAKE_RELEASES"] = str(releases)
         self.env["CURL_LOG"] = str(self.work / "curl.log")
+        self.env["VERIFY_LOG"] = str(self.work / "verify.log")
+        self.executable(self.bin / "gh", '''
+printf '%s\n' "$@" > "$VERIFY_LOG"
+[[ ${VERIFY_FAIL:-0} == 0 ]] || exit 1
+''')
         self.executable(self.bin / "curl", '''
 out="" url=""
 while (( $# )); do
@@ -310,6 +319,7 @@ esac
 ''')
         # ditto is macOS-only; the CI tooling job runs on Linux, so unpack with Python keeping file modes.
         self.executable(self.bin / "ditto", '''
+touch "$HOME/unpacked"
 [[ $1 == -x && $2 == -k ]] || exit 64
 exec python3 -c '
 import sys, zipfile, os
@@ -342,6 +352,64 @@ with zipfile.ZipFile(sys.argv[1]) as z:
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Checksum mismatch", result.stderr)
         self.assert_old_install()
+
+    def test_binary_install_verifies_release_identity_before_unpacking(self):
+        script, _ = self.binary_install_fixture()
+        result = self.run_script(script)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        args = (self.work / "verify.log").read_text().splitlines()
+        self.assertEqual(args[:2], ["attestation", "verify"])
+        self.assertEqual(Path(args[2]).name, "summonos-0.1.0-macos-universal.zip")
+        self.assertEqual(args[3:], [
+            "--repo", "RohiRIK/SummonOS", "--signer-workflow",
+            "RohiRIK/SummonOS/.github/workflows/release.yml", "--deny-self-hosted-runners",
+            "--source-ref", "refs/tags/v0.1.0",
+        ])
+        self.assertIn("Provenance verified", result.stdout)
+
+    def test_binary_install_rejects_matching_checksum_without_valid_provenance(self):
+        # The fake publisher controls BOTH the archive and SHA256SUMS. A matching digest is insufficient.
+        script, _ = self.binary_install_fixture()
+        self.env["VERIFY_FAIL"] = "1"
+        result = self.run_script(script)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("provenance verification failed", result.stderr)
+        self.assertFalse((self.home / "unpacked").exists())
+        self.assertFalse((self.home / "connected").exists())
+        self.assert_old_install()
+
+    def test_binary_install_requires_a_working_verifier_without_source_fallback(self):
+        script, _ = self.binary_install_fixture()
+        self.executable(self.bin / "gh", "exit 127")
+        result = self.run_script(script)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("provenance verification failed", result.stderr)
+        self.assertFalse((self.home / "unpacked").exists())
+        self.assertFalse((self.home / "connected").exists())
+        self.assert_old_install()
+
+    def test_binary_install_missing_gh_is_actionable_and_never_unpacks(self):
+        script, _ = self.binary_install_fixture()
+        (self.bin / "gh").unlink()
+        # Keep fixture tools and only the real commands needed before the gate, excluding any host gh.
+        for command in ("bash", "awk", "cat", "cp", "cut", "dirname", "grep", "mktemp", "sed", "perl"):
+            target = shutil.which(command)
+            assert target is not None, f"Missing fixture prerequisite: {command}"
+            (self.bin / command).symlink_to(target)
+        self.env["PATH"] = str(self.bin)
+        result = self.run_script(script)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("GitHub CLI (gh) is required", result.stderr)
+        self.assertIn("brew install gh", result.stderr)
+        self.assertFalse((self.home / "unpacked").exists())
+        self.assert_old_install()
+
+    def test_edge_binary_install_pins_provenance_to_main(self):
+        script, _ = self.binary_install_fixture(tag="edge", version="0.2.0-edge.abc1234")
+        result = self.run_script(script, "--channel", "edge")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        args = (self.work / "verify.log").read_text().splitlines()
+        self.assertEqual(args[-2:], ["--source-ref", "refs/heads/main"])
 
     def test_binary_install_specific_version(self):
         script, _ = self.binary_install_fixture(tag="v0.2.0")

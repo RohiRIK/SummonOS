@@ -515,12 +515,12 @@ public final class SummonModel {
         return { tool, arguments in try await base("/bin/zsh", ["-c", prefix + "\"$@\"", "zsh", tool] + arguments) }
     }
 
-    /// The same install as `summon update` (checksum, staged installer with rollback), then Summon relaunches.
+    /// The same install as `summon update` (checksum, provenance, staged installer with rollback), then Summon relaunches.
     public func installUpdate() {
         guard !stopped, let release = availableUpdate?.release, !isUpdating else { return }
         isUpdating = true
         updateStatus = "Installing Summon \(release.version)…"
-        let updater = Updater(runner: Shell.live(timeout: 900))
+        let updater = Updater(runner: Shell.live(timeout: 900), gh: ToolLocator.live().find("gh"))
         updateInstallTask = Task { [weak self] in
             do {
                 _ = try await updater.install(release)
