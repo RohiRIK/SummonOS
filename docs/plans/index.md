@@ -6,6 +6,7 @@ Finished and long plans, one per file. A plan records what was decided at the ti
 
 # Plans
 
+* [Commit-aligned documentation wiki](2026-11-11-documentation-wiki.md) - Convert canonical project Markdown into a complete searchable website and refresh current contracts against the November source baseline. (2026-11-11, complete)
 * [Summon runtime audit and implementation roadmap](2026-11-08-runtime-audit.md) - Evidence-backed plan for About/build identity, menu performance, finish-phase stability, and build/deploy/validation/cleanup automation. (2026-11-08, in-progress)
 * [Design skills and public preview](2026-10-20-skills-public-preview.md) - Verification of six design skills, privacy review, and the authorized SummonOS source publication. (2026-10-20, verified-public-preview)
 * [SummonOS production readiness](2026-10-20-production-readiness.md) - Evidence-based audit, original product direction, release blockers, and staged acceptance criteria for a native macOS agent layer. (2026-10-20, implemented-awaiting-release-qualification)

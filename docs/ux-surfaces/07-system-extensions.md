@@ -9,7 +9,7 @@ created: 2026-10-25
 # Surface 7: system extensions (notch, widgets, Finder)
 
 Column 7 of the [surface table](surface-table.md), checked 2026-10-25. Verdicts as in
-[Surface 1](01-menu-bar.md#surface-1-menu-bar-app-menubarextra--popover). This column mixes three very different
+[Surface 1](01-menu-bar.md). This column mixes three very different
 things, so treat them separately:
 
 | Kind | Apple API | Process | Who draws it |

@@ -9,7 +9,7 @@ created: 2026-10-25
 # Surface 5: floating HUD / PiP (`NSPanel`, always on top)
 
 Column 5 of the [surface table](surface-table.md), checked 2026-10-25. Verdicts as in
-[Surface 1](01-menu-bar.md#surface-1-menu-bar-app-menubarextra--popover).
+[Surface 1](01-menu-bar.md).
 
 ## What Apple says about HUDs
 

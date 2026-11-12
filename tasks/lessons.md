@@ -39,3 +39,7 @@ Rules learned from corrections. One line each, newest last.
 ## 2026-11-10 — Upgrade and verify the installed app
 - Upgrade Summon in place on the owner's device and test that installed copy. Do not launch temporary app copies,
   use different accounts, or open Terminal windows for verification. Keep the work focused on the installed app.
+
+## 2026-11-11 — Documentation needs a designed experience
+- A functioning wiki with stock theme chrome and table-only landing pages is not the finished UX. Give SummonOS
+  docs a recognizable identity, clear starting paths and polished reading surfaces; verify desktop/mobile visually.

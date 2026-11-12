@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "python3 -m pip install --target .vercel/python -r requirements-docs.txt",
+  "buildCommand": "site_dir=\"$(mktemp -d)\" && PYTHONPATH=.vercel/python python3 tools/docs-site.py build --site-dir \"$site_dir\" && mkdir -p public && cp -R \"$site_dir\"/. public/",
+  "outputDirectory": "public",
+  "trailingSlash": true
+}

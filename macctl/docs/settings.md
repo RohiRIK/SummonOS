@@ -1,14 +1,25 @@
 ---
 type: reference
 title: macctl settings catalog
-description: Typed macOS settings, side effects, version requirements and verification status.
+description: All 39 typed macOS settings, availability, side effects and per-backend recovery limits.
 tags: [macctl, settings, reference]
 ---
 
 # Settings catalog
 
-Source of truth: `Sources/MacCtlCore/Catalog.swift`. `macctl describe <id>` shows the full schema.
-"Verified" means a human applied and undid the setting on a real Mac and stamped `verifiedOn`.
+Source of truth: [`Catalog.swift`](../Sources/MacCtlCore/Catalog.swift). `macctl describe <id>` shows
+the full schema and recovery contract; `macctl list --domain <name>` reads one catalog group.
+See the [macctl CLI reference](../README.md), [documentation home](../../docs/home.md) and
+[security/recovery model](../../docs/security-model.md).
+
+The current source contains **39 settings across 9 domains**: Dock 11, Finder 8, keyboard 3,
+screenshots 5, appearance 4, desktop 1, windows 3, menubar 2 and documents 2. All have `user` risk.
+All `verifiedOn` arrays are empty: a catalog entry is implemented, not a claim of per-key live
+acceptance on every supported macOS. "Verified" is set only when a human records a real-Mac
+check in `verifiedOn`; the targeted historical accent evidence below does not change those stamps.
+The macOS column reflects declared availability gates, not a tested OS matrix.
+
+## Settings
 
 | id | domain / key | type | side effect | verified | macOS |
 |---|---|---|---|---|---|
@@ -52,25 +63,62 @@ Source of truth: `Sources/MacCtlCore/Catalog.swift`. `macctl describe <id>` show
 | `documents.save-to-icloud` | `NSGlobalDomain` / `NSDocumentSaveNewDocumentsToCloud` | bool | relaunch apps | no | 15+ |
 | `documents.autocorrect` | `NSGlobalDomain` / `NSAutomaticSpellingCorrectionEnabled` | bool | relaunch apps | no | 15+ |
 
-`appearance.accent-color` posts both CoreUI color-change notifications after apply and on undo/recovery.
-Live macOS 27.2 checks observed an already-running AppKit client switch blue → purple → blue without restart.
-The notification names are private implementation details; apps that ignore them may need reopening.
-Finder's separate Folder color control follows this accent when set to Automatic; explicit/custom folder colors
-are preserved. Native configuration readback confirmed Automatic resolved to the changed accent, not an actual
-Finder-window screenshot. [Apple documents the separate controls](https://support.apple.com/guide/mac-help/change-appearance-settings-mchlp1225/mac).
-Refresh protocol research: [Chromium CoreUI note](https://chromium.googlesource.com/chromium/src.git/+/62.0.3202.58/content/renderer/theme_helper_mac.mm#31)
-and [Monterey observation](https://alexwlchan.net/2022/changing-the-macos-accent-colour/); no upstream code copied.
-Native `NSWorkspace` renders of the same ordinary folder also changed from blue to purple after theme application.
+## Appearance and folder colors
 
-`desktop.wallpaper` refuses a missing file or a folder before anything is written (also on undo, if the
-old picture was deleted since). It has no system default, so `reset` is unsupported; `undo` restores the
-previous picture.
+`appearance.accent-color` accepts `-1` graphite, `0` red, `1` orange, `2` yellow, `3` green,
+`4` blue, `5` purple and `6` pink. An absent key means multicolor; there is no public `reset`
+command or multicolor sentinel value. Undo restores an absent key by deleting the explicit preference.
+For negative input use `macctl set appearance.accent-color -- -1`.
+
+After committed accent changes, the active side effect posts both `AppleAquaColorVariantChanged`
+and `AppleColorPreferencesChangedNotification`; restored changes refresh appearance during undo,
+rollback and recovery too. No-op apply and dry-run do not trigger this effect. These are private
+notification names, not a public macOS setter API, and clients retaining cached colors may need reopening.
+macctl does not quit and relaunch apps automatically.
+
+Finder's separate **Folder color** control follows the accent when set to **Automatic**. Explicit/custom
+folder colors are preserved; macctl does not expose a folder-color preference or reset those choices.
+[Apple documents the separate controls](https://support.apple.com/guide/mac-help/change-appearance-settings-mchlp1225/mac).
+
+Historical evidence recorded with commit `dbcb4fb` on macOS 27.2: an already-running AppKit client
+switched blue → purple → blue across apply/undo; native configuration readback resolved Automatic
+to the changed accent, and `NSWorkspace` renders of an ordinary folder changed blue → purple.
+That is targeted AppKit/configuration/icon-rendering evidence, **not an already-open Finder-window
+screenshot**, comprehensive OS validation or a new runtime check in this documentation refresh.
+Refresh research: [Chromium CoreUI note](https://chromium.googlesource.com/chromium/src.git/+/62.0.3202.58/content/renderer/theme_helper_mac.mm#31)
+and [Monterey observation](https://alexwlchan.net/2022/changing-the-macos-accent-colour/); no upstream code copied.
+
+## Recovery by backend
+
+| Backend | Catalog settings | Restoration boundary |
+|---|---|---|
+| CFPreferences (`defaults` in schema) | 37 | Exact prior presence, CF type and value at the written user/host triple; absent/inherited priors delete that triple's explicit key. External inheritance/MDM changes are not undone. |
+| AppleScript | `appearance.dark-mode` | Previous boolean value, not preference-key presence; requires Automation access to System Events. |
+| `NSWorkspace` | `desktop.wallpaper` | Previous picture per recorded display UUID while each display is connected and its old file exists; legacy scalar snapshots retain scalar restoration. |
+
+`desktop.wallpaper` reads the main screen and sets every current screen. It rejects a missing path or
+directory before a mutation; undo/recovery cannot recreate a deleted picture. The backend waits up to
+three seconds for screens to report target pictures before the engine verifies read-back. There is
+no known system default and no public `reset` command.
+
+Each setting's `recovery` field declares `restore`, `priorStates`, `verifiedByReadBack`, `handEdits`,
+`notUndone` and `notes`. The engine journals intent before each write and reads back restoration;
+this is an implementation contract, not a catalog `verifiedOn` stamp. Ordinary hand edits are left
+alone with `partial_restore`. Force can overwrite eligible hand edits only by deliberate user choice;
+it cannot restore a missing asset/display. Restarts, logout/relaunch requirements and folders created
+for path settings are not undone. Screenshot files themselves are not moved or deleted by undo.
+See [CLI safety and recovery](../README.md#safety) for unfinished sessions, corrupt journals and limits.
+
+## Finder and newer macOS keys
 
 Finder view codes: `Nlsv` list, `icnv` icons, `clmv` columns, `glyv` gallery.
 
 `menubar.keyboard-navigation` (macOS 27, hidden) moves with the arrow keys from the app's last menu into the
 status menus; it needs `menubar.agent` on as well, and both take effect after logout (source: MacG, 2026-08).
 
-macOS 27's Liquid Glass slider (System Settings > Appearance) has no published preference key yet. Find it on a
-Mac with `macctl discover start`, move the slider, then `macctl discover diff`, and add the key here once verified.
-Writing `/Library/Preferences/FeatureFlags` (root, reboot) is out of scope for macctl.
+The current catalog has **no Liquid Glass slider setting**. No public preference key is documented
+in this repository. On a Mac, `macctl discover start`, changing one control, then `macctl discover diff`
+can identify candidate preference changes; absence of a diff does not prove a control has no state.
+Discovery does not write preferences, but saves a private local baseline and can print changed values:
+review output before sharing. Draft keys still need meaning, range, defaults and recovery validation
+before catalog inclusion. Writing `/Library/Preferences/FeatureFlags` (root, reboot) is out of scope.

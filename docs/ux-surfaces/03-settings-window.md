@@ -9,7 +9,7 @@ created: 2026-10-25
 # Surface 3: Settings window (`Settings` scene)
 
 Column 3 of the [surface table](surface-table.md), checked 2026-10-25. Verdicts as in
-[Surface 1](01-menu-bar.md#surface-1-menu-bar-app-menubarextra--popover). Our standing rule still applies: every
+[Surface 1](01-menu-bar.md). Our standing rule still applies: every
 preference lives here, never in the menu bar panel ([AGENTS.md](../../AGENTS.md#panel-vs-settings-window-user-preference)).
 
 ## Three corrections

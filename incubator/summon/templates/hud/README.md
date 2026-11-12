@@ -18,7 +18,7 @@ Apple's rule first: prefer a standard panel; a HUD is for a few controls over co
 | Move | Drag from anywhere and let go: it glides to the nearest corner, carried by the throw. Reduce Motion: it snaps without the throw or the glide |
 | Controls | Start/Pause always visible; Reset and Hide fade to 30% until the pointer is over the HUD. All have accessibility labels |
 | State | A red dot and border while running, an amber pause mark while paused: a shape and a color, never color alone |
-| Numbers | Monospaced digits; the time is computed from dates and redrawn once a second only while running |
+| Numbers | Monospaced digits; elapsed time is computed from dates, with one-second redraws only while running **and visible**. Hiding stops the redraw timeline, not the stopwatch. |
 | Right-click | Start/Pause, Reset, Opacity (25–100%), Size, Move To (corner), Hide, Settings…, Quit |
 | Shortcut | Start or pause from anywhere: none by default, recorded in Settings (`RegisterEventHotKey`, no permission prompt) |
 | Settings | Open at Login, Show in menu bar, the shortcut, size, opacity |
