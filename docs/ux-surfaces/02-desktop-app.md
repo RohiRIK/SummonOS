@@ -9,7 +9,7 @@ created: 2026-10-25
 # Surface 2: full desktop app (`NSWindow` / main workspace)
 
 Column 2 of the [surface table](surface-table.md), checked 2026-10-25. Verdicts as in
-[Surface 1](01-menu-bar.md#surface-1-menu-bar-app-menubarextra--popover): **Apple**, **Convention**, **Fix**.
+[Surface 1](01-menu-bar.md): **Apple**, **Convention**, **Fix**.
 Liquid Glass details (inset sidebar, glass toolbar, concentric corners) are in
 [macOS design language](../research/2026-10-18-mac-gui-design/02-hig-tahoe-golden-gate.md).
 

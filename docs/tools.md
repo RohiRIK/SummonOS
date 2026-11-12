@@ -13,20 +13,35 @@ described in `MacAppBuild/Scaffold.md`.
 
 ## install.sh (repo root)
 
-The SummonOS installer. Piped from curl it downloads the newest GitHub release (prereleases included, or
-`--version vX.Y.Z`), checks the zip against `SHA256SUMS` (a mismatch refuses), unpacks it and runs the bundled
-Summon `scripts/install.sh`, which stages and rolls back like a source install. With no release published it
-builds from source instead. `--from-source` clones into `~/.summonos` (`SUMMONOS_HOME`, branch `SUMMONOS_REF`);
-run from a checkout it installs that checkout. A source build checks Swift 6, builds `macctl` into
-`~/.local/bin` and runs Summon's `scripts/bundle.sh` and `scripts/install.sh`. Both end with `summon doctor`,
-then offer `summon connect` on a terminal (default No); `--connect` runs it, `--yes` never prompts.
-Agents follow [`docs/install-ai.md`](install-ai.md) instead, which wraps the same script with checks and a report.
+The SummonOS installer. Outside a checkout, the default `stable` selection is the **first non-`edge` tag** in
+GitHub's returned release list (including prereleases), not `/releases/latest` and not necessarily the highest
+semantic version. `--version vX.Y.Z` pins a tag; `--channel edge` opts into the rolling asset. Edge publication
+is triggered after successful `main` push CI, but the currently published asset can lag source. The installer
+checks the universal zip against `SHA256SUMS`, unpacks it and runs that release's bundled staged installer.
+If the release list is empty **or cannot be fetched**, it falls back to source; explicit tag/edge download
+failures stop instead of falling back. See [release and branch status](status.md).
+
+Run from a checkout, the default installs that checkout. Outside one, `--from-source` clones/updates
+`~/.summonos` (`SUMMONOS_HOME`), selecting `SUMMONOS_REF` (default `main`). An explicit `--version` or
+`--channel edge` selects a release even when run inside a checkout; `--channel edge` cannot be combined with
+`--version` or `--from-source`, and `--version` cannot be combined with `--from-source`.
+Source installs need git and Swift 6, build macctl, then run Summon's `bundle.sh` and `install.sh`.
+The current staged build/install scripts also require Python 3; full App Intents metadata requires Xcode.
+The app goes in `~/Applications`, `summon` is linked into `~/.local/bin`, and macctl is copied there.
+Both paths run `summon doctor` after installation; a failed check reports incomplete setup (the installed
+files are not rolled back merely because that later doctor check fails). The installer offers `summon connect`
+on a terminal, default No. `--connect` runs it; `--yes` suppresses prompts and does not imply connect approval.
+Agents follow [the AI installation playbook](install-ai.md), including its permission and reporting rules.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/RohiRIK/SummonOS/main/install.sh | bash
 ```
 
 ## Summon build identity and isolated validation
+
+These are current-checkout commands added after the tagged 0.2.4 baseline; their implementation does not prove
+release or performance acceptance. See [status](status.md) and the
+[historical runtime audit](plans/2026-11-08-runtime-audit.md#implementation-evidence-and-unverified-acceptance-2026-11-08).
 
 `incubator/summon/scripts/bundle.sh` copies the Swift package into a private staging tree, generates the compiled
 `SummonVersion`, `BuildInfo.json` and bundle Info.plist from one manifest, builds and signs `build/Summon.app`, and
@@ -89,12 +104,14 @@ is a reference to clone on demand), `path` (relative to the home).
 
 ## local-ci.sh
 
-`tools/local-ci.sh [ref|pr-number] [--no-post]`: the Swift package portion of `.github/workflows/swift.yml`, run on this Mac. Checks out
-exactly that commit in a temporary worktree, builds and tests every `Package.swift` outside `.build/` and `plugins/`
-(build cache in `~/Library/Caches/macplugins/local-ci`, logs per package under `logs/<sha>/`), and posts the result
-as the commit status `local / swift (macOS)` (pending, then success or failure). Now that the repo is public,
-GitHub Actions runs `swift.yml` for free and is the gate; use this when Actions cannot run, or to test on your own
-Mac before pushing:
+`tools/local-ci.sh [ref|pr-number] [--no-post]` builds/tests **all** Swift packages outside `.build/` and `plugins/`
+from a temporary detached worktree at the exact requested commit; it does not use PR package selection.
+It also runs Summon's packaged `check.sh --skip-tests --runtime-smoke` lifecycle gate after the suites.
+Caches/logs are under `~/Library/Caches/macplugins/local-ci/<toolchain>/release/`, with logs separated by commit
+and run identity. It posts `local / swift (macOS)` (pending, then success/failure/error), unless `--no-post`.
+Owned build scratch/worktree cleanup errors remain failures. This is not a substitute for the full hosted OS
+matrix, release/GUI audit, workspace/privacy checks or manual acceptance. Use it for local pre-push checking
+or when hosted Actions cannot run; the public workspace's GitHub Actions checks remain its merge gate:
 
 ```bash
 tools/local-ci.sh 42 && gh pr merge 42 --merge --delete-branch
@@ -102,11 +119,18 @@ tools/local-ci.sh 42 && gh pr merge 42 --merge --delete-branch
 
 ## ci-plan.sh
 
-`tools/ci-plan.sh <event> <changed-files> <packages-json>`: what `swift.yml` builds for a change. A PR builds only
-the packages its files are in, on macos-15 and macos-26 for Summon and macctl and macos-26 only for templates; a
-template change also builds Summon (its tests read the templates); the macctl crash matrix runs only for macctl;
-`.claude/` changes run only the design-skill check; docs and workspace files build nothing. A push to main, a
-manual run, a workflow change or any file it can't place builds everything. Tested in `tools/tests/test_ci_plan.py`.
+`tools/ci-plan.sh <event> <changed-files> <packages-json>` selects `swift.yml` jobs. A PR builds only the longest
+matching package path: Summon/macctl on macOS 15 and 26, templates on macOS 26 only. A template change also
+selects Summon; selected Summon enables packaged identity/Core lifecycle checking and the informational Xcode 27
+leg, while selected macctl enables that leg and the crash matrix. `.claude/` and `tools/check-skills.py` select
+design example typechecking. `docs/`, other `tools/`, `install.sh` and root/workspace Markdown skip package
+builds (the workspace job still runs). Pushes, manual runs, empty/unknown diffs, workflows and otherwise
+unclassified files select everything. Regression coverage lives in `tools/tests/test_ci_plan.py`.
+
+[`templates.yml`](../.github/workflows/templates.yml) is separate: on template/copier path changes, it runs real
+`project new` plus the generated project's check for menubar, menubar-panel, app, cli and screensaver. The local
+`incubator/summon/scripts/check-templates.sh [kind...]` defaults to all nine starter kinds; its widget gate needs
+Xcode. Do not equate the hosted five-kind matrix or raw SwiftPM tests with complete widget-extension validation.
 
 ## check-workspace.sh
 
@@ -123,6 +147,7 @@ tools/check-workspace.sh
 - Runs `tools/mp index --check` when `jq` is installed.
 - Runs `tools/okf-index.py --check`: every page in `docs/` has OKF frontmatter and every `index.md` is current.
 - Runs `tools/check-skills.py` for the six first-party design skills.
+- Checks the shared base `VERSION` against tracked development Summon version constants, its source plist and macctl.
 
 ## check-skills.py
 
@@ -154,6 +179,23 @@ python3 tools/okf-index.py --check   # exit 1 on missing frontmatter or a stale 
 - A new folder under `docs/` needs a title and description in `DIRS` at the top of the script.
 - Never edit an `index.md` by hand. Notable changes get a dated line in `docs/log.md`.
 
+## docs-site.py and the wiki site
+
+[`documentation.md`](documentation.md) is the authoritative maintenance guide for the wiki-style website.
+`mkdocs.yml` configures navigation/search, `requirements-docs.txt` pins the documentation-only dependencies,
+and `tools/docs-site.py` stages the existing Markdown rather than maintaining a second content copy.
+
+```bash
+python3 -m venv /tmp/summonos-docs-venv
+/tmp/summonos-docs-venv/bin/python -m pip install -r requirements-docs.txt
+/tmp/summonos-docs-venv/bin/python tools/docs-site.py serve
+/tmp/summonos-docs-venv/bin/python tools/docs-site.py build
+```
+
+`build` always uses MkDocs strict mode and defaults to external-cache output. Optional `--site-dir` takes an
+absolute path outside the source checkout; `--ref main` chooses the source-link ref. See the maintenance guide
+for deployment and local-preview details. Docs tooling does not add runtime Swift package dependencies.
+
 ## publish-public.sh
 
 Publishes a dev-repo branch to the public repo as one clean commit.
@@ -173,13 +215,21 @@ tools/publish-public.sh plugins/<name> [branch] "<commit message>"
 
 ## release.yml (GitHub Actions)
 
-`.github/workflows/release.yml` builds the SummonOS release on `macos-26`: universal (arm64 + x86_64) `summon`,
-`macctl` and `Summon.app` (`bundle.sh --universal`), ad-hoc signed and verified (`codesign`, `lipo -archs`,
-`--version`), in `summonos-<version>-macos-universal.zip` (`Summon.app`, `bin/`, `scripts/install.sh`) plus
-`SHA256SUMS`. A `v*` tag that equals `v$(cat VERSION)` also attests the zip (`actions/attest-build-provenance`) and
-publishes a GitHub prerelease with generated notes. `workflow_dispatch`, and a PR that touches the release or install
-path, is a dry run: the files are a workflow artifact only. Developer ID signing and notarization
-(`tools/notarize-app.sh`) run only when the signing secrets are set.
+[`release.yml`](../.github/workflows/release.yml) builds universal arm64/x86_64 `summon`, macctl and Summon.app
+on `macos-26`. It validates signatures, both architectures, compiled versions and the staged manifest/plist,
+then runs the candidate installer with `--verify-only`. The archive contains the app, `bin/`, bundled installer
+and its Python validators, plus `SHA256SUMS`. A matching `v$(cat VERSION)` tag publishes an attested GitHub
+**prerelease**, not a qualified production release. Successful `Swift (macOS)` push CI on `main` triggers a build
+of that exact successful SHA for the rolling `edge` prerelease. It never publishes an arbitrary latest `main`.
+An edge trigger can fail or remain stale; inspect the asset revision rather than assuming it is current.
+Manual dispatch and matching release/install-path PRs are artifact-only dry runs, without release publication
+or attestation. Builds default to ad-hoc previews; optional Developer ID signing/notarization runs only when
+the required secrets are set. [Release status](status.md) separates source implementation from publication.
+
+[`release-smoke.yml`](../.github/workflows/release-smoke.yml) installs published/manual releases with the public
+installer; a matching PR instead builds, verify-only checks and installs its candidate on a disposable hosted
+runner. It checks both CLIs, doctor and context. Published/PR runs additionally invoke the guarded runtime UI
+audit; manual dispatch skips that GUI step. A failed profiler or missing prerequisite is not acceptance.
 
 ## release.sh
 

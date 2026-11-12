@@ -18,12 +18,17 @@ Everything written down about SummonOS: features, how to install and build, tool
 # Reference
 
 * [Features](features.md) - Every user-visible feature of Summon, macctl, the SummonOS apps and the workspace tools, in one list.
+* [SummonOS documentation](home.md) - Your field guide to an agent-ready Mac: set up SummonOS, explore the toolkit and build native apps.
 * [Security and recovery model](security-model.md) - Agent authority, checkpoint scope, task isolation, local diagnostics, and release trust boundaries.
+* [Status and verification](status.md) - Published preview versus unreleased implementation, documentation baseline, and remaining release-acceptance limits.
 * [Workspace tools](tools.md) - What each script in tools/ does and how to run it: installer, mp, local CI, checks, publishing, previews, README art.
 
 # Guides
 
+* [Documentation website](documentation.md) - Build, preview, maintain, and publish the wiki from canonical repository Markdown without changing Swift dependencies.
+* [Getting started](getting-started.md) - Install SummonOS, choose an agent, review permissions and connect Mac context safely.
 * [Install SummonOS (for an AI agent)](install-ai.md) - Step-by-step install, check and report instructions a coding agent follows to install SummonOS on a Mac.
+* [Troubleshooting](troubleshooting.md) - Diagnose installation, agent connection, permissions, updates, inventory and theme problems without discarding user state.
 * [App lifecycle](workflow.md) - How a SummonOS app goes from idea to public release, and which skill or script owns each step.
 
 # History

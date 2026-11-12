@@ -1,3 +1,10 @@
+---
+type: Reference
+title: Summon menu bar panel
+description: Current native panel, search, focus, lifecycle and evidence contract, with outstanding macOS acceptance checks.
+tags: [summon, macos, panel, keyboard, accessibility, lifecycle]
+---
+
 # Menu bar panel: NSStatusItem + nonactivating panel
 
 Summon's menu bar item is an `NSStatusItem` plus a `StatusPanel` (`NSPanel`), owned by one `PanelController`
@@ -10,8 +17,11 @@ The panel:
 - keeps updating while open;
 - closes only on the triggers listed below.
 
-Behavior follows the interaction spec v1.5 (IDs A1–G3, 47 checklist lines). The decision rules live in
-`Sources/SummonCore/PanelLogic.swift` and are unit-tested without AppKit (`Tests/SummonCoreTests/PanelLogicTests.swift`).
+This reference reflects source through `18c7688` (2026-11-11). November runtime/inventory/accent changes are
+implemented on the branch after the numbered `v0.2.4` baseline; this is not a new release announcement.
+Interaction IDs (A1–G3) come from the original v1.5 spec. Current decisions live in
+`Sources/SummonCore/PanelLogic.swift` and the controller/view; test coverage does not substitute for native
+accessibility or performance acceptance. See [the UX audit](ux-audit.md) for cross-surface status.
 
 ## Shape
 
@@ -23,27 +33,36 @@ Behavior follows the interaction spec v1.5 (IDs A1–G3, 47 checklist lines). Th
   reports its displayed height, and `PanelController` sets the window frame itself in a single `setFrame` with the
   top edge pinned. The hosting controller's own resize would keep the bottom-left origin and move the top for a frame.
   From top to bottom:
-  - header with the agent line;
-  - search field and menu tree (the former launcher);
-  - Ask Agent and Activity…;
-  - footer with Settings… (⌘,) and Quit Summon (⌘Q).
+  - Summon mark/title, selected-agent state (or agent picker), and an update-count button when updates exist;
+  - an always-visible search field and breadcrumb back button in submenus;
+  - home actions Ask Agent, Make Something and My Apps, optional setup-attention and Undo rows;
+  - footer with Activity…, Settings… (⌘,) and Quit Summon (⌘Q).
+  There is no separate launcher window, Now/Recent feed, crash list or active-theme pill in the header.
+  Preferences belong in the separate Settings window; history belongs in Activity. The Update entry and
+  update-count button close the panel and open the separate Updates window.
 - **Size and position.**
   - The panel is as tall as its content, capped at the visible screen height minus 8 pt at top and bottom; past that it scrolls.
   - The top edge sits 4 pt under the icon and stays there on resize.
   - Left and right are clamped 8 pt inside `visibleFrame`.
   - With the hotkey, the panel goes under the item on the pointer's display. If that display has no item, it goes
     under the main display's item, mapped to the same distance from the right edge.
-- **Live updates.** While open, the view refreshes Activity every 1 s, and the agent row shows elapsed `mm:ss`
-  (`PanelClock`). There's no menu-tracking run loop, so updates draw as they happen.
+- **Live updates.** The panel and Activity share one `ActivityModel` refresh owner. Opening starts panel interest
+  and acknowledges only a published refresh generation; actual close ends that interest. Source collection runs
+  off the main actor, filesystem changes mark it dirty, and a 60 s reconciliation with 15 s tolerance recovers
+  missed notifications. No panel-specific one-second disk reload remains. The header uses coarse running state
+  (for example “running 3h”), not a continuously redrawn stopwatch. Cancelled or stale guard/refresh results do
+  not publish over a newer query/session. These are source behavior, not a measured frame-time guarantee.
 
 ## Status item label
 
-- **Icon only** normally. While an agent session is open (a `session.start` in the event log with no later end,
-  under 12 h old), the icon is followed by its elapsed `mm:ss` in monospaced digits, so the width doesn't jitter.
-- `MenuBarStatusWatcher` checks the event log's modification date every 2 s and re-reads the log only when it
-  moved; the clock redraws once a second. It runs with the panel closed, which is the point: the panel already shows
-  the same clock when open.
-- **Setting:** Settings › General › Menu Bar › Show agent time in the menu bar (`summon.menuBar.showsAgentTime`, on by default).
+- **Icon only** by default. When enabled in Settings, an open agent session (a `session.start` without a later
+  end, under 12 h old) adds elapsed `mm:ss` in monospaced digits.
+- `MenuBarStatusWatcher` watches both the event file and its containing/nearest existing directory, so creation
+  and replacement rearm the file watch. Its cursor consumes appended records by file position, not timestamp;
+  a bounded identity ledger suppresses repeated delivery after reset. One-second ticks run only for a displayed
+  session clock; otherwise a 60 s reconciliation backs up filesystem notifications.
+- **Setting:** Settings › General › Menu Bar › Show agent time in the menu bar
+  (`summon.menuBar.showsAgentTime`, **off by default**).
 - **VoiceOver (G3):** the item's label is `Summon`, or `Summon, Claude running for 4 minutes` while a session is
   open, with the time setting on or off (`MenuBarStatus.accessibilityLabel`).
 
@@ -60,10 +79,11 @@ search." after ⌃⌥Space, "Summon menu opened." after a URL or CLI open (no se
 |---|---|
 | Typing | Searches the whole Summon Menu |
 | ↑ ↓ | Move the selection |
-| → / Return on a submenu | Open it |
-| ← | Go up one level |
-| Return | Run the entry and close (D3) |
-| Esc | Close (D1) |
+| → / Return on a non-runnable submenu | Open it |
+| ← / Delete with an empty query | Go up one level; breadcrumb click also goes back |
+| Return on an action | Run the entry and close (D3); Update opens its window |
+| Esc in a submenu | Go back one level; at the root, close (D1) |
+| ⌥Return (default, recordable) | Ask the default agent about current screen context and close |
 | ⌘, / ⌘Q | Settings… / Quit Summon (footer) |
 
 ## Opening
@@ -94,9 +114,9 @@ closes first.
 
 | ID | Trigger | Source |
 |---|---|---|
-| D1 | Esc | `StatusPanel.cancelOperation`, and `onKeyPress(.escape)` in the search field |
+| D1 | Esc at the root; submenu search handles Esc as Back | `StatusPanel.cancelOperation`, search-field key handling |
 | D2 | Icon or ⌃⌥Space while open | toggle |
-| D3 | An action ran | menu entries and rows call `PanelActions.finish` |
+| D3 | An action ran or a separate workflow window was requested | menu entries and rows call `PanelActions.finish` |
 | D4 | Another app becomes frontmost | `NSWorkspace.didActivateApplicationNotification`. The previous app and Summon itself are ignored (decision 2). |
 | D5 | Space change | `NSWorkspace.activeSpaceDidChangeNotification` |
 | D6 | Settings… or Quit | footer or right-click menu |
@@ -128,44 +148,70 @@ level. To watch them: `log stream --predicate 'subsystem == "local.macplugins.su
   `makeKeyAndOrderFront` (`PanelState.focusRequest`), because focus set before the window is key is dropped. URL/CLI
   opens don't request focus.
 
-## Mac checks (not run yet)
+## Inventory, theme and lifecycle ownership
 
-1. Agent running: the icon shows `00:0N` within 2 s of a session start and counts up; it goes back to the icon within
-   2 s of the session end. Turning the setting off hides the time at once.
-2. VoiceOver on (⌘F5): ⌃⌥Space announces "Summon menu. Type to search."; `open -g summon://panel` announces
-   "Summon menu opened."; a click announces nothing extra. VO-hovering the icon reads the running state.
-3. Keyboard menu bar navigation: ⌃F8 (Keyboard › Keyboard navigation, "Move focus to status menus"), arrow to the
-   Summon item, Space. Expected: the panel opens like a click (search focused). Then the same with Full Keyboard Access on.
-4. macOS 27 (`NSMenuBarUseAgentNavigation`, set with macctl): repeat check 3 and note what changes.
-5. Crash alert focus: type in TextEdit, then `open -g summon://test-crash` (debug build). Expected: the alert appears,
-   typing and Return keep going to TextEdit; clicking the alert makes Return run Diagnose. Settings › Notifications ›
-   "macOS notification": the same URL posts one banner instead, grouped per program, with sound when on.
-6. Task result: with the app running, `summon task run <id>`. Expected: one "Task done: <name>" banner from Summon
-   (not Script Editor) with Show Log and Ask Agent; with the app quit, one plain banner from the CLI.
-7. Focus survival (Rohi's text-field test). With TextEdit frontmost, ⌃⌥Space and type `the`.
-   - Click into TextEdit, type there, click the panel's search field, keep typing. Expected: the panel stays open
-     (D4 ignores the previous app), TextEdit gets its letters, the search field gets the rest, nothing is lost.
-   - ⌘Tab to another app. Expected: the panel closes (D4, by design) and focus stays in that app.
-   - Repeat with an agent running and the Activity rows refreshing (1 s). Expected: no dropped or duplicated
-     letters, the selection doesn't jump, the top edge doesn't move.
-8. Settings chrome ([ux-audit.md](ux-audit.md)): open Settings (⌘,). Expected: only the red button works, yellow and
-   green are dimmed, ⌘M does nothing, ⌃⌘F doesn't go full screen, the window is 780–820 pt wide and can only grow taller.
-   Switch pages and resize: the buttons stay dimmed.
-9. Over full-screen apps: put Safari in full screen, then ⌃⌥Space. Expected: the panel opens over it on the same
-   Space, takes typing, and Esc returns focus to Safari. Then `open -g summon://test-crash` (debug build): the crash
-   alert shows over the full-screen app without taking key, and it isn't listed in Mission Control or ⌘`.
-10. VoiceOver on a menu entry with a health dot (My Apps): VO reads the label and then its badge ("Healthy", or the problem).
-11. Welcome window: `defaults delete local.macplugins.summon summon.onboarding.completed`, then quit and reopen
-    Summon. Expected: "Welcome to Summon" opens centered, 640 × 440, close only, with Summon in the Dock. Pick an
-    agent (the panel header shows it). On step 2, Open System Settings, turn Summon on: the card turns "Allowed"
-    within a second. Done closes it, Summon leaves the Dock and the panel opens under the icon. Relaunch: no
-    window. Closing it on step 1 also doesn't bring it back. Settings › General › Show Welcome Again and
-    `open summon://welcome` open it again.
+My Apps uses the same six categories as Settings, including empty ones: Panel Apps, Themes, Art & Wallpapers,
+Window Apps, Command-Line Tools and Screensavers. All built-in/custom themes stay visible. Theme/art entries
+cannot be dispatched as projects just because their name matches an app. Shared `AppInventoryHealth` counts
+repairable items once and keeps readability/palette/optional-art recommendations outside repair totals.
+The My Apps repair action runs `summon fix --apps`, not general Mac diagnosis.
+
+The active palette drives panel control tint through `ThemeAccent.swift`. Style and My Apps theme actions and
+checkmarks read one observed active selection. Appearance preview does not apply a theme; Apply Theme does.
+The header deliberately has no active-theme chip. Finder's Automatic folder tint follows macctl's system accent
+refresh, while explicit folder colors remain unchanged; some running clients may still need reopening.
+
+`AppDelegate.applicationWillTerminate` cancels startup work, stops menu/status/model/activity owners, removes
+the panel's monitors/observers, unregisters hotkeys and removes URL handling. A persistent hosting view or
+watcher is intentional ownership, not evidence by itself of a leak. About is a separate native standard panel,
+reachable from Settings › General and the standard About command; its cold-launch path explicitly unhides and
+raises AppKit's singleton. About does not check the network or updater when opened.
+
+## Evidence and outstanding Mac checks
+
+Recorded evidence is in the
+[runtime audit continuation](../../../docs/plans/2026-11-08-runtime-audit.md#native-acceptance-continuation-2026-11-10),
+not a blanket claim that every rule below has passed on every supported OS. The documentation refresh itself
+does not run native checks.
+
+- Hosted evidence includes native About metadata/keyboard close, Activity terminal-event delivery and 100 panel
+  search cycles with actual query-value readback. A later workload completed 500 cycles, including profiler
+  workloads. Recorder failures still prevented full profiling acceptance.
+- Native macOS 27.2 evidence exercised 13 equal-timestamp crash reports through the real watcher across its
+  five-file batches. The alert showed the newest report and “12 more new reports”; native Dismiss and subsequent
+  typed panel search succeeded. This does **not** verify macOS banners, VoiceOver or all crash/focus scenarios.
+- One cold-launch attempt had no observable About window; the current branch adds explicit native raising.
+  The source fix is not itself proof that every cold-launch/window-server scenario now passes.
+- `PanelOpen` ends at ordered-front; `PanelWindowUpdate` ends in AppKit's pre-display update pass. Neither is
+  a displayed/composited frame. Isolated comparative GUI profiling, SwiftUI recorder content/completion,
+  displayed-frame timing and retained-memory analysis remain acceptance gates. Live malloc samples, RSS and
+  retained-graph leak analysis are distinct; absent samples or an empty trace cannot pass.
+
+Remaining/manual scenarios include:
+
+1. **VoiceOver:** hotkey/URL announcements, status-item running label, health/recommendation badges, native About
+   fields, search/results and all primary actions. Accessible names in source are not navigation proof.
+2. **Keyboard navigation:** ⌃F8 status-menu access and Full Keyboard Access, configurable shortcuts, submenu
+   Esc/Delete/Back behavior, and macOS 27 menu-bar keyboard-navigation preference behavior.
+3. **Focus safety:** type in another app while opening by hotkey/URL; Return must not run a stray action during
+   the 300 ms guard. Clicking back into the previous app keeps the panel open; switching to a third app closes
+   it. Repeat during source invalidation and close/reopen without dropped or duplicated input.
+4. **Crash and notifications:** a background alert must not steal typing/Return; after an intentional click,
+   keyboard actions work. Verify native macOS banners, sound/grouping and task Show Log/Ask Agent actions,
+   both with the app running and with CLI fallback. The 13-report Summon-alert result covers only that path.
+5. **Appearance:** light/dark, Reduce Transparency, contrast/readability findings and explicit versus Automatic
+   Finder folder colors. About content renders do not prove installed-window capture or VoiceOver.
+6. **Screens/windows:** full-screen apps, multiple displays/Spaces, lock/sleep/user switching, panel height cap
+   and pinned top edge. Settings remains close-only and 780–820 pt wide. Native About should be visible/key
+   from cold launch, reopen the same window and return to accessory policy when regular windows close.
+7. **Welcome:** four steps at 720 × 480; optional Accessibility; first-run/skip/reopen semantics; ready-step icon
+   visibility warning and Try It Now. Settings › General › Show Welcome Again and `summon://welcome` reopen it.
+
 
 ## Deployment floor
 
 - **Minimum macOS 15:** `Package.swift` `.macOS(.v15)`, `Info.plist` `LSMinimumSystemVersion 15.0`.
-- Every API used here exists on macOS 15:
+- The core panel mechanics below are available on macOS 15; newer styling is availability-gated:
   - nonactivating `NSPanel`, `.statusBar`, `.fullScreenAuxiliary`, `.transient`, `.ignoresCycle`;
   - `NSRunningApplication.activate()` (14);
   - `NSHostingController.sizingOptions` (13);
@@ -173,8 +219,10 @@ level. To watch them: `log stream --predicate 'subsystem == "local.macplugins.su
   - `onKeyPress` (14);
   - `onGeometryChange` (back-deployed);
   - `TimelineView` (12).
-- **Verified only on macOS 26.x.** The macOS 15 target is compile-checked, but runtime is unverified until a 15 machine or VM exists.
-- macOS 27 betas: `button.highlight(true)` reportedly doesn't stick (FB23330269). The panel still works, but the highlight may not show.
+- Hosted native About/visual evidence exists on macOS 15 and 26; macOS 27.2 native evidence covers the specific
+  scenarios above. This is not a full runtime/accessibility certification of any OS version.
+- Menu bar highlight behavior can vary on newer macOS; verify the visible highlight natively rather than
+  equating `button.highlight(true)` with a displayed result.
 
 ## Test fixture (E4, debug builds only)
 

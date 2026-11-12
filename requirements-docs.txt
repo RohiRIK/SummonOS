@@ -1,0 +1,5 @@
+# Documentation tooling only; never bundled with Summon, macctl, or generated apps.
+mkdocs==1.6.1
+mkdocs-material==9.6.14
+pymdown-extensions==10.15
+PyYAML==6.0.2

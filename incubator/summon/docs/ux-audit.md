@@ -1,101 +1,178 @@
-# Summon against the UX surface table (2026-10-25)
+---
+type: Reference
+title: Summon UX implementation audit
+description: Current Summon surfaces checked against source, with historical design decisions and remaining native accessibility and profiling gates.
+tags: [summon, macos, ux, accessibility, performance]
+---
 
-This audit checks each Summon surface against the [surface table](../../../docs/ux-surfaces/surface-table.md) and the
-per-surface research in `docs/ux-surfaces/`. Where a research page corrects the table, the page wins.
+# Summon UX implementation audit
 
-**Status labels:** **OK** means it matches. **Fixed** means it was fixed in this PR. **Open** means it's a gap that
-still needs a change. **By design** means it's a deliberate difference, with the reason given.
+Source review updated 2026-11-11 through `18c7688`. The original audit was written on 2026-10-25; this page
+now describes the current implementation rather than treating that audit's proposed fixes as missing features.
+The [surface table](../../../docs/ux-surfaces/surface-table.md) and its per-surface research explain design
+principles, not proof that a particular Summon build passed runtime acceptance.
 
-| Table column | Summon surface | Code |
+**Labels:** **Implemented** is a source-backed capability, not a native verification claim. **By design** is an
+intentional difference. **Open** is an actual remaining feature gap. **Unverified** is an acceptance check that
+still needs its real scenario. Historical test/render results apply only to their recorded revision and scope.
+
+The numbered baseline is `v0.2.4` (2026-10-28, a published preview/prerelease). November hardening, My Apps and
+accent work is implemented after that tag; it is not a new numbered release. Stable/Edge select distribution
+channels, not a guarantee of production maturity or that the published Edge artifact equals this branch.
+
+## Surface map
+
+| Surface | Current shape | Main source |
 |---|---|---|
-| 1 Menu bar | `NSStatusItem` + nonactivating `StatusPanel` | `StatusPanel.swift`, `PanelView.swift`, [menubar-panel.md](menubar-panel.md) |
-| 2 Desktop app | Activity window | `ActivityView.swift` |
-| 3 Settings | `Settings` scene, sidebar + grouped forms | `SettingsView.swift` |
-| 4 Launcher | Merged into the menu bar panel (type to search) | `PanelView.swift` |
-| 5 HUD | Crash alert (closest fit: small nonactivating panel above other windows) | `CrashAlertView.swift` |
-| 6 Onboarding | Welcome window, three steps | `OnboardingView.swift` |
-| 7 System extensions | None | |
+| Menu bar | `NSStatusItem` + nonactivating `StatusPanel` | `StatusPanel.swift`, `PanelView.swift`, [panel contract](menubar-panel.md) |
+| Search/launcher | Always-visible search inside that panel; no separate launcher window | `PanelView.swift`, `MenuTree.swift` |
+| Activity | Standalone history window with search/filter and agent actions | `ActivityView.swift`, `ActivityModel.swift` |
+| Settings | One sidebar Settings window with grouped forms | `SettingsView.swift`, `SettingsSection.swift` |
+| Updates | Standalone foreground window, sectioned updates and live row state | `UpdatesView.swift`, `SoftwareUpdates.swift` |
+| Crash alert | Optional nonactivating alert; macOS banners are the other preference | `CrashAlertView.swift`, `AppDelegate.swift`, `CrashAnnouncement.swift` |
+| Onboarding | Optional four-step welcome window | `OnboardingView.swift`, `Onboarding.swift` |
+| About | AppKit standard About panel, shared immutable build identity | `AboutPresenter.swift`, `BuildInfo.swift` |
+| System extensions | None in Summon itself; widget/notch are generated-project starters | `Projects.swift`, `templates/` |
 
-## 1. Menu bar panel
+Source basenames above are under `Sources/SummonMenuUI/` or `Sources/SummonCore/` unless stated otherwise.
 
-| Dimension | Status | Notes |
+## 1. Menu bar and search
+
+| Dimension | Status | Current contract |
 |---|---|---|
-| Menu or panel | OK | HIG prefers a menu. The panel is justified because it shows live agent state and a searchable tree, which a menu can't hold. |
-| Anatomy | OK | Borderless, no traffic lights, drops 4 pt under the icon. |
-| Size | OK | 320 pt (`PanelConfig.width`, = `PANEL_W` in visual QA), height follows the content, capped at the screen, not resizable. |
-| Focus | By design | Esc closes. Another app becoming frontmost closes it (D4), but clicking back into the app the user came from doesn't (spec decision 2, so the user can copy text into the search). The frontmost app keeps its menu bar (`.nonactivatingPanel`). |
-| Materials, icon | OK | Liquid Glass on 26, `.menu` before. Template icon. The orange tint means "needs attention", a real state, and VoiceOver says it too. |
-| Typography | OK | System styles for most rows. The search field (14 pt) and the breadcrumb (11–12 pt) use fixed sizes, all at or above the 10 pt minimum. |
-| Keyboard | OK | ⌃⌥Space (recordable), ↑↓ → ←, Return, Esc, ⌘, and ⌘Q. |
-| Drag & drop | Open (low) | No drop target on the icon. Nothing in Summon takes a dropped file yet. |
-| Alerts | OK | Errors show inline. The undo confirmation is an `NSAlert`, but only after the panel closes and `NSApp.activate()` runs, which the research allows for a real confirmation. |
-| Context menu | OK | Right-click shows Settings… and Quit, and the footer has the same two. |
-| Performance | OK | The 1 s refresh runs only while the panel is open. With the panel closed, a 2 s check of the event log's modification date keeps the icon's live clock current; the research allows polling when the icon itself shows live data. |
-| Dock | OK | `LSUIElement`. |
-| People decide on the icon | Open | HIG: let people remove the menu bar item. The item isn't `.removalAllowed` and Settings has no "Show in menu bar". The hotkey and `summon panel` already give a second way in. |
-| Color alone | Fixed | A menu entry's health dot was color only. VoiceOver now reads its badge. |
+| Shape | Implemented | Borderless 320 pt panel, 4 pt below the status item, height capped to the visible screen and top-pinned on resize. No traffic lights or user resize. |
+| Panel justification | By design | Searchable actions, agent state and nested inventory need more than a plain menu. The frontmost app keeps its menu bar. |
+| Home anatomy | Implemented | Summon mark/title, agent state/picker, update badge, always-visible search, Ask Agent, Make Something, My Apps, optional setup-attention/Undo, then Activity…, Settings… and Quit. |
+| Focus/dismissal | By design | No global outside-click dismissal and no close merely on resign-key. Returning to the previous app keeps the panel open; switching to a third app, changing Space, lock/sleep, action, Settings/Quit or a crash alert closes it. |
+| Search | Implemented | Searches runnable entries across the visible menu tree, including actions hidden from home. Submenus have breadcrumb back navigation; empty categories remain discoverable by browsing My Apps. |
+| Keyboard | Implemented | Recordable ⌃⌥Space and panel-agent shortcut (default ⌥Return), arrows, Return, Esc, Delete/Back, ⌘, and ⌘Q. In submenu search, Esc goes back; at root it closes. Non-click opens guard Return for 300 ms. |
+| Context menu | Implemented | Right-click/Control-click offers Settings… and Quit. Footer retains both. |
+| Status label | Implemented | Icon only by default. Optional elapsed `mm:ss` is off until enabled in General. Status-item accessibility text includes running state even with the visible clock off. |
+| Refresh ownership | Implemented | One shared Activity refresh owner; off-main source collection, generation-checked publication, filesystem invalidation and slow reconciliation. No panel-specific one-second disk reload. One-second label ticks run only for an enabled visible session clock. |
+| Materials/accent | Implemented | Liquid Glass on supported macOS 26+ paths, earlier material fallback; active-theme tint through `ThemeAccent.swift`. Health has text/accessibility labels as well as color. |
+| Timing/memory | Unverified | Signposts exist, but ordered-front and pre-display AppKit update timings are not composited-frame timing or retained-heap proof. Comparative profiling gates remain open. |
+| Hide/remove icon | Open | Summon itself has no Show in Menu Bar preference or removable-status-item behavior. Do not confuse this with the generated `menubar-panel` starter, which has a hide toggle. |
+| File drop/action palettes | Open (low) | No file-drop target, ⌘K secondary-action palette or ⌘1–9 result launch in Summon's panel. The separate `launcher` starter implements those features. |
 
-## 2. Activity window
+### Superseded designs
 
-| Dimension | Status | Notes |
+The 2026-10-25 Now/Recent home was implemented and then rejected. The intermediate hidden-until-typing
+search field was superseded by always-visible search. An older active-theme header pill is also gone.
+Do not use screenshots or dated changelog entries for those layouts as the current panel spec. History stays
+in Activity, preferences in Settings, and update progress in Updates.
+
+## 2. Activity
+
+| Dimension | Status | Current contract |
 |---|---|---|
-| Anatomy | OK | Standard window, toolbar search and filter, all three traffic lights. |
-| Layout | By design | One log list with no sidebar or inspector. The table's split view is for apps with collections to browse; Activity is a single log. |
-| Size | By design | Minimum 640 × 420, default 980 × 640. The table's 800 × 550 is a convention for a sidebar plus a canvas, and Activity has no sidebar. |
-| Focus, Dock | OK | Becomes `.regular` (Dock and ⌘Tab) while open and goes back to `.accessory` on close. |
-| Context menu | OK | Ask, Copy, Diagnose, Show in Finder, Undo on every line, plus ⌘C. |
-| Alerts | OK | Undo uses `confirmationDialog` (a sheet on the window). The empty state is a `ContentUnavailableView`. |
-| Quick Look | Open (low) | Space doesn't preview a crash report. "Show in Finder" covers it for now. |
+| Window | Implemented | Standard foreground window, minimum 640 × 420, default 980 × 640, toolbar search/filter. Summon becomes a regular app while Activity is open. |
+| Layout | By design | A single log rather than sidebar/canvas/inspector; that surface-table convention is for collection-based apps. |
+| Actions | Implemented | Selected-line agent question, copy, diagnose, Finder reveal and undo where applicable. Undo uses a confirmation dialog. Empty states use native unavailable-content UI. |
+| Terminal state | Implemented | Shared `TaskResults` projection distinguishes success, failure, cancellation, timeout and interruption. Result persistence/retention/notification errors do not become contradictory execution outcomes. |
+| Live lifecycle | Implemented | Panel/window interests share source refresh and invalidation; stale completions cannot overwrite a newer generation. Closing the last interested surface cancels workers and removes watches. |
+| Quick Look | Open (low) | No Space-to-preview diagnostic report; Finder reveal is available. |
 
-## 3. Settings window
+## 3. Settings and My Apps
 
-| Dimension | Status | Notes |
+| Dimension | Status | Current contract |
 |---|---|---|
-| Anatomy | Fixed | HIG: dim minimize and zoom. They were enabled and Settings could go full screen. Now only close works (`closeOnlyWindow()`). |
-| Size | Fixed | Was at least 860 × 560 and freely resizable. Now 780–820 wide (owner's 760–820) and at least 520 tall. |
-| Focus | OK | Every opener calls `openSettings()` and then `NSApp.activate()` (`ActivityOpener`). |
-| Materials | OK | Grouped forms. There's no app-only Light/Dark picker; Summon's theme changes the whole Mac through macctl, with undo. |
-| Controls | OK | Instant apply. Shortcut recorders have Reset. |
-| Keyboard | OK | ⌘, plus sidebar search. |
-| Permissions | OK | Accessibility shows its status, has an Allow… deep link, and re-checks every 2 s while off. Automation is asked for the first time a browser or Finder script runs, which is what HIG Privacy wants. |
-| Notifications prompt | By design | It's asked at launch. HIG asks to wait unless the app needs it, and Summon does: task results (on by default) need banners. |
-| Export/import | Open (low) | None. |
-| Dock policy toggle | Open (low) | No "menu bar / Dock / both" choice. Activity already puts Summon in the Dock while it's open. |
+| Window | Implemented | One sidebar window, 780–820 pt wide, minimum 520 pt tall, close-only chrome: minimize/zoom dimmed and no full screen. |
+| Pages | Implemented | General, Agents, My Apps, Terminal, Notifications, Appearance, Setup and Tasks. Every app preference stays here rather than in the panel. |
+| Controls | Implemented | Instant apply for preferences and shortcut reset controls. Appearance explicitly separates preview from Apply Theme. |
+| Permissions | Implemented | Accessibility status, Allow/System Settings deep link and refresh while unavailable. Browser/Finder Automation may prompt when that action first runs. Permission checks are not proof that the OS grant is effective for every candidate binary. |
+| Notifications prompt | By design | Authorization is requested at startup after the event-watch baseline, not from an early bare SwiftPM launch. Task-result notifications are a primary app function. |
+| Agents | Implemented | Ten launch targets, eight MCP connect targets and five headless task targets are distinct registries/capabilities; see the [README matrix](../README.md#agents-and-connections). Not every harness has login/model/plugin probe support. |
+| Execution | Implemented | New installs use Agent controls; existing configured choices persist. Unattended bypasses supported harness controls. Neither mode creates a Summon sandbox. |
+| My Apps taxonomy | Implemented | Panel Apps, Themes, Art & Wallpapers, Window Apps, Command-Line Tools, Screensavers; shared order and empty categories in panel/Settings. Built-in and custom themes stay visible. |
+| Health | Implemented | Shared deduplicated item repair totals and separate recommendation totals. Actual missing files/builds/referenced images can be repairs; optional art, colors-only themes, contrast review and hue advice are not automatic repairs. Numerical contrast findings remain visible. |
+| Fix with AI | Implemented | My Apps and `summon fix --apps` target counted inventory defects. General Mac diagnosis remains separate. Theme/art name collisions do not dispatch a project. |
+| Accent synchronization | Implemented | Theme switches update control tint and active checkmarks from one observed selection; previous-theme revert is shared. macctl posts accent-refresh notifications after apply/undo/recovery. Finder Automatic folder colors follow system accent; explicit folder colors remain unchanged. Other apps may still need reopening. |
+| Import/export, Dock mode | Open (low) | No app-preference export/import or menu-bar/Dock/both mode picker. Project import is a different feature. |
 
-## 4. Launcher
+## 4. Updates
 
-| Dimension | Status | Notes |
+Updates is no longer a panel submenu that runs installs inline. The panel's Update row and count tag close it
+and open the Updates window. Settings › General retains check/channel/group preferences.
+
+- Summon has What's New and Install and Relaunch; its installer uses the verified staged/rollback path.
+- Agents, Homebrew, bun/npm and macOS have their own sections. Command updates show queued/running/done/failed
+  state; Update All operates on installable command rows, not an unattended macOS upgrade or silent Summon install.
+- Failures expose output and Fix with AI. Password-needed failures offer Open in Terminal; other failures offer
+  Retry. macOS opens Software Update. Non-Summon rows offer What's New when known and Skip This Version.
+- Automatic checks are on by default, due at launch and 24 hours after the last check, and skipped automatically
+  in Low Power Mode. Agent auto-update is a separate preference. Stable follows numbered tags; Edge follows the
+  published rolling artifact, which can lag the branch.
+
+## 5. Crash alert and notifications
+
+| Dimension | Status | Current contract |
 |---|---|---|
-| Separate launcher | By design | The launcher was merged into the menu bar panel (PR #61, 2026-10-21): one place to type, under the icon. So its width is the panel's 320 pt, not the table's 600–750. |
-| Hotkey | OK | ⌃⌥Space, not ⌘Space (reserved for Spotlight), and recordable. Uses Carbon `RegisterEventHotKey`, so there's no permission prompt. |
-| Over full-screen apps | OK (Mac check 9) | `.statusBar` level, `[.canJoinAllSpaces, .fullScreenAuxiliary]`. |
-| Pre-warmed | OK | The panel is made at launch and shown with `makeKeyAndOrderFront`. B1 signposts measure the open (200 ms budget). |
-| ⌘K actions, ⌘1–9 | Open (low) | Rows have one action each. |
+| Presentation | Implemented | Settings chooses macOS notification (default) or Summon alert; do not describe both as firing for each report. Routine user-fault/memory reports remain history without actionable alerts. |
+| Focus | Implemented; native scenarios incomplete | Alert orders front without taking key so background crashes do not steal Return. Clicking it allows keyboard actions. It first closes the menu panel. |
+| Geometry/visibility | Implemented | 440 pt alert, `.statusBar` level, all Spaces/full-screen auxiliary, `.transient`/`.ignoresCycle`, excluded from Window menu. It is an actionable alert, not an ambient 120–320 pt HUD. |
+| Motion | Implemented; accessibility acceptance open | Fade in/out and untouched-alert auto-dismiss exist. Source animation duration alone is not Reduce Motion/Transparency acceptance. |
+| Burst | Recorded native evidence | A 13-report equal-timestamp fixture passed the real watcher across five-file batches; the native alert showed newest + “12 more new reports”, dismissed, and post-burst search accepted typed input. This proves that fixture path, not banner grouping/delivery or VoiceOver. |
+| Task delivery | Implemented; full native delivery open | App posts recorded task outcomes with Show Log/Ask Agent actions; CLI fallback is bounded and runs after lease release. Cancelled runs skip notification. Submission failure does not alter execution success. |
 
-## 5. Crash alert (HUD)
+## 6. Welcome
 
-| Dimension | Status | Notes |
-|---|---|---|
-| Focus | OK (Mac check 5) | Nonactivating, `hidesOnDeactivate = false`, takes key only when clicked. |
-| Mission Control, ⌘` | Fixed | It now has `.transient` and `.ignoresCycle` and is left out of the Window menu, like the panel. |
-| Size | By design | 440 pt. It's an alert with a title, a frame and two actions, not an ambient HUD, so the HUD's 120–320 pt doesn't apply. |
-| Motion | OK | 0.15 s fade-out, which is still fine with Reduce Motion on. |
+The old three-step 640 × 440 flow is superseded. Current `OnboardingFlow` has **four** steps at **720 × 480**:
 
-## 6. Onboarding
+1. Welcome explains screen questions, crash diagnosis and making small Mac apps.
+2. Agent selection shows installed agents and available login information; it can recheck missing/login state.
+3. Accessibility explains the context it enables, with live status and System Settings action. It is optional.
+4. Ready points to the status item, offers Try It Now, tracks whether the panel opened and warns if the icon is
+   not visible in the menu bar.
 
-**Fixed** (owner chose the three-step wizard, 2026-10-26). `OnboardingView.swift`, steps in `SummonCore/Onboarding.swift`:
+The window is close-only and temporarily brings Summon into the Dock. Closing skips it. A completed flow or
+Visual QA skips automatic presentation; an existing default agent plus Accessibility marks an older setup
+complete without reopening the flow. Settings › General › Show Welcome Again and `summon://welcome` reopen it.
+VoiceOver, Reduce Motion and multi-display/menu-bar-overflow scenarios still need their own acceptance.
 
-1. **Agent:** what Summon does, then a radio list of installed agents. With none installed, it shows the install
-   command and a Check Again button.
-2. **Accessibility:** why Summon asks (the selected text and window title for Ask Agent), a live status (words and a
-   symbol, not color alone), and Open System Settings. It's optional, so Continue always moves on.
-3. **Ready:** a bouncing arrow toward the menu bar (still with Reduce Motion), and the ⌃⌥Space hotkey. Done opens the panel under the icon.
+## 7. Native About and build identity
 
-The window is 640 × 440, centered and close only. Closing it counts as skipping. Summon shows in the Dock while the
-window is open, so it isn't lost behind System Settings. It opens once, on a first launch that still needs setup.
-Updates where an agent is chosen and Accessibility is on never show it, and Visual QA runs skip it. Settings ›
-General › Show Welcome Again and `summon://welcome` bring it back. Mac check 11.
+About is **implemented**, not a future settings screen. Settings › General › About Summon and the standard
+About command use AppKit's singleton panel. It shows app identity, marketing version, numeric build, revision
+and dirty/unknown state, channel, configuration and UTC build time from immutable compiled `BuildInfo`.
+Opening it does not query Git, disk metadata or the network/updater. Packaging stages one identity into compiled
+constants, plist and manifest; unknown development fields are not invented.
 
-## 7. System extensions
+The panel temporarily uses regular activation for native keyboard focus and returns to accessory mode when
+no regular titled window remains. Commit `18c7688` additionally unhides the app and explicitly raises the native
+window on cold launch/reopen. One earlier native cold launch did not expose a visible About window; the source
+correction is not itself completed cold-launch acceptance. Recorded metadata/capture/Command-W evidence has
+narrower scope than full keyboard and VoiceOver coverage.
 
-No widget, notch view or Finder Quick Action. Nothing in Summon needs one today.
+## 8. Projects versus system extensions
+
+Summon ships nine project starters: `menubar`, `menubar-panel`, `launcher`, `hud`, `notch`, `app`, `widget`, `cli`,
+`screensaver`. They are generated projects, not extra Summon app surfaces. Widget is the embedded-extension
+Xcode-project exception; its registry kind is window app. Launcher/HUD/notch register as panel apps. New
+repositories default to approval via `summon project repo`; standing `always` is retained when chosen, and
+created repositories are private. The notch starter's real-hardware geometry remains explicitly unverified.
+
+## Evidence boundaries and remaining acceptance
+
+The [runtime audit](../../../docs/plans/2026-11-08-runtime-audit.md#implementation-evidence-and-unverified-acceptance-2026-11-08)
+preserves the original `3f37adf` findings and later revision-specific implementation/evidence. Earlier
+statements there such as “no About surface” describe the original audit, not the current branch.
+
+Recorded evidence includes hosted macOS 15/26 visual/native About checks, real terminal-event delivery,
+owned-window Command-W, query-value-checked panel cycles, and the native crash-burst result above. Content-only
+renders, a signed bundle, a green diagnostic control job and a successful local install are not substitutes for
+installed-window capture, accessibility navigation or performance acceptance.
+
+The following remain **Unverified / release gates** until their real scenarios finish:
+
+- SwiftUI recorder completion and meaningful instrument content; the hosted independent control reproduced an
+  empty-data/finalization failure without Summon, but that does not waive Summon's profiling gate.
+- Controlled comparative panel/search profiling, actual WindowServer-displayed/composited frame timing and
+  long-run retained-memory/retain-graph analysis. `PanelOpen` and `PanelWindowUpdate` stop before display.
+- Live malloc sampling with complete post-warmup samples and growth bounds; RSS, malloc totals and retained
+  graphs measure different things. Missing samples cannot pass, and growth is not automatically leak attribution.
+- Native macOS banner delivery/actions/grouping, full notification/crash-focus scenarios, VoiceOver navigation,
+  Full Keyboard Access, Reduce Transparency and Reduce Motion behavior across the supported OS/display cases.
+- The current cold About visibility correction under repeated real cold launches and close/reopen conditions.
+
+No crash or memory-leak cause is established merely by these source changes. This documentation refresh
+performs source/history reconciliation only; it does not add a new build, test, profiling or accessibility pass.

@@ -9,7 +9,7 @@ created: 2026-10-25
 # Surface 4: command launcher (`NSPanel`, Spotlight style)
 
 Column 4 of the [surface table](surface-table.md), checked 2026-10-25. Verdicts as in
-[Surface 1](01-menu-bar.md#surface-1-menu-bar-app-menubarextra--popover). The HIG has no page for launchers, so most
+[Surface 1](01-menu-bar.md). The HIG has no page for launchers, so most
 cells are **Convention** (Spotlight, Raycast, Alfred); the API cells are checked against AppKit.
 
 ## One correction
