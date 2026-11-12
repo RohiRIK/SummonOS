@@ -2,8 +2,8 @@
 
 <p align="center">
   <b>Status:</b> incubating in the <a href="../../README.md">SummonOS</a> workspace. The numbered baseline is
-  <b>0.2.4</b> (2026-10-28); the November changes described below are implemented on the current branch,
-  not a new tagged release or a completed runtime/accessibility acceptance result.
+  <b>0.2.5</b> (2026-11-11, release `v0.2.5`, commit `90f7b81` / #124); later branch work may be
+  unreleased, and runtime/accessibility acceptance gates remain open.
 </p>
 
 # Summon

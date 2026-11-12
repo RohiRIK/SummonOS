@@ -250,6 +250,8 @@ def navigation(mapping: dict[str, str]) -> list[dict]:
         ("docs/status.md", "Release & source status"),
         ("docs/install-ai.md", "Installation for agents"),
         ("README.md", "About SummonOS"),
+        ("docs/configuration.md", "Configuration & state"),
+        ("docs/uninstall.md", "Uninstall & data preservation"),
     ])})
     nav.append({"Use SummonOS": chosen([
         ("docs/features.md", "Feature reference"),
@@ -258,6 +260,7 @@ def navigation(mapping: dict[str, str]) -> list[dict]:
         ("plugins.md", "Apps & plugins"),
     ]) + [
         {"Summon": chosen([
+            ("docs/cli-reference.md", "Command reference"),
             ("incubator/summon/README.md", "App & CLI guide"),
             ("incubator/summon/CHANGELOG.md", "Changelog"),
             ("incubator/summon/THIRD_PARTY_NOTICES.md", "Third-party notices"),
