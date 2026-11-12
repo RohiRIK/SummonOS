@@ -162,5 +162,5 @@ Custom themes, projects and settings are preserved, but ad-hoc updates can requi
 
 ## Next
 
-[Feature reference](features.md) · [macctl guide](../macctl/README.md) ·
+[Feature reference](features.md) · [macctl guide](../macctl/README.md) · [Configuration & state](configuration.md) · [Uninstall SummonOS](uninstall.md) ·
 [Troubleshooting](troubleshooting.md) · [Build native apps](workflow.md)
