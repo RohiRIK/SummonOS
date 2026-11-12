@@ -86,15 +86,33 @@ class VercelDeploymentTests(unittest.TestCase):
 
     def test_public_disclaimer_is_prominent_and_explains_risk(self):
         template = (ROOT / "docs/theme/main.html").read_text()
-        self.assertIn('{% block content %}', template)
-        self.assertIn('class="admonition warning summon-preview-notice"', template)
-        self.assertIn("Experimental software", template)
-        self.assertIn("docs/disclaimer/", template)
+        home = (ROOT / "docs/home.md").read_text()
+        getting_started = (ROOT / "docs/getting-started.md").read_text()
+        config = (ROOT / "mkdocs.yml").read_text()
         disclaimer = (ROOT / "docs/disclaimer.md").read_text()
         for phrase in ("not production-qualified", "at your own risk", "not guaranteed to be secure",
                        "actively working", "MIT License", "applicable law"):
             self.assertIn(phrase, disclaimer)
-        self.assertIn("disclaimer.md", (ROOT / "docs/getting-started.md").read_text())
+        # No oversized sitewide warning banner repeated on every reference page.
+        self.assertNotIn("summon-preview-notice", template)
+        # Homepage: compact preview-status notice inline with the release row,
+        # linking to the full disclaimer.
+        self.assertIn("home-release", home)
+        self.assertIn("Experimental software", home)
+        self.assertIn('href="disclaimer.md"', home)
+        # Install-intent page: concise risk notice ahead of the install command,
+        # linking to the full disclaimer.
+        install_heading = getting_started.index("## Install the preview")
+        notice_position = getting_started.index("Experimental software — your responsibility")
+        self.assertLess(notice_position, install_heading)
+        self.assertIn("disclaimer.md", getting_started)
+        # Footer: exact catchphrase preserved, compact disclosure to the disclaimer.
+        self.assertIn("Powered by caffeine and questionable life choices.", config)
+        self.assertIn("docs/disclaimer/", config)
+        self.assertIn('class="summon-install-risk"', getting_started)
+        css = (ROOT / "docs/assets/wiki.css").read_text()
+        self.assertIn(".summon-install-risk .admonition.warning", css)
+        self.assertIn(".summon-preview-chip {\n  display: inline-flex;\n  flex-wrap: wrap;", css)
 
     def test_sitewide_catchphrase_and_analytics_are_configured_once(self):
         config = (ROOT / "mkdocs.yml").read_text()

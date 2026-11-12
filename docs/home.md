@@ -34,7 +34,7 @@ hide: [toc]
 
 <div class="home-release">
 <span class="home-release-label"><span aria-hidden="true"></span> BUILT IN THE OPEN</span>
-<p><strong>0.2.5 preview.</strong> <a href="status.md">See what shipped <span aria-hidden="true">→</span></a></p>
+<p><strong>0.2.5 preview.</strong> <a href="status.md">See what shipped <span aria-hidden="true">→</span></a><span class="summon-preview-chip"><span class="chip-dot" aria-hidden="true"></span>Experimental software — <a href="disclaimer.md">Risk &amp; responsibility</a></span></p>
 </div>
 
 <section class="home-paths" aria-labelledby="paths-title">
