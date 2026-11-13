@@ -7,6 +7,9 @@ tags: [documentation, history]
 
 # Docs update log
 
+## 2026-11-13
+* **Release 0.2.6 (version bump)**: The combined preparation branch (security, manual, site) merges in one PR and `VERSION` becomes 0.2.6. Commit hashes on `main` changed after the history rewrite that removed a work email; doc links were updated in #127.
+
 ## 2026-11-12
 * **Design correction**: Replaced the repeated full-width warning with a compact experimental-status disclosure beside the homepage release row, a refined footer link and a scoped purple notice before installation. Nina selected the placement and visual hierarchy; full risk text and the caffeine catchphrase are unchanged.
 * **Website publication**: Added a site-wide experimental-software warning and [risk/responsibility disclaimer](disclaimer.md), linked before installation and in navigation/footer. Retained the caffeine catchphrase. Website publication is separate from app release and real-Mac acceptance.

@@ -32,7 +32,7 @@ what that setting's recovery contract allows (see [Safety](#safety)).
 - **JSON for agents.** `--json`, or a pipe, gives one JSON envelope for command results and execution
   errors. Argument-parser errors, help/version output and test-mode setup diagnostics are separate.
 
-Requires macOS 15 or later and Swift 6 to build. The current source reports `macctl 0.2.5`, matching
+Requires macOS 15 or later and Swift 6 to build. The current source reports `macctl 0.2.6`, matching
 the workspace [`VERSION`](../VERSION). This base version alone does not identify a build, channel,
 source revision or published release; Summon's packaged build identity is a separate contract.
 

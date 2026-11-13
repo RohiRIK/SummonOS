@@ -7,7 +7,7 @@ agent, supply Mac context, route crash reports, schedule work, manage projects a
 It is an original design informed by research, not an Omarchy port or a general-purpose agent sandbox.
 
 This documentation reconciliation began at `18c7688` (2026-11-11) and now includes `main` through PR #126.
-The shared base version is `0.2.5`; tag `v0.2.5` exists. Numbered releases are previews/prereleases.
+The shared base version is `0.2.6` (bumped 2026-11-13); tag `v0.2.5` is the newest pushed tag, `v0.2.6` is not tagged yet. Numbered releases are previews/prereleases.
 Stable/Edge are distribution channels; the published Edge artifact can lag this branch. Never infer full
 acceptance from a base version, successful installation, green diagnostic job or source implementation.
 

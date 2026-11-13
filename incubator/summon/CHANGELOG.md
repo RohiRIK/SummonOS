@@ -22,7 +22,20 @@ See [GitHub Releases](https://github.com/RohiRIK/SummonOS/releases) for the actu
 | `v0.2.4` | 2026-10-28 | #120–#121, through `d1d8cf7` |
 | `v0.2.5` | 2026-11-11 | #124, `018757b` |
 
-## 2026-11-11 (unreleased)
+## 0.2.6 (2026-11-13, version bumped; tag `v0.2.6` not yet pushed)
+
+### Security
+- The downloaded installer and the CLI/app updater authenticate release provenance (GitHub build attestation)
+  before unpacking, in addition to `SHA256SUMS`. A working GitHub CLI (`gh`) is now needed on that path.
+- MCP tool safety hints now mark the checkpoint and settings tools that change the Mac as mutating; hints do not
+  enforce consent.
+
+### Documentation
+- User manual completed against source: command reference, configuration, uninstall, Mac acceptance, release
+  preparation, product direction and an experimental-risk disclaimer on the site.
+- Website back-to-top button no longer overlaps the header; `project new` help lists all nine starter kinds.
+
+## 2026-11-11 (in 0.2.6)
 
 ### Fixed
 - Ask Agent no longer fails silently. When the agent's terminal cannot open, Summon posts a notification and

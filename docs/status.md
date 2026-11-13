@@ -9,7 +9,7 @@ tags: [status, releases, verification, roadmap]
 
 Published-feature baseline reviewed on **2026-11-11**, against source through **[`18c7688`](https://github.com/RohiRIK/SummonOS/commit/18c7688)**.
 Candidate integration and preparation reviewed on **2026-11-12**; see the separate unreleased section below.
-`VERSION` is **0.2.5**. A marketing version identifies a release family; it does not prove which commit an
+`VERSION` is **0.2.6** (not tagged yet; v0.2.5 is the newest release). A marketing version identifies a release family; it does not prove which commit an
 installed build contains.
 
 ## Published preview

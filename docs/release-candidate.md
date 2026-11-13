@@ -14,9 +14,9 @@ This branch is not merged or deployed. Merging, website deployment and app publi
 
 ## Version and proposed release notes
 
-`VERSION` remains **0.2.5**. The latest numbered public release checked on 2026-11-12 is **v0.2.5**,
-published 2026-11-11 as a prerelease. **0.2.6 is a proposed next patch version**, not an allocated tag,
-version bump, existing binary or release promise. A base version alone cannot identify this candidate.
+`VERSION` is **0.2.6** (bumped 2026-11-13 in the combined merge). The latest numbered public release checked on 2026-11-12 is **v0.2.5**,
+published 2026-11-11 as a prerelease. **0.2.6** is the next patch version; its tag is not
+pushed yet, and no binary exists for it. A base version alone cannot identify this candidate.
 
 Proposed next-preview notes, subject to exact-source verification:
 

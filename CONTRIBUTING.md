@@ -26,7 +26,7 @@ git clone https://github.com/RohiRIK/SummonOS && cd SummonOS
 ```
 
 Run without install options, a checkout builds **that checkout**, not the newest release or another branch.
-The base `VERSION` is currently **0.2.5**.
+The base `VERSION` is currently **0.2.6**.
 For download channels and their exact selection/fallback behavior, see [installation](docs/install-ai.md) and
 [release/branch status](docs/status.md). Do not use a normal install merely to audit a candidate:
 `SUMMONOS_APP_SOURCE=/absolute/path/Summon.app incubator/summon/scripts/install.sh --verify-only`
