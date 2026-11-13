@@ -14,7 +14,7 @@ revision, not the current implementation. For the shipped recovery contract, com
 the [macctl guide](../../macctl/README.md) and [security/recovery model](../security-model.md).
 
 Status: proposed (2026-10-20) · Owner: cto-max-grok · Implementer: coder-joe-grok (ships only after Rohi's direct go)
-Repo: RohiRIK/SummonOS @ `0e2bfdf`, paths relative to `macctl/` unless noted.
+Repo: RohiRIK/SummonOS @ `69139c4`, paths relative to `macctl/` unless noted.
 
 ## Context
 
@@ -273,7 +273,7 @@ The journal makes recovery correct; D4 makes its limits visible before a write a
   file creates crash windows the journal already covers.
 
 ## Blast radius (from Cider)
-Source: Cider's blast-radius map (shared-box document, not in the repo) (macos-cider-grok, at `0e2bfdf`). It has the full 19-row
+Source: Cider's blast-radius map (shared-box document, not in the repo) (macos-cider-grok, at `69139c4`). It has the full 19-row
 table (L118-143); the summary per group follows. All rows are `risk: .user`, and every `.defaults` row is anyHost today.
 
 | Group (Catalog lines) | Domain · keys · types | `after` | Managed likelihood | Unknown outcome affects |

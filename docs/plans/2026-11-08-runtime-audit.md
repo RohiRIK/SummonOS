@@ -337,14 +337,14 @@ Documentation integration verified: `python3 tools/okf-index.py` regenerated the
 
 ## Implementation evidence and unverified acceptance (2026-11-08)
 
-The audit above is a historical record of `3f37adf`; its source-level findings are not rewritten as if the fixes
+The audit above is a historical record of `d1d8cf7`; its source-level findings are not rewritten as if the fixes
 had existed then. Approved implementation is on `feat/runtime-hardening-2026-11-08`, **not released or installed**.
 Independent static reviews found lifecycle, refresh and automation defects, repaired before local validation.
 
 On one Mac16,7 (Apple M4 Pro, 48 GiB), macOS 27.2 (26B123), Swift 6.4/Xcode 27.1.0, Core sources were compiled
 with `swiftc -O -swift-version 6 -parse-as-library`. Identical JSON fixture bytes, one warm-up, 30 measured complete
 reads and nearest-rank p95 permit a direct comparison with
-`/tmp/summonos-baseline-results-20261108-3f37adf-lifecycle/`:
+`/tmp/summonos-baseline-results-20261108-d1d8cf7-lifecycle/`:
 
 | Complete read and fixture | Baseline median / p95 ms | Current median / p95 ms | Delta median / p95 |
 |---|---:|---:|---:|
