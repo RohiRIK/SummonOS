@@ -32,7 +32,7 @@ status or qualify an unfinished development branch.
 
 ## Shipped in v0.2.5
 
-The November work below shipped in v0.2.5 (#124, squash commit `90f7b81`); the commit links point at the
+The November work below shipped in v0.2.5 (#124, squash commit `018757b`); the commit links point at the
 original branch commits.
 
 | Area | Implemented change | Evidence/provenance |

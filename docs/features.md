@@ -8,7 +8,7 @@ tags: [features, summon, macctl]
 # Features
 
 Current-checkout feature reference, audited on 2026-11-11. The shared base version in `VERSION` is **0.2.5**;
-the tagged 0.2.5 release is commit `90f7b81` (#124: runtime hardening, native About, My Apps inventory and accent
+the tagged 0.2.5 release is commit `018757b` (#124: runtime hardening, native About, My Apps inventory and accent
 changes).
 See the [changelog](../incubator/summon/CHANGELOG.md) and
 [runtime audit's historical evidence and remaining acceptance](plans/2026-11-08-runtime-audit.md#implementation-evidence-and-unverified-acceptance-2026-11-08).
