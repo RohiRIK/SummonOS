@@ -99,7 +99,8 @@ struct UpdaterTests {
     }
 
     /// A fake GitHub: curl writes the asset files, ditto unpacks a package, env records the installer hand-off.
-    func fakeGitHub(_ log: CallLog, zip: Data, sums: @escaping @Sendable (Data) -> String, layout: Bool = true) -> Runner {
+    func fakeGitHub(_ log: CallLog, zip: Data, sums: @escaping @Sendable (Data) -> String,
+                    layout: Bool = true, provenance: Bool = true) -> Runner {
         { path, arguments in
             await log.add([path] + arguments)
             switch (path as NSString).lastPathComponent {
@@ -110,6 +111,9 @@ struct UpdaterTests {
                     return ""
                 }
                 return UpdaterTests.releasesJSON
+            case "gh":
+                guard provenance else { throw RunnerError.failed(path: path, status: 1, output: "untrusted artifact") }
+                return "Verified"
             case "ditto":
                 guard layout else { return "" }
                 let package = URL(fileURLWithPath: arguments[3]).appendingPathComponent("summonos-0.2.0")
@@ -128,14 +132,19 @@ struct UpdaterTests {
         let log = CallLog()
         let zip = Data("a release".utf8)
         let runner = fakeGitHub(log, zip: zip, sums: Self.honestSums)
-        let updater = Updater(runner: runner, current: "0.1.0")
+        let updater = Updater(runner: runner, current: "0.1.0", gh: "/opt/homebrew/bin/gh")
         let check = try await updater.check(.stable)
         #expect(check.available)
         #expect(try await updater.install(check.release, work: work) == "Installed.")
         let calls = await log.calls
-        #expect(calls.map { ($0[0] as NSString).lastPathComponent } == ["curl", "curl", "curl", "ditto", "env"])
+        #expect(calls.map { ($0[0] as NSString).lastPathComponent } == ["curl", "curl", "curl", "gh", "ditto", "env"])
+        #expect(calls[3] == ["/opt/homebrew/bin/gh", "attestation", "verify",
+                             work.appendingPathComponent(check.release.zipName).path,
+                             "--repo", "RohiRIK/SummonOS", "--signer-workflow",
+                             "RohiRIK/SummonOS/.github/workflows/release.yml", "--deny-self-hosted-runners",
+                             "--source-ref", "refs/tags/v0.2.0"])
         let package = work.appendingPathComponent("unpacked/summonos-0.2.0").path
-        #expect(calls[4] == ["/usr/bin/env", "SUMMONOS_APP_SOURCE=\(package)/Summon.app",
+        #expect(calls[5] == ["/usr/bin/env", "SUMMONOS_APP_SOURCE=\(package)/Summon.app",
                              "SUMMONOS_MACCTL_SOURCE=\(package)/bin/macctl", "/bin/bash", "\(package)/scripts/install.sh"])
     }
 
@@ -165,8 +174,40 @@ struct UpdaterTests {
         let log = CallLog()
         let runner = fakeGitHub(log, zip: Data("ok".utf8), sums: Self.honestSums, layout: false)
         await #expect(throws: UpdateError.self) {
-            try await Updater(runner: runner, current: "0.1.0").install(UpdateRelease(tag: "v0.2.0", version: "0.2.0"), work: try makeTempHome())
+            try await Updater(runner: runner, current: "0.1.0", gh: "/opt/homebrew/bin/gh").install(UpdateRelease(tag: "v0.2.0", version: "0.2.0"), work: try makeTempHome())
         }
-        #expect(await log.calls.map { ($0[0] as NSString).lastPathComponent } == ["curl", "curl", "ditto"])
+        #expect(await log.calls.map { ($0[0] as NSString).lastPathComponent } == ["curl", "curl", "gh", "ditto"])
+    }
+
+    @Test func matchingChecksumWithoutValidProvenanceNeverUnpacksOrExecutes() async throws {
+        let log = CallLog()
+        let runner = fakeGitHub(log, zip: Data("attacker-controlled archive".utf8),
+                                sums: Self.honestSums, provenance: false)
+        await #expect(throws: UpdateError.self) {
+            try await Updater(runner: runner, gh: "/opt/homebrew/bin/gh")
+                .install(UpdateRelease(tag: "v0.2.0", version: "0.2.0"), work: try makeTempHome())
+        }
+        #expect(await log.calls.map { ($0[0] as NSString).lastPathComponent } == ["curl", "curl", "gh"])
+    }
+
+    @Test func missingVerifierNeverUnpacksOrExecutes() async throws {
+        let log = CallLog()
+        let runner = fakeGitHub(log, zip: Data("archive".utf8), sums: Self.honestSums)
+        await #expect(throws: UpdateError.self) {
+            try await Updater(runner: runner)
+                .install(UpdateRelease(tag: "v0.2.0", version: "0.2.0"), work: try makeTempHome())
+        }
+        #expect(await log.calls.map { ($0[0] as NSString).lastPathComponent } == ["curl", "curl"])
+    }
+
+    @Test func edgeProvenancePinsTheMainRefNotAMovingCommitOrEdgeTag() async throws {
+        let log = CallLog()
+        // A failed verifier isolates the policy check from the staged archive layout.
+        let runner = fakeGitHub(log, zip: Data("edge".utf8), sums: Self.honestSums, provenance: false)
+        await #expect(throws: UpdateError.self) {
+            try await Updater(runner: runner, gh: "/opt/homebrew/bin/gh")
+                .install(UpdateRelease(tag: "edge", version: "0.2.0"), work: try makeTempHome())
+        }
+        #expect(await log.calls.last?.suffix(2) == ["--source-ref", "refs/heads/main"])
     }
 }

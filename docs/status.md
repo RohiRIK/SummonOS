@@ -7,8 +7,9 @@ tags: [status, releases, verification, roadmap]
 
 # Status and verification
 
-Documentation reviewed on **2026-11-11**, against source through **[`18c7688`](https://github.com/RohiRIK/SummonOS/commit/18c7688)**.
-`VERSION` is **0.2.5**. A marketing version identifies a release family; it does not prove which commit an
+Published-feature baseline reviewed on **2026-11-11**, against source through **[`18c7688`](https://github.com/RohiRIK/SummonOS/commit/18c7688)**.
+Candidate integration and preparation reviewed on **2026-11-12**; see the separate unreleased section below.
+`VERSION` is **0.2.6** (not tagged yet; v0.2.5 is the newest release). A marketing version identifies a release family; it does not prove which commit an
 installed build contains.
 
 ## Published preview
@@ -46,6 +47,17 @@ original branch commits.
 
 Acceptance gates still open after v0.2.5: displayed-frame hitches, live-heap growth, VoiceOver and Reduce
 Transparency. See the [runtime audit](plans/2026-11-08-runtime-audit.md).
+
+## Unreleased integration candidate
+
+The preparation branch combines release-provenance verification, corrected MCP safety hints, the extended
+manual, website back-to-top positioning and complete starter help. These are source changes, not features
+retroactively present in v0.2.5. Downloaded installation/update in this candidate requires recent `gh`;
+missing or invalid attestation stops before unpacking. See [distribution trust](security-model.md#distribution).
+
+The [release runbook](release-candidate.md), [real-Mac checklist](mac-acceptance.md) and proposed
+[product direction](product-direction.md) distinguish local checks, combined macOS acceptance, website
+publication and app release. No new binary, merge or deployment is claimed by these pages.
 
 ## Verification is narrower than feature availability
 

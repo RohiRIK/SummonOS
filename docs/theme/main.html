@@ -7,6 +7,10 @@
   {{ super() }}
 {% endblock %}
 
+{% block content %}
+  {{ super() }}
+{% endblock %}
+
 {% block scripts %}
   {{ super() }}
   {% if config.extra.vercel_analytics %}

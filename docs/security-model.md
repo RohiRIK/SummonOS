@@ -112,6 +112,12 @@ they do not prevent an agent with account access from reading those sources inde
 grants configured MCP clients access to 11 tools and `mac://context`; its `confirm: true` field is an assertion
 by the client that the user agreed, not a separate native approval dialog or a sandbox boundary.
 
+MCP annotations describe effects, not permissions. Read tools advertise `readOnlyHint: true` and
+`destructiveHint: false`; `settings_set`, `settings_undo` and `checkpoint_create` advertise the opposite.
+Settings can overwrite state even when journaled, and checkpoint creation can prune retained records.
+`openWorldHint: false` describes these tools' local, closed-account scope; a mutation does not itself imply
+interaction with external entities. These hints do not replace client approval or existing validation.
+
 `summon debug` collects local hardware/software information and filtered error logs. It redacts known
 hardware identifiers, credential labels, hardware addresses, and the home-directory prefix. Redaction
 is best effort: arbitrary log content can contain other personal data. Review the private saved bundle
@@ -123,8 +129,25 @@ sensitive; Summon's cleanup moves eligible old logs to Trash, which is not secur
 Source installs build the selected checkout. The default downloaded installer selects the first non-edge
 release returned by GitHub, including prereleases; the CLI updater instead chooses the highest semantic-version
 tag from its returned list. Neither promises production stability. Edge is opt-in and can lag source.
-Both paths verify downloaded zips against the release's `SHA256SUMS`; this checks integrity against the same
-publisher, not independent publisher identity or automatic build-attestation verification.
+In this checkout, both the remote installer and CLI/app updater check the downloaded zip against
+`SHA256SUMS`, then require cryptographically verified GitHub build provenance **before unpacking or executing
+anything from the archive**. The trusted local GitHub CLI (`gh attestation verify`) must validate the exact
+archive digest, repository `RohiRIK/SummonOS`, signer workflow `.github/workflows/release.yml`, and GitHub-hosted
+runners. Numbered releases must bind to the requested `refs/tags/vX.Y.Z`; edge must bind to `refs/heads/main`.
+The edge source ref does not pin to the current main commit: an older legitimate green build can still verify.
+
+This makes a swapped archive plus a matching swapped checksum insufficient without the accepted signing
+workflow's provenance. Missing/invalid attestations, a missing/unsupported `gh`, authentication problems and
+verification network failures stop installation; there is no unverified-release fallback. Install a recent
+`gh` through your package manager (for example, `brew install gh`), use `gh auth login` if required and retry.
+Read-only update checks do not require `gh` when anonymous GitHub API access works.
+
+The bootstrap installer itself is still trusted through the selected checkout or GitHub HTTPS download;
+provenance does not protect against a compromised authorized build workflow, malicious source, rollback to
+an older otherwise valid build or arbitrary actions after installation. Source builds remain a separate trust
+choice and do not verify release attestations; automatic source fallback when no release is selectable remains
+unchanged. Published older installers/updaters, including v0.2.5, do not gain these checks retroactively.
+These checks do not establish Apple Developer ID identity or notarization.
 
 Current build tooling generates compiled identity, `BuildInfo.json` and the bundle plist in an isolated source
 stage, without rewriting tracked development version files. Stable/edge metadata requires a clean identified

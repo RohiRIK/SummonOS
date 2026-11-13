@@ -49,8 +49,13 @@ Preview releases are ad-hoc signed and not notarized. Browser-downloaded archive
 use **System Settings › Privacy & Security › Open Anyway** if you trust the release source. This is different
 from Accessibility approval. Do not disable Gatekeeper globally.
 
-The remote installer verifies `SHA256SUMS`. A checksum or signature failure is a reason to stop, not bypass
-verification. Check the [release source](https://github.com/RohiRIK/SummonOS/releases) and retry a trusted download.
+The candidate remote installer and updater verify both `SHA256SUMS` and signed GitHub build provenance
+before unpacking. A checksum, provenance or signature failure is a reason to stop, not bypass verification.
+Check `gh --version`, `gh attestation verify --help`, `gh auth status` and network access; use a recent
+GitHub CLI and authenticate if required. Missing attestations on an older release also fail closed.
+Check the [release source](https://github.com/RohiRIK/SummonOS/releases) and retry only after resolving the
+reported cause. Do not fall back to source merely to bypass failed release verification.
+See [distribution trust](security-model.md#distribution) for the candidate versus older-release distinction.
 
 ## Selected text or window titles do not reach the agent
 

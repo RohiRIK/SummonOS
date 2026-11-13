@@ -31,6 +31,16 @@ class DocumentationLinkTests(unittest.TestCase):
             return site.rewrite_url(url, "docs/from.md", self.mapping, self.stage, "main", raw_html)
         return site.rewrite_markdown(text, convert)
 
+    def test_preparation_pages_have_task_based_navigation(self):
+        sources = ("docs/home.md", "docs/mac-acceptance.md", "docs/release-candidate.md", "docs/product-direction.md")
+        for source in sources:
+            (self.root / source).write_text("# Preparation page\n")
+        nav = site.navigation({source: site.destination(source) for source in sources})
+        groups = {label: pages for entry in nav for label, pages in entry.items()}
+        self.assertIn({"Mac acceptance checklist": "docs/mac-acceptance.md"}, groups["Get started"])
+        self.assertIn({"Release preparation": "docs/release-candidate.md"}, groups["Build apps"])
+        self.assertIn({"Product direction & roadmap": "docs/product-direction.md"}, groups["Knowledge base"])
+
     def test_escaped_backtick_does_not_swallow_following_links(self):
         text = "Shortcut \\` then [`Target`](target.md) and [source](../source.swift).\n"
         self.assertEqual(self.rewrite(text),
@@ -73,6 +83,36 @@ class VercelDeploymentTests(unittest.TestCase):
             config["extra"]["vercel_analytics"] = False
             with self.assertRaisesRegex(ValueError, "missing local target"):
                 site.on_post_build(config)
+
+    def test_public_disclaimer_is_prominent_and_explains_risk(self):
+        template = (ROOT / "docs/theme/main.html").read_text()
+        home = (ROOT / "docs/home.md").read_text()
+        getting_started = (ROOT / "docs/getting-started.md").read_text()
+        config = (ROOT / "mkdocs.yml").read_text()
+        disclaimer = (ROOT / "docs/disclaimer.md").read_text()
+        for phrase in ("not production-qualified", "at your own risk", "not guaranteed to be secure",
+                       "actively working", "MIT License", "applicable law"):
+            self.assertIn(phrase, disclaimer)
+        # No oversized sitewide warning banner repeated on every reference page.
+        self.assertNotIn("summon-preview-notice", template)
+        # Homepage: compact preview-status notice inline with the release row,
+        # linking to the full disclaimer.
+        self.assertIn("home-release", home)
+        self.assertIn("Experimental software", home)
+        self.assertIn('href="disclaimer.md"', home)
+        # Install-intent page: concise risk notice ahead of the install command,
+        # linking to the full disclaimer.
+        install_heading = getting_started.index("## Install the preview")
+        notice_position = getting_started.index("Experimental software — your responsibility")
+        self.assertLess(notice_position, install_heading)
+        self.assertIn("disclaimer.md", getting_started)
+        # Footer: exact catchphrase preserved, compact disclosure to the disclaimer.
+        self.assertIn("Powered by caffeine and questionable life choices.", config)
+        self.assertIn("docs/disclaimer/", config)
+        self.assertIn('class="summon-install-risk"', getting_started)
+        css = (ROOT / "docs/assets/wiki.css").read_text()
+        self.assertIn(".summon-install-risk .admonition.warning", css)
+        self.assertIn(".summon-preview-chip {\n  display: inline-flex;\n  flex-wrap: wrap;", css)
 
     def test_sitewide_catchphrase_and_analytics_are_configured_once(self):
         config = (ROOT / "mkdocs.yml").read_text()

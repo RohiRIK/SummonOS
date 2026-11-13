@@ -234,3 +234,97 @@ body:has(.summon-home) .md-content__button { display: none; }
   .home-path, .md-nav__link { transition: none; }
   .home-path:hover { transform: none; }
 }
+/* Keep the back-to-top button out of the content flow below the sticky header
+   (Material centers it under the header, where it overlaps page titles after scroll). */
+.md-top {
+  top: auto !important;
+  bottom: 1.6rem;
+  right: 1.6rem;
+  left: auto !important;
+  margin-left: 0 !important;
+  transform: none !important;
+}
+
+/* Compact preview status — homepage release row only. Never a page-wide banner. */
+.summon-preview-chip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--wiki-muted);
+  border: 1px solid var(--wiki-border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  line-height: 1.5;
+  max-width: 100%;
+  margin-left: 10px;
+  vertical-align: middle;
+}
+.summon-preview-chip .chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--wiki-accent);
+  flex: 0 0 6px;
+}
+.summon-preview-chip a {
+  color: var(--wiki-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  white-space: nowrap;
+}
+.summon-preview-chip a:hover {
+  color: var(--wiki-ink);
+}
+
+/* Install-intent risk notice: the only warning admonition on the site.
+   Clear without the oversized yellow emergency look. */
+.summon-install-risk .admonition.warning {
+  border: 1px solid var(--wiki-border);
+  border-left: 3px solid var(--wiki-accent);
+  background: var(--wiki-tint);
+  padding: 0;
+  overflow: hidden;
+}
+.summon-install-risk .admonition.warning > .admonition-title {
+  background: var(--wiki-tint);
+  color: var(--wiki-accent);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  text-transform: uppercase;
+  padding: 12px 16px;
+  margin: 0;
+  border-bottom: 1px solid var(--wiki-border);
+}
+.summon-install-risk .admonition.warning > .admonition-title::before {
+  display: none;
+}
+.summon-install-risk .admonition.warning > p:not(.admonition-title) {
+  margin: 0;
+  padding: 14px 16px;
+}
+
+@media (max-width: 600px) {
+  .summon-preview-chip {
+    display: flex;
+    width: fit-content;
+    margin: 8px 0 0;
+  }
+}
+
+/* Refined footer disclosure: compact, muted, catchphrase stays exactly as-is. */
+.summon-footer-disclosure {
+  font-size: 11px;
+  color: var(--wiki-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.summon-footer-disclosure:hover {
+  color: var(--wiki-accent);
+}

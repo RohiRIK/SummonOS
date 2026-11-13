@@ -7,6 +7,19 @@ tags: [documentation, history]
 
 # Docs update log
 
+## 2026-11-13
+* **Release 0.2.6 (version bump)**: The combined preparation branch (security, manual, site) merges in one PR and `VERSION` becomes 0.2.6. Commit hashes on `main` changed after the history rewrite that removed a work email; doc links were updated in #127.
+
+## 2026-11-12
+* **Design correction**: Replaced the repeated full-width warning with a compact experimental-status disclosure beside the homepage release row, a refined footer link and a scoped purple notice before installation. Nina selected the placement and visual hierarchy; full risk text and the caffeine catchphrase are unchanged.
+* **Website publication**: Added a site-wide experimental-software warning and [risk/responsibility disclaimer](disclaimer.md), linked before installation and in navigation/footer. Retained the caffeine catchphrase. Website publication is separate from app release and real-Mac acceptance.
+* **Preparation**: Combined security/manual/site candidate; installation, update and troubleshooting guides now explain required signed provenance and recent `gh`. Corrected CLI JSON-shape guidance, shared plugin routes and all nine project starters, with help/navigation regressions.
+* **New**: [Release preparation](release-candidate.md), [real-Mac checklist](mac-acceptance.md) and proposed [product direction](product-direction.md). Separate candidate source, packaged artifacts, real-Mac acceptance, preview publication and production qualification; no merge or publication performed.
+* **Complete**: Summon command reference now covers the full command catalog — added `task new|add|list|remove|run`, `plugins list|install|fix`, `status`, `path` and `hooks list|run`, and corrected the exit-code list (no `64`), the MCP tool list (11 tools), the `default execution`/`default repos`/`project repo`/`theme set`/`showcase` behavior, and the update-channel cache file. Source-checked against `CommandCatalog.swift`, `SummonPaths.swift`, `install.sh` and `install-state.py`.
+* **Configuration & state**: added `defaults/channel` and the full shared-files install-path fallback.
+* **Uninstall**: replaced the unsupported preflight step with the install-lock behavior from `install-state.py`; preservation guarantees re-verified against the receipt script.
+* **Getting started**: `Next` now cross-links `configuration.md` and `uninstall.md` so the manual completes the onboarding flow.
+
 ## 2026-11-11
 * **Update**: Added the owner's caffeine catchphrase to the shared site footer and Vercel Web Analytics
   for deployed builds; local documentation previews remain tracking-free by default.
@@ -22,6 +35,12 @@ tags: [documentation, history]
 * **New**: Strict wiki builds check local files, rendered links, heading anchors and assets.
   The read-only documentation workflow validates the site; Vercel publication targets the owner-selected
   `sumonos.rohi-lab.org` domain. Application releases are unchanged.
+* **New**: [Summon command reference](cli-reference.md), [configuration and state locations](configuration.md)
+  and [uninstall & data preservation](uninstall.md): the missing parts of the user manual, each written
+  against the command sources, `SummonPaths`, the installer and the install receipt instead of paraphrase.
+* **Fix**: the command catalog help now lists all nine `summon project new` starters; the macctl and Summon
+  READMEs report the current base version 0.2.5; `tools/docs-site.py` navigation exposes the new pages under
+  Get started and Use SummonOS → Summon.
 
 ## 2026-11-10
 * **Update**: [Runtime audit](plans/2026-11-08-runtime-audit.md) records native About/Activity captures, the real 13-report crash-burst alert/dismissal/search proof, fixture-home isolation and outstanding profiler, heap, displayed-frame and accessibility gates. Native input uses owned PID-targeted keys rather than global System Events keystrokes.

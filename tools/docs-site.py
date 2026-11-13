@@ -248,8 +248,12 @@ def navigation(mapping: dict[str, str]) -> list[dict]:
     nav.append({"Get started": chosen([
         ("docs/getting-started.md", "Installation & first steps"),
         ("docs/status.md", "Release & source status"),
+        ("docs/disclaimer.md", "Risk & responsibility"),
+        ("docs/mac-acceptance.md", "Mac acceptance checklist"),
         ("docs/install-ai.md", "Installation for agents"),
         ("README.md", "About SummonOS"),
+        ("docs/configuration.md", "Configuration & state"),
+        ("docs/uninstall.md", "Uninstall & data preservation"),
     ])})
     nav.append({"Use SummonOS": chosen([
         ("docs/features.md", "Feature reference"),
@@ -258,6 +262,7 @@ def navigation(mapping: dict[str, str]) -> list[dict]:
         ("plugins.md", "Apps & plugins"),
     ]) + [
         {"Summon": chosen([
+            ("docs/cli-reference.md", "Command reference"),
             ("incubator/summon/README.md", "App & CLI guide"),
             ("incubator/summon/CHANGELOG.md", "Changelog"),
             ("incubator/summon/THIRD_PARTY_NOTICES.md", "Third-party notices"),
@@ -269,6 +274,7 @@ def navigation(mapping: dict[str, str]) -> list[dict]:
     nav.append({"Build apps": chosen([
         ("docs/workflow.md", "App lifecycle"), ("docs/tools.md", "Workspace tools"),
         ("CONTRIBUTING.md", "Contributing"), ("docs/documentation.md", "Documentation website"),
+        ("docs/release-candidate.md", "Release preparation"),
     ]) + [{"Templates": templates}]})
     nav.append({"Knowledge base": [
         {"Architecture decisions": tree("docs/adr")},
@@ -277,6 +283,7 @@ def navigation(mapping: dict[str, str]) -> list[dict]:
             {"Mac UX research": tree("docs/ux-surfaces")},
         ]},
     ] + chosen([
+        ("docs/product-direction.md", "Product direction & roadmap"),
         ("docs/index.md", "Complete documentation index"),
         ("docs/log.md", "Documentation history"), ("SECURITY.md", "Report a vulnerability"),
     ]) + [page(name) for name in sorted(remaining)]})
