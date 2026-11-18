@@ -151,4 +151,30 @@ struct SoftwareUpdateTests {
         #expect(custom.withUpdates(count: 1).items.map(\.id) == ["update", "update.macos"])
         #expect(MenuTree.runsInApp("update") && !MenuTree.runsInApp("update.macos"))
     }
+
+    @Test func caskOutOfSyncWithItsAppIsRepairedByAForcedInstall() {
+        let brew = "/opt/homebrew/bin/brew"
+        let cask = SoftwareUpdate(source: .homebrew, name: "notion", current: "7.10.0", latest: "7.44.0",
+                                  command: [brew, "upgrade", "--cask", "notion"])
+        let fix = [brew, "install", "--cask", "--force", "notion"]
+        #expect(cask.recoveryCommand(output: "Error: notion: It seems there is already an App at '/opt/homebrew/Caskroom/notion/7.10.0/Notion.app'.") == fix)
+        #expect(cask.recoveryCommand(output: "Error: omniwm: It seems the App source '/Users/x/Applications/OmniWM.app' is not there.") == fix)
+        #expect(cask.recoveryCommand(output: "Error: Download failed") == nil)
+        let formula = SoftwareUpdate(source: .homebrew, name: "uv", current: "1", latest: "2", command: [brew, "upgrade", "uv"])
+        #expect(formula.recoveryCommand(output: "It seems there is already an App at") == nil)
+    }
+
+    @Test func uninstallUsesTheToolThatInstalledIt() {
+        let brew = "/opt/homebrew/bin/brew"
+        #expect(SoftwareUpdate(source: .homebrew, name: "notion", current: "", latest: "", command: [brew, "upgrade", "--cask", "notion"])
+            .uninstallCommand == [brew, "uninstall", "--cask", "notion"])
+        #expect(SoftwareUpdate(source: .homebrew, name: "uv", current: "", latest: "", command: [brew, "upgrade", "uv"])
+            .uninstallCommand == [brew, "uninstall", "uv"])
+        #expect(SoftwareUpdate(source: .bun, name: "pkg", current: "", latest: "", command: ["/b/bun", "add", "-g", "pkg@latest"])
+            .uninstallCommand == ["/b/bun", "remove", "-g", "pkg"])
+        #expect(SoftwareUpdate(source: .npm, name: "pkg", current: "", latest: "", command: ["/n/npm", "install", "-g", "pkg@latest"])
+            .uninstallCommand == ["/n/npm", "uninstall", "-g", "pkg"])
+        #expect(SoftwareUpdate(source: .agent, name: "Codex", current: "", latest: "", command: ["/n/npm", "install", "-g", "x"]).uninstallCommand == nil)
+        #expect(SoftwareUpdate(source: .macOS, name: "macOS", current: "", latest: "27.3", command: nil).uninstallCommand == nil)
+    }
 }

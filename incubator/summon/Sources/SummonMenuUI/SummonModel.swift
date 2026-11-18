@@ -443,7 +443,7 @@ public final class SummonModel {
         guard !stopped else { return }
         for update in list where update.command != nil {
             switch updateStates[update.id] {
-            case .queued, .running, .done: continue
+            case .queued, .running, .removing, .done: continue
             default: break
             }
             updateStates[update.id] = .queued
@@ -463,7 +463,9 @@ public final class SummonModel {
                     updateStates[update.id] = .done
                 } catch RunnerError.failed(_, _, let output) {
                     guard !Task.isCancelled, !stopped else { return }
-                    updateStates[update.id] = .failed(output)
+                    let state = await recover(update, output: output, run: run)
+                    guard !Task.isCancelled, !stopped else { return }
+                    updateStates[update.id] = state
                 } catch {
                     guard !Task.isCancelled, !stopped else { return }
                     updateStates[update.id] = .failed(String(describing: error))
@@ -471,6 +473,44 @@ public final class SummonModel {
                 loadMenu()
             }
             installTask = nil
+        }
+    }
+
+    /// A known failure with a known repair (`SoftwareUpdate.recoveryCommand`) is repaired once, without the agent.
+    private func recover(_ update: SoftwareUpdate, output: String, run: Runner) async -> UpdateRowState {
+        guard let fix = update.recoveryCommand(output: output), let tool = fix.first else { return .failed(output) }
+        do {
+            _ = try await run(tool, Array(fix.dropFirst()))
+            return .done
+        } catch {
+            return .failed(output + "\n\nSummon then tried `\(fix.dropFirst().joined(separator: " "))`:\n\(error)")
+        }
+    }
+
+    /// Uninstall… in the Updates window (after its confirmation). Waits for no queue: it refuses while updates run,
+    /// because brew and npm hold a lock.
+    public func uninstall(_ update: SoftwareUpdate) {
+        guard !stopped, let command = update.uninstallCommand, let tool = command.first else { return }
+        guard installTask == nil else {
+            lastError = "Wait for the running updates to finish, then uninstall \(update.name)."
+            return
+        }
+        updateStates[update.id] = .removing
+        let run = userPathRunner(Shell.live(timeout: 600))
+        Task {
+            do {
+                _ = try await run(tool, Array(command.dropFirst()))
+                guard !Task.isCancelled, !stopped else { return }
+                packageUpdates.removeAll { $0.id == update.id }
+                updateStates[update.id] = nil
+            } catch RunnerError.failed(_, _, let output) {
+                guard !Task.isCancelled, !stopped else { return }
+                updateStates[update.id] = .failed(output)
+            } catch {
+                guard !Task.isCancelled, !stopped else { return }
+                updateStates[update.id] = .failed(String(describing: error))
+            }
+            loadMenu()
         }
     }
 

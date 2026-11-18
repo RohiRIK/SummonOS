@@ -87,6 +87,26 @@ public struct SoftwareUpdate: Sendable, Equatable, Identifiable {
         """
     }
 
+    /// A cask whose Homebrew record no longer matches the app on disk (the app updated itself, or was moved or
+    /// deleted) fails `brew upgrade`; a forced install of the latest version repairs it. nil for other failures.
+    public func recoveryCommand(output: String) -> [String]? {
+        guard source == .homebrew, let command, command.contains("--cask"), let brew = command.first,
+              output.contains("It seems there is already an App at") || output.contains("It seems the App source")
+        else { return nil }
+        return [brew, "install", "--cask", "--force", name]
+    }
+
+    /// Removes the package the way it was installed. nil for Summon, macOS and agents (Settings › Agents owns those).
+    public var uninstallCommand: [String]? {
+        guard let command, let tool = command.first else { return nil }
+        switch source {
+        case .homebrew: return command.contains("--cask") ? [tool, "uninstall", "--cask", name] : [tool, "uninstall", name]
+        case .bun: return [tool, "remove", "-g", name]
+        case .npm: return [tool, "uninstall", "-g", name]
+        case .summon, .agent, .macOS: return nil
+        }
+    }
+
     /// Summon's own row: the release page is its "What's New".
     public static func summon(current: String, latest: String, tag: String) -> SoftwareUpdate {
         SoftwareUpdate(source: .summon, name: "Summon", current: current, latest: latest, command: nil,
@@ -217,6 +237,8 @@ public enum UpdateRowState: Sendable, Equatable {
     /// Waiting for the update before it: package managers take a lock, so installs run one at a time.
     case queued
     case running
+    /// Uninstall… is running; the row leaves the list when it succeeds.
+    case removing
     case done
     /// The command's output, for Show Details.
     case failed(String)

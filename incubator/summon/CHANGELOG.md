@@ -24,6 +24,13 @@ See [GitHub Releases](https://github.com/RohiRIK/SummonOS/releases) for the actu
 
 ## 0.2.6 (2026-11-13, version bumped; tag `v0.2.6` not yet pushed)
 
+### Updates window
+- Uninstall… on every Homebrew, bun and npm row removes the package with the tool that installed it, after a
+  confirmation that shows the exact command. Agents keep their own installer in Settings › Agents.
+- A cask whose Homebrew record no longer matches the app (the app updated itself, as Notion does, or was moved or
+  deleted) is repaired automatically with `brew install --cask --force <name>` instead of failing with
+  "It seems there is already an App at …" or "It seems the App source … is not there".
+
 ### Security
 - The downloaded installer and the CLI/app updater authenticate release provenance (GitHub build attestation)
   before unpacking, in addition to `SHA256SUMS`. A working GitHub CLI (`gh`) is now needed on that path.
