@@ -10,12 +10,15 @@ public struct UpdatesView: View {
 
     @Bindable var model: SummonModel
     @State private var details: Set<String> = []
+    @State private var pendingUninstall: SoftwareUpdate?
     @State private var wasAccessory = false
 
     public init(model: SummonModel) {
         self.model = model
     }
 
+    /// brew and npm take a lock: no uninstall while anything installs or uninstalls.
+    private var isBusy: Bool { model.updateStates.values.contains { $0 == .queued || $0 == .running || $0 == .removing } }
     private var commandUpdates: [SoftwareUpdate] { model.pendingUpdates.filter { $0.command != nil } }
 
     public var body: some View {
@@ -62,6 +65,13 @@ public struct UpdatesView: View {
             }
         }
         .summonTheme(model)
+        .confirmationDialog("Uninstall \(pendingUninstall?.name ?? "")?", isPresented: Binding(
+            get: { pendingUninstall != nil }, set: { if !$0 { pendingUninstall = nil } }
+        ), presenting: pendingUninstall) { update in
+            Button("Uninstall", role: .destructive) { model.uninstall(update) }
+        } message: { update in
+            Text("Runs `\((update.uninstallCommand ?? []).dropFirst().joined(separator: " "))`. Summon's checkpoints cannot undo it.")
+        }
         .onAppear {
             // An accessory app's window gets no Dock icon or ⌘Tab; become a regular app while it is open.
             wasAccessory = NSApp.activationPolicy() == .accessory
@@ -169,6 +179,11 @@ public struct UpdatesView: View {
                 ProgressView().controlSize(.small)
                 Text("Updating…").font(.subheadline).foregroundStyle(.secondary)
             }
+        case .removing:
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text("Uninstalling…").font(.subheadline).foregroundStyle(.secondary)
+            }
         case .done:
             Label("Updated", systemImage: "checkmark.circle.fill")
                 .font(.subheadline)
@@ -190,13 +205,25 @@ public struct UpdatesView: View {
                 } else {
                     Button("Retry") { model.install([update]) }
                 }
+                uninstallButton(update)
             }
         case nil:
-            if update.source == .macOS {
-                Button("Open Software Update") { model.update(update) }
-            } else if update.source != .summon {
-                Button("Update") { model.update(update) }
+            HStack(spacing: 8) {
+                uninstallButton(update)
+                if update.source == .macOS {
+                    Button("Open Software Update") { model.update(update) }
+                } else if update.source != .summon {
+                    Button("Update") { model.update(update) }
+                }
             }
+        }
+    }
+
+    @ViewBuilder private func uninstallButton(_ update: SoftwareUpdate) -> some View {
+        if update.uninstallCommand != nil {
+            Button("Uninstall…") { pendingUninstall = update }
+                .disabled(isBusy)
+                .help("Remove \(update.name) from this Mac")
         }
     }
 }
