@@ -17,7 +17,7 @@ macOS settings. It works with the agents you already use; it does not replace or
 **[Features](docs/features.md)** · **[Troubleshooting](docs/troubleshooting.md)** · **[Status](docs/status.md)**
 
 SummonOS is a preview, not a production-qualified recovery system. The latest numbered release checked for this
-documentation is **v0.2.5**, published as a prerelease on November 11, 2026; see [status and verification limits](docs/status.md).
+documentation is **v0.2.6**, published as a prerelease on November 18, 2026; see [status and verification limits](docs/status.md).
 
 ## What it does
 

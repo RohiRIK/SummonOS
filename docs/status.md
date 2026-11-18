@@ -8,13 +8,12 @@ tags: [status, releases, verification, roadmap]
 # Status and verification
 
 Published-feature baseline reviewed on **2026-11-11**, against source through **[`18c7688`](https://github.com/RohiRIK/SummonOS/commit/18c7688)**.
-Candidate integration and preparation reviewed on **2026-11-12**; see the separate unreleased section below.
-`VERSION` is **0.2.6** (not tagged yet; v0.2.5 is the newest release). A marketing version identifies a release family; it does not prove which commit an
+`VERSION` is **0.2.6**. A marketing version identifies a release family; it does not prove which commit an
 installed build contains.
 
 ## Published preview
 
-GitHub release metadata checked on November 11 lists **v0.2.5**, published **2026-11-11**, as the newest
+GitHub release metadata checked on November 18 lists **v0.2.6**, published **2026-11-18**, as the newest
 numbered release. It is marked **prerelease**, not production-supported. The separate `edge` release can lag
 numbered releases; inspect its actual version rather than assuming “edge” means this checkout.
 
@@ -26,6 +25,7 @@ numbered releases; inspect its actual version rather than assuming “edge” me
 | 0.2.3 | Siri, Shortcuts and Spotlight actions | [Release](https://github.com/RohiRIK/SummonOS/releases/tag/v0.2.3) |
 | 0.2.4 | Lower idle work in Summon and its templates | [Release](https://github.com/RohiRIK/SummonOS/releases/tag/v0.2.4) |
 | 0.2.5 | Runtime hardening, build identity, My Apps inventory and theme accents (#124) | [Release](https://github.com/RohiRIK/SummonOS/releases/tag/v0.2.5) |
+| 0.2.6 | Ask Agent troubleshooting, release attestation checks, Updates window Uninstall and cask repair (#126–#130) | [Release](https://github.com/RohiRIK/SummonOS/releases/tag/v0.2.6) |
 
 See the [changelog](../incubator/summon/CHANGELOG.md) for earlier releases and detailed changes.
 The `stable` channel name distinguishes numbered releases from rolling `edge`; it does not remove preview
@@ -48,16 +48,16 @@ original branch commits.
 Acceptance gates still open after v0.2.5: displayed-frame hitches, live-heap growth, VoiceOver and Reduce
 Transparency. See the [runtime audit](plans/2026-11-08-runtime-audit.md).
 
-## Unreleased integration candidate
+## Shipped in v0.2.6
 
-The preparation branch combines release-provenance verification, corrected MCP safety hints, the extended
-manual, website back-to-top positioning and complete starter help. These are source changes, not features
-retroactively present in v0.2.5. Downloaded installation/update in this candidate requires recent `gh`;
-missing or invalid attestation stops before unpacking. See [distribution trust](security-model.md#distribution).
+v0.2.6 (2026-11-18) adds release-provenance verification, corrected MCP safety hints, the extended manual and
+complete starter help (#128); Ask Agent launch-failure explanations (#126); and the Updates window's Uninstall…
+plus automatic repair of casks out of sync with their app (#130). Downloaded installation/update requires recent
+`gh`; missing or invalid attestation stops before unpacking. See [distribution trust](security-model.md#distribution).
 
 The [release runbook](release-candidate.md), [real-Mac checklist](mac-acceptance.md) and proposed
 [product direction](product-direction.md) distinguish local checks, combined macOS acceptance, website
-publication and app release. No new binary, merge or deployment is claimed by these pages.
+publication and app release.
 
 ## Verification is narrower than feature availability
 

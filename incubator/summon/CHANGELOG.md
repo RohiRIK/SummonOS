@@ -6,7 +6,7 @@ that branch's changes are published under the corresponding release tag.
 
 ## Release status
 
-The latest numbered release is **`v0.2.5` (2026-11-11)**. The numbered releases are published previews/prereleases,
+The latest numbered release is **`v0.2.6` (2026-11-18)**. The numbered releases are published previews/prereleases,
 including those selected by the **Stable** channel. **Edge** selects the published rolling `edge` prerelease;
 its green-main workflow can publish new artifacts, but Edge is not a promise that this branch is available.
 See [GitHub Releases](https://github.com/RohiRIK/SummonOS/releases) for the actual downloadable artifacts.
@@ -21,8 +21,9 @@ See [GitHub Releases](https://github.com/RohiRIK/SummonOS/releases) for the actu
 | `v0.2.3` | 2026-10-28 | #117–#118 |
 | `v0.2.4` | 2026-10-28 | #120–#121, through `d1d8cf7` |
 | `v0.2.5` | 2026-11-11 | #124, `018757b` |
+| `v0.2.6` | 2026-11-18 | #126–#130, `ea6ef54` |
 
-## 0.2.6 (2026-11-13, version bumped; tag `v0.2.6` not yet pushed)
+## 0.2.6 (2026-11-18, v0.2.6)
 
 ### Updates window
 - Uninstall… on every Homebrew, bun and npm row removes the package with the tool that installed it, after a
