@@ -23,6 +23,7 @@
 !/mkdocs.yml
 !/requirements-docs.txt
 !/vercel.json
+!/glama.json
 
 # Local Vercel credentials/linkage and generated static output stay untracked.
 /.vercel/
