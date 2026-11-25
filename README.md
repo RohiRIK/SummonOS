@@ -6,6 +6,7 @@
   <a href="https://github.com/RohiRIK/SummonOS/actions/workflows/swift.yml"><img alt="CI" src="https://github.com/RohiRIK/SummonOS/actions/workflows/swift.yml/badge.svg"></a>
   <a href="https://github.com/RohiRIK/SummonOS/releases"><img alt="Releases" src="https://img.shields.io/github/v/release/RohiRIK/SummonOS?include_prereleases&sort=semver&label=preview"></a>
   <img alt="Swift 6 | macOS 15+" src="docs/assets/pill-swift-macos.svg">
+  <a href="https://glama.ai/mcp/servers/RohiRIK/SummonOS"><img alt="RohiRIK/SummonOS MCP server" src="https://glama.ai/mcp/servers/RohiRIK/SummonOS/badges/score.svg"></a>
 </p>
 
 # SummonOS: the agentic layer for the Mac
